@@ -2,12 +2,13 @@ import argparse
 from pathlib import Path
 from typing import Dict, Any
 
-from db import init_db, insert_document, insert_chunks
+from db import init_db, insert_document, add_to_fts, insert_ocr_quality
 from chroma_client import add_chunks as chroma_add_chunks
 from extract_pdf import extract_pdf_text
 from extract_excel import extract_excel_text
 from validation import assess_quality, is_acceptable
 from chunking import chunk_text
+from uuid import uuid4
 
 SUPPORTED_TYPES = {'.pdf': 'pdf', '.txt': 'txt', '.xlsx': 'excel', '.xls': 'excel'}
 
@@ -41,12 +42,25 @@ def pipeline(file_path: str) -> Dict[str, Any]:
         return {'status': 'rejected', 'quality': quality}
     chunks = chunk_text(text)
     metadata = {**extraction, 'quality': quality, 'chunk_count': len(chunks)}
-    doc_id = insert_document(source_path=file_path, file_type=file_type, metadata=metadata)
-    embedding_ids = chroma_add_chunks(doc_id, chunks)
-    insert_chunks(doc_id, chunks, embedding_ids)
+    # generate stable doc_id (UUID) and insert document record
+    doc_uuid = str(uuid4())
+    doc_numeric_id = insert_document(doc_uuid, file_path, file_type)
+
+    # add chunks to FTS (docs_fts) and to Chroma
+    for ch in chunks:
+        add_to_fts(doc_uuid, ch)
+
+    embedding_ids = chroma_add_chunks(doc_numeric_id, chunks)
+
+    # if OCR was used, add a flag in ocr_quality for review
+    if extraction.get('used_ocr'):
+        # use a placeholder quality_score; downstream processes can update with real scores
+        insert_ocr_quality(doc_uuid, None, 0.0, 'tesseract/typhoon', status='flagged', notes='OCR used - needs review')
+
     return {
         'status': 'ingested',
-        'document_id': doc_id,
+        'document_id': doc_uuid,
+        'numeric_id': doc_numeric_id,
         'chunks': len(chunks),
         'quality': quality,
         'embedding_ids_count': len(embedding_ids)
