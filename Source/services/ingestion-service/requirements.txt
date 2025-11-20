@@ -1,0 +1,8 @@
+chromadb
+pdfminer.six
+pdf2image
+pytesseract
+Pillow
+pandas
+openpyxl
+langdetect
