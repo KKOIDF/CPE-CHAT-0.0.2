@@ -1,249 +1,95 @@
 import sqlite3
-import json
 from pathlib import Path
-from typing import Optional, List, Dict, Any, Iterable
+from typing import Iterable, Dict, Any, List
 
-DB_PATH = Path(__file__).resolve().parent.parent / 'data' / 'db' / 'ingestion.sqlite'
+from .config import SQLITE_PATH
 
-SCHEMA = [
-    "PRAGMA journal_mode=WAL;",
-    "CREATE TABLE IF NOT EXISTS documents (\n"
-    "  id INTEGER PRIMARY KEY AUTOINCREMENT,\n"
-    "  source_path TEXT NOT NULL,\n"
-    "  file_type TEXT NOT NULL,\n"
-    "  ingest_time DATETIME DEFAULT CURRENT_TIMESTAMP,\n"
-    "  metadata_json TEXT\n"
-    ");",
-    # FTS5 virtual table for full text search over chunks
-    "CREATE VIRTUAL TABLE IF NOT EXISTS chunks_fts USING fts5(\n"
-    "  content,\n"
-    "  document_id UNINDEXED,\n"
-    "  chunk_index UNINDEXED,\n"
-    "  tokenize = 'porter'\n"
-    ");",
-    # Mapping table for chunk metadata (embedding id etc.)
-    "CREATE TABLE IF NOT EXISTS chunks_meta (\n"
-    "  id INTEGER PRIMARY KEY AUTOINCREMENT,\n"
-    "  document_id INTEGER NOT NULL,\n"
-    "  chunk_index INTEGER NOT NULL,\n"
-    "  embedding_id TEXT,\n"
-    "  FOREIGN KEY(document_id) REFERENCES documents(id) ON DELETE CASCADE\n"
-    ");",
-    "CREATE INDEX IF NOT EXISTS idx_chunks_meta_doc ON chunks_meta(document_id);"
-]
+SCHEMA = """
+CREATE TABLE IF NOT EXISTS documents (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  source TEXT,
+  path TEXT,
+  page_start INTEGER,
+  page_end INTEGER,
+  owner TEXT,
+  sensitivity TEXT,
+  updated_at INTEGER,
+  tokens_est INTEGER,
+  text TEXT
+);
+
+CREATE VIRTUAL TABLE IF NOT EXISTS documents_fts USING fts5(
+  text,
+  source,
+  owner,
+  sensitivity,
+  content='documents', content_rowid='id'
+);
+"""
+
+TRIGGERS = """
+CREATE TRIGGER IF NOT EXISTS documents_ai AFTER INSERT ON documents BEGIN
+  INSERT INTO documents_fts(rowid, text, source, owner, sensitivity)
+  VALUES (new.id, new.text, new.source, new.owner, new.sensitivity);
+END;
+CREATE TRIGGER IF NOT EXISTS documents_ad AFTER DELETE ON documents BEGIN
+  INSERT INTO documents_fts(documents_fts, rowid, text, source, owner, sensitivity)
+  VALUES('delete', old.id, old.text, old.source, old.owner, old.sensitivity);
+END;
+CREATE TRIGGER IF NOT EXISTS documents_au AFTER UPDATE ON documents BEGIN
+  INSERT INTO documents_fts(documents_fts, rowid, text, source, owner, sensitivity)
+  VALUES('delete', old.id, old.text, old.source, old.owner, old.sensitivity);
+  INSERT INTO documents_fts(rowid, text, source, owner, sensitivity)
+  VALUES (new.id, new.text, new.source, new.owner, new.sensitivity);
+END;
+"""
 
 
-def get_conn() -> sqlite3.Connection:
-    DB_PATH.parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(DB_PATH)
-    conn.execute("PRAGMA foreign_keys=ON;")
+def get_conn():
+    SQLITE_PATH.parent.mkdir(parents=True, exist_ok=True)
+    conn = sqlite3.connect(str(SQLITE_PATH))
     return conn
 
 
-def init_db() -> None:
+def init_db():
     conn = get_conn()
-    try:
-        for stmt in SCHEMA:
-            conn.execute(stmt)
-        conn.commit()
-    finally:
-        conn.close()
+    cur = conn.cursor()
+    for stmt in SCHEMA.strip().split(';'):
+        s = stmt.strip()
+        if s:
+            cur.execute(s)
+    for stmt in TRIGGERS.strip().split(';'):
+        s = stmt.strip()
+        if s:
+            cur.execute(s)
+    conn.commit()
+    conn.close()
 
 
-def insert_document(source_path: str, file_type: str, metadata: Optional[Dict[str, Any]] = None) -> int:
+def insert_chunks(chunks: Iterable[Dict[str, Any]]):
     conn = get_conn()
-    try:
-        cur = conn.cursor()
-        cur.execute(
-            "INSERT INTO documents(source_path, file_type, metadata_json) VALUES (?, ?, ?)",
-            (source_path, file_type, json.dumps(metadata or {}))
-        )
-        doc_id = cur.lastrowid
-        conn.commit()
-        return doc_id
-    finally:
-        conn.close()
+    cur = conn.cursor()
+    rows = [(
+        c.get('source'), c.get('path'), c.get('page_start'), c.get('page_end'),
+        c.get('owner'), c.get('sensitivity'), c.get('updated_at'), c.get('tokens_est'), c.get('text')
+    ) for c in chunks]
+    cur.executemany("""
+        INSERT INTO documents(source,path,page_start,page_end,owner,sensitivity,updated_at,tokens_est,text)
+        VALUES (?,?,?,?,?,?,?,?,?)
+    """, rows)
+    conn.commit()
+    conn.close()
 
 
-def insert_chunks(document_id: int, chunks: Iterable[str], embedding_ids: Optional[List[str]] = None) -> None:
+def keyword_search(query: str, limit: int = 10) -> List[Dict[str, Any]]:
     conn = get_conn()
-    try:
-        cur = conn.cursor()
-        for idx, chunk in enumerate(chunks):
-            cur.execute(
-                "INSERT INTO chunks_fts(content, document_id, chunk_index) VALUES (?, ?, ?)",
-                (chunk, document_id, idx)
-            )
-            emb_id = embedding_ids[idx] if embedding_ids and idx < len(embedding_ids) else None
-            cur.execute(
-                "INSERT INTO chunks_meta(document_id, chunk_index, embedding_id) VALUES (?, ?, ?)",
-                (document_id, idx, emb_id)
-            )
-        conn.commit()
-    finally:
-        conn.close()
-
-
-def search_fulltext(query: str, limit: int = 10) -> List[Dict[str, Any]]:
-    conn = get_conn()
-    try:
-        cur = conn.cursor()
-        cur.execute(
-            "SELECT rowid, content, document_id, chunk_index FROM chunks_fts WHERE chunks_fts MATCH ? LIMIT ?",
-            (query, limit)
-        )
-        rows = cur.fetchall()
-        return [
-            {"rowid": r[0], "content": r[1], "document_id": r[2], "chunk_index": r[3]} for r in rows
-        ]
-    finally:
-        conn.close()
-
-
-def get_document(doc_id: int) -> Optional[Dict[str, Any]]:
-    conn = get_conn()
-    try:
-        cur = conn.cursor()
-        cur.execute("SELECT id, source_path, file_type, ingest_time, metadata_json FROM documents WHERE id = ?", (doc_id,))
-        row = cur.fetchone()
-        import sqlite3
-        import json
-        from pathlib import Path
-        from typing import Optional, List, Dict, Any
-        from datetime import datetime
-        from uuid import uuid4
-
-        DB_PATH = Path(__file__).resolve().parent.parent / 'data' / 'db' / 'metadata.db'
-
-        SCHEMA = [
-            "PRAGMA journal_mode=WAL;",
-            "CREATE TABLE IF NOT EXISTS documents (\n"
-            "  id INTEGER PRIMARY KEY,\n"
-            "  doc_id TEXT UNIQUE,\n"
-            "  file_path TEXT,\n"
-            "  file_type TEXT,\n"
-            "  page_num INTEGER,\n"
-            "  chunk_id INTEGER,\n"
-            "  created_at DATETIME DEFAULT CURRENT_TIMESTAMP\n"
-            ");",
-            "CREATE TABLE IF NOT EXISTS ocr_quality (\n"
-            "  id INTEGER PRIMARY KEY,\n"
-            "  doc_id TEXT,\n"
-            "  page_num INTEGER,\n"
-            "  quality_score REAL,\n"
-            "  ocr_engine TEXT,\n"
-            "  status TEXT,\n"
-            "  notes TEXT\n"
-            ");",
-            "CREATE VIRTUAL TABLE IF NOT EXISTS docs_fts USING fts5(\n"
-            "  content,\n"
-            "  doc_id UNINDEXED\n"
-            ");",
-            "CREATE INDEX IF NOT EXISTS idx_documents_docid ON documents(doc_id);",
-        ]
-
-
-        def get_conn() -> sqlite3.Connection:
-            DB_PATH.parent.mkdir(parents=True, exist_ok=True)
-            conn = sqlite3.connect(str(DB_PATH))
-            conn.execute("PRAGMA foreign_keys=ON;")
-            return conn
-
-
-        def init_db() -> None:
-            conn = get_conn()
-            try:
-                for stmt in SCHEMA:
-                    conn.execute(stmt)
-                conn.commit()
-            finally:
-                conn.close()
-
-
-        def insert_document(doc_id: Optional[str], file_path: str, file_type: str, page_num: Optional[int] = None, chunk_id: Optional[int] = None) -> int:
-            """Insert a document record. Returns the numeric id."""
-            conn = get_conn()
-            try:
-                cur = conn.cursor()
-                if not doc_id:
-                    doc_id = str(uuid4())
-                cur.execute(
-                    "INSERT OR IGNORE INTO documents(doc_id, file_path, file_type, page_num, chunk_id) VALUES (?, ?, ?, ?, ?)",
-                    (doc_id, file_path, file_type, page_num, chunk_id)
-                )
-                # fetch id
-                cur.execute("SELECT id FROM documents WHERE doc_id = ?", (doc_id,))
-                row = cur.fetchone()
-                if row:
-                    doc_numeric_id = row[0]
-                else:
-                    doc_numeric_id = cur.lastrowid
-                conn.commit()
-                return doc_numeric_id
-            finally:
-                conn.close()
-
-
-        def add_to_fts(doc_id: str, content: str) -> int:
-            """Add a content blob to the FTS table tied to doc_id. Returns rowid."""
-            conn = get_conn()
-            try:
-                cur = conn.cursor()
-                cur.execute("INSERT INTO docs_fts(content, doc_id) VALUES (?, ?)", (content, doc_id))
-                rowid = cur.lastrowid
-                conn.commit()
-                return rowid
-            finally:
-                conn.close()
-
-
-        def insert_ocr_quality(doc_id: str, page_num: Optional[int], quality_score: float, ocr_engine: str, status: str = 'ok', notes: Optional[str] = None) -> int:
-            conn = get_conn()
-            try:
-                cur = conn.cursor()
-                cur.execute(
-                    "INSERT INTO ocr_quality(doc_id, page_num, quality_score, ocr_engine, status, notes) VALUES (?, ?, ?, ?, ?, ?)",
-                    (doc_id, page_num, quality_score, ocr_engine, status, notes)
-                )
-                rowid = cur.lastrowid
-                conn.commit()
-                return rowid
-            finally:
-                conn.close()
-
-
-        def search_fts(query: str, limit: int = 10) -> List[Dict[str, Any]]:
-            conn = get_conn()
-            try:
-                cur = conn.cursor()
-                cur.execute("SELECT rowid, content, doc_id FROM docs_fts WHERE docs_fts MATCH ? LIMIT ?", (query, limit))
-                rows = cur.fetchall()
-                return [{"rowid": r[0], "content": r[1], "doc_id": r[2]} for r in rows]
-            finally:
-                conn.close()
-
-
-        def get_document_by_doc_id(doc_id: str) -> Optional[Dict[str, Any]]:
-            conn = get_conn()
-            try:
-                cur = conn.cursor()
-                cur.execute("SELECT id, doc_id, file_path, file_type, page_num, chunk_id, created_at FROM documents WHERE doc_id = ?", (doc_id,))
-                r = cur.fetchone()
-                if not r:
-                    return None
-                return {
-                    "id": r[0],
-                    "doc_id": r[1],
-                    "file_path": r[2],
-                    "file_type": r[3],
-                    "page_num": r[4],
-                    "chunk_id": r[5],
-                    "created_at": r[6]
-                }
-            finally:
-                conn.close()
-
-
-        if __name__ == "__main__":
-            init_db()
-            print(f"Initialized metadata DB at {DB_PATH}")
+    cur = conn.cursor()
+    cur.execute("""
+        SELECT d.id, d.source, d.path, d.page_start, d.page_end, d.owner, d.sensitivity, d.updated_at, d.tokens_est, d.text
+        FROM documents_fts f JOIN documents d ON f.rowid = d.id
+        WHERE documents_fts MATCH ? ORDER BY rank LIMIT ?
+    """, (query, limit))
+    cols = [c[0] for c in cur.description]
+    out = [dict(zip(cols, row)) for row in cur.fetchall()]
+    conn.close()
+    return out

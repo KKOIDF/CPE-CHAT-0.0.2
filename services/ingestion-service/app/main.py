@@ -1,78 +1,62 @@
 import argparse
+import json
 from pathlib import Path
-from typing import Dict, Any
+from typing import List
 
-from db import init_db, insert_document, add_to_fts, insert_ocr_quality
-from chroma_client import add_chunks as chroma_add_chunks
-from extract_pdf import extract_pdf_text
-from extract_excel import extract_excel_text
-from validation import assess_quality, is_acceptable
-from chunking import chunk_text
-from uuid import uuid4
-
-SUPPORTED_TYPES = {'.pdf': 'pdf', '.txt': 'txt', '.xlsx': 'excel', '.xls': 'excel'}
+from .ocr_pipeline import ingest_pdf, ingest_excel, write_jsonl
+from .chunking import paragraphs_from_records, make_chunks
+from .db import init_db, insert_chunks
+from .chroma_client import upsert_chunks
 
 
-def read_txt(path: str) -> str:
-    return Path(path).read_text(encoding='utf-8', errors='ignore')
+def gather_files(input_dir: str) -> List[Path]:
+    base = Path(input_dir)
+    pdfs = list(base.rglob('*.pdf'))
+    excs = []
+    for patt in ['*.xlsx', '*.xls', '*.csv', '*.tsv']:
+        excs.extend(base.rglob(patt))
+    return sorted(set(pdfs + excs))
 
 
-def extract(path: str, file_type: str) -> Dict[str, Any]:
-    if file_type == 'pdf':
-        text, used_ocr = extract_pdf_text(path)
-        return {'text': text, 'used_ocr': used_ocr}
-    if file_type == 'excel':
-        text, sheet_count = extract_excel_text(path)
-        return {'text': text, 'sheet_count': sheet_count}
-    if file_type == 'txt':
-        return {'text': read_txt(path)}
-    raise ValueError(f"Unsupported file type: {file_type}")
+def process_file(fp: Path) -> List[dict]:
+    if fp.suffix.lower() == '.pdf':
+        return ingest_pdf(str(fp))
+    if fp.suffix.lower() in ['.xlsx', '.xls', '.csv', '.tsv']:
+        return ingest_excel(str(fp))
+    return []
 
 
-def pipeline(file_path: str) -> Dict[str, Any]:
-    init_db()
-    ext = Path(file_path).suffix.lower()
-    if ext not in SUPPORTED_TYPES:
-        raise ValueError(f"Extension {ext} not supported")
-    file_type = SUPPORTED_TYPES[ext]
-    extraction = extract(file_path, file_type)
-    text = extraction['text']
-    quality = assess_quality(text)
-    if not is_acceptable(quality):
-        return {'status': 'rejected', 'quality': quality}
-    chunks = chunk_text(text)
-    metadata = {**extraction, 'quality': quality, 'chunk_count': len(chunks)}
-    # generate stable doc_id (UUID) and insert document record
-    doc_uuid = str(uuid4())
-    doc_numeric_id = insert_document(doc_uuid, file_path, file_type)
+def run_ingest(input_dir: str, jsonl_out: str, chunk_out: str, store: bool = True, embed: bool = True):
+    files = gather_files(input_dir)
+    all_records: List[dict] = []
+    for f in files:
+        recs = process_file(f)
+        all_records.extend(recs)
+    write_jsonl(all_records, jsonl_out)
 
-    # add chunks to FTS (docs_fts) and to Chroma
-    for ch in chunks:
-        add_to_fts(doc_uuid, ch)
+    paragraphs = paragraphs_from_records(all_records)
+    chunks = make_chunks(paragraphs, source_path=input_dir)
 
-    embedding_ids = chroma_add_chunks(doc_numeric_id, chunks)
+    write_jsonl(chunks, chunk_out)
 
-    # if OCR was used, add a flag in ocr_quality for review
-    if extraction.get('used_ocr'):
-        # use a placeholder quality_score; downstream processes can update with real scores
-        insert_ocr_quality(doc_uuid, None, 0.0, 'tesseract/typhoon', status='flagged', notes='OCR used - needs review')
+    if store:
+        init_db()
+        insert_chunks(chunks)
+    if embed:
+        upsert_chunks(chunks)
 
-    return {
-        'status': 'ingested',
-        'document_id': doc_uuid,
-        'numeric_id': doc_numeric_id,
-        'chunks': len(chunks),
-        'quality': quality,
-        'embedding_ids_count': len(embedding_ids)
-    }
+    print(f"Ingested {len(files)} file(s), {len(all_records)} page/sheet records, {len(chunks)} chunks.")
 
 
 def cli():
-    p = argparse.ArgumentParser(description='Ingest a document into SQLite + Chroma')
-    p.add_argument('path', help='Path to file (.pdf, .txt, .xlsx)')
+    p = argparse.ArgumentParser(description='Ingestion Service CLI')
+    p.add_argument('--input', required=True, help='Input directory containing PDF/Excel files')
+    p.add_argument('--records-jsonl', default='data/db/records.jsonl')
+    p.add_argument('--chunks-jsonl', default='data/db/chunks.jsonl')
+    p.add_argument('--no-store', action='store_true')
+    p.add_argument('--no-embed', action='store_true')
     args = p.parse_args()
-    res = pipeline(args.path)
-    print(res)
+    run_ingest(args.input, args.records_jsonl, args.chunks_jsonl, store=not args.no_store, embed=not args.no_embed)
 
 if __name__ == '__main__':
     cli()

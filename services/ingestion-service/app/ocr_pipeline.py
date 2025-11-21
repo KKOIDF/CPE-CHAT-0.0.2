@@ -1,31 +1,34 @@
 from pathlib import Path
-from typing import List
-from pdf2image import convert_from_path
-import pytesseract
-from PIL import Image
+from typing import List, Dict
+import json
 
-# Placeholder for Typhoon OCR integration
-def typhoon_ocr_image(image: Image.Image) -> str:
-    # TODO: integrate Typhoon OCR API
-    return ""
+from .extract_pdf import extract_pages_with_fallback, extract_pdf_full
+from .extract_excel import extract_excel_to_records
+from .utils import split_paragraphs_smart
 
 
-def ocr_pdf(pdf_path: str, use_typhoon: bool = False, dpi: int = 200) -> str:
-    pages = convert_from_path(pdf_path, dpi=dpi)
-    texts: List[str] = []
-    for img in pages:
-        if use_typhoon:
-            t_text = typhoon_ocr_image(img)
-            if t_text.strip():
-                texts.append(t_text)
-                continue
-        text = pytesseract.image_to_string(img)
-        texts.append(text)
-    return "\n".join(texts)
+def ingest_pdf(pdf_path: str) -> List[Dict]:
+    pages = extract_pages_with_fallback(pdf_path)
+    records = []
+    for i, ptxt in enumerate(pages, start=1):
+        records.append({
+            'source': str(Path(pdf_path).resolve()),
+            'page_no': i,
+            'method': 'pdf',
+            'text': ptxt,
+            'paragraphs': split_paragraphs_smart(ptxt),
+        })
+    return records
 
-if __name__ == "__main__":
-    import sys
-    if len(sys.argv) < 2:
-        print("Usage: python ocr_pipeline.py <pdf_path>")
-    else:
-        print(ocr_pdf(sys.argv[1])[:1000])
+
+def ingest_excel(path: str) -> List[Dict]:
+    return extract_excel_to_records(path)
+
+
+def write_jsonl(records: List[Dict], out_path: str) -> str:
+    p = Path(out_path)
+    p.parent.mkdir(parents=True, exist_ok=True)
+    with p.open('w', encoding='utf-8') as f:
+        for r in records:
+            f.write(json.dumps(r, ensure_ascii=False) + '\n')
+    return str(p)

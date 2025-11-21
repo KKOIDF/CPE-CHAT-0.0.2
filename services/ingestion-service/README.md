@@ -1,62 +1,86 @@
-# Ingestion Service
+# Ingestion Service (OCR + Chunk + Store)
 
-Python service to ingest PDF / TXT / Excel files, perform OCR (Tesseract, placeholder for Typhoon OCR), validate text quality, chunk content, store metadata and full text in SQLite (with FTS5) and semantic embeddings in ChromaDB.
+## Overview
+Python service for batch ingestion of PDF and Excel/CSV documents:
+- Extract text (PyMuPDF) with OCR fallback (pdf2image + Tesseract)
+- Thai/English mixed handling + basic normalization
+- Sheet ingestion for tabular files
+- Quality-based OCR decisions (length + signal score)
+- Paragraph + sentence aware chunking (token target 400–800 with overlap)
+- Persist chunks in SQLite (FTS5) for keyword search
+- Store embeddings & metadata in ChromaDB for semantic search
 
-## Workflow
-1. Detect file type by extension.
-2. Extract text:
-   - PDF: Try native extraction (pdfminer). If low text ratio, run OCR (pdf2image + pytesseract). Typhoon OCR can be integrated later.
-   - Excel: Flatten sheets to CSV-like text.
-   - TXT: Direct read.
-3. Validate quality (length, alpha ratio, language if possible).
-4. Chunk text into sentence-based segments.
-5. Insert document + chunk metadata into SQLite (`documents`, `chunks_fts`, `chunks_meta`).
-6. Add chunks to ChromaDB collection for semantic search; record embedding IDs.
-
-## Directory Structure
+## Directory Layout
 ```
 services/ingestion-service/
-  app/
-    main.py
-    db.py
-    chroma_client.py
-    extract_pdf.py
-    ocr_pipeline.py
-    extract_excel.py
-    validation.py
-    chunking.py
+  app/              # Source code
   data/
-    raw_files/    # place source files here (mount in Docker)
-    text/         # optional for intermediate saved texts
-    db/           # SQLite database file
-    chroma/       # ChromaDB persistence directory
-  requirements.txt
-  Dockerfile
+    raw_files/      # (optional staging for uploads)
+    text/           # (optional plain text outputs)
+    db/             # SQLite + jsonl outputs
+    chroma/         # Chroma persistent storage
 ```
 
-## Running Locally
-Install system deps (Tesseract, Poppler) then Python requirements:
+## Quick Start (Local)
 ```bash
+python -m venv .venv
+source .venv/bin/activate  # Windows: .venv\\Scripts\\activate
 pip install -r requirements.txt
-python app/main.py path/to/file.pdf
+python -m app.main --input /path/to/input_dir
 ```
+Generated:
+- `data/db/records.jsonl` per page/sheet
+- `data/db/chunks.jsonl` chunk objects
+- SQLite file `data/db/ingestion.db` with FTS5 (table `documents`)
+- Chroma persistent collection under `data/chroma`
 
-## Docker Usage
-Build:
+## Docker
 ```bash
 docker build -t ingestion-service .
+# Example: mount host input directory
+docker run --rm -v /absolute/path/input:/input ingestion-service --input /input
 ```
-Run (mount host raw files directory):
-```bash
-docker run --rm -v "$(pwd)/data/raw_files:/app/data/raw_files" ingestion-service /app/data/raw_files/your.pdf
+
+## Environment Variables
+| Variable | Purpose | Default |
+|----------|---------|---------|
+| OCR_LANG | Base OCR language | tha |
+| OCR_DPI | OCR image DPI | 450 |
+| MIN_QUALITY_SCORE | Score threshold for OCR fallback | 0.2 |
+| MIN_LENGTH | Min length for MuPDF accept | 50 |
+| CHUNK_MIN_TOKENS | Lower token target | 400 |
+| CHUNK_MAX_TOKENS | Upper token target | 800 |
+| CHUNK_OVERLAP_RATIO | Overlap ratio for tail carry | 0.12 |
+| EMBEDDING_MODEL | SentenceTransformer model | BAAI/bge-m3 |
+| EMBEDDING_API_BASE | External embedding API base | (unset) |
+| EMBEDDING_API_KEY | Embedding API key | (unset) |
+| POPPLER_PATH | Poppler bin directory (Windows) | (unset) |
+| TESSERACT_PATH | Tesseract binary path if not on PATH | (unset) |
+
+## Extending
+- Add Typhoon OCR: implement new function in `extract_pdf.py` and select based on env.
+- Replace embedding with Typhoon/LLaMA: modify `_embed_texts` in `chroma_client.py` to call external service.
+- Add API layer: create FastAPI app wrapping `run_ingest` for remote triggering.
+
+## Keyword Search
+```python
+from app.db import keyword_search
+print(keyword_search('หลักเกณฑ์', limit=5))
+```
+
+## Semantic Search
+```python
+from app.chroma_client import semantic_search
+print(semantic_search('หลักเกณฑ์การรับสมัคร', n_results=3))
 ```
 
 ## Notes
-- Typhoon / LLaMA embedding & OCR integration: replace placeholder in `ocr_pipeline.py` and swap Chroma default embedding with custom embeddings.
-- Adjust chunk sizes in `chunking.py` as needed for downstream RAG context window.
-- SQLite FTS5 search available via `search_fulltext` in `db.py`.
+- FTS query syntax: use simple terms or phrase quotes.
+- Chroma stores normalized embeddings (if model supports). Dummy hash embedding used if no model/API available.
+- Token estimation heuristic (Thai ~4 chars/token) guides chunk size only; adjust if needed.
 
 ## Next Steps
-- Add FastAPI or Flask wrapper for ingestion requests.
-- Integrate Typhoon OCR & embedding API.
-- Add retry / logging / metrics.
+1. Wrap service with ingestion API (FastAPI) for `chat-backend` to call.
+2. Implement RAG service combining Chroma semantic + SQLite keyword results.
+3. Add incremental update & re-chunk logic.
+4. Integrate Typhoon OCR / LLaMA embedding endpoints.

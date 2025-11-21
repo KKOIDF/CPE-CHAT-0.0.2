@@ -1,38 +1,47 @@
 from pathlib import Path
-from typing import Tuple
+from typing import List
 import pandas as pd
-import re
+
+from .utils import clean_for_index
 
 
-def extract_excel_text(path: str) -> Tuple[str, int]:
-    file_path = Path(path)
-    xl = pd.ExcelFile(file_path)
-    parts = []
-    sheet_count = 0
-    for sheet in xl.sheet_names:
-        try:
-            df = xl.parse(sheet)
-            # Convert to text by joining rows
-            csv_text = df.to_csv(index=False)
-            cleaned = _clean_text(csv_text)
-            parts.append(f"[SHEET {sheet}]\n{cleaned}")
-            sheet_count += 1
-        except Exception:
-            continue
-    full_text = "\n\n".join(parts)
-    return full_text, sheet_count
+def _df_to_sheet_text(df: pd.DataFrame) -> str:
+    if df is None or df.empty:
+        return ''
+    df = df.fillna('')
+    df = df.astype(str)
+    lines = [' | '.join(c.strip() for c in row if str(c).strip()) for row in df.values.tolist()]
+    lines = [ln for ln in lines if ln.strip()]
+    return '\n'.join(lines)
 
 
-def _clean_text(text: str) -> str:
-    text = re.sub(r"\r", "\n", text)
-    text = re.sub(r"\n{2,}", "\n\n", text)
-    return text.strip()
+def extract_excel_to_records(xl_path: str) -> List[dict]:
+    """Return list of records similar to page records for chunking."""
+    p = Path(xl_path)
+    records = []
+    try:
+        if p.suffix.lower() in ['.csv', '.tsv']:
+            sep = '\t' if p.suffix.lower() == '.tsv' else ','
+            try:
+                df = pd.read_csv(p, sep=sep, encoding='utf-8-sig')
+            except Exception:
+                df = pd.read_csv(p, sep=sep, encoding='cp874', errors='ignore')
+            sheets = {'CSV': df}
+        else:
+            sheets = pd.read_excel(p, sheet_name=None, engine=None)
+    except Exception as e:
+        print(f'WARN: failed to read table file {p.name}: {e}')
+        sheets = {}
 
-if __name__ == "__main__":
-    import sys
-    if len(sys.argv) < 2:
-        print("Usage: python extract_excel.py <excel_path>")
-    else:
-        t, c = extract_excel_text(sys.argv[1])
-        print(f"Sheets processed: {c}")
-        print(t[:1000])
+    for idx, (sheet_name, df) in enumerate(sheets.items(), start=1):
+        raw = _df_to_sheet_text(df)
+        clean = clean_for_index(raw)
+        records.append({
+            'source': str(p.resolve()),
+            'page_no': idx,  # map sheet -> page_no
+            'sheet': str(sheet_name),
+            'method': 'excel',
+            'text': clean,
+            'paragraphs': [clean] if clean else [],
+        })
+    return records

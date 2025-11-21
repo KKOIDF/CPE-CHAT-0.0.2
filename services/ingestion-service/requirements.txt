@@ -1,8 +1,19 @@
-chromadb
-pdfminer.six
+# Core extraction
+pymupdf
 pdf2image
 pytesseract
-Pillow
+pillow
+unidecode
+pythainlp
 pandas
 openpyxl
-langdetect
+xlrd
+
+# Embeddings / vector store
+chromadb
+sentence-transformers
+
+# Optional HTTP embedding API
+requests
+
+# SQLite FTS is built-in; ensure Python >=3.11 preferred
