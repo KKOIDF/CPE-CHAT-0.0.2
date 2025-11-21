@@ -36,6 +36,41 @@ pip install -r requirements.txt
 python -m app.main --input /path/to/input_dir
 ```
 
+### Run as HTTP API
+
+```bash
+uvicorn app.api:app --host 0.0.0.0 --port 8001
+```
+
+Health check:
+
+```bash
+curl http://localhost:8001/health
+```
+
+Trigger ingestion (runs in background by default):
+
+```bash
+curl -X POST http://localhost:8001/ingest \
+  -H "Content-Type: application/json" \
+  -d '{
+        "input_dir": "/absolute/path/input",
+        "records_jsonl": "data/db/records.jsonl",
+        "chunks_jsonl": "data/db/chunks.jsonl",
+        "store": true,
+        "embed": true,
+        "run_async": true
+      }'
+```
+
+Set `run_async` to `false` if you prefer the request to block until ingestion completes.
+
+Check progress (returns `status`, `progress` 0-1, and latest `message`):
+
+```bash
+curl http://localhost:8001/ingest/status
+```
+
 Generated:
 
 * `data/db/records.jsonl` per page/sheet

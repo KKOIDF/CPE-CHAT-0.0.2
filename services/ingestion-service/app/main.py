@@ -35,20 +35,43 @@ def _gen_doc_id(path: str, page: int, chunk_id: int) -> str:
     return hashlib.sha1(basis.encode('utf-8', 'ignore')).hexdigest()[:32]
 
 
-def run_ingest(input_dir: str, jsonl_out: str, chunk_out: str, store: bool = True, embed: bool = True):
+def run_ingest(
+    input_dir: str,
+    jsonl_out: str,
+    chunk_out: str,
+    store: bool = True,
+    embed: bool = True,
+    progress_callback=None,
+):
     files = gather_files(input_dir)
     all_records: List[dict] = []
     quality_entries: List[Dict] = []
+    total_steps = max(len(files), 1)
+    total_steps += 1  # write_jsonl
+    total_steps += 1  # make_chunks
+    total_steps += 1 if store else 0
+    total_steps += 1 if embed else 0
+    completed_steps = 0
+
+    def _report(progress: float, message: str):
+        if progress_callback:
+            progress_callback(progress=progress, message=message)
 
     # ingest raw pages/sheets
     for f in files:
         recs = process_file(f)
         all_records.extend(recs)
+        completed_steps += 1
+        _report(completed_steps / total_steps, f"Processed {f.name}")
     write_jsonl(all_records, jsonl_out)
+    completed_steps += 1
+    _report(completed_steps / total_steps, "Wrote records JSONL")
 
     # build paragraphs then chunks
     paragraphs = paragraphs_from_records(all_records)
     raw_chunks = make_chunks(paragraphs, source_path=input_dir)
+    completed_steps += 1
+    _report(completed_steps / total_steps, "Chunked paragraphs")
 
     # enrich chunks with doc_id + file_type + chunk_id and quality status (page-level)
     enriched_chunks: List[Dict] = []
@@ -72,6 +95,8 @@ def run_ingest(input_dir: str, jsonl_out: str, chunk_out: str, store: bool = Tru
         init_db()
         insert_chunks(enriched_chunks)
         log_ocr_quality(quality_entries)
+        completed_steps += 1
+        _report(completed_steps / total_steps, "Stored chunks + quality logs")
     # Prepare review file for flagged chunks when not embedding them
     flagged_chunks = [c for c in enriched_chunks if c.get('status') == 'flagged']
     embed_candidates = enriched_chunks if EMBED_FLAGGED else [c for c in enriched_chunks if c.get('status') != 'flagged']
@@ -87,6 +112,8 @@ def run_ingest(input_dir: str, jsonl_out: str, chunk_out: str, store: bool = Tru
 
     if embed:
         upsert_chunks(embed_candidates)
+        completed_steps += 1
+        _report(completed_steps / total_steps, "Embedded chunks")
 
     flagged = len(flagged_chunks)
     embedded = len(embed_candidates) if embed else 0

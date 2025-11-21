@@ -15,7 +15,9 @@ sentence-transformers
 typhoon-ocr
 python-dotenv
 
-# Optional HTTP embedding API
+# Optional HTTP embedding/API layer
 requests
+fastapi
+uvicorn[standard]
 
 # SQLite FTS is built-in; ensure Python >=3.11 preferred
