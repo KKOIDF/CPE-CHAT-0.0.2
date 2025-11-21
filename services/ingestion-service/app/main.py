@@ -1,12 +1,14 @@
 import argparse
 import json
+import hashlib
 from pathlib import Path
-from typing import List
+from typing import List, Dict
 
 from .ocr_pipeline import ingest_pdf, ingest_excel, write_jsonl
 from .chunking import paragraphs_from_records, make_chunks
-from .db import init_db, insert_chunks
+from .db import init_db, insert_chunks, log_ocr_quality
 from .chroma_client import upsert_chunks
+from .quality import is_valid_ocr, make_quality_entry
 
 
 def gather_files(input_dir: str) -> List[Path]:
@@ -26,26 +28,53 @@ def process_file(fp: Path) -> List[dict]:
     return []
 
 
+def _gen_doc_id(path: str, page: int, chunk_id: int) -> str:
+    basis = f"{path}|{page}|{chunk_id}"
+    return hashlib.sha1(basis.encode('utf-8', 'ignore')).hexdigest()[:32]
+
+
 def run_ingest(input_dir: str, jsonl_out: str, chunk_out: str, store: bool = True, embed: bool = True):
     files = gather_files(input_dir)
     all_records: List[dict] = []
+    quality_entries: List[Dict] = []
+
+    # ingest raw pages/sheets
     for f in files:
         recs = process_file(f)
         all_records.extend(recs)
     write_jsonl(all_records, jsonl_out)
 
+    # build paragraphs then chunks
     paragraphs = paragraphs_from_records(all_records)
-    chunks = make_chunks(paragraphs, source_path=input_dir)
+    raw_chunks = make_chunks(paragraphs, source_path=input_dir)
 
-    write_jsonl(chunks, chunk_out)
+    # enrich chunks with doc_id + file_type + chunk_id and quality status (page-level)
+    enriched_chunks: List[Dict] = []
+    for idx, ch in enumerate(raw_chunks):
+        # ensure page integer
+        page_raw = ch.get('page_start')
+        try:
+            page = int(page_raw) if page_raw is not None else 0
+        except (ValueError, TypeError):
+            page = 0
+        file_type = Path(ch.get('path','')).suffix.lower().lstrip('.') or 'pdf'
+        doc_id = _gen_doc_id(ch.get('path',''), page, idx)
+        status = 'ok' if is_valid_ocr(ch.get('text','')) else 'flagged'
+        quality_entries.append(make_quality_entry(doc_id, page, ch.get('text',''), 'auto', status))
+        ch.update({'doc_id': doc_id, 'file_type': file_type, 'chunk_id': idx})
+        enriched_chunks.append(ch)
+
+    write_jsonl(enriched_chunks, chunk_out)
 
     if store:
         init_db()
-        insert_chunks(chunks)
+        insert_chunks(enriched_chunks)
+        log_ocr_quality(quality_entries)
     if embed:
-        upsert_chunks(chunks)
+        upsert_chunks(enriched_chunks)
 
-    print(f"Ingested {len(files)} file(s), {len(all_records)} page/sheet records, {len(chunks)} chunks.")
+    flagged = sum(1 for e in quality_entries if e['status'] == 'flagged')
+    print(f"Ingested {len(files)} file(s), {len(all_records)} page/sheet records, {len(enriched_chunks)} chunks (flagged={flagged}).")
 
 
 def cli():

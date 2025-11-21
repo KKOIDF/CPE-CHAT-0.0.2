@@ -29,5 +29,11 @@ TESSERACT_PATH = os.getenv('TESSERACT_PATH')  # If not on PATH
 EMBEDDING_API_BASE = os.getenv('EMBEDDING_API_BASE')
 EMBEDDING_API_KEY = os.getenv('EMBEDDING_API_KEY')
 
+# Typhoon OCR settings
+TY_OCR_BASE = os.getenv('TY_OCR_BASE')  # e.g. http://typhoon-ocr:8080
+TY_OCR_API_KEY = os.getenv('TY_OCR_API_KEY')
+TY_OCR_MODEL = os.getenv('TY_OCR_MODEL', 'typhoon-ocr')
+TY_OCR_ENABLE = os.getenv('TY_OCR_ENABLE', '0') in ('1','true','True')
+
 for d in [RAW_DIR, TEXT_DIR, DB_DIR, CHROMA_DIR]:
     d.mkdir(parents=True, exist_ok=True)

@@ -12,6 +12,7 @@ xlrd
 # Embeddings / vector store
 chromadb
 sentence-transformers
+typhoon-ocr
 
 # Optional HTTP embedding API
 requests

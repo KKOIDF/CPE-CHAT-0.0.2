@@ -1,15 +1,12 @@
-import re
-import unicodedata
-from pathlib import Path
 from typing import List, Optional
-
 import fitz  # PyMuPDF
 from pdf2image import convert_from_path
 import pytesseract
 
-from .config import POPPLER_PATH, OCR_LANG_DEFAULT, OCR_DPI
+from .config import POPPLER_PATH, OCR_LANG_DEFAULT, OCR_DPI, TY_OCR_ENABLE
 from .validation import text_quality_score
-from .utils import normalize_text, choose_ocr_lang_for_text, clean_for_index
+from .utils import choose_ocr_lang_for_text, clean_for_index
+from .typhoon_ocr import ocr_pdf_typhoon_pages
 
 
 def extract_text_mupdf(pdf_path: str) -> str:
@@ -17,10 +14,12 @@ def extract_text_mupdf(pdf_path: str) -> str:
     with fitz.open(str(pdf_path)) as doc:
         for page in doc:
             try:
-                txt = page.get_text('text')
+                txt = page.get_text('text') or ''
             except Exception:
-                txt = page.get_text()
-            texts.append(txt or '')
+                txt = page.get_text() or ''
+            if not isinstance(txt, str):  # safety guard
+                txt = str(txt)
+            texts.append(txt)
     return '\n'.join(texts)
 
 
@@ -38,7 +37,9 @@ def extract_pages_with_fallback(pdf_path: str,
                                 min_length: int = 50,
                                 min_score: float = 0.2,
                                 dynamic_lang: bool = True) -> List[str]:
-    """Return list of cleaned page texts with OCR fallback when low-quality."""
+    """Return list of cleaned page texts with OCR fallback.
+    Priority: MuPDF -> Typhoon OCR (if enabled) -> Tesseract.
+    """
     raw_pages: List[str] = []
     with fitz.open(pdf_path) as doc:
         for p in range(doc.page_count):
@@ -46,21 +47,35 @@ def extract_pages_with_fallback(pdf_path: str,
                 txt = doc.load_page(p).get_text('text') or ''
             except Exception:
                 txt = doc.load_page(p).get_text() or ''
+            if not isinstance(txt, str):
+                txt = str(txt)
             raw_pages.append(txt)
 
     preview = '\n'.join(raw_pages[: min(3, len(raw_pages))])
     default_lang = choose_ocr_lang_for_text(preview) if dynamic_lang else OCR_LANG_DEFAULT
 
     cleaned_pages: List[str] = []
+    need_indices = []
     for idx, txt in enumerate(raw_pages):
         score = text_quality_score(txt)
-        decide_ocr = (not txt.strip()) or (len(txt.strip()) < min_length) or (score < min_score)
-        if decide_ocr:
-            lang_page = default_lang
-            if dynamic_lang:
-                lang_page = choose_ocr_lang_for_text(txt or '', default=default_lang)
-            ocr_txt = ocr_page_images(pdf_path, idx, lang=lang_page)
-            cleaned_pages.append(clean_for_index(ocr_txt))
+        decide = (not txt.strip()) or (len(txt.strip()) < min_length) or (score < min_score)
+        if decide:
+            need_indices.append(idx)
+    typhoon_results = {}
+    if TY_OCR_ENABLE and need_indices:
+        typhoon_results = ocr_pdf_typhoon_pages(pdf_path, need_indices, dpi=OCR_DPI)
+    for idx, txt in enumerate(raw_pages):
+        score = text_quality_score(txt)
+        decide = (not txt.strip()) or (len(txt.strip()) < min_length) or (score < min_score)
+        if decide:
+            # prefer Typhoon result if present and non-empty
+            candidate = typhoon_results.get(idx, '') if TY_OCR_ENABLE else ''
+            if not candidate:
+                lang_page = default_lang
+                if dynamic_lang:
+                    lang_page = choose_ocr_lang_for_text(txt or '', default=default_lang)
+                candidate = ocr_page_images(pdf_path, idx, lang=lang_page)
+            cleaned_pages.append(clean_for_index(candidate))
         else:
             cleaned_pages.append(clean_for_index(txt))
     return cleaned_pages
