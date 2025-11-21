@@ -13,6 +13,7 @@ xlrd
 chromadb
 sentence-transformers
 typhoon-ocr
+python-dotenv
 
 # Optional HTTP embedding API
 requests

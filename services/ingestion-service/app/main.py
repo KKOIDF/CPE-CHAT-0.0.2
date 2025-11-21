@@ -3,12 +3,14 @@ import json
 import hashlib
 from pathlib import Path
 from typing import List, Dict
+from datetime import datetime
 
 from .ocr_pipeline import ingest_pdf, ingest_excel, write_jsonl
 from .chunking import paragraphs_from_records, make_chunks
 from .db import init_db, insert_chunks, log_ocr_quality
 from .chroma_client import upsert_chunks
 from .quality import is_valid_ocr, make_quality_entry
+from .config import EMBED_FLAGGED
 
 
 def gather_files(input_dir: str) -> List[Path]:
@@ -61,7 +63,7 @@ def run_ingest(input_dir: str, jsonl_out: str, chunk_out: str, store: bool = Tru
         doc_id = _gen_doc_id(ch.get('path',''), page, idx)
         status = 'ok' if is_valid_ocr(ch.get('text','')) else 'flagged'
         quality_entries.append(make_quality_entry(doc_id, page, ch.get('text',''), 'auto', status))
-        ch.update({'doc_id': doc_id, 'file_type': file_type, 'chunk_id': idx})
+        ch.update({'doc_id': doc_id, 'file_type': file_type, 'chunk_id': idx, 'status': status})
         enriched_chunks.append(ch)
 
     write_jsonl(enriched_chunks, chunk_out)
@@ -70,11 +72,25 @@ def run_ingest(input_dir: str, jsonl_out: str, chunk_out: str, store: bool = Tru
         init_db()
         insert_chunks(enriched_chunks)
         log_ocr_quality(quality_entries)
-    if embed:
-        upsert_chunks(enriched_chunks)
+    # Prepare review file for flagged chunks when not embedding them
+    flagged_chunks = [c for c in enriched_chunks if c.get('status') == 'flagged']
+    embed_candidates = enriched_chunks if EMBED_FLAGGED else [c for c in enriched_chunks if c.get('status') != 'flagged']
 
-    flagged = sum(1 for e in quality_entries if e['status'] == 'flagged')
-    print(f"Ingested {len(files)} file(s), {len(all_records)} page/sheet records, {len(enriched_chunks)} chunks (flagged={flagged}).")
+    if flagged_chunks and not EMBED_FLAGGED:
+        review_dir = Path('data/db/review')
+        review_dir.mkdir(parents=True, exist_ok=True)
+        review_path = review_dir / f"flagged_{datetime.utcnow().strftime('%Y%m%d%H%M%S')}.jsonl"
+        with review_path.open('w', encoding='utf-8') as rf:
+            for c in flagged_chunks:
+                rf.write(json.dumps(c, ensure_ascii=False) + '\n')
+        print(f"Wrote flagged review file: {review_path}")
+
+    if embed:
+        upsert_chunks(embed_candidates)
+
+    flagged = len(flagged_chunks)
+    embedded = len(embed_candidates) if embed else 0
+    print(f"Ingested {len(files)} file(s), {len(all_records)} page/sheet records, {len(enriched_chunks)} chunks (flagged={flagged}, embedded={embedded}).")
 
 
 def cli():

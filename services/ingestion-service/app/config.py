@@ -1,6 +1,13 @@
 import os
 from pathlib import Path
 
+# Attempt to load .env automatically if python-dotenv is available
+try:
+    from dotenv import load_dotenv  # type: ignore
+    load_dotenv()
+except Exception:
+    pass
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = BASE_DIR / 'data'
 RAW_DIR = DATA_DIR / 'raw_files'
@@ -34,6 +41,12 @@ TY_OCR_BASE = os.getenv('TY_OCR_BASE')  # e.g. http://typhoon-ocr:8080
 TY_OCR_API_KEY = os.getenv('TY_OCR_API_KEY')
 TY_OCR_MODEL = os.getenv('TY_OCR_MODEL', 'typhoon-ocr')
 TY_OCR_ENABLE = os.getenv('TY_OCR_ENABLE', '0') in ('1','true','True')
+
+# OCR engine selection: 'auto' (fallback logic), 'poppler', 'tesseract', 'typhoon'
+OCR_ENGINE = os.getenv('OCR_ENGINE', 'auto').lower()
+
+# Whether to embed flagged (low-quality) chunks
+EMBED_FLAGGED = os.getenv('EMBED_FLAGGED', 'false').lower() in ('1','true','yes')
 
 for d in [RAW_DIR, TEXT_DIR, DB_DIR, CHROMA_DIR]:
     d.mkdir(parents=True, exist_ok=True)
