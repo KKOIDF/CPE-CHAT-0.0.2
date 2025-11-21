@@ -10,7 +10,11 @@ from .extract_pdf import extract_pages_with_fallback, extract_text_mupdf, ocr_pa
 from .extract_excel import extract_excel_to_records
 from .utils import split_paragraphs_smart, clean_for_index
 from .typhoon_ocr import ocr_pdf_typhoon_pages
-from .config import OCR_ENGINE, TY_OCR_ENABLE, POPPLER_PATH, OCR_DPI, OCR_LANG_DEFAULT
+from .config import OCR_ENGINE, TY_OCR_ENABLE, POPPLER_PATH, TESSERACT_PATH, OCR_DPI, OCR_LANG_DEFAULT
+
+# Set Tesseract path if configured
+if TESSERACT_PATH:
+    pytesseract.pytesseract.tesseract_cmd = TESSERACT_PATH
 
 
 def _pages_poppler(pdf_path: str) -> List[str]:

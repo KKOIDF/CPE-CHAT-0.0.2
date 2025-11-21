@@ -4,10 +4,14 @@ import fitz  # PyMuPDF
 from pdf2image import convert_from_path
 import pytesseract
 
-from .config import POPPLER_PATH, OCR_LANG_DEFAULT, OCR_DPI, TY_OCR_ENABLE
+from .config import POPPLER_PATH, TESSERACT_PATH, OCR_LANG_DEFAULT, OCR_DPI, TY_OCR_ENABLE
 from .validation import text_quality_score
 from .utils import choose_ocr_lang_for_text, clean_for_index
 from .typhoon_ocr import ocr_pdf_typhoon_pages, ocr_pdf_typhoon_full
+
+# Set Tesseract path if configured
+if TESSERACT_PATH:
+    pytesseract.pytesseract.tesseract_cmd = TESSERACT_PATH
 
 
 def extract_text_mupdf(pdf_path: str) -> str:
