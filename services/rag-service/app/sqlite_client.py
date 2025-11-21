@@ -8,11 +8,29 @@ def get_conn():
 
 def keyword_search(query: str, limit: int = 30) -> List[str]:
     conn = get_conn()
-    cur = conn.execute(
-        "SELECT doc_id FROM docs_fts WHERE docs_fts MATCH ? LIMIT ?",
-        (query, limit)
-    )
-    ids = [row[0] for row in cur.fetchall()]
+    
+    # Sanitize query for FTS5 - escape special characters
+    # FTS5 special chars: " ( ) - / AND OR NOT
+    sanitized = query.replace('"', '""')
+    # Remove other special characters that might cause syntax errors
+    for char in ['/', '(', ')', '-', ':', '*', '?', '[', ']', '{', '}']:
+        sanitized = sanitized.replace(char, ' ')
+    
+    # If query becomes empty after sanitization, return empty list
+    if not sanitized.strip():
+        conn.close()
+        return []
+    
+    try:
+        cur = conn.execute(
+            "SELECT doc_id FROM docs_fts WHERE docs_fts MATCH ? LIMIT ?",
+            (sanitized, limit)
+        )
+        ids = [row[0] for row in cur.fetchall()]
+    except Exception:
+        # If still fails, return empty list
+        ids = []
+    
     conn.close()
     return ids
 
