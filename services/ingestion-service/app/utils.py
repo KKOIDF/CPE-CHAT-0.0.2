@@ -10,10 +10,15 @@ _BULLET_START = re.compile(r"^([\-\•\–\*]|\d+[\.)]|[ก-ฮ]\)|\([0-9]+\)|\(
 
 try:
     from pythainlp.util import normalize as th_normalize
+    from pythainlp.tokenize import word_tokenize, sent_tokenize
+    from pythainlp.util import isthai
     _HAS_THAI = True
 except Exception:
     _HAS_THAI = False
     def th_normalize(x: str) -> str: return x
+    def word_tokenize(x: str, **kwargs) -> List[str]: return x.split()
+    def sent_tokenize(x: str, **kwargs) -> List[str]: return [x]
+    def isthai(x: str) -> bool: return False
 
 
 def normalize_text(text: str, preserve_newlines: bool = True) -> str:
@@ -65,7 +70,31 @@ def clean_for_index(text: str) -> str:
     return t.strip()
 
 
-def split_paragraphs_smart(text: str) -> List[str]:
+def tokenize_thai_words(text: str) -> List[str]:
+    """Tokenize Thai text into words using PythaiNLP."""
+    if not text or not _HAS_THAI:
+        return text.split()
+    try:
+        return word_tokenize(text, engine='newmm', keep_whitespace=False)
+    except Exception:
+        return text.split()
+
+
+def segment_sentences_thai(text: str) -> List[str]:
+    """Segment Thai text into sentences using PythaiNLP."""
+    if not text:
+        return []
+    if not _HAS_THAI:
+        return [s.strip() for s in _SENT_SPLIT.split(text) if s.strip()]
+    try:
+        # Use PythaiNLP sentence tokenizer for better Thai handling
+        sents = sent_tokenize(text, engine='crfcut')
+        return [s.strip() for s in sents if s.strip()]
+    except Exception:
+        return [s.strip() for s in _SENT_SPLIT.split(text) if s.strip()]
+
+
+def split_paragraphs_smart(text: str, use_thai_sent: bool = True) -> List[str]:
     if not text:
         return []
     t = text.strip()
@@ -85,7 +114,11 @@ def split_paragraphs_smart(text: str) -> List[str]:
         if buf:
             para = '\n'.join(buf).strip()
             if len(para) > 1200:
-                sents = [s.strip() for s in _SENT_SPLIT.split(para) if s.strip()]
+                # Use PythaiNLP sentence segmentation if available and enabled
+                if use_thai_sent and _HAS_THAI:
+                    sents = segment_sentences_thai(para)
+                else:
+                    sents = [s.strip() for s in _SENT_SPLIT.split(para) if s.strip()]
                 pack: List[str] = []
                 cur = ''
                 for s in sents:
