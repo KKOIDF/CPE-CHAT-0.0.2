@@ -4,3 +4,7 @@ chromadb
 sentence-transformers
 langdetect
 requests
+transformers
+torch
+accelerate
+sentencepiece
