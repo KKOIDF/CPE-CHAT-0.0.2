@@ -17,4 +17,5 @@ LLM_MODEL = os.getenv('LLM_MODEL', 'scb10x/typhoon2.5-qwen3-30b-a3b')
 LLM_MAX_TOKENS = int(os.getenv('LLM_MAX_TOKENS', '512'))
 LLM_TEMPERATURE = float(os.getenv('LLM_TEMPERATURE', '0.4'))
 LLM_ENABLE = os.getenv('LLM_ENABLE', '0') in ('1', 'true', 'True')
+LLM_4BIT = os.getenv('LLM_4BIT', '1') in ('1','true','True')
 

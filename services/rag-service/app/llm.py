@@ -1,7 +1,7 @@
 import os
 import torch
 from typing import Optional
-from .config import LLM_MODEL, LLM_MAX_TOKENS, LLM_TEMPERATURE, LLM_ENABLE
+from .config import LLM_MODEL, LLM_MAX_TOKENS, LLM_TEMPERATURE, LLM_ENABLE, LLM_4BIT
 
 try:
     from transformers import AutoTokenizer, AutoModelForCausalLM
@@ -26,14 +26,21 @@ class LLMEngine:
             self._load_error = "transformers not installed"
             return
         try:
-            print(f"[LLM] Loading model {self.model_name} on {self.device} ...")
+            print(f"[LLM] Loading model {self.model_name} on {self.device} (4bit={LLM_4BIT}) ...")
             self.tokenizer = AutoTokenizer.from_pretrained(self.model_name, trust_remote_code=True)
-            self.model = AutoModelForCausalLM.from_pretrained(
-                self.model_name,
-                device_map="auto",
-                torch_dtype=torch.float16 if self.device == "cuda" else torch.float32,
-                trust_remote_code=True
-            )
+            load_kwargs = {
+                'device_map': 'auto',
+                'trust_remote_code': True
+            }
+            if self.device == 'cuda':
+                if LLM_4BIT:
+                    # Attempt 4-bit load
+                    load_kwargs['load_in_4bit'] = True
+                else:
+                    load_kwargs['torch_dtype'] = torch.float16
+            else:
+                load_kwargs['torch_dtype'] = torch.float32
+            self.model = AutoModelForCausalLM.from_pretrained(self.model_name, **load_kwargs)
             print("[LLM] Model loaded.")
         except Exception as e:
             self._load_error = str(e)
