@@ -31,8 +31,10 @@ async def rag_endpoint(req: RagRequest):
 @app.post('/rag/answer', response_model=RagAnswerResponse)
 async def rag_answer_endpoint(req: RagAnswerRequest):
     result = rag_query(req.question)
-    # Use combined prompt for generation
-    answer = llm_engine.generate(result['prompt'])
+    # Build chat style messages for models that support it
+    system_msg = { 'role': 'system', 'content': 'คุณคือผู้ช่วยของภาควิชาวิศวกรรมคอมพิวเตอร์ ใช้เฉพาะข้อมูลอ้างอิงในการตอบ ตอบเป็น bullet พร้อม [n] citation หากไม่มีให้ตอบว่า ไม่พบข้อมูลในเอกสารที่เกี่ยวข้อง' }
+    user_msg = { 'role': 'user', 'content': result['prompt'] }
+    answer = llm_engine.generate(result['prompt'], messages=[system_msg, user_msg])
     return RagAnswerResponse(
         question=req.question,
         prompt=result['prompt'],
