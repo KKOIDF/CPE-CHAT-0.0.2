@@ -1,6 +1,6 @@
 import re
 import unicodedata
-from typing import List
+from typing import List, Dict, Optional
 from .validation import script_ratios
 from .config import THAI_WORD_TOKENIZER, THAI_SENT_TOKENIZER
 
@@ -13,6 +13,12 @@ try:
     from pythainlp.util import normalize as th_normalize
     from pythainlp.tokenize import word_tokenize, sent_tokenize
     from pythainlp.util import isthai
+    from pythainlp.spell import correct as th_correct
+    try:
+        from pythainlp.corpus.common import thai_words as _thai_words
+        _THAI_WORDS_SET = set(_thai_words())
+    except Exception:
+        _THAI_WORDS_SET = set()
     _HAS_THAI = True
 except Exception:
     _HAS_THAI = False
@@ -20,6 +26,8 @@ except Exception:
     def word_tokenize(x: str, **kwargs) -> List[str]: return x.split()
     def sent_tokenize(x: str, **kwargs) -> List[str]: return [x]
     def isthai(x: str) -> bool: return False
+    def th_correct(x: str) -> str: return x
+    _THAI_WORDS_SET = set()
 
 
 def normalize_text(text: str, preserve_newlines: bool = True) -> str:
@@ -69,6 +77,81 @@ def clean_for_index(text: str) -> str:
     t = re.sub(r'\n{3,}', '\n\n', t)
     t = thai_postprocess(t)
     return t.strip()
+
+
+_URL_RE = re.compile(r"https?://\S+|www\.\S+", re.IGNORECASE)
+_NUM_TOKEN_RE = re.compile(r"^[\d,\.\-/:%]+$")
+_NUM_SPAN_RE = re.compile(r"\d[\d,\.\-/:%]*")
+_THAI_CHARS = re.compile(r"[\u0E00-\u0E7F]")
+
+
+def _reduce_repeats(text: str) -> str:
+    return re.sub(r"(.)\1{2,}", r"\1\1", text)
+
+
+def clean_and_spell_correct_thai(
+    text: str,
+    custom_map: Optional[Dict[str, str]] = None,
+    do_spell: bool = True,
+) -> str:
+    if not text:
+        return ''
+    t = normalize_text(text, preserve_newlines=False)
+    # Mask URLs and numeric spans before tokenization
+    url_map: Dict[str, str] = {}
+    num_map: Dict[str, str] = {}
+    def _mask(pattern: re.Pattern, base_text: str, tag: str, store: Dict[str, str]) -> str:
+        idx = 0
+        def repl(m: re.Match) -> str:
+            nonlocal idx
+            key = f"{tag}TOKEN{idx}"
+            store[key] = m.group(0)
+            idx += 1
+            return key
+        return pattern.sub(repl, base_text)
+    t = _mask(_URL_RE, t, 'URL', url_map)
+    t = _mask(_NUM_SPAN_RE, t, 'NUM', num_map)
+    t = _reduce_repeats(t)
+    if _HAS_THAI:
+        try:
+            t = th_normalize(t)
+        except Exception:
+            pass
+    try:
+        tokens = word_tokenize(t, engine='newmm', keep_whitespace=True)
+    except Exception:
+        tokens = list(t)
+    out: List[str] = []
+    for tok in tokens:
+        if not tok:
+            continue
+        if tok.isspace() or tok in url_map or tok in num_map or _NUM_TOKEN_RE.fullmatch(tok):
+            out.append(tok)
+            continue
+        if custom_map and tok in custom_map:
+            out.append(custom_map[tok])
+            continue
+        # Skip if token is a known Thai word
+        if tok in _THAI_WORDS_SET:
+            out.append(tok)
+            continue
+        # Skip correction when token ends with a repeated char to avoid over-correction
+        if do_spell and _HAS_THAI and _THAI_CHARS.search(tok) and not re.search(r"(.)\1$", tok):
+            try:
+                out.append(th_correct(tok))
+            except Exception:
+                out.append(tok)
+        else:
+            out.append(tok)
+    cleaned = ''.join(out)
+    # Restore masks
+    # Restore numbers then URLs
+    for k, v in num_map.items():
+        cleaned = cleaned.replace(k, v)
+    for k, v in url_map.items():
+        cleaned = cleaned.replace(k, v)
+    cleaned = tidy_thai_spacing(cleaned)
+    return cleaned.strip()
 
 
 def tokenize_thai_words(text: str, engine: str = None) -> List[str]:

@@ -6,6 +6,7 @@ import chromadb
 from chromadb.config import Settings
 
 from .config import CHROMA_DIR, EMBEDDING_MODEL, EMBED_BATCH, EMBEDDING_API_BASE, EMBEDDING_API_KEY
+from .utils import clean_and_spell_correct_thai
 
 try:
     from sentence_transformers import SentenceTransformer
@@ -16,9 +17,13 @@ _client = chromadb.PersistentClient(path=str(CHROMA_DIR), settings=Settings(anon
 _collection = _client.get_or_create_collection(name="documents")
 
 _embedder = None
+_is_bge_m3 = False
 if SentenceTransformer and EMBEDDING_MODEL and not EMBEDDING_API_BASE:
     try:
         _embedder = SentenceTransformer(EMBEDDING_MODEL)
+        _is_bge_m3 = 'bge-m3' in EMBEDDING_MODEL.lower()
+        if _is_bge_m3:
+            print(f"Loaded BGE-M3 model: {EMBEDDING_MODEL}")
     except Exception as e:
         print("Embedding model load failed, will fallback to API if configured:", e)
 
@@ -34,11 +39,23 @@ def _fallback_vec(text: str, dim: int) -> List[float]:
     return out
 
 
-def _embed_texts(texts: List[str]) -> List[List[float]]:
+def _embed_texts(texts: List[str], is_query: bool = False) -> List[List[float]]:
+    """Embed texts with BGE-M3 instruction support
+    
+    Args:
+        texts: List of texts to embed
+        is_query: If True and using BGE-M3, adds query instruction prefix
+    """
     # Local model
     if _embedder:
         try:
-            embs = _embedder.encode(texts, batch_size=EMBED_BATCH, normalize_embeddings=True).tolist()  # type: ignore
+            # BGE-M3: Add instruction for queries only
+            texts_to_encode = texts
+            if _is_bge_m3 and is_query:
+                query_instruction = "Represent this sentence for searching relevant passages: "
+                texts_to_encode = [query_instruction + t for t in texts]
+            
+            embs = _embedder.encode(texts_to_encode, batch_size=EMBED_BATCH, normalize_embeddings=True).tolist()  # type: ignore
         except Exception as e:
             print("Local embedding encode failed, falling back to hashing:", e)
             embs = []
@@ -85,7 +102,12 @@ def upsert_chunks(chunks: List[Dict[str, Any]]):
         print("No chunks to embed; skipping upsert.")
         return
     texts = [c.get('text','') for c in chunks]
-    embeddings = _embed_texts(texts)
+    try:
+        cleaned_texts = [clean_and_spell_correct_thai(t) for t in texts]
+    except Exception:
+        cleaned_texts = texts
+    # Documents: no query instruction needed
+    embeddings = _embed_texts(cleaned_texts, is_query=False)
     if not embeddings or any(len(e) == 0 for e in embeddings):
         print("Embeddings empty after fallback; skipping upsert to avoid error.")
         return
@@ -115,13 +137,21 @@ def upsert_chunks(chunks: List[Dict[str, Any]]):
             'file_type': c.get('file_type'),
             'status': c.get('status'),
         })
-        documents.append(c.get('text',''))
+        # Store cleaned text in vector store for better retrieval, keep metadata unchanged
+        documents.append(cleaned_texts[i] if i < len(cleaned_texts) else c.get('text',''))
     _collection.upsert(ids=ids, embeddings=fixed, documents=documents, metadatas=metadatas)  # type: ignore[arg-type]
     print(f"Upserted {len(ids)} chunks into Chroma (dim={dim}).")
 
 
 def semantic_search(query: str, n_results: int = 10) -> List[Dict[str, Any]]:
-    res = _collection.query(query_texts=[query], n_results=n_results)
+    # Clean query and embed with query instruction (for BGE-M3)
+    try:
+        cleaned_query = clean_and_spell_correct_thai(query)
+    except Exception:
+        cleaned_query = query
+    
+    query_embedding = _embed_texts([cleaned_query], is_query=True)[0]
+    res = _collection.query(query_embeddings=[query_embedding], n_results=n_results)
     ids_list = res.get('ids') or [[]]
     docs_list = res.get('documents') or [[]]
     meta_list = res.get('metadatas') or [[]]

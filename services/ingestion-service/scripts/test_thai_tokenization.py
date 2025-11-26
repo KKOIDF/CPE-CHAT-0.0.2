@@ -8,7 +8,7 @@ from pathlib import Path
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from app.utils import tokenize_thai_words, segment_sentences_thai
+from app.utils import tokenize_thai_words, segment_sentences_thai, clean_and_spell_correct_thai
 from app.toon_converter import read_toon
 
 # Test samples
@@ -139,12 +139,29 @@ def test_with_real_chunks():
         print(f"ERROR reading chunks.toon: {e}")
 
 
+def test_clean_and_spell():
+    print("\n" + "=" * 80)
+    print("THAI CLEAN + SPELL CORRECTION")
+    print("=" * 80)
+    samples = [
+        "อยากใช้ pythainlp ตรวจคำผิดแล้วค่อยทำ embadding ดีมั้ยยย",
+        "รุ่นใหมมม่นี้เปิดตัววว 10/12/2025 ที่ www.example.com !!!",
+        "ราคาประมาณ 12,345.67 บาท นะครับบบ",
+    ]
+    for s in samples:
+        cleaned = clean_and_spell_correct_thai(s, custom_map={"embadding": "embedding"})
+        print(f"RAW   : {s}")
+        print(f"CLEAN : {cleaned}")
+        print("-" * 80)
+
+
 def main():
     print("\n🔍 Thai Tokenization Quality Test\n")
     
     test_word_tokenizers()
     test_sentence_tokenizers()
     test_with_real_chunks()
+    test_clean_and_spell()
     
     print("\n" + "=" * 80)
     print("✅ RECOMMENDATIONS:")
