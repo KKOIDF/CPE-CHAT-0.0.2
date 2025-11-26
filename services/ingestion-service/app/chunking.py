@@ -55,7 +55,7 @@ def paragraphs_from_records(records: List[Dict]) -> List[Dict]:
         for t in paras:
             if not t or not t.strip():
                 continue
-            out.append({'page': page, 'text': t.strip(), 'is_heading': is_heading(t)})
+            out.append({'page': page, 'text': t.strip(), 'is_heading': is_heading(t), 'src': r.get('source')})
     return group_bullets(out)
 
 

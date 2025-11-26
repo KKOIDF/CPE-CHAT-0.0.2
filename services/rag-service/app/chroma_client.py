@@ -2,6 +2,7 @@ import chromadb
 from chromadb.config import Settings
 from typing import List
 from .config import CHROMA_DIR, EMBEDDING_MODEL, EMBED_BATCH
+import os
 
 try:
     from sentence_transformers import SentenceTransformer
@@ -12,16 +13,23 @@ _client = chromadb.PersistentClient(path=str(CHROMA_DIR), settings=Settings(anon
 _collection = _client.get_or_create_collection(name='documents')
 
 _embedder = None
+_EMBED_DEVICE = os.getenv('EMBED_DEVICE', 'cuda')  # set to 'cpu' to free GPU for LLM
 if SentenceTransformer and EMBEDDING_MODEL:
     try:
         _embedder = SentenceTransformer(EMBEDDING_MODEL)
+        if _EMBED_DEVICE == 'cpu':
+            try:
+                _embedder.to('cpu')  # type: ignore
+                print(f"[Embed] Moved embedding model to CPU")
+            except Exception:
+                pass
     except Exception as e:
         print('Embedder load failed:', e)
 
 
 def embed_texts(texts: List[str]) -> List[List[float]]:
     if _embedder:
-        return _embedder.encode(texts, batch_size=EMBED_BATCH, normalize_embeddings=True).tolist()  # type: ignore
+        return _embedder.encode(texts, batch_size=EMBED_BATCH, normalize_embeddings=True, device=_EMBED_DEVICE).tolist()  # type: ignore
     return [[float((sum(bytearray(t.encode('utf-8'))) % 100) / 100.0)] for t in texts]
 
 

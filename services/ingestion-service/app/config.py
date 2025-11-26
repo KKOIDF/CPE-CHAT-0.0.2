@@ -41,9 +41,17 @@ TY_OCR_BASE = os.getenv('TY_OCR_BASE')  # e.g. http://typhoon-ocr:8080
 TY_OCR_API_KEY = os.getenv('TY_OCR_API_KEY')
 TY_OCR_MODEL = os.getenv('TY_OCR_MODEL', 'typhoon-ocr')
 TY_OCR_ENABLE = os.getenv('TY_OCR_ENABLE', '0') in ('1','true','True')
+TY_OCR_TIMEOUT = int(os.getenv('TY_OCR_TIMEOUT', '60'))  # per request timeout seconds
+TY_OCR_RETRIES = int(os.getenv('TY_OCR_RETRIES', '3'))   # number of retry attempts on transient errors
+TY_OCR_RETRY_BACKOFF = float(os.getenv('TY_OCR_RETRY_BACKOFF', '2'))  # base seconds for exponential backoff
+TY_OCR_BATCH_SIZE = int(os.getenv('TY_OCR_BATCH_SIZE', '5'))  # max pages per Typhoon OCR API request
+TY_OCR_MAX_TIMEOUTS = int(os.getenv('TY_OCR_MAX_TIMEOUTS', '2'))  # disable Typhoon OCR after this many timeouts in a process
 
 # OCR engine selection: 'auto' (fallback logic), 'poppler', 'tesseract', 'typhoon'
 OCR_ENGINE = os.getenv('OCR_ENGINE', 'auto').lower()
+
+# MuPDF-only fast path (skip all OCR fallback if set)
+MUPDF_ONLY = os.getenv('MUPDF_ONLY', '0').lower() in ('1','true','yes')
 
 # Whether to embed flagged (low-quality) chunks
 EMBED_FLAGGED = os.getenv('EMBED_FLAGGED', 'false').lower() in ('1','true','yes')

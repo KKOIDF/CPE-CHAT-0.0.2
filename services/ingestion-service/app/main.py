@@ -48,7 +48,14 @@ def run_ingest(input_dir: str, jsonl_out: str, chunk_out: str, store: bool = Tru
 
     # build paragraphs then chunks
     paragraphs = paragraphs_from_records(all_records)
-    raw_chunks = make_chunks(paragraphs, source_path=input_dir)
+    # Group paragraphs by original source file path to avoid losing per-file provenance
+    grouped: Dict[str, List[Dict]] = {}
+    for p in paragraphs:
+        src = p.get('src') or input_dir
+        grouped.setdefault(src, []).append(p)
+    raw_chunks: List[Dict] = []
+    for src, plist in grouped.items():
+        raw_chunks.extend(make_chunks(plist, source_path=src))
 
     # enrich chunks with doc_id + file_type + chunk_id and quality status (page-level)
     enriched_chunks: List[Dict] = []

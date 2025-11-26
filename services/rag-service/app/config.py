@@ -12,11 +12,13 @@ TOKEN_BUDGET = int(os.getenv('TOKEN_BUDGET', '1200'))
 RRF_K = int(os.getenv('RRF_K', '60'))
 MAX_CONTEXTS = int(os.getenv('MAX_CONTEXTS', '8'))
 
-# LLM settings
-LLM_MODEL = os.getenv('LLM_MODEL', 'scb10x/typhoon2.5-qwen3-30b-a3b')
-LLM_MAX_TOKENS = int(os.getenv('LLM_MAX_TOKENS', '512'))
+# LLM settings (default switched to lighter 7B for 6GB GPUs)
+LLM_MODEL = os.getenv('LLM_MODEL', 'Qwen/Qwen2.5-7B-Instruct')
+LLM_MAX_TOKENS = int(os.getenv('LLM_MAX_TOKENS', '384'))
 LLM_TEMPERATURE = float(os.getenv('LLM_TEMPERATURE', '0.4'))
 LLM_ENABLE = os.getenv('LLM_ENABLE', '0') in ('1', 'true', 'True')
 LLM_4BIT = os.getenv('LLM_4BIT', '1') in ('1','true','True')
 LLM_PIPELINE = os.getenv('LLM_PIPELINE', '0') in ('1','true','True')
+LLM_CPU_FALLBACK = os.getenv('LLM_CPU_FALLBACK', '1') in ('1','true','True')  # attempt CPU/offload if GPU OOM
+LLM_DEVICE_MAP = os.getenv('LLM_DEVICE_MAP', 'auto')  # override accelerate device_map
 

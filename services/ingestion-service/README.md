@@ -61,6 +61,9 @@ docker run --rm -v /absolute/path/input:/input ingestion-service --input /input
 | MIN_LENGTH | Min length for MuPDF accept | 50 |
 | OCR_ENGINE | Force OCR backend (auto\|poppler\|tesseract\|typhoon) | auto |
 | TY_OCR_ENABLE | Enable Typhoon OCR fallback usage | 0 |
+| TY_OCR_TIMEOUT | Per-request timeout seconds for Typhoon OCR API | 60 |
+| TY_OCR_RETRIES | Retry attempts on transient (5xx/timeout) errors | 3 |
+| TY_OCR_RETRY_BACKOFF | Base seconds for exponential backoff between retries | 2 |
 | CHUNK_MIN_TOKENS | Lower token target | 400 |
 | CHUNK_MAX_TOKENS | Upper token target | 800 |
 | CHUNK_OVERLAP_RATIO | Overlap ratio for tail carry | 0.12 |
@@ -81,6 +84,18 @@ Set `OCR_ENGINE` to:
 * `typhoon`: Force Typhoon OCR for all pages (requires `TY_OCR_ENABLE=1`).
 
 If `TY_OCR_ENABLE=0`, specifying `OCR_ENGINE=typhoon` automatically downgrades to `auto`.
+
+#### Typhoon OCR Reliability
+
+If you encounter repeated `503 Service Unavailable` or timeouts:
+
+1. Lower `TY_OCR_TIMEOUT` (e.g. 45) to fail faster.
+2. Increase `TY_OCR_RETRIES` slightly (e.g. 4–5) if the service is intermittently flaky.
+3. Adjust `TY_OCR_RETRY_BACKOFF` to tune wait between retries (exponential: base * 2^attempt).
+4. Temporarily disable with `TY_OCR_ENABLE=0` to proceed using MuPDF + Tesseract only.
+5. Monitor logs for `[Typhoon OCR]` messages to see retry cadence.
+
+The ingestion will gracefully continue (pages return empty text) when Typhoon OCR ultimately fails, allowing fallback logic to supply alternative OCR where configured.
 
 ### Flagged Chunk Handling
 

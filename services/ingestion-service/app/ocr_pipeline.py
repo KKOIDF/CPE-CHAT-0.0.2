@@ -10,7 +10,7 @@ from .extract_pdf import extract_pages_with_fallback, extract_text_mupdf, ocr_pa
 from .extract_excel import extract_excel_to_records
 from .utils import split_paragraphs_smart, clean_for_index
 from .typhoon_ocr import ocr_pdf_typhoon_pages
-from .config import OCR_ENGINE, TY_OCR_ENABLE, POPPLER_PATH, TESSERACT_PATH, OCR_DPI, OCR_LANG_DEFAULT
+from .config import OCR_ENGINE, TY_OCR_ENABLE, POPPLER_PATH, TESSERACT_PATH, OCR_DPI, OCR_LANG_DEFAULT, MUPDF_ONLY
 
 # Set Tesseract path if configured
 if TESSERACT_PATH:
@@ -54,23 +54,28 @@ def _pages_typhoon(pdf_path: str) -> List[str]:
 
 
 def ingest_pdf(pdf_path: str) -> List[Dict]:
-    engine = OCR_ENGINE  # auto | poppler | tesseract | typhoon
-    if engine not in ('auto', 'poppler', 'tesseract', 'typhoon'):
-        engine = 'auto'
-
-    if engine == 'poppler':
+    # Highest priority fast path if explicitly requested
+    if MUPDF_ONLY:
         pages = _pages_poppler(pdf_path)
-        method = 'pdf-poppler'
-    elif engine == 'tesseract':
-        pages = _pages_tesseract(pdf_path)
-        method = 'pdf-tesseract'
-    elif engine == 'typhoon' and TY_OCR_ENABLE:
-        pages = _pages_typhoon(pdf_path)
-        method = 'pdf-typhoon'
+        method = 'pdf-mupdf-only'
     else:
-        # auto fallback chain (MuPDF -> Typhoon -> Tesseract per page)
-        pages = extract_pages_with_fallback(pdf_path)
-        method = 'pdf-auto'
+        engine = OCR_ENGINE  # auto | poppler | tesseract | typhoon
+        if engine not in ('auto', 'poppler', 'tesseract', 'typhoon'):
+            engine = 'auto'
+
+        if engine == 'poppler':
+            pages = _pages_poppler(pdf_path)
+            method = 'pdf-poppler'
+        elif engine == 'tesseract':
+            pages = _pages_tesseract(pdf_path)
+            method = 'pdf-tesseract'
+        elif engine == 'typhoon' and TY_OCR_ENABLE:
+            pages = _pages_typhoon(pdf_path)
+            method = 'pdf-typhoon'
+        else:
+            # auto fallback chain (MuPDF -> Typhoon -> Tesseract per page)
+            pages = extract_pages_with_fallback(pdf_path)
+            method = 'pdf-auto'
 
     records = []
     for i, ptxt in enumerate(pages, start=1):

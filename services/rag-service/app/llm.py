@@ -8,6 +8,8 @@ from .config import (
     LLM_ENABLE,
     LLM_4BIT,
     LLM_PIPELINE,
+    LLM_CPU_FALLBACK,
+    LLM_DEVICE_MAP,
 )
 
 try:
@@ -26,10 +28,23 @@ class LLMEngine:
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         self.pipe: Any = None
         self._load_error: Optional[str] = None
+        self._warned = False
 
     def load(self):
         if not LLM_ENABLE:
             return
+        # Auto recommend 4-bit for very large models if not already enabled.
+        if ("30" in self.model_name or "70" in self.model_name) and not LLM_4BIT and not self._warned:
+            print(f"[LLM][WARN] Large model '{self.model_name}' detected. Consider setting LLM_4BIT=1 to reduce VRAM.")
+            self._warned = True
+        if self.device == 'cuda' and not self._warned:
+            try:
+                dev_name = torch.cuda.get_device_name(0)
+                free_mem, total_mem = torch.cuda.mem_get_info()
+                print(f"[LLM][GPU] Device: {dev_name} | Free: {free_mem/1e9:.2f} GB / Total: {total_mem/1e9:.2f} GB")
+            except Exception:
+                print("[LLM][GPU] Unable to query detailed GPU memory info.")
+            self._warned = True
         # Use pipeline path if requested
         if LLM_PIPELINE:
             if self.pipe is not None:
@@ -50,8 +65,14 @@ class LLMEngine:
                 self.pipe = pipeline(
                     task="text-generation",
                     model=self.model_name,
-                    model_kwargs=model_kwargs
+                    model_kwargs=model_kwargs,
+                    trust_remote_code=True
                 )
+                # Keep a reference to tokenizer for chat templating
+                try:
+                    self.tokenizer = self.pipe.tokenizer
+                except Exception:
+                    pass
                 print("[LLM] Pipeline loaded.")
             except Exception as e:
                 self._load_error = str(e)
@@ -68,7 +89,7 @@ class LLMEngine:
             print(f"[LLM] Loading model {self.model_name} on {self.device} (4bit={LLM_4BIT}) ...")
             self.tokenizer = AutoTokenizer.from_pretrained(self.model_name, trust_remote_code=True)
             load_kwargs = {
-                'device_map': 'auto',
+                'device_map': LLM_DEVICE_MAP,
                 'trust_remote_code': True
             }
             if self.device == 'cuda':
@@ -81,6 +102,27 @@ class LLMEngine:
             self.model = AutoModelForCausalLM.from_pretrained(self.model_name, **load_kwargs)
             print("[LLM] Model loaded.")
         except Exception as e:
+            # Attempt CPU fallback on OOM or quantization failures
+            if ('CUDA out of memory' in str(e) or 'quantize_4bit' in str(e)) and LLM_CPU_FALLBACK:
+                try:
+                    print("[LLM][WARN] GPU OOM. Retrying on CPU (no 4-bit). This will be slow.")
+                    self.device = 'cpu'
+                    self.tokenizer = AutoTokenizer.from_pretrained(self.model_name, trust_remote_code=True)
+                    load_kwargs = {
+                        'device_map': None,
+                        'trust_remote_code': True,
+                        'torch_dtype': torch.float32,
+                    }
+                    # Remove 4bit for CPU path
+                    self.model = AutoModelForCausalLM.from_pretrained(self.model_name, **load_kwargs)
+                    print("[LLM] CPU fallback load complete.")
+                    return
+                except Exception as e2:
+                    self._load_error = f"GPU OOM then CPU fallback failed: {e2}"
+                    print(f"[LLM] CPU fallback failed: {e2}")
+            # Recommend smaller model
+            if 'CUDA out of memory' in str(e):
+                print("[LLM][ADVICE] Use a smaller model (e.g. 7B/13B) or external inference API. Set LLM_MODEL to a lighter checkpoint.")
             self._load_error = str(e)
             print(f"[LLM] Load failed: {e}")
 
@@ -92,8 +134,28 @@ class LLMEngine:
         if LLM_PIPELINE:
             if self.pipe is None:
                 return f"(LLM pipeline unavailable: {self._load_error})"
-            # Prefer messages (chat style) if provided; else use raw prompt.
-            input_payload: Union[str, List[Dict[str,str]]] = messages if messages else prompt
+            # If messages supplied and tokenizer supports chat template, render to a single prompt string.
+            input_payload: Union[str, List[Dict[str,str]]] = prompt
+            if messages:
+                try:
+                    if self.tokenizer and hasattr(self.tokenizer, 'apply_chat_template'):
+                        rendered = self.tokenizer.apply_chat_template(
+                            messages,
+                            tokenize=False,
+                            add_generation_prompt=True
+                        )
+                        input_payload = rendered
+                    else:
+                        # Fallback: simple concat of roles
+                        joined_parts = []
+                        for m in messages:
+                            role = m.get('role','user')
+                            content = m.get('content','')
+                            joined_parts.append(f"<{role}>: {content}")
+                        input_payload = "\n".join(joined_parts) + "\nตอบ:"  # encourage answer
+                except Exception as e:
+                    print(f"[LLM][WARN] chat template failed: {e}")
+                    input_payload = prompt
             try:
                 out = self.pipe(
                     input_payload,

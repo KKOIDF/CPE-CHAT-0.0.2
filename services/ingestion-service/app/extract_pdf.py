@@ -4,7 +4,7 @@ import fitz  # PyMuPDF
 from pdf2image import convert_from_path
 import pytesseract
 
-from .config import POPPLER_PATH, TESSERACT_PATH, OCR_LANG_DEFAULT, OCR_DPI, TY_OCR_ENABLE
+from .config import POPPLER_PATH, TESSERACT_PATH, OCR_LANG_DEFAULT, OCR_DPI, TY_OCR_ENABLE, MUPDF_ONLY
 from .validation import text_quality_score
 from .utils import choose_ocr_lang_for_text, clean_for_index
 from .typhoon_ocr import ocr_pdf_typhoon_pages, ocr_pdf_typhoon_full
@@ -42,8 +42,9 @@ def extract_pages_with_fallback(pdf_path: str,
                                 min_length: int = 50,
                                 min_score: float = 0.2,
                                 dynamic_lang: bool = True) -> List[str]:
-    """Return list of cleaned page texts with OCR fallback.
-    Priority: MuPDF -> Typhoon OCR (if enabled) -> Tesseract.
+    """Return list of cleaned page texts.
+    Priority (normal): MuPDF -> Typhoon OCR (if enabled) -> Tesseract on low-quality pages.
+    If MUPDF_ONLY is set: just return MuPDF text cleaned (skip all OCR).
     """
     raw_pages: List[str] = []
     with fitz.open(pdf_path) as doc:
@@ -55,6 +56,9 @@ def extract_pages_with_fallback(pdf_path: str,
             if not isinstance(txt, str):
                 txt = str(txt)
             raw_pages.append(txt)
+
+    if MUPDF_ONLY:
+        return [clean_for_index(t) for t in raw_pages]
 
     preview = '\n'.join(raw_pages[: min(3, len(raw_pages))])
     default_lang = choose_ocr_lang_for_text(preview) if dynamic_lang else OCR_LANG_DEFAULT
@@ -73,7 +77,6 @@ def extract_pages_with_fallback(pdf_path: str,
         score = text_quality_score(txt)
         decide = (not txt.strip()) or (len(txt.strip()) < min_length) or (score < min_score)
         if decide:
-            # Run both OCR engines when Typhoon enabled to compare quality
             ty_text = typhoon_results.get(idx, '') if TY_OCR_ENABLE else ''
             lang_page = default_lang
             if dynamic_lang:
@@ -85,7 +88,6 @@ def extract_pages_with_fallback(pdf_path: str,
                 ratio = SequenceMatcher(None, ty_text, tess_text).ratio()
                 ty_score = text_quality_score(ty_text)
                 tess_score = text_quality_score(tess_text)
-                # Prefer Typhoon if similarity high OR Typhoon has better score; else Tesseract
                 if ratio >= 0.60 or ty_score >= tess_score:
                     chosen = ty_text
                 else:
@@ -99,16 +101,18 @@ def extract_pages_with_fallback(pdf_path: str,
 
 
 def extract_pdf_full(pdf_path: str) -> str:
-    """Full-file extraction with OCR fallback."""
+    """Full-file extraction with OCR fallback.
+    If MUPDF_ONLY set: return MuPDF text only (cleaned).
+    """
     raw = extract_text_mupdf(pdf_path)
+    if MUPDF_ONLY:
+        return clean_for_index(raw)
     if raw.strip():
-        # assess quality; if very low quality attempt Typhoon full-file before returning
         if TY_OCR_ENABLE and text_quality_score(raw) < 0.15:
             ty_full = ocr_pdf_typhoon_full(pdf_path, strip_md=True)
             if ty_full.strip():
                 return clean_for_index(ty_full)
         return clean_for_index(raw)
-    # fallback full-file OCR sequence: Typhoon first (if enabled) then Tesseract
     if TY_OCR_ENABLE:
         ty_full = ocr_pdf_typhoon_full(pdf_path, strip_md=True)
         if ty_full.strip():
