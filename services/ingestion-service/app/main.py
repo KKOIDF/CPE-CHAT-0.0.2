@@ -11,6 +11,7 @@ from .db import init_db, insert_chunks, log_ocr_quality
 from .chroma_client import upsert_chunks
 from .quality import is_valid_ocr, make_quality_entry
 from .config import EMBED_FLAGGED
+from .toon_converter import write_toon, jsonl_to_toon
 
 
 def gather_files(input_dir: str) -> List[Path]:
@@ -35,7 +36,7 @@ def _gen_doc_id(path: str, page: int, chunk_id: int) -> str:
     return hashlib.sha1(basis.encode('utf-8', 'ignore')).hexdigest()[:32]
 
 
-def run_ingest(input_dir: str, jsonl_out: str, chunk_out: str, store: bool = True, embed: bool = True):
+def run_ingest(input_dir: str, jsonl_out: str, chunk_out: str, store: bool = True, embed: bool = True, use_toon: bool = False):
     files = gather_files(input_dir)
     all_records: List[dict] = []
     quality_entries: List[Dict] = []
@@ -44,7 +45,14 @@ def run_ingest(input_dir: str, jsonl_out: str, chunk_out: str, store: bool = Tru
     for f in files:
         recs = process_file(f)
         all_records.extend(recs)
-    write_jsonl(all_records, jsonl_out)
+    
+    # Write records in JSON or TOON format
+    if use_toon:
+        toon_out = jsonl_out.replace('.jsonl', '.toon')
+        write_toon({'records': all_records}, toon_out)
+        print(f"Wrote records in TOON format: {toon_out}")
+    else:
+        write_jsonl(all_records, jsonl_out)
 
     # build paragraphs then chunks
     paragraphs = paragraphs_from_records(all_records)
@@ -73,7 +81,13 @@ def run_ingest(input_dir: str, jsonl_out: str, chunk_out: str, store: bool = Tru
         ch.update({'doc_id': doc_id, 'file_type': file_type, 'chunk_id': idx, 'status': status})
         enriched_chunks.append(ch)
 
-    write_jsonl(enriched_chunks, chunk_out)
+    # Write chunks in JSON or TOON format
+    if use_toon:
+        toon_chunk_out = chunk_out.replace('.jsonl', '.toon')
+        write_toon({'chunks': enriched_chunks}, toon_chunk_out)
+        print(f"Wrote chunks in TOON format: {toon_chunk_out}")
+    else:
+        write_jsonl(enriched_chunks, chunk_out)
 
     if store:
         init_db()
@@ -107,8 +121,10 @@ def cli():
     p.add_argument('--chunks-jsonl', default='data/db/chunks.jsonl')
     p.add_argument('--no-store', action='store_true')
     p.add_argument('--no-embed', action='store_true')
+    p.add_argument('--use-toon', action='store_true', help='Output in TOON format instead of JSONL')
     args = p.parse_args()
-    run_ingest(args.input, args.records_jsonl, args.chunks_jsonl, store=not args.no_store, embed=not args.no_embed)
+    run_ingest(args.input, args.records_jsonl, args.chunks_jsonl, 
+               store=not args.no_store, embed=not args.no_embed, use_toon=args.use_toon)
 
 if __name__ == '__main__':
     cli()
