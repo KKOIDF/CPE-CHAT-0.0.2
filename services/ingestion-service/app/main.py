@@ -5,13 +5,13 @@ from pathlib import Path
 from typing import List, Dict
 from datetime import datetime
 
-from .ocr_pipeline import ingest_pdf, ingest_excel, write_jsonl
+from .ocr_pipeline import ingest_pdf, ingest_excel
 from .chunking import paragraphs_from_records, make_chunks
 from .db import init_db, insert_chunks, log_ocr_quality
 from .chroma_client import upsert_chunks
 from .quality import is_valid_ocr, make_quality_entry
 from .config import EMBED_FLAGGED
-from .toon_converter import write_toon, jsonl_to_toon
+from .toon_converter import write_toon
 
 
 def gather_files(input_dir: str) -> List[Path]:
@@ -36,7 +36,8 @@ def _gen_doc_id(path: str, page: int, chunk_id: int) -> str:
     return hashlib.sha1(basis.encode('utf-8', 'ignore')).hexdigest()[:32]
 
 
-def run_ingest(input_dir: str, jsonl_out: str, chunk_out: str, store: bool = True, embed: bool = True, use_toon: bool = False):
+def run_ingest(input_dir: str, output_base: str, store: bool = True, embed: bool = True):
+    """Run ingestion pipeline with TOON format as default"""
     files = gather_files(input_dir)
     all_records: List[dict] = []
     quality_entries: List[Dict] = []
@@ -46,13 +47,10 @@ def run_ingest(input_dir: str, jsonl_out: str, chunk_out: str, store: bool = Tru
         recs = process_file(f)
         all_records.extend(recs)
     
-    # Write records in JSON or TOON format
-    if use_toon:
-        toon_out = jsonl_out.replace('.jsonl', '.toon')
-        write_toon({'records': all_records}, toon_out)
-        print(f"Wrote records in TOON format: {toon_out}")
-    else:
-        write_jsonl(all_records, jsonl_out)
+    # Write records in TOON format (default)
+    records_out = output_base.replace('.jsonl', '.toon') if '.jsonl' in output_base else f"{output_base}_records.toon"
+    write_toon({'records': all_records}, records_out)
+    print(f"✅ Wrote {len(all_records)} records → {records_out}")
 
     # build paragraphs then chunks
     paragraphs = paragraphs_from_records(all_records)
@@ -81,13 +79,10 @@ def run_ingest(input_dir: str, jsonl_out: str, chunk_out: str, store: bool = Tru
         ch.update({'doc_id': doc_id, 'file_type': file_type, 'chunk_id': idx, 'status': status})
         enriched_chunks.append(ch)
 
-    # Write chunks in JSON or TOON format
-    if use_toon:
-        toon_chunk_out = chunk_out.replace('.jsonl', '.toon')
-        write_toon({'chunks': enriched_chunks}, toon_chunk_out)
-        print(f"Wrote chunks in TOON format: {toon_chunk_out}")
-    else:
-        write_jsonl(enriched_chunks, chunk_out)
+    # Write chunks in TOON format (default)
+    chunks_out = output_base.replace('.jsonl', '.toon') if '.jsonl' in output_base else f"{output_base}_chunks.toon"
+    write_toon({'chunks': enriched_chunks}, chunks_out)
+    print(f"✅ Wrote {len(enriched_chunks)} chunks → {chunks_out}")
 
     if store:
         init_db()
@@ -115,16 +110,13 @@ def run_ingest(input_dir: str, jsonl_out: str, chunk_out: str, store: bool = Tru
 
 
 def cli():
-    p = argparse.ArgumentParser(description='Ingestion Service CLI')
+    p = argparse.ArgumentParser(description='Ingestion Service CLI - Uses TOON format by default')
     p.add_argument('--input', required=True, help='Input directory containing PDF/Excel files')
-    p.add_argument('--records-jsonl', default='data/db/records.jsonl')
-    p.add_argument('--chunks-jsonl', default='data/db/chunks.jsonl')
-    p.add_argument('--no-store', action='store_true')
-    p.add_argument('--no-embed', action='store_true')
-    p.add_argument('--use-toon', action='store_true', help='Output in TOON format instead of JSONL')
+    p.add_argument('--output', default='data/db/data', help='Output base path (default: data/db/data)')
+    p.add_argument('--no-store', action='store_true', help='Skip database storage')
+    p.add_argument('--no-embed', action='store_true', help='Skip embedding generation')
     args = p.parse_args()
-    run_ingest(args.input, args.records_jsonl, args.chunks_jsonl, 
-               store=not args.no_store, embed=not args.no_embed, use_toon=args.use_toon)
+    run_ingest(args.input, args.output, store=not args.no_store, embed=not args.no_embed)
 
 if __name__ == '__main__':
     cli()

@@ -2,6 +2,7 @@ import re
 import unicodedata
 from typing import List
 from .validation import script_ratios
+from .config import THAI_WORD_TOKENIZER, THAI_SENT_TOKENIZER
 
 _TH_CHR = r'\u0E00-\u0E7F'
 _TH_PAIR = re.compile(rf'([{_TH_CHR}])\s+([{_TH_CHR}])')
@@ -70,28 +71,58 @@ def clean_for_index(text: str) -> str:
     return t.strip()
 
 
-def tokenize_thai_words(text: str) -> List[str]:
-    """Tokenize Thai text into words using PythaiNLP."""
+def tokenize_thai_words(text: str, engine: str = None) -> List[str]:
+    """Tokenize Thai text into words using PythaiNLP.
+    
+    Args:
+        text: Text to tokenize
+        engine: Word tokenizer engine (None = use config default)
+                'newmm' - Fast and good for general text
+                'attacut' - Best accuracy for modern Thai (default)
+                'longest' - Good for formal/academic text
+                'deepcut' - Deep learning based
+    """
     if not text or not _HAS_THAI:
         return text.split()
+    if engine is None:
+        engine = THAI_WORD_TOKENIZER
     try:
-        return word_tokenize(text, engine='newmm', keep_whitespace=False)
+        return word_tokenize(text, engine=engine, keep_whitespace=False)
     except Exception:
-        return text.split()
+        # Fallback to newmm if engine fails
+        try:
+            return word_tokenize(text, engine='newmm', keep_whitespace=False)
+        except Exception:
+            return text.split()
 
 
-def segment_sentences_thai(text: str) -> List[str]:
-    """Segment Thai text into sentences using PythaiNLP."""
+def segment_sentences_thai(text: str, engine: str = None) -> List[str]:
+    """Segment Thai text into sentences using PythaiNLP.
+    
+    Args:
+        text: Text to segment
+        engine: Sentence tokenizer engine (None = use config default)
+                'crfcut' - Best for Thai academic text (default)
+                'tltk' - Good for mixed Thai/English
+    """
     if not text:
         return []
     if not _HAS_THAI:
         return [s.strip() for s in _SENT_SPLIT.split(text) if s.strip()]
+    if engine is None:
+        engine = THAI_SENT_TOKENIZER
     try:
         # Use PythaiNLP sentence tokenizer for better Thai handling
-        sents = sent_tokenize(text, engine='crfcut')
+        sents = sent_tokenize(text, engine=engine)
         return [s.strip() for s in sents if s.strip()]
     except Exception:
-        return [s.strip() for s in _SENT_SPLIT.split(text) if s.strip()]
+        # Fallback to crfcut if engine fails
+        try:
+            sents = sent_tokenize(text, engine='crfcut')
+            return [s.strip() for s in sents if s.strip()]
+        except Exception:
+            # Last resort: regex
+            return [s.strip() for s in _SENT_SPLIT.split(text) if s.strip()]
 
 
 def split_paragraphs_smart(text: str, use_thai_sent: bool = True) -> List[str]:
@@ -114,8 +145,8 @@ def split_paragraphs_smart(text: str, use_thai_sent: bool = True) -> List[str]:
         if buf:
             para = '\n'.join(buf).strip()
             if len(para) > 1200:
-                # Use PythaiNLP sentence segmentation if available and enabled
-                if use_thai_sent and _HAS_THAI:
+                # Use PythaiNLP sentence segmentation (default enabled)
+                if use_thai_sent:
                     sents = segment_sentences_thai(para)
                 else:
                     sents = [s.strip() for s in _SENT_SPLIT.split(para) if s.strip()]

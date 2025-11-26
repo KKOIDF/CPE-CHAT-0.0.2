@@ -50,6 +50,12 @@ TY_OCR_MAX_TIMEOUTS = int(os.getenv('TY_OCR_MAX_TIMEOUTS', '2'))  # disable Typh
 # OCR engine selection: 'auto' (fallback logic), 'poppler', 'tesseract', 'typhoon'
 OCR_ENGINE = os.getenv('OCR_ENGINE', 'auto').lower()
 
+# Thai NLP tokenizer settings
+# Word tokenizer: 'newmm' (fast), 'attacut' (best accuracy), 'longest' (formal text), 'deepcut'
+THAI_WORD_TOKENIZER = os.getenv('THAI_WORD_TOKENIZER', 'attacut').lower()
+# Sentence tokenizer: 'crfcut' (best for Thai), 'tltk' (mixed Thai/English)
+THAI_SENT_TOKENIZER = os.getenv('THAI_SENT_TOKENIZER', 'crfcut').lower()
+
 # MuPDF-only fast path (skip all OCR fallback if set)
 MUPDF_ONLY = os.getenv('MUPDF_ONLY', '0').lower() in ('1','true','yes')
 

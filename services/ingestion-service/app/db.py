@@ -3,6 +3,7 @@ from pathlib import Path
 from typing import Iterable, Dict, Any, List
 
 from .config import SQLITE_PATH
+from .toon_converter import read_toon
 
 # New schema: explicit chunk metadata + separate FTS table + OCR quality log
 SCHEMA = """
@@ -116,3 +117,25 @@ def keyword_search(query: str, limit: int = 10) -> List[Dict[str, Any]]:
   out = [dict(zip(cols, row)) for row in cur.fetchall()]
   conn.close()
   return out
+
+
+def load_chunks_from_toon(toon_path: str = 'data/db/chunks.toon') -> List[Dict[str, Any]]:
+  """Load chunks from TOON file"""
+  try:
+    data = read_toon(toon_path)
+    if isinstance(data, dict) and 'chunks' in data:
+      return data['chunks']
+    return data if isinstance(data, list) else []
+  except FileNotFoundError:
+    return []
+
+
+def load_records_from_toon(toon_path: str = 'data/db/records.toon') -> List[Dict[str, Any]]:
+  """Load records from TOON file"""
+  try:
+    data = read_toon(toon_path)
+    if isinstance(data, dict) and 'records' in data:
+      return data['records']
+    return data if isinstance(data, list) else []
+  except FileNotFoundError:
+    return []

@@ -3,7 +3,7 @@ from pathlib import Path
 from typing import List, Dict
 
 from .config import CHUNK_MIN_TOKENS, CHUNK_MAX_TOKENS, CHUNK_OVERLAP_RATIO, CHAR_PER_TOKEN
-from .utils import split_paragraphs_smart
+from .utils import split_paragraphs_smart, segment_sentences_thai
 
 _HEADING_PATTS = [r"^บท\s*ที่\s*\d+", r"^หมวด\s*ที่?\s*\d+", r"^ภาคผนวก", r"^บท\s*\d+", r"^(?:\d+\.)+\s+", r"^\d+\)\s+", r"^[A-Za-zก-๙]+\s*:\s+"]
 _HEADING_RE = re.compile("|".join(_HEADING_PATTS))
@@ -125,8 +125,8 @@ def make_chunks(paragraphs: List[Dict], source_path: str) -> List[Dict]:
             tail = joined[-overlap_chars:] if overlap_chars > 0 else None
             finalize_chunk(tail)
             if est_tokens(p['text']) > CHUNK_MAX_TOKENS:
-                # split long paragraph by simple sentence heuristic
-                sents = re.split(r'(?<=[\.!?…\u0E2F\u0E5B\u0E46])\s+', p['text'])
+                # split long paragraph using Thai-aware sentence segmentation
+                sents = segment_sentences_thai(p['text'])
                 buf = []
                 for s in sents:
                     tentative = '\n'.join(buf + [s])

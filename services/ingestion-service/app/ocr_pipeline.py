@@ -10,6 +10,7 @@ from .extract_pdf import extract_pages_with_fallback, extract_text_mupdf, ocr_pa
 from .extract_excel import extract_excel_to_records
 from .utils import split_paragraphs_smart, clean_for_index
 from .typhoon_ocr import ocr_pdf_typhoon_pages
+from .toon_converter import write_toon
 from .config import OCR_ENGINE, TY_OCR_ENABLE, POPPLER_PATH, TESSERACT_PATH, OCR_DPI, OCR_LANG_DEFAULT, MUPDF_ONLY
 
 # Set Tesseract path if configured
@@ -94,9 +95,18 @@ def ingest_excel(path: str) -> List[Dict]:
 
 
 def write_jsonl(records: List[Dict], out_path: str) -> str:
+    """Legacy JSONL writer - use write_toon for new code"""
     p = Path(out_path)
     p.parent.mkdir(parents=True, exist_ok=True)
     with p.open('w', encoding='utf-8') as f:
         for r in records:
             f.write(json.dumps(r, ensure_ascii=False) + '\n')
+    return str(p)
+
+
+def write_records_toon(records: List[Dict], out_path: str) -> str:
+    """Write records to TOON format (default)"""
+    p = Path(out_path)
+    p.parent.mkdir(parents=True, exist_ok=True)
+    write_toon({'records': records}, str(p))
     return str(p)

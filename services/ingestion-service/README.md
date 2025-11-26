@@ -38,10 +38,12 @@ python -m app.main --input /path/to/input_dir
 
 Generated:
 
-* `data/db/records.jsonl` per page/sheet
-* `data/db/chunks.jsonl` chunk objects
+* `data/db/records.toon` per page/sheet (TOON format - 80% smaller than JSON)
+* `data/db/chunks.toon` chunk objects (TOON format)
 * SQLite file `data/db/ingestion.db` with tables `documents`, `ocr_quality`, FTS `docs_fts`
 * Chroma persistent collection under `data/chroma`
+
+**Note:** Legacy JSONL format can still be written by passing `--use-toon false`.
 
 ## Docker
 
