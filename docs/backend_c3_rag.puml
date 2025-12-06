@@ -1,0 +1,61 @@
+@startuml Backend_C3_RAG_Components
+' Support local or remote includes via -DRELATIVE_INCLUDE
+!if %variable_exists("RELATIVE_INCLUDE")
+    !include ./C4_Component.puml
+!else
+    !include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
+!endif
+
+LAYOUT_WITH_LEGEND()
+
+title C3 - RAG Service Component Diagram
+
+package "RAG Service" as rag_container {
+    Component(main, "Main Entry", "main.py", "FastAPI Application\nRequest Handler")
+    
+    package "Query Processing Layer" as query_layer {
+        Component(query_proc, "Query Processor", "rag_logic.py", "Parse User Input\nPrepare for Search")
+        Component(intent, "Intent Recognition", "rag_logic.py", "Identify Query Type\nExtract Entities")
+    }
+    
+    package "Retrieval Layer" as retrieval {
+        Component(chroma_rag, "Vector Search", "chroma_client.py", "Semantic Similarity\nFind Relevant Chunks")
+        Component(meta_filter, "Metadata Filter", "sqlite_client.py", "Filter by Metadata\nRefine Results")
+        Component(ranker, "Result Ranker", "rag_logic.py", "Rank by Relevance\nApply Weights")
+    }
+    
+    package "Generation Layer" as generation {
+        Component(prompt_build, "Prompt Builder", "rag_logic.py", "Construct Prompts\nAdd Context")
+        Component(llm_call, "LLM Interface", "llm.py", "Call LLM API\nHandle Streaming")
+        Component(response_fmt, "Response Formatter", "rag_logic.py", "Format Output\nAdd Citations")
+    }
+    
+    Component(cache, "Cache Manager", "Optional", "Cache Queries\nReduce API Calls")
+    Component(config, "Configuration", "config.py", "Load Settings\nModel Config")
+    
+    Component(session_mgr, "Session Manager", "rag_logic.py", "Manage Context\nTrack Conversation")
+}
+
+Rel(main, config, "Loads")
+Rel(main, session_mgr, "Uses")
+Rel(main, query_proc, "Routes")
+
+Rel(query_proc, intent, "Analyzes")
+Rel(intent, chroma_rag, "Query")
+Rel(intent, meta_filter, "Filter")
+
+Rel(chroma_rag, ranker, "Results")
+Rel(meta_filter, ranker, "Metadata")
+
+Rel(ranker, prompt_build, "Context")
+Rel(session_mgr, prompt_build, "History")
+
+Rel(prompt_build, cache, "Check")
+Rel(cache, llm_call, "Results/Miss")
+
+Rel(llm_call, response_fmt, "Raw Response")
+Rel(ranker, response_fmt, "Source Info")
+
+Rel(response_fmt, session_mgr, "Store")
+
+@enduml

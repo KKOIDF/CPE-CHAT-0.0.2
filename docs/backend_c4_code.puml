@@ -1,0 +1,212 @@
+@startuml C4_CodeLevel_Full_Styled
+' -------------------------------------------------------
+' Imports
+' -------------------------------------------------------
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Deployment.puml
+
+' -------------------------------------------------------
+' Layout
+' -------------------------------------------------------
+left to right direction
+LAYOUT_WITH_LEGEND()
+
+' -------------------------------------------------------
+' Package Styles
+' -------------------------------------------------------
+skinparam package {
+  BackgroundColor #F7F9FF
+  BorderColor #6A8DFF
+  FontColor #1A1A1A
+}
+
+' -------------------------------------------------------
+' Class Styles (Stereotypes)
+' -------------------------------------------------------
+skinparam class {
+  BorderColor #444444
+  FontColor #222222
+  BackgroundColor<<Extractor>> #FFF2E0
+  BackgroundColor<<Converter>> #F7E8FF
+  BackgroundColor<<Chunking>> #E9FFF7
+  BackgroundColor<<NLP>> #E2F7FF
+  BackgroundColor<<DB>> #FFF8D6
+  BackgroundColor<<Model>> #EDF1FF
+  BackgroundColor<<Core>> #E1ECFF
+  BackgroundColor<<Search>> #EBF2FF
+  BackgroundColor<<Template>> #F9F0FF
+  BackgroundColor<<Session>> #FFF4EC
+  BackgroundColor<<Response>> #F0FFF6
+  BackgroundColor<<Data>> #FFFFFF
+}
+
+skinparam ArrowColor #333333
+skinparam ArrowThickness 2
+
+' -------------------------------------------------------
+' Ingestion Service
+' -------------------------------------------------------
+package "Ingestion Service" #DDEBFF {
+    
+    class PDFExtractor <<Extractor>> {
+        - file_path: str
+        - use_ocr: bool
+        + extract_text(): str
+        + extract_images(): List[Image]
+        + extract_pages(): List[Page]
+    }
+
+    class ExcelExtractor <<Extractor>> {
+        - file_path: str
+        + extract_sheets(): Dict[str, DataFrame]
+        + extract_tables(): List[Table]
+    }
+
+    class TextChunker <<Chunking>> {
+        - chunk_size: int
+        - overlap: int
+        - language: str
+        + chunk_text(): List[Chunk]
+        + preserve_context(): Chunk
+    }
+
+    class ThaiNLP <<NLP>> {
+        - tokenizer: Any
+        + tokenize(): List[Token]
+        + segment_sentences(): List[str]
+    }
+
+    class ChromaIngestion <<DB>> {
+        - collection_name: str
+        - client: ChromaClient
+        + add_embeddings(): bool
+        + delete_by_id(): bool
+    }
+
+    class TOONConverter <<Converter>> {
+        - compression: int
+        + to_toon(): bytes
+        + from_toon(): dict
+    }
+
+    class DBClient <<DB>> {
+        - connection: Any
+        + insert_records(): bool
+        + update_metadata(): bool
+        + query(): List[Record]
+    }
+
+    class Document <<Data>> {
+        - doc_id: str
+        - filename: str
+        - content: str
+        - chunks: List[Chunk]
+        - metadata: dict
+        - created_at: datetime
+    }
+
+    class Chunk <<Data>> {
+        - chunk_id: str
+        - content: str
+        - embedding: List[float]
+        - doc_id: str
+        - position: int
+    }
+}
+
+' -------------------------------------------------------
+' RAG Service
+' -------------------------------------------------------
+package "RAG Service" #DFFFE6 {
+
+    class RAGEngine <<Core>> {
+        - retriever: Retriever
+        - llm_client: LLMClient
+        - prompt_template: PromptTemplate
+        + query(): RAGResponse
+        + stream_response(): Iterator[str]
+    }
+
+    class QueryProcessor <<Core>> {
+        - input_text: str
+        + parse(): ParsedQuery
+        + extract_entities(): List[Entity]
+    }
+
+    class Retriever <<Search>> {
+        - vector_db: ChromaClient
+        - metadata_db: SQLiteClient
+        - top_k: int
+        + retrieve_chunks(): List[Chunk]
+        + filter_metadata(): List[Chunk]
+        + rank_results(): List[Chunk]
+    }
+
+    class LLMClient <<Core>> {
+        - model_name: str
+        - api_key: str
+        - api_url: str
+        + call_model(): str
+        + stream(): Iterator[str]
+    }
+
+    class PromptTemplate <<Template>> {
+        - system_prompt: str
+        - context_template: str
+        - example_template: str
+        + build(): str
+        + format_context(): str
+    }
+
+    class SessionManager <<Session>> {
+        - session_id: str
+        - history: List[Message]
+        + add_message(): void
+        + get_context(): str
+        + clear_history(): void
+    }
+
+    class RAGResponse <<Response>> {
+        - query: str
+        - response: str
+        - sources: List[Source]
+        - confidence: float
+        - execution_time: float
+    }
+
+    class Source <<Data>> {
+        - chunk_id: str
+        - doc_name: str
+        - content_preview: str
+        - relevance_score: float
+    }
+}
+
+' -------------------------------------------------------
+' Relationships (Improved labeling)
+' -------------------------------------------------------
+
+Rel(PDFExtractor, TextChunker, "produces chunks", "Extracted text")
+Rel(ExcelExtractor, TextChunker, "produces chunks", "Sheet/Table text")
+Rel(TextChunker, ThaiNLP, "uses", "Thai segmentation")
+
+Rel(TextChunker, ChromaIngestion, "sends embeddings to", "Vector DB")
+Rel(TextChunker, TOONConverter, "converts", "Toon format")
+Rel(TOONConverter, DBClient, "saves metadata to")
+
+Rel(ChromaIngestion, Chunk, "stores")
+Rel(DBClient, Document, "persists document & metadata")
+
+Rel(RAGEngine, QueryProcessor, "parses")
+Rel(RAGEngine, Retriever, "retrieves chunks")
+Rel(RAGEngine, LLMClient, "calls model API")
+Rel(RAGEngine, SessionManager, "manages session")
+
+Rel(Retriever, ChromaIngestion, "queries", "vector search")
+Rel(Retriever, DBClient, "queries", "metadata filtering")
+
+Rel(LLMClient, PromptTemplate, "uses template")
+
+Rel(RAGEngine, RAGResponse, "returns")
+Rel(RAGResponse, Source, "contains sources")
+
+@enduml
