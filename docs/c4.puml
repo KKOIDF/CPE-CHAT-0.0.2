@@ -1,0 +1,135 @@
+@startuml C1_Context
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Context.puml
+LAYOUT_TOP_DOWN
+
+Title C1 - CPE Chat Context
+
+Person(user, "User", "Student/Staff chats and uploads documents")
+
+System_Boundary(cpe, "CPE Chat System") {
+  System(spa, "React SPA", "Browser UI for chat and PDF upload")
+  System(express, "Express Server", "Node.js mock chatbot + PDF echo")
+  System(fastapi, "RAG Service", "FastAPI for retrieval + answer")
+  System(ingest, "Ingestion Service", "Batch OCR + chunk + embed")
+  SystemDb(data, "Data Lake", "Chroma vectors, SQLite FTS, raw files")
+}
+
+System_Ext(ocr_api, "Typhoon OCR API", "OCR fallback (optional)")
+System_Ext(tesseract, "Tesseract", "Local OCR engine")
+System_Ext(embedding_api, "Embedding API", "External embeddings (optional)")
+System_Ext(llm_ext, "LLM Provider", "HF model / external endpoint")
+
+Rel(user, spa, "Uses")
+Rel(spa, express, "HTTP /chat, /upload-pdf")
+Rel(express, fastapi, "(planned) Proxy chat to RAG")
+Rel(fastapi, data, "Read contexts")
+Rel(ingest, data, "Write chunks/embeddings/DB")
+Rel(ingest, ocr_api, "OCR fallback")
+Rel(ingest, tesseract, "OCR primary/backup")
+Rel(ingest, embedding_api, "Embed (if configured)")
+Rel(fastapi, llm_ext, "Generate answers (optional)")
+Rel(user, ingest, "Provide batch input", "PDF/Excel")
+@enduml
+
+@startuml C2_Container
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+LAYOUT_TOP_DOWN
+
+Title C2 - CPE Chat Containers
+
+Person(user, "User")
+
+System_Boundary(cpe, "CPE Chat") {
+  Container(spa, "React SPA", "Vite/React", "Chat UI, PDF upload")
+  Container(express, "Express API", "Node/Express :5000", "Mock chatbot + PDF round-trip")
+  Container(fastapi, "RAG Service", "FastAPI :8000 (assumed)", "/rag/query, /rag/answer")
+  Container(ingest, "Ingestion CLI/Docker", "Python", "ocr_pipeline + chunking + embeddings")
+  ContainerDb(chroma, "ChromaDB", "Vector store", "Persistent collection 'documents'")
+  ContainerDb(sqlite, "SQLite FTS", "Database", "ingestion.db (documents, docs_fts)")
+  Container(raw, "Raw/Text/TOON", "Filesystem", "raw_files, text, review flagged")
+}
+
+System_Ext(ocr_api, "Typhoon OCR API", "HTTP OCR fallback")
+System_Ext(tesseract, "Tesseract", "Local OCR binary")
+System_Ext(embed_api, "Embedding API", "Optional external embeddings")
+System_Ext(llm_ext, "LLM Provider", "HF local model or external")
+
+Rel(user, spa, "Interact")
+Rel(spa, express, "POST /chat, /upload-pdf")
+Rel(express, fastapi, "(planned) Forward chat/question")
+Rel(fastapi, chroma, "Vector search")
+Rel(fastapi, sqlite, "Keyword search")
+Rel(fastapi, llm_ext, "Generate answer when enabled")
+Rel(ingest, chroma, "Upsert embeddings")
+Rel(ingest, sqlite, "Insert documents/fts")
+Rel(ingest, raw, "Write raw + review")
+Rel(ingest, ocr_api, "OCR fallback")
+Rel(ingest, tesseract, "OCR primary/backup")
+Rel(ingest, embed_api, "Embed (if configured)")
+Rel(user, ingest, "Supply batch files")
+@enduml
+
+@startuml C3_RAG_Component
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
+LAYOUT_TOP_DOWN
+
+Title C3 - RAG Service Components
+
+Container_Boundary(rag, "FastAPI RAG Service") {
+  Component(api, "FastAPI Endpoints", "app.main", "/rag/query, /rag/answer, /health")
+  Component(rag_logic, "rag_logic.py", "Hybrid retrieve + pack + prompt")
+  Component(chroma_client, "chroma_client.py", "Chroma semantic search + embeddings")
+  Component(sqlite_client, "sqlite_client.py", "Keyword search via docs_fts")
+  Component(llm, "llm.py", "LLMEngine generate (optional)")
+  Component(config, "config.py", "Paths, models, budgets")
+}
+
+ContainerDb(chroma, "ChromaDB", "Persistent collection")
+ContainerDb(sqlite, "SQLite ingestion.db", "documents, docs_fts")
+System_Ext(llm_ext, "LLM Provider", "HF local/external")
+
+Rel(api, rag_logic, "Call")
+Rel(rag_logic, chroma_client, "semantic_search")
+Rel(rag_logic, sqlite_client, "keyword_search + fetch_docs")
+Rel(rag_logic, llm, "generate answer when /rag/answer")
+Rel(chroma_client, chroma, "Query/Upsert")
+Rel(sqlite_client, sqlite, "SELECT / FTS")
+Rel(llm, llm_ext, "Load or call model")
+@enduml
+
+@startuml C3_Ingestion_Component
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
+LAYOUT_TOP_DOWN
+
+Title C3 - Ingestion Service Components
+
+Container_Boundary(ingest, "Ingestion Service") {
+  Component(cli, "app.main", "run_ingest CLI")
+  Component(ocr, "ocr_pipeline.py", "MuPDF + Typhoon/Tesseract fallback")
+  Component(chunk, "chunking.py", "Paragraph + chunk builder")
+  Component(quality, "quality.py", "OCR quality + flagged review")
+  Component(db, "db.py", "init_db + insert_chunks")
+  Component(embed, "chroma_client.py", "Embed + upsert to Chroma")
+  Component(utils, "toon_converter.py", "Write TOON records/chunks")
+}
+
+ContainerDb(chroma, "ChromaDB", "Vector store")
+ContainerDb(sqlite, "SQLite ingestion.db", "documents, docs_fts")
+Container(raw, "Raw/Text/TOON", "Filesystem outputs")
+System_Ext(ocr_api, "Typhoon OCR API", "OCR fallback")
+System_Ext(tesseract, "Tesseract", "Local OCR binary")
+System_Ext(embed_api, "Embedding API", "Optional external embeddings")
+
+Rel(cli, ocr, "Ingest files")
+Rel(ocr, chunk, "Extracted pages/sheets")
+Rel(chunk, quality, "Assess text")
+Rel(chunk, utils, "Write TOON records/chunks")
+Rel(chunk, db, "Insert to SQLite")
+Rel(chunk, embed, "Embed chunks")
+Rel(db, sqlite, "Insert/FTS")
+Rel(embed, chroma, "Upsert embeddings")
+Rel(utils, raw, "Save records/chunks + review")
+Rel(ocr, ocr_api, "HTTP OCR fallback")
+Rel(ocr, tesseract, "Local OCR")
+Rel(embed, embed_api, "Remote embeddings (optional)")
+@enduml
