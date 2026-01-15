@@ -1,0 +1,97 @@
+@startuml CPE_CHAT_UseCase
+!theme plain
+skinparam actorStyle awesome
+
+title CPE CHAT System - Use Case Diagram
+
+left to right direction
+
+actor "Visitor" as visitor
+actor "Authenticated User" as auth_user
+actor "Administrator" as admin
+
+rectangle "Web Application" {
+    
+    ' Visitor Use Cases
+    usecase "Open Sign In Page" as UC_SignIn
+    usecase "Log In with\nEmail + Password" as UC_Login
+    usecase "Open Sign Up Page" as UC_SignUp
+    usecase "Register New Account\n(Username, Email, Password)" as UC_Register
+    usecase "Start New Conversation" as UC_NewChat
+    usecase "Request Department\nDocument Links" as UC_RequestDocs
+    usecase "Browse FAQ" as UC_FAQ
+    usecase "Use Chatbot\nwithout authentication" as UC_GuestChat
+    
+    ' Authenticated User Use Cases
+    usecase "Open Profile Page" as UC_Profile
+    usecase "View Personal Account Details" as UC_ViewAccount
+    usecase "Edit Display Name" as UC_EditName
+    usecase "Sign Out" as UC_SignOut
+    usecase "View Chat History" as UC_ChatHistory
+    
+    ' Admin Use Cases
+    usecase "Access Admin Dashboard" as UC_AdminDashboard
+    usecase "Upload Documents" as UC_UploadDocs
+    usecase "Delete Documents" as UC_DeleteDocs
+    usecase "View Document List" as UC_ViewDocs
+    usecase "Manage Document Metadata" as UC_ManageMetadata
+    usecase "Process Documents\n(Chunking & Embedding)" as UC_ProcessDocs
+    usecase "View Processing Status" as UC_ViewStatus
+    usecase "Configure Ingestion Pipeline" as UC_ConfigPipeline
+    usecase "View System Logs" as UC_ViewLogs
+    usecase "Manage User Accounts" as UC_ManageUsers
+    
+    ' Include/Extend Relationships
+    UC_SignIn ..> UC_Login : <<include>>
+    UC_SignUp ..> UC_Register : <<include>>
+    UC_Profile ..> UC_ViewAccount : <<include>>
+    UC_ViewAccount ..> UC_EditName : <<extend>>
+    UC_UploadDocs ..> UC_ProcessDocs : <<include>>
+    UC_ManageMetadata ..> UC_ViewDocs : <<extend>>
+}
+
+' Actor-UseCase Relationships - Visitor
+visitor --> UC_SignIn
+visitor --> UC_SignUp
+visitor --> UC_NewChat
+visitor --> UC_RequestDocs
+visitor --> UC_FAQ
+visitor --> UC_GuestChat
+
+' Actor-UseCase Relationships - Authenticated User
+auth_user --> UC_Profile
+auth_user --> UC_SignOut
+auth_user --> UC_ChatHistory
+auth_user --> UC_NewChat
+auth_user --> UC_RequestDocs
+auth_user --> UC_FAQ
+
+' Actor-UseCase Relationships - Administrator
+admin --> UC_AdminDashboard
+admin --> UC_UploadDocs
+admin --> UC_DeleteDocs
+admin --> UC_ViewDocs
+admin --> UC_ManageMetadata
+admin --> UC_ProcessDocs
+admin --> UC_ViewStatus
+admin --> UC_ConfigPipeline
+admin --> UC_ViewLogs
+admin --> UC_ManageUsers
+
+
+note right of admin
+  Administrator has all
+  Authenticated User privileges
+  plus file management capabilities
+end note
+
+note bottom of UC_ProcessDocs
+  Includes:
+  - PDF/Excel extraction
+  - Thai NLP chunking
+  - BGE-M3 embedding
+  - Quality validation
+end note
+admin --|> auth_user
+
+@enduml
