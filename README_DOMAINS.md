@@ -21,6 +21,9 @@ Indexes are stored under:
 
 > Curriculum ingestion จะพยายาม upsert graph เข้า Neo4j แบบ best-effort ถ้าตั้งค่า `NEO4J_URI` / `NEO4J_USERNAME` / `NEO4J_PASSWORD` ไว้
 
+ถ้าต้องการรัน upsert กราฟซ้ำ (แนะนำให้ใช้ SQLite เป็นแหล่งข้อมูล):
+- `C:/Users/KritChaJ/CPE-CHAT-0.0.2/.venv/Scripts/python.exe services/ingestion-service/scripts/upsert_graph_from_sqlite.py --domain curriculum`
+
 ## Query (ผ่าน API)
 รัน RAG service:
 - `./scripts/run_rag_service.ps1`

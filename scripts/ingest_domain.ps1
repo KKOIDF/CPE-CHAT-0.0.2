@@ -1,6 +1,6 @@
 param(
   [Parameter(Mandatory=$true)][ValidateSet('announcements','regulations','curriculum')]$Domain,
-  [Parameter(Mandatory=$true)][string]$Input,
+  [Parameter(Mandatory=$true)][string]$InputPath,
   [string]$Output = "data/db/$Domain"
 )
 
@@ -16,4 +16,4 @@ $env:CPE_DOMAIN = $Domain
 $env:CPE_INDEX_ROOT = (Join-Path $repo "indexes")
 $env:PYTHONPATH = $svc
 
-& $py -m app.main --domain $Domain --input $Input --output $Output
+& $py -m app.main --domain $Domain --input $InputPath --output $Output

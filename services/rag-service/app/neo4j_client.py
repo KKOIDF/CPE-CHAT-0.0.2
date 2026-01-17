@@ -36,9 +36,10 @@ def _driver():
     return GraphDatabase.driver(uri, auth=(user, password))
 
 
-def graph_chunks_for_codes(codes: List[str], domain: str, limit: int = 20) -> List[Dict[str, Any]]:
-    """Return chunks connected to Course codes for a domain.
+def graph_doc_ids_for_codes(codes: List[str], domain: str, limit: int = 50) -> List[str]:
+    """Return Chunk.doc_id values connected to Course codes for a domain.
 
+    This keeps Neo4j payload light; full chunk text is fetched from SQLite.
     If Neo4j isn't configured, returns empty list.
     """
     drv = _driver()
@@ -51,14 +52,13 @@ def graph_chunks_for_codes(codes: List[str], domain: str, limit: int = 20) -> Li
     cypher = (
         "MATCH (co:Course) WHERE co.code IN $codes "
         "MATCH (co)-[:MENTIONED_IN]->(ch:Chunk {domain:$domain}) "
-        "RETURN ch.doc_id AS doc_id, ch.text AS text, ch.source AS source, ch.path AS path, "
-        "ch.page_start AS page_start, ch.page_end AS page_end "
+        "RETURN ch.doc_id AS doc_id "
         "LIMIT $limit"
     )
 
     with drv.session() as session:
         rows = session.run(cypher, codes=codes, domain=dom, limit=limit)
-        out = [dict(r) for r in rows]
+        out = [r.get('doc_id') for r in rows if r.get('doc_id')]
 
     try:
         drv.close()

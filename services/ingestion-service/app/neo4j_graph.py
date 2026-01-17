@@ -52,10 +52,10 @@ def upsert_chunks_to_neo4j(chunks: Iterable[Dict[str, Any]], domain: Optional[st
     This is intentionally lightweight: it links course codes to chunks via (:Course)-[:MENTIONED_IN]->(:Chunk).
     If Neo4j env vars are not configured, it becomes a no-op.
 
-    Required env:
-      - NEO4J_URI (e.g. bolt://localhost:7687)
-      - NEO4J_USER
-      - NEO4J_PASSWORD
+        Required env:
+            - NEO4J_URI (e.g. bolt://localhost:7687)
+            - NEO4J_USERNAME (or NEO4J_USER)
+            - NEO4J_PASSWORD
     """
     drv = _neo4j_driver()
     if not drv:
@@ -65,13 +65,12 @@ def upsert_chunks_to_neo4j(chunks: Iterable[Dict[str, Any]], domain: Optional[st
 
     domain = (domain or os.getenv('CPE_DOMAIN', 'curriculum')).strip().lower() or 'curriculum'
 
-    rows: List[Tuple[str, str, str, str, int, int, List[str]]] = []
+    rows: List[Tuple[str, str, int, int, List[str]]] = []
     for c in chunks:
         doc_id = str(c.get('doc_id') or '')
         if not doc_id:
             continue
         text = str(c.get('text') or '')
-        source = str(c.get('source') or '')
         path = str(c.get('path') or '')
         try:
             page_start = int(c.get('page_start') or 0)
@@ -82,20 +81,21 @@ def upsert_chunks_to_neo4j(chunks: Iterable[Dict[str, Any]], domain: Optional[st
         except Exception:
             page_end = page_start
         codes = sorted(_extract_course_codes(text))
-        rows.append((doc_id, text, source, path, page_start, page_end, codes))
+        # Store only lightweight metadata in Neo4j; full text stays in SQLite/Chroma
+        rows.append((doc_id, path, page_start, page_end, codes))
 
     if not rows:
         return 0
 
-    def _upsert(tx):
+    def _apply_schema(tx):
         _ensure_schema(tx)
+
+    def _upsert_batch(tx, batch_rows):
         tx.run(
             """
             UNWIND $rows AS r
             MERGE (ch:Chunk {doc_id: r.doc_id})
-            SET ch.text = r.text,
-                ch.source = r.source,
-                ch.path = r.path,
+            SET ch.path = r.path,
                 ch.page_start = r.page_start,
                 ch.page_end = r.page_end,
                 ch.domain = $domain
@@ -104,23 +104,33 @@ def upsert_chunks_to_neo4j(chunks: Iterable[Dict[str, Any]], domain: Optional[st
             MERGE (co:Course {code: code})
             MERGE (co)-[:MENTIONED_IN]->(ch)
             """,
-            rows=[
+            rows=batch_rows,
+            domain=domain,
+        )
+
+    with drv.session(database=neo4j_db) as session:
+        # Neo4j Aura forbids mixing schema modification + writes in one transaction.
+        session.execute_write(_apply_schema)
+
+        batch_size = int(os.getenv('NEO4J_UPSERT_BATCH', '200'))
+        total = len(rows)
+        sent = 0
+        for i in range(0, total, batch_size):
+            sub = rows[i:i+batch_size]
+            batch_rows = [
                 {
                     'doc_id': doc_id,
-                    'text': text,
-                    'source': source,
                     'path': path,
                     'page_start': page_start,
                     'page_end': page_end,
                     'codes': codes,
                 }
-                for (doc_id, text, source, path, page_start, page_end, codes) in rows
-            ],
-            domain=domain,
-        )
-
-    with drv.session(database=neo4j_db) as session:
-        session.execute_write(_upsert)
+                for (doc_id, path, page_start, page_end, codes) in sub
+            ]
+            session.execute_write(_upsert_batch, batch_rows)
+            sent += len(sub)
+            if sent % (batch_size * 5) == 0 or sent == total:
+                print(f"[Neo4j] Upserted {sent}/{total} chunks...")
 
     try:
         drv.close()

@@ -4,7 +4,7 @@ import math
 from .sqlite_client import keyword_search, fetch_docs_with_path, domain_sqlite_path
 from .chroma_client import semantic_search_domain
 from .config import TOKEN_BUDGET, RRF_K, MAX_CONTEXTS
-from .neo4j_client import extract_course_codes, graph_chunks_for_codes
+from .neo4j_client import extract_course_codes, graph_doc_ids_for_codes
 
 # Simple token counter heuristic (~4 chars/token Thai)
 CHAR_PER_TOKEN = 4.0
@@ -56,7 +56,8 @@ def retrieve_by_domain(question: str, domain: str | None, k_vec: int = 20, k_kw:
     codes = sorted(extract_course_codes(question))
     graph_docs: List[Dict] = []
     if dom == 'curriculum' and codes:
-        graph_docs = graph_chunks_for_codes(codes=codes, domain=dom, limit=max(10, MAX_CONTEXTS * 3))
+        graph_ids = graph_doc_ids_for_codes(codes=codes, domain=dom, limit=max(30, MAX_CONTEXTS * 8))
+        graph_docs = fetch_docs_with_path(graph_ids, sqlite_path=sqlite_path)
 
     bank: Dict[str, Dict] = {}
     ranks: Dict[str, float] = {}
