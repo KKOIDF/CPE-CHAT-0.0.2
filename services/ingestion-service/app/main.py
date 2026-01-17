@@ -1,17 +1,10 @@
 import argparse
 import json
 import hashlib
+import os
 from pathlib import Path
 from typing import List, Dict
 from datetime import datetime
-
-from .ocr_pipeline import ingest_pdf, ingest_excel
-from .chunking import paragraphs_from_records, make_chunks
-from .db import init_db, insert_chunks, log_ocr_quality
-from .chroma_client import upsert_chunks
-from .quality import is_valid_ocr, make_quality_entry
-from .config import EMBED_FLAGGED
-from .toon_converter import write_toon
 
 
 def gather_files(input_dir: str) -> List[Path]:
@@ -24,6 +17,8 @@ def gather_files(input_dir: str) -> List[Path]:
 
 
 def process_file(fp: Path) -> List[dict]:
+    # Delay import so env (domain paths) can be set before loading config
+    from .ocr_pipeline import ingest_pdf, ingest_excel
     if fp.suffix.lower() == '.pdf':
         return ingest_pdf(str(fp))
     if fp.suffix.lower() in ['.xlsx', '.xls', '.csv', '.tsv']:
@@ -38,6 +33,18 @@ def _gen_doc_id(path: str, page: int, chunk_id: int) -> str:
 
 def run_ingest(input_dir: str, output_base: str, store: bool = True, embed: bool = True):
     """Run ingestion pipeline with TOON format as default"""
+    # Delay imports so env (domain paths) can be set before loading config
+    from .chunking import paragraphs_from_records, make_chunks
+    from .db import init_db, insert_chunks, log_ocr_quality
+    from .chroma_client import upsert_chunks
+    from .quality import is_valid_ocr, make_quality_entry
+    from .config import EMBED_FLAGGED, REVIEW_DIR, DOMAIN
+    from .toon_converter import write_toon
+    try:
+        from .neo4j_graph import upsert_chunks_to_neo4j
+    except Exception:
+        upsert_chunks_to_neo4j = None  # type: ignore
+
     files = gather_files(input_dir)
     all_records: List[dict] = []
     quality_entries: List[Dict] = []
@@ -93,8 +100,7 @@ def run_ingest(input_dir: str, output_base: str, store: bool = True, embed: bool
     embed_candidates = enriched_chunks if EMBED_FLAGGED else [c for c in enriched_chunks if c.get('status') != 'flagged']
 
     if flagged_chunks and not EMBED_FLAGGED:
-        review_dir = Path('data/db/review')
-        review_dir.mkdir(parents=True, exist_ok=True)
+        review_dir = REVIEW_DIR
         review_path = review_dir / f"flagged_{datetime.utcnow().strftime('%Y%m%d%H%M%S')}.jsonl"
         with review_path.open('w', encoding='utf-8') as rf:
             for c in flagged_chunks:
@@ -104,6 +110,13 @@ def run_ingest(input_dir: str, output_base: str, store: bool = True, embed: bool
     if embed:
         upsert_chunks(embed_candidates)
 
+    # Curriculum: optional Neo4j graph upsert (hybrid graph RAG)
+    if DOMAIN == 'curriculum' and upsert_chunks_to_neo4j:
+        try:
+            upsert_chunks_to_neo4j(enriched_chunks)
+        except Exception as e:
+            print(f"[Neo4j] Graph upsert skipped/failed: {e}")
+
     flagged = len(flagged_chunks)
     embedded = len(embed_candidates) if embed else 0
     print(f"Ingested {len(files)} file(s), {len(all_records)} page/sheet records, {len(enriched_chunks)} chunks (flagged={flagged}, embedded={embedded}).")
@@ -111,11 +124,16 @@ def run_ingest(input_dir: str, output_base: str, store: bool = True, embed: bool
 
 def cli():
     p = argparse.ArgumentParser(description='Ingestion Service CLI - Uses TOON format by default')
+    p.add_argument('--domain', default=os.getenv('CPE_DOMAIN', ''), help='announcements|regulations|curriculum (optional; isolates indexes)')
     p.add_argument('--input', required=True, help='Input directory containing PDF/Excel files')
     p.add_argument('--output', default='data/db/data', help='Output base path (default: data/db/data)')
     p.add_argument('--no-store', action='store_true', help='Skip database storage')
     p.add_argument('--no-embed', action='store_true', help='Skip embedding generation')
     args = p.parse_args()
+
+    # Ensure domain is set before config/db/chroma modules are imported
+    if args.domain:
+        os.environ['CPE_DOMAIN'] = str(args.domain).strip().lower()
     run_ingest(args.input, args.output, store=not args.no_store, embed=not args.no_embed)
 
 if __name__ == '__main__':

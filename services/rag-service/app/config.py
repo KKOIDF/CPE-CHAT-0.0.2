@@ -2,9 +2,31 @@ import os
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-DATA_DIR = Path(os.getenv('DATA_DIR', BASE_DIR.parent.parent / 'services' / 'ingestion-service' / 'data'))
-CHROMA_DIR = DATA_DIR / 'chroma'
-SQLITE_PATH = DATA_DIR / 'db' / 'ingestion.db'
+
+# Repo root (..../CPE-CHAT-0.0.2)
+ROOT_DIR = BASE_DIR.parent.parent
+
+_KNOWN_DOMAINS = {'announcements', 'regulations', 'curriculum'}
+
+def domain_paths(domain: str | None):
+	"""Return (chroma_dir, sqlite_path) for a domain.
+
+	- If domain is one of announcements/regulations/curriculum: use repo-level indexes/
+	- Otherwise: fall back to legacy DATA_DIR (default points to ingestion-service/data)
+	"""
+	dom = (domain or '').strip().lower()
+	if dom in _KNOWN_DOMAINS:
+		index_root = Path(os.getenv('CPE_INDEX_ROOT', str(ROOT_DIR / 'indexes')))
+		chroma_dir = index_root / dom / 'vector' / 'chroma'
+		sqlite_path = index_root / dom / 'vector' / 'sqlite' / 'ingestion.db'
+		return chroma_dir, sqlite_path
+
+	legacy_data_dir = Path(os.getenv('DATA_DIR', str(ROOT_DIR / 'services' / 'ingestion-service' / 'data')))
+	return legacy_data_dir / 'chroma', legacy_data_dir / 'db' / 'ingestion.db'
+
+
+# Backward-compatible defaults (no explicit domain)
+CHROMA_DIR, SQLITE_PATH = domain_paths(os.getenv('CPE_DOMAIN'))
 
 EMBEDDING_MODEL = os.getenv('EMBEDDING_MODEL', 'BAAI/bge-m3')
 EMBED_BATCH = int(os.getenv('EMBED_BATCH', '32'))

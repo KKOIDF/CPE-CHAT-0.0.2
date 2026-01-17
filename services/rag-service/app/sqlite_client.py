@@ -1,13 +1,15 @@
 import sqlite3
-from typing import List, Dict
-from .config import SQLITE_PATH
+from typing import List, Dict, Optional
+from pathlib import Path
+from .config import SQLITE_PATH, domain_paths
 
-def get_conn():
-    return sqlite3.connect(str(SQLITE_PATH))
+def get_conn(sqlite_path: Optional[str] = None):
+    p = Path(sqlite_path) if sqlite_path else Path(SQLITE_PATH)
+    return sqlite3.connect(str(p))
 
 
-def keyword_search(query: str, limit: int = 30) -> List[str]:
-    conn = get_conn()
+def keyword_search(query: str, limit: int = 30, sqlite_path: Optional[str] = None) -> List[str]:
+    conn = get_conn(sqlite_path)
     
     # Sanitize query for FTS5 - escape special characters
     # FTS5 special chars: " ( ) - / AND OR NOT
@@ -36,9 +38,13 @@ def keyword_search(query: str, limit: int = 30) -> List[str]:
 
 
 def fetch_docs(doc_ids: List[str]) -> List[Dict]:
+    return fetch_docs_with_path(doc_ids, sqlite_path=None)
+
+
+def fetch_docs_with_path(doc_ids: List[str], sqlite_path: Optional[str] = None) -> List[Dict]:
     if not doc_ids:
         return []
-    conn = get_conn()
+    conn = get_conn(sqlite_path)
     placeholders = ','.join('?' for _ in doc_ids)
     cur = conn.execute(
         f"SELECT doc_id, source, path, file_type, page_start, page_end, owner, sensitivity, updated_at, tokens_est, text FROM documents WHERE doc_id IN ({placeholders})",
@@ -48,3 +54,8 @@ def fetch_docs(doc_ids: List[str]) -> List[Dict]:
     base_rows = [dict(zip(cols, r)) for r in cur.fetchall()]
     conn.close()
     return base_rows
+
+
+def domain_sqlite_path(domain: Optional[str]) -> str:
+    _, sqlite_path = domain_paths(domain)
+    return str(sqlite_path)

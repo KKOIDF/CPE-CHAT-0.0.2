@@ -9,3 +9,4 @@ torch
 accelerate
 sentencepiece
 bitsandbytes
+neo4j

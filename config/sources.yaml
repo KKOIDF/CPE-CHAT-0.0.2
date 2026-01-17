@@ -1,0 +1,22 @@
+sources:
+  announcements:
+    path: data/announcements
+    retrieval: vector
+    chroma_dir: indexes/announcements/vector/chroma
+    sqlite_path: indexes/announcements/vector/sqlite/ingestion.db
+
+  regulations:
+    path: data/regulations
+    retrieval: vector
+    chroma_dir: indexes/regulations/vector/chroma
+    sqlite_path: indexes/regulations/vector/sqlite/ingestion.db
+
+  curriculum:
+    path: data/curriculum
+    retrieval: hybrid_graph
+    chroma_dir: indexes/curriculum/vector/chroma
+    sqlite_path: indexes/curriculum/vector/sqlite/ingestion.db
+    graph:
+      provider: neo4j
+      # Configure via env: NEO4J_URI, NEO4J_USER, NEO4J_PASSWORD
+      # Example URI: bolt://localhost:7687

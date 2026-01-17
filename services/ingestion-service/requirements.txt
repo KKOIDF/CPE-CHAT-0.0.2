@@ -15,6 +15,9 @@ sentence-transformers
 typhoon-ocr
 python-dotenv
 
+# Graph (optional; used for curriculum hybrid graph RAG)
+neo4j
+
 # Optional HTTP embedding API
 requests
 
