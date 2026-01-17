@@ -20,11 +20,16 @@ Python service for batch ingestion of PDF and Excel/CSV documents:
 ```text
 services/ingestion-service/
   app/              # Source code
-  data/
-    raw_files/      # (optional staging for uploads)
-    text/           # (optional plain text outputs)
-    db/             # SQLite + jsonl outputs
-    chroma/         # Chroma persistent storage
+  data/             # (legacy; still supported)
+    raw_files/
+    text/
+    db/
+    chroma/
+
+Workspace (recommended):
+  data/<domain>/    # raw input files (announcements/regulations/curriculum)
+  indexes/<domain>/vector/chroma/              # Chroma per domain
+  indexes/<domain>/vector/sqlite/ingestion.db  # SQLite FTS per domain
 ```
 
 ## Quick Start (Local)
@@ -34,14 +39,24 @@ python -m venv .venv
 source .venv/bin/activate  # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 python -m app.main --input /path/to/input_dir
+
+# Per-domain indexing (recommended)
+# announcements/regulations/curriculum
+python -m app.main --domain announcements --input ./data/announcements
+python -m app.main --domain regulations --input ./data/regulations
+python -m app.main --domain curriculum --input ./data/curriculum
 ```
 
 Generated:
 
 * `data/db/records.toon` per page/sheet (TOON format - 80% smaller than JSON)
 * `data/db/chunks.toon` chunk objects (TOON format)
-* SQLite file `data/db/ingestion.db` with tables `documents`, `ocr_quality`, FTS `docs_fts`
-* Chroma persistent collection under `data/chroma`
+* If `--domain` is set:
+  - SQLite: `indexes/<domain>/vector/sqlite/ingestion.db`
+  - Chroma: `indexes/<domain>/vector/chroma`
+* If `--domain` is not set (legacy):
+  - SQLite: `data/db/ingestion.db`
+  - Chroma: `data/chroma`
 
 **Note:** Legacy JSONL format can still be written by passing `--use-toon false`.
 

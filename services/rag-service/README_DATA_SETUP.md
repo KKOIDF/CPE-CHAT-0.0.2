@@ -1,40 +1,35 @@
-# การตั้งค่าตำแหน่งข้อมูลสำหรับ RAG Service
+# การตั้งค่าตำแหน่งข้อมูลสำหรับ RAG Service (รองรับแยกโดเมน)
 
 ## ภาพรวม
 
-RAG Service อ่านข้อมูลจาก **Ingestion Service** โดยตรง เพื่อให้แน่ใจว่าข้อมูลที่ประมวลผลแล้วสามารถใช้งานได้ทันที
+RAG Service อ่านข้อมูลจาก **indexes/<domain>/** (แนะนำ) หรือ fallback ไปยังโครงสร้างแบบเดิมของ ingestion-service/data
 
-## โครงสร้างข้อมูล
+## โครงสร้างข้อมูล (แนะนำ)
 
 ```
-services/
-├── ingestion-service/
-│   └── data/                          ← ตำแหน่งข้อมูลหลัก
-│       ├── chroma/                    ← Vector embeddings
-│       │   ├── chroma.sqlite3
-│       │   └── [collection folders]
-│       ├── db/                        ← SQLite database
-│       │   └── ingestion.db          ← เอกสารและ metadata
-│       ├── raw_files/                 ← ไฟล์ต้นฉบับ
-│       └── text/                      ← Text ที่ extract แล้ว
-│
-└── rag-service/
-    └── app/
-        └── config.py                  ← กำหนดที่อยู่ข้อมูล
+indexes/
+├── announcements/
+│   └── vector/
+│       ├── chroma/
+│       └── sqlite/ingestion.db
+├── regulations/
+│   └── vector/
+│       ├── chroma/
+│       └── sqlite/ingestion.db
+└── curriculum/
+  └── vector/
+    ├── chroma/
+    └── sqlite/ingestion.db
 ```
 
 ## การกำหนดค่าใน RAG Service
 
 ### ไฟล์: `services/rag-service/app/config.py`
 
-```python
-# ค่าเริ่มต้น: ชี้ไปที่ ingestion-service/data
-DATA_DIR = Path(os.getenv('DATA_DIR', 
-    BASE_DIR.parent.parent / 'services' / 'ingestion-service' / 'data'))
-
-CHROMA_DIR = DATA_DIR / 'chroma'              # Vector store
-SQLITE_PATH = DATA_DIR / 'db' / 'ingestion.db'  # Document database
-```
+RAG Service จะเลือก path ตามโดเมนโดยดูจาก:
+1) request body field `domain` (แนะนำ)
+2) หรือ env `CPE_DOMAIN`
+3) ถ้าไม่ระบุ จะ fallback ไป `DATA_DIR` แบบเดิม
 
 ### การปรับแต่งตำแหน่ง (ถ้าต้องการ)
 
@@ -42,10 +37,11 @@ SQLITE_PATH = DATA_DIR / 'db' / 'ingestion.db'  # Document database
 
 ```bash
 # Windows PowerShell
-$env:DATA_DIR = "C:\path\to\custom\data"
+$env:CPE_INDEX_ROOT = "C:\path\to\indexes"   # (default = <repo>/indexes)
+$env:CPE_DOMAIN = "announcements"             # optional default domain
 
-# Linux/Mac
-export DATA_DIR=/path/to/custom/data
+# Legacy fallback
+$env:DATA_DIR = "C:\path\to\legacy\ingestion-service\data"
 ```
 
 ## การตรวจสอบการเชื่อมต่อ
@@ -54,7 +50,9 @@ export DATA_DIR=/path/to/custom/data
 
 ```bash
 cd services/rag-service
-python test_data_connection.py
+python test_data_connection.py --domain announcements
+python test_data_connection.py --domain regulations
+python test_data_connection.py --domain curriculum
 ```
 
 ### 2. ผลลัพธ์ที่คาดหวัง

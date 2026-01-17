@@ -6,6 +6,9 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # Repo root (..../CPE-CHAT-0.0.2)
 ROOT_DIR = BASE_DIR.parent.parent
 
+# Legacy data dir (ingestion-service default). Still useful for tooling/scripts.
+DATA_DIR = Path(os.getenv('DATA_DIR', str(ROOT_DIR / 'services' / 'ingestion-service' / 'data')))
+
 _KNOWN_DOMAINS = {'announcements', 'regulations', 'curriculum'}
 
 def domain_paths(domain: str | None):
@@ -21,8 +24,7 @@ def domain_paths(domain: str | None):
 		sqlite_path = index_root / dom / 'vector' / 'sqlite' / 'ingestion.db'
 		return chroma_dir, sqlite_path
 
-	legacy_data_dir = Path(os.getenv('DATA_DIR', str(ROOT_DIR / 'services' / 'ingestion-service' / 'data')))
-	return legacy_data_dir / 'chroma', legacy_data_dir / 'db' / 'ingestion.db'
+	return DATA_DIR / 'chroma', DATA_DIR / 'db' / 'ingestion.db'
 
 
 # Backward-compatible defaults (no explicit domain)

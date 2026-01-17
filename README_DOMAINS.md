@@ -16,6 +16,9 @@ Indexes are stored under:
 - `./scripts/ingest_domain.ps1 -Domain regulations -Input data/regulations`
 - `./scripts/ingest_domain.ps1 -Domain curriculum -Input data/curriculum`
 
+หรือรันรวดเดียวทุกโดเมน (ข้ามโดเมนที่ไม่มีไฟล์):
+- `./scripts/ingest_all_domains.ps1`
+
 > Curriculum ingestion จะพยายาม upsert graph เข้า Neo4j แบบ best-effort ถ้าตั้งค่า `NEO4J_URI` / `NEO4J_USERNAME` / `NEO4J_PASSWORD` ไว้
 
 ## Query (ผ่าน API)

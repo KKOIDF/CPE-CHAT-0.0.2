@@ -61,6 +61,8 @@ def upsert_chunks_to_neo4j(chunks: Iterable[Dict[str, Any]], domain: Optional[st
     if not drv:
         return 0
 
+    neo4j_db = os.getenv('NEO4J_DATABASE')
+
     domain = (domain or os.getenv('CPE_DOMAIN', 'curriculum')).strip().lower() or 'curriculum'
 
     rows: List[Tuple[str, str, str, str, int, int, List[str]]] = []
@@ -117,7 +119,7 @@ def upsert_chunks_to_neo4j(chunks: Iterable[Dict[str, Any]], domain: Optional[st
             domain=domain,
         )
 
-    with drv.session() as session:
+    with drv.session(database=neo4j_db) as session:
         session.execute_write(_upsert)
 
     try:
