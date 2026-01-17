@@ -1,10 +1,22 @@
 import os
 from pathlib import Path
 
+try:
+	from dotenv import load_dotenv  # type: ignore
+except Exception:
+	load_dotenv = None  # type: ignore
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # Repo root (..../CPE-CHAT-0.0.2)
 ROOT_DIR = BASE_DIR.parent.parent
+
+# Load repo-level .env if available (best-effort)
+if load_dotenv:
+	try:
+		load_dotenv(ROOT_DIR / '.env', override=False)
+	except Exception:
+		pass
 
 # Legacy data dir (ingestion-service default). Still useful for tooling/scripts.
 DATA_DIR = Path(os.getenv('DATA_DIR', str(ROOT_DIR / 'services' / 'ingestion-service' / 'data')))

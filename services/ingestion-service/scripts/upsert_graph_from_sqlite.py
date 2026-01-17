@@ -37,7 +37,8 @@ def main():
     conn = sqlite3.connect(str(sqlite_path))
     cur = conn.cursor()
 
-    q = "SELECT doc_id, path, page_start, page_end, text FROM documents"
+    # Use rowid as a stable per-row ordering key (works even if schema has no explicit id)
+    q = "SELECT rowid as chunk_id, doc_id, path, page_start, page_end, text FROM documents ORDER BY rowid ASC"
     if args.limit and args.limit > 0:
         q += f" LIMIT {int(args.limit)}"
 
@@ -46,14 +47,15 @@ def main():
 
     chunks = [
         {
-            'doc_id': r[0],
-            'path': r[1],
-            'page_start': r[2],
-            'page_end': r[3],
-            'text': r[4],
+            'chunk_id': r[0],
+            'doc_id': r[1],
+            'path': r[2],
+            'page_start': r[3],
+            'page_end': r[4],
+            'text': r[5],
         }
         for r in rows
-        if r and r[0]
+        if r and r[1]
     ]
 
     n = upsert_chunks_to_neo4j(chunks, domain=args.domain)

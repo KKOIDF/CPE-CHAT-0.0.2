@@ -95,8 +95,17 @@ def semantic_search_domain(query: str, top_k: int = 12, domain: Optional[str] = 
     if not res.get('ids'):
         return out
     for i in range(len(res['ids'][0])):
+        raw_id = res['ids'][0][i]
+        base_id = raw_id
+        try:
+            head, tail = str(raw_id).rsplit('-', 1)
+            if len(head) == 32 and all(c in '0123456789abcdef' for c in head.lower()) and tail.isdigit():
+                base_id = head
+        except Exception:
+            base_id = raw_id
         out.append({
-            'doc_id': res['ids'][0][i],
+            'doc_id': base_id,
+            'chroma_id': raw_id,
             'text': res['documents'][0][i],
             **(res['metadatas'][0][i] or {}),
             'distance': (res.get('distances') or [[None]])[0][i]

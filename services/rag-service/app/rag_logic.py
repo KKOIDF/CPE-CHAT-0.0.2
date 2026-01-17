@@ -4,7 +4,7 @@ import math
 from .sqlite_client import keyword_search, fetch_docs_with_path, domain_sqlite_path
 from .chroma_client import semantic_search_domain
 from .config import TOKEN_BUDGET, RRF_K, MAX_CONTEXTS
-from .neo4j_client import extract_course_codes, graph_doc_ids_for_codes
+from .neo4j_client import extract_course_codes, graph_doc_ids_for_codes, graph_expand_from_seed_chunks
 
 # Simple token counter heuristic (~4 chars/token Thai)
 CHAR_PER_TOKEN = 4.0
@@ -59,6 +59,18 @@ def retrieve_by_domain(question: str, domain: str | None, k_vec: int = 20, k_kw:
         graph_ids = graph_doc_ids_for_codes(codes=codes, domain=dom, limit=max(30, MAX_CONTEXTS * 8))
         graph_docs = fetch_docs_with_path(graph_ids, sqlite_path=sqlite_path)
 
+    # Graph neighborhood expansion from retrieved chunks (works even without course codes)
+    graph_neighbor_docs: List[Dict] = []
+    if dom == 'curriculum':
+        seed_ids: List[str] = []
+        for d in (sem[:8] + kw_docs[:8]):
+            did = d.get('doc_id')
+            if did and did not in seed_ids:
+                seed_ids.append(did)
+        if seed_ids:
+            neighbor_ids = graph_expand_from_seed_chunks(seed_ids, domain=dom, window=2, limit=max(60, MAX_CONTEXTS * 8))
+            graph_neighbor_docs = fetch_docs_with_path(neighbor_ids, sqlite_path=sqlite_path)
+
     bank: Dict[str, Dict] = {}
     ranks: Dict[str, float] = {}
 
@@ -79,8 +91,37 @@ def retrieve_by_domain(question: str, domain: str | None, k_vec: int = 20, k_kw:
         bank.setdefault(doc_id, d)
         ranks[doc_id] = ranks.get(doc_id, 0.0) + 1.0 / (RRF_K + r)
 
+    # neighborhood ranks (slightly down-weight by shifting rank)
+    for r, d in enumerate(graph_neighbor_docs, 1):
+        doc_id = d.get('doc_id') or f'graphn_{r}'
+        bank.setdefault(doc_id, d)
+        ranks[doc_id] = ranks.get(doc_id, 0.0) + 1.0 / (RRF_K + (r + 10))
+
     merged = [{**bank[k], 'score_rrf': v, 'doc_id': k} for k, v in ranks.items()]
     merged.sort(key=lambda x: x['score_rrf'], reverse=True)
+
+    if dom == 'curriculum' and graph_neighbor_docs:
+        neighbor_set = {d.get('doc_id') for d in graph_neighbor_docs if d.get('doc_id')}
+        # Force-include up to 2 neighbor chunks to make graph expansion observable/useful.
+        must_include = min(2, MAX_CONTEXTS)
+        picked: List[Dict] = []
+        seen: set[str] = set()
+        for m in merged:
+            did = m.get('doc_id')
+            if did in neighbor_set and did not in seen:
+                picked.append(m)
+                seen.add(did)
+                if len(picked) >= must_include:
+                    break
+        for m in merged:
+            did = m.get('doc_id')
+            if did and did not in seen:
+                picked.append(m)
+                seen.add(did)
+                if len(picked) >= MAX_CONTEXTS:
+                    break
+        return picked
+
     return merged[:MAX_CONTEXTS]
 
 

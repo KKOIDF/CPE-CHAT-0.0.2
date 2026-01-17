@@ -10,3 +10,4 @@ accelerate
 sentencepiece
 bitsandbytes
 neo4j
+python-dotenv
