@@ -17,6 +17,7 @@ from .config import (
 )
 
 import requests
+import os
 
 try:
     from transformers import AutoTokenizer, AutoModelForCausalLM, pipeline
@@ -212,37 +213,74 @@ class LLMEngine:
             return "(OpenAI unavailable: set OPENAI_API_KEY)"
 
         base = (OPENAI_BASE_URL or 'https://api.openai.com/v1').rstrip('/')
+        debug = os.getenv('OPENAI_DEBUG', '0') in ('1', 'true', 'True')
+        is_gpt5 = (self.model_name or '').startswith('gpt-5')
         headers = {
             'Authorization': f'Bearer {OPENAI_API_KEY}',
             'Content-Type': 'application/json',
         }
 
-        # Prefer explicit messages if provided; otherwise send prompt as user message.
-        msgs = messages or [{'role': 'user', 'content': prompt}]
+        # For maximum compatibility across OpenAI model families, send a single text input.
+        # Our `prompt` already contains system-style instructions + context.
+        text_input = prompt
+        msgs = [{'role': 'user', 'content': text_input}]
 
         # 1) Try Responses API (newer)
         try:
             url = f"{base}/responses"
             payload: Dict[str, Any] = {
                 'model': self.model_name,
-                'input': msgs,
+                'input': text_input,
                 'max_output_tokens': LLM_MAX_TOKENS,
-                'temperature': LLM_TEMPERATURE,
             }
+            if not is_gpt5:
+                payload['temperature'] = LLM_TEMPERATURE
+            else:
+                # Reduce reasoning so we get visible text within token budget.
+                payload['reasoning'] = {'effort': 'minimal'}
+                payload['text'] = {'format': {'type': 'text'}}
             resp = requests.post(url, headers=headers, json=payload, timeout=OPENAI_TIMEOUT_S)
+            if debug:
+                print(f"[OpenAI][responses] status={resp.status_code}")
             if resp.status_code < 300:
                 data = resp.json()
                 # Common fields: output_text (SDK), or output[] content[] text
                 if isinstance(data, dict) and data.get('output_text'):
                     return str(data.get('output_text')).strip() or '(empty response)'
+                def _collect_texts(obj: Any, acc: List[str]):
+                    if obj is None:
+                        return
+                    if isinstance(obj, str):
+                        return
+                    if isinstance(obj, dict):
+                        t = obj.get('text')
+                        if isinstance(t, str) and t.strip():
+                            acc.append(t)
+                        for v in obj.values():
+                            _collect_texts(v, acc)
+                        return
+                    if isinstance(obj, list):
+                        for v in obj:
+                            _collect_texts(v, acc)
+
                 out_texts: List[str] = []
-                for item in (data.get('output') or []):
-                    for c in (item.get('content') or []):
-                        t = c.get('text')
-                        if t:
-                            out_texts.append(str(t))
-                joined = '\n'.join([t.strip() for t in out_texts if t and str(t).strip()])
-                return joined.strip() or '(empty response)'
+                _collect_texts((data or {}).get('output'), out_texts)
+                # De-duplicate while preserving order
+                seen: set[str] = set()
+                uniq: List[str] = []
+                for t in out_texts:
+                    tt = t.strip()
+                    if tt and tt not in seen:
+                        uniq.append(tt)
+                        seen.add(tt)
+                joined = '\n'.join(uniq).strip()
+                if joined:
+                    return joined
+                if debug:
+                    print('[OpenAI][responses] empty parse; raw:', resp.text[:800])
+                # Some models may return reasoning-only or incomplete responses here;
+                # fall back to chat.completions for a plain assistant message.
+                raise RuntimeError('responses_api_empty_output')
             # If endpoint unsupported, fall through to chat completions.
         except Exception:
             pass
@@ -250,18 +288,35 @@ class LLMEngine:
         # 2) Fallback to Chat Completions
         try:
             url = f"{base}/chat/completions"
-            payload = {
+            payload: Dict[str, Any] = {
                 'model': self.model_name,
                 'messages': msgs,
-                'max_tokens': LLM_MAX_TOKENS,
-                'temperature': LLM_TEMPERATURE,
             }
+
+            if not is_gpt5:
+                payload['temperature'] = LLM_TEMPERATURE
+            else:
+                payload['reasoning_effort'] = 'minimal'
+
+            # Newer OpenAI models (e.g., gpt-5*) require max_completion_tokens.
+            if is_gpt5:
+                payload['max_completion_tokens'] = LLM_MAX_TOKENS
+            else:
+                payload['max_tokens'] = LLM_MAX_TOKENS
+
             resp = requests.post(url, headers=headers, json=payload, timeout=OPENAI_TIMEOUT_S)
+            if debug:
+                print(f"[OpenAI][chat.completions] status={resp.status_code}")
             if resp.status_code >= 300:
                 return f"(OpenAI error {resp.status_code}: {resp.text[:300]})"
             data = resp.json()
             content = (((data or {}).get('choices') or [{}])[0].get('message') or {}).get('content')
-            return (content or '').strip() or '(empty response)'
+            out = (content or '').strip()
+            if out:
+                return out
+            if debug:
+                print('[OpenAI][chat.completions] empty content; raw:', resp.text[:800])
+            return '(empty response)'
         except Exception as e:
             return f"(OpenAI request failed: {e})"
 

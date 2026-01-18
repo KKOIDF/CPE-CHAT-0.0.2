@@ -25,7 +25,6 @@ try:
         raw = env_path.read_text(encoding='utf-8', errors='replace')
         print('raw contains LLM_ENABLE=', 'LLM_ENABLE=' in raw)
         print('raw contains OPENAI_API_KEY=', 'OPENAI_API_KEY=' in raw)
-        print('raw tail (last 200 chars):', raw[-200:])
     except Exception as e3:
         print('raw read failed:', e3)
     try:

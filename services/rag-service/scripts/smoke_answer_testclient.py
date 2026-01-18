@@ -2,6 +2,17 @@ import os
 import sys
 from pathlib import Path
 
+# Enable verbose OpenAI request diagnostics (no secrets printed)
+os.environ.setdefault('OPENAI_DEBUG', '1')
+
+# Ensure Windows console can print Thai
+os.environ.setdefault('PYTHONIOENCODING', 'utf-8')
+try:
+    sys.stdout.reconfigure(encoding='utf-8')  # type: ignore[attr-defined]
+    sys.stderr.reconfigure(encoding='utf-8')  # type: ignore[attr-defined]
+except Exception:
+    pass
+
 # Ensure local imports work when running from repo root
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
