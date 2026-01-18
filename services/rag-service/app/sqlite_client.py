@@ -1,4 +1,5 @@
 import sqlite3
+import re
 from typing import List, Dict, Optional
 from pathlib import Path
 from .config import SQLITE_PATH, domain_paths
@@ -32,6 +33,45 @@ def keyword_search(query: str, limit: int = 30, sqlite_path: Optional[str] = Non
     except Exception:
         # If still fails, return empty list
         ids = []
+
+    # Fallback for Thai/OCR text: FTS tokenization often misses matches.
+    # For our small per-domain DBs, LIKE-based substring matching is acceptable.
+    if not ids:
+        # Extract candidate keywords (Thai runs, ascii words, digits incl. Thai digits)
+        thai_to_arabic = str.maketrans('๐๑๒๓๔๕๖๗๘๙', '0123456789')
+        norm_q = query.translate(thai_to_arabic)
+        candidates: List[str] = []
+        candidates += re.findall(r"[\u0E00-\u0E7F]{2,}", norm_q)
+        candidates += re.findall(r"[A-Za-z]{2,}", norm_q)
+        candidates += re.findall(r"\d{2,}", norm_q)
+
+        # Remove duplicates, prefer longer tokens, cap count
+        uniq: List[str] = []
+        seen = set()
+        for c in sorted(set(candidates), key=len, reverse=True):
+            c = c.strip()
+            if not c or c in seen:
+                continue
+            # avoid overly-long LIKE needles
+            if len(c) > 64:
+                c = c[:64]
+            uniq.append(c)
+            seen.add(c)
+            if len(uniq) >= 6:
+                break
+
+        if uniq:
+            where = " OR ".join(["text LIKE ?" for _ in uniq])
+            params = [f"%{u}%" for u in uniq]
+            params.append(limit)
+            try:
+                cur = conn.execute(
+                    f"SELECT doc_id FROM documents WHERE {where} LIMIT ?",
+                    params,
+                )
+                ids = [row[0] for row in cur.fetchall()]
+            except Exception:
+                ids = []
     
     conn.close()
     return ids
