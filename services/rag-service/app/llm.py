@@ -10,7 +10,13 @@ from .config import (
     LLM_PIPELINE,
     LLM_CPU_FALLBACK,
     LLM_DEVICE_MAP,
+    LLM_PROVIDER,
+    OPENAI_API_KEY,
+    OPENAI_BASE_URL,
+    OPENAI_TIMEOUT_S,
 )
+
+import requests
 
 try:
     from transformers import AutoTokenizer, AutoModelForCausalLM, pipeline
@@ -32,6 +38,10 @@ class LLMEngine:
 
     def load(self):
         if not LLM_ENABLE:
+            return
+
+        # Remote provider has no local loading.
+        if (LLM_PROVIDER or '').strip().lower() == 'openai' or (self.model_name or '').startswith('gpt-'):
             return
         # Auto recommend 4-bit for very large models if not already enabled.
         if ("30" in self.model_name or "70" in self.model_name) and not LLM_4BIT and not self._warned:
@@ -129,6 +139,11 @@ class LLMEngine:
     def generate(self, prompt: str, messages: Optional[List[Dict[str, str]]] = None) -> str:
         if not LLM_ENABLE:
             return "(LLM disabled: set LLM_ENABLE=1 to enable generation)"
+
+        provider = (LLM_PROVIDER or '').strip().lower()
+        if provider == 'openai' or (provider == '' and (self.model_name or '').startswith('gpt-')):
+            return self._generate_openai(prompt=prompt, messages=messages)
+
         self.load()
         # Pipeline path
         if LLM_PIPELINE:
@@ -191,6 +206,64 @@ class LLMEngine:
         gen_ids = output_ids[inputs["input_ids"].shape[-1]:]
         text = self.tokenizer.decode(gen_ids, skip_special_tokens=True).strip()
         return text or "(empty response)"
+
+    def _generate_openai(self, prompt: str, messages: Optional[List[Dict[str, str]]] = None) -> str:
+        if not OPENAI_API_KEY:
+            return "(OpenAI unavailable: set OPENAI_API_KEY)"
+
+        base = (OPENAI_BASE_URL or 'https://api.openai.com/v1').rstrip('/')
+        headers = {
+            'Authorization': f'Bearer {OPENAI_API_KEY}',
+            'Content-Type': 'application/json',
+        }
+
+        # Prefer explicit messages if provided; otherwise send prompt as user message.
+        msgs = messages or [{'role': 'user', 'content': prompt}]
+
+        # 1) Try Responses API (newer)
+        try:
+            url = f"{base}/responses"
+            payload: Dict[str, Any] = {
+                'model': self.model_name,
+                'input': msgs,
+                'max_output_tokens': LLM_MAX_TOKENS,
+                'temperature': LLM_TEMPERATURE,
+            }
+            resp = requests.post(url, headers=headers, json=payload, timeout=OPENAI_TIMEOUT_S)
+            if resp.status_code < 300:
+                data = resp.json()
+                # Common fields: output_text (SDK), or output[] content[] text
+                if isinstance(data, dict) and data.get('output_text'):
+                    return str(data.get('output_text')).strip() or '(empty response)'
+                out_texts: List[str] = []
+                for item in (data.get('output') or []):
+                    for c in (item.get('content') or []):
+                        t = c.get('text')
+                        if t:
+                            out_texts.append(str(t))
+                joined = '\n'.join([t.strip() for t in out_texts if t and str(t).strip()])
+                return joined.strip() or '(empty response)'
+            # If endpoint unsupported, fall through to chat completions.
+        except Exception:
+            pass
+
+        # 2) Fallback to Chat Completions
+        try:
+            url = f"{base}/chat/completions"
+            payload = {
+                'model': self.model_name,
+                'messages': msgs,
+                'max_tokens': LLM_MAX_TOKENS,
+                'temperature': LLM_TEMPERATURE,
+            }
+            resp = requests.post(url, headers=headers, json=payload, timeout=OPENAI_TIMEOUT_S)
+            if resp.status_code >= 300:
+                return f"(OpenAI error {resp.status_code}: {resp.text[:300]})"
+            data = resp.json()
+            content = (((data or {}).get('choices') or [{}])[0].get('message') or {}).get('content')
+            return (content or '').strip() or '(empty response)'
+        except Exception as e:
+            return f"(OpenAI request failed: {e})"
 
 # Singleton
 llm_engine = LLMEngine(LLM_MODEL)

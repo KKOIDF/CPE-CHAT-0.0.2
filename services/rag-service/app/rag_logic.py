@@ -1,5 +1,6 @@
 from typing import List, Dict, Tuple
 import math
+from pathlib import Path
 
 from .sqlite_client import keyword_search, fetch_docs_with_path, domain_sqlite_path
 from .chroma_client import semantic_search_domain
@@ -11,6 +12,20 @@ CHAR_PER_TOKEN = 4.0
 
 def est_tokens(text: str) -> int:
     return max(1, int(math.ceil(len(text) / CHAR_PER_TOKEN)))
+
+
+def _cite_label(c: Dict) -> str:
+    src = c.get('source') or c.get('path') or 'unknown'
+    try:
+        name = Path(str(src)).name
+    except Exception:
+        name = str(src)
+    page = c.get('page_start')
+    try:
+        page_i = int(page) if page is not None else 0
+    except Exception:
+        page_i = 0
+    return f"{name}/{page_i}"
 
 
 def hybrid_retrieve(question: str, k_vec: int = 20, k_kw: int = 30) -> List[Dict]:
@@ -130,8 +145,8 @@ def pack_context(chunks: List[Dict], budget_tokens: int = TOKEN_BUDGET) -> Tuple
     used = 0
     cites = {}
     for i, c in enumerate(chunks, 1):
-        cite = f"{c.get('source') or c.get('path')}:{c.get('page_start')}"
-        block = f"[{i}] {c.get('text','').strip()}"
+        cite = _cite_label(c)
+        block = f"[{cite}] {c.get('text','').strip()}"
         t = est_tokens(block)
         if used + t > budget_tokens:
             break
@@ -142,18 +157,24 @@ def pack_context(chunks: List[Dict], budget_tokens: int = TOKEN_BUDGET) -> Tuple
 
 
 def build_prompt(question: str, ctx: str, cites: Dict[int, str]) -> str:
-    cite_list = '\n'.join([f"[{i}] {c}" for i, c in cites.items()])
+    seen = set()
+    ordered: List[str] = []
+    for _i, c in cites.items():
+        if c and c not in seen:
+            ordered.append(c)
+            seen.add(c)
+    cite_list = '\n'.join([f"[{c}]" for c in ordered])
     instruction = (
         "คุณคือผู้ช่วยของภาควิชาวิศวกรรมคอมพิวเตอร์ ณ มหาวิทยาลัยไทย ตอบเป็นภาษาไทย.\n"
         "หลักการตอบ:\n"
-        "1) ใช้เฉพาะข้อมูลในบริบทที่ให้ หากไม่พบให้ตอบว่า 'ไม่พบข้อมูลในเอกสารที่เกี่ยวข้อง'.\n"
+        "1) ใช้เฉพาะข้อมูลในบริบทที่ให้ หากไม่พบให้ตอบว่า 'ไม่พบข้อมูลในเอกสาร'.\n"
         "2) สรุปเป็น bullet สั้น กระชับ ไม่ยืดเยื้อ.\n"
-        "3) ใส่อ้างอิงท้ายแต่ละ bullet เป็นรูปแบบ [n] โดย n คือหมายเลข chunk.\n"
-        "4) ห้ามเดาข้อมูลนอกรายการที่มี.\n"
+        "3) ทุก bullet ต้องลงท้ายด้วยอ้างอิงรูปแบบ [src/page] โดย src/page ต้องเป็นหนึ่งใน label ที่อยู่ใน 'บริบท' เท่านั้น (เช่น [foo.pdf/3]).\n"
+        "4) ห้ามเดาข้อมูลนอกรายการที่มี และห้ามใส่อ้างอิงที่ไม่มีในบริบท.\n"
         "5) หากคำถามขอ 'สรุป' หรือ 'โครงสร้าง' ให้จัดลำดับหัวข้อก่อนรายละเอียด.\n"
     )
     return (
-        f"{instruction}\nคำถาม:\n{question}\n\nบริบท (อย่าเปิดเผย raw ทั้งหมดในการตอบ ให้ใช้สรุปเอง):\n{ctx}\n\nอ้างอิงหมายเลข -> แหล่งที่มา:\n{cite_list}\n\nคำตอบ:\n"
+        f"{instruction}\nคำถาม:\n{question}\n\nบริบท (อย่าเปิดเผย raw ทั้งหมดในการตอบ ให้ใช้สรุปเอง):\n{ctx}\n\nรายชื่ออ้างอิงที่อนุญาต (ใช้รูปแบบ [src/page] เท่านั้น):\n{cite_list}\n\nคำตอบ:\n"
     )
 
 
