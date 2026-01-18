@@ -1,4 +1,5 @@
 from typing import List, Dict, Tuple
+import re
 import math
 from pathlib import Path
 
@@ -95,10 +96,20 @@ def retrieve_by_domain(question: str, domain: str | None, k_vec: int = 20, k_kw:
         bank[doc_id] = d
         ranks[doc_id] = ranks.get(doc_id, 0.0) + 1.0 / (RRF_K + r)
     # keyword ranks
+    credit_total_re = None
+    if dom == 'curriculum' and ('หน่วยกิต' in (question or '')):
+        credit_total_re = re.compile(r"จ\s*า\s*น\s*ว\s*น\s*หน่วยกิต\s*ที่\s*เรียน\s*ตลอด\s*หลักสูตร[^\d]{0,60}(\d{2,3})\s*หน่วยกิต")
+
     for r, d in enumerate(kw_docs, 1):
         doc_id = d.get('doc_id') or f'kw_{r}'
         bank.setdefault(doc_id, d)
         ranks[doc_id] = ranks.get(doc_id, 0.0) + 1.0 / (RRF_K + r)
+
+        # Extra boost when the chunk clearly contains the total-credits statement.
+        if credit_total_re is not None:
+            txt = (d.get('text') or '')
+            if txt and credit_total_re.search(txt):
+                ranks[doc_id] = ranks.get(doc_id, 0.0) + 1.0
 
     # graph ranks
     for r, d in enumerate(graph_docs, 1):

@@ -34,9 +34,12 @@ def keyword_search(query: str, limit: int = 30, sqlite_path: Optional[str] = Non
         # If still fails, return empty list
         ids = []
 
-    # Fallback for Thai/OCR text: FTS tokenization often misses matches.
+    like_ids: List[str] = []
+
+    # Thai/OCR text: FTS tokenization often misses matches (or returns noisy matches).
     # For our small per-domain DBs, LIKE-based substring matching is acceptable.
-    if not ids:
+    # If query contains Thai characters, run LIKE search even if FTS returned something.
+    if (not ids) or re.search(r"[\u0E00-\u0E7F]", query):
         # Extract candidate keywords (Thai runs, ascii words, digits incl. Thai digits)
         thai_to_arabic = str.maketrans('๐๑๒๓๔๕๖๗๘๙', '0123456789')
         norm_q = query.translate(thai_to_arabic)
@@ -44,6 +47,21 @@ def keyword_search(query: str, limit: int = 30, sqlite_path: Optional[str] = Non
         candidates += re.findall(r"[\u0E00-\u0E7F]{2,}", norm_q)
         candidates += re.findall(r"[A-Za-z]{2,}", norm_q)
         candidates += re.findall(r"\d{2,}", norm_q)
+
+        # Heuristic expansions for common Thai curriculum questions.
+        # OCR often introduces extra spaces; we'll also use a space-insensitive LIKE below.
+        if 'หน่วยกิต' in norm_q:
+            candidates += [
+                'หน่วยกิต',
+                'จำนวนหน่วยกิต',
+                'จานวนหน่วยกิต',
+                'หน่วยกิตที่เรียน',
+                'หน่วยกิตที่เรียนตลอดหลักสูตร',
+                'จานวนหน่วยกิตที่เรียนตลอดหลักสูตร',
+                'ตลอดหลักสูตร',
+            ]
+        if 'รวม' in norm_q:
+            candidates += ['รวม', 'รวมทั้งสิ้น', 'รวมไม่น้อยกว่า', 'ไม่น้อยกว่า']
 
         # Remove duplicates, prefer longer tokens, cap count
         uniq: List[str] = []
@@ -61,20 +79,42 @@ def keyword_search(query: str, limit: int = 30, sqlite_path: Optional[str] = Non
                 break
 
         if uniq:
-            where = " OR ".join(["text LIKE ?" for _ in uniq])
-            params = [f"%{u}%" for u in uniq]
-            params.append(limit)
+            # Space-insensitive search helps with OCR that inserts spaces between Thai characters/words.
+            # Query per-token (longest first) to prioritize specific matches.
             try:
-                cur = conn.execute(
-                    f"SELECT doc_id FROM documents WHERE {where} LIMIT ?",
-                    params,
-                )
-                ids = [row[0] for row in cur.fetchall()]
+                seen_like = set()
+                for u in uniq:
+                    if len(like_ids) >= limit:
+                        break
+                    needle = f"%{u}%"
+                    needle2 = f"%{u.replace(' ', '')}%"
+                    cur = conn.execute(
+                        "SELECT doc_id FROM documents WHERE text LIKE ? OR REPLACE(text, ' ', '') LIKE ? LIMIT ?",
+                        (needle, needle2, limit),
+                    )
+                    for (did,) in cur.fetchall():
+                        if did and did not in seen_like:
+                            like_ids.append(did)
+                            seen_like.add(did)
+                        if len(like_ids) >= limit:
+                            break
             except Exception:
-                ids = []
+                like_ids = []
     
     conn.close()
-    return ids
+    if not like_ids:
+        return ids
+
+    # Union while preserving order (FTS first, then LIKE additions).
+    merged: List[str] = []
+    seen = set()
+    for did in (ids + like_ids):
+        if did and did not in seen:
+            merged.append(did)
+            seen.add(did)
+        if len(merged) >= limit:
+            break
+    return merged
 
 
 def fetch_docs(doc_ids: List[str]) -> List[Dict]:
@@ -91,9 +131,17 @@ def fetch_docs_with_path(doc_ids: List[str], sqlite_path: Optional[str] = None) 
         doc_ids
     )
     cols = [c[0] for c in cur.description]
-    base_rows = [dict(zip(cols, r)) for r in cur.fetchall()]
+    rows = [dict(zip(cols, r)) for r in cur.fetchall()]
     conn.close()
-    return base_rows
+
+    # Preserve the original input ordering (IN (...) has undefined ordering).
+    by_id = {r.get('doc_id'): r for r in rows if r.get('doc_id')}
+    ordered: List[Dict] = []
+    for did in doc_ids:
+        r = by_id.get(did)
+        if r is not None:
+            ordered.append(r)
+    return ordered
 
 
 def domain_sqlite_path(domain: Optional[str]) -> str:
