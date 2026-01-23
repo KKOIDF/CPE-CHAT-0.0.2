@@ -1,10 +1,27 @@
+import os
+
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import re
 from .rag_logic import rag_query, rag_query_domain
 from .llm import llm_engine
 
 app = FastAPI(title="RAG Service", version="0.1.0")
+
+# CORS (for browser-based clients)
+# Configure via env: CORS_ORIGINS="https://your.domain,https://other.domain"
+_cors_origins = [
+    o.strip() for o in (os.getenv('CORS_ORIGINS', 'http://localhost:5173').split(','))
+    if o.strip()
+]
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=_cors_origins,
+    allow_credentials=True,
+    allow_methods=["*"] ,
+    allow_headers=["*"],
+)
 
 class RagRequest(BaseModel):
     question: str
