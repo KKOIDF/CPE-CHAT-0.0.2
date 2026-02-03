@@ -1,0 +1,14 @@
+fastapi
+uvicorn[standard]
+chromadb
+sentence-transformers
+langdetect
+requests
+transformers
+torch
+accelerate
+sentencepiece
+bitsandbytes
+neo4j
+python-dotenv
+ollama

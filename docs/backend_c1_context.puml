@@ -1,0 +1,21 @@
+@startuml Backend_C1_Context
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Context.puml
+
+LAYOUT_WITH_LEGEND()
+
+title C1 - CPE CHAT System Context Diagram
+
+Person(user, "User", "Client User\nusing Chat UI")
+System(cpe_system, "CPE CHAT System", "Conversational AI System\nfor Document Intelligence")
+
+Person(admin, "Administrator", "System Admin\nManaging Content")
+
+System_Ext(external_docs, "External Document Sources", "PDF, Excel, Images")
+System_Ext(llm, "LLM Service", "Language Model\n(Claude, GPT, Typhoon)")
+
+Rel(user, cpe_system, "Uses")
+Rel(admin, cpe_system, "Manages")
+Rel(cpe_system, external_docs, "Ingests Documents")
+Rel(cpe_system, llm, "Queries for Answers")
+
+@enduml

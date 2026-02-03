@@ -1,0 +1,24 @@
+# Core extraction
+pymupdf
+pdf2image
+pytesseract
+pillow
+unidecode
+pythainlp
+pandas
+openpyxl
+xlrd
+
+# Embeddings / vector store
+chromadb
+sentence-transformers
+typhoon-ocr
+python-dotenv
+
+# Graph (optional; used for curriculum hybrid graph RAG)
+neo4j
+
+# Optional HTTP embedding API
+requests
+
+# SQLite FTS is built-in; ensure Python >=3.11 preferred

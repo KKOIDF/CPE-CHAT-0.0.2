@@ -1,0 +1,12 @@
+{
+  "name": "chatcpe",
+  "version": "1.0.0",
+  "scripts": {
+    "rag": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/run_rag_service.ps1",
+    "client": "npm run dev --prefix client",
+    "dev": "concurrently \"npm run rag\" \"npm run client\""
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  }
+}

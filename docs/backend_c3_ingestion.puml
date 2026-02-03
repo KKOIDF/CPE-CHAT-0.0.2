@@ -1,0 +1,59 @@
+@startuml Backend_C3_Ingestion_Components
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
+
+LAYOUT_WITH_LEGEND()
+
+title C3 - Ingestion Service Component Diagram
+
+package "Ingestion Service" as ingestion_container {
+
+    Component(main, "Main Entry", "main.py", "FastAPI Application\nRequest Handler")
+
+    package "Extraction Layer" as extraction {
+        Component(pdf_ext, "PDF Extractor", "extract_pdf.py", "Parse PDF Files\nHandle Scanned Docs")
+        Component(excel_ext, "Excel Extractor", "extract_excel.py", "Parse Excel Files\nExtract Tables")
+        Component(ocr_pipe, "OCR Pipeline", "ocr_pipeline.py", "Process Scanned Images\nIntegrate Typhoon OCR")
+    }
+
+    package "Processing Layer" as processing {
+        Component(chunking, "Text Chunking", "chunking.py", "Split into Chunks\nPreserve Context")
+        Component(thai_nlp, "Thai NLP", "thai_nlp.py", "Thai Tokenization\nLanguage Processing")
+        Component(validation, "Data Validation", "validation.py", "Quality Check\nFlag Issues")
+    }
+
+    package "Embedding Layer" as embedding {
+        Component(embed_gen, "Embedding Engine", "Uses BGE-M3", "Generate Vectors\nMultilingual Support")
+        Component(chroma_client, "Chroma Client", "chroma_client.py", "Vector DB Interface\nStore Embeddings")
+    }
+
+    package "Storage Layer" as storage {
+        Component(toon_conv, "TOON Converter", "toon_converter.py\ntoon_format.py", "Compress Data\nSerialize Format")
+        Component(db_client, "DB Client", "db.py", "Store Metadata\nSave Records")
+    }
+
+    Component(quality_review, "Quality Review", "quality.py", "Review Flagged Items\nData QA")
+    Component(config, "Configuration", "config.py", "Load Settings\nModel Parameters")
+}
+
+Rel(main, config, "Loads")
+Rel(main, pdf_ext, "Routes")
+Rel(main, excel_ext, "Routes")
+Rel(main, ocr_pipe, "Routes")
+
+Rel(pdf_ext, chunking, "Text Output")
+Rel(excel_ext, chunking, "Data Output")
+Rel(ocr_pipe, chunking, "Text Output")
+
+Rel(chunking, thai_nlp, "Process")
+Rel(chunking, validation, "Validate")
+
+Rel(validation, embed_gen, "Valid Chunks")
+Rel(validation, quality_review, "Flagged Items")
+
+Rel(embed_gen, chroma_client, "Store")
+Rel(chunking, toon_conv, "Convert")
+Rel(toon_conv, db_client, "Save")
+
+Rel(db_client, quality_review, "Query Records")
+
+@enduml

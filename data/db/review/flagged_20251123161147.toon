@@ -1,0 +1,125 @@
+metadata:
+  source_file: flagged_20251123161147.jsonl
+  total_records: 50
+  format: TOON v1.0
+records[50]{source,path,page,page_start,page_end,owner,sensitivity,updated_at,text,tokens_est,doc_id,file_type,chunk_id,status}:
+  raw_files.txt,"C:\Users\KritChaJ\OneDrive\Documents\CPE CHAT 0.0.2\data\raw_files",17,17,17,"owner:unknown",internal,1763914303,"niques
+5. Find anti-derivatives by using standard techniques",15,183416515c51829efac6fa276f7a05bf,pdf,149,flagged
+  raw_files.txt,"C:\Users\KritChaJ\OneDrive\Documents\CPE CHAT 0.0.2\data\raw_files",19,19,19,"owner:unknown",internal,1763914303,"genvectors.
+2. Students are ak,ble to compute matrix algebra, determinant, eigenvalues and
+
+eigenvectors.",27,38f7aa617767dd4dc1d5cd80890ea48d,pdf,162,flagged
+  raw_files.txt,"C:\Users\KritChaJ\OneDrive\Documents\CPE CHAT 0.0.2\data\raw_files",25,25,25,"owner:unknown",internal,1763914303,"e devices
+1. Analyze basic digital circuits containing discrete ICs and programmable devices",23,4c14857f324fe8425a6cc5841c4919ec,pdf,183,flagged
+  raw_files.txt,"C:\Users\KritChaJ\OneDrive\Documents\CPE CHAT 0.0.2\data\raw_files",33,33,33,"owner:unknown",internal,1763914303,"sal.
+4. Create an effective project proposal.",12,d57b2bfa00b745eda1e92dc484ef5e20,pdf,226,flagged
+  raw_files.txt,"C:\Users\KritChaJ\OneDrive\Documents\CPE CHAT 0.0.2\data\raw_files",8,8,8,"owner:unknown",internal,1763914303,"ตร
+3) อาจารย์ประจำหลักสูตร",7,2a119c298652d4161c9cab4b0f873f96,pdf,248,flagged
+  raw_files.txt,"C:\Users\KritChaJ\OneDrive\Documents\CPE CHAT 0.0.2\data\raw_files",9,9,9,"owner:unknown",internal,1763914303,"ตร
+3) อาจารย์ประจำหลักสูตร",7,3d811d205b6e77007cb4b05017ae4cc1,pdf,252,flagged
+  raw_files.txt,"C:\Users\KritChaJ\OneDrive\Documents\CPE CHAT 0.0.2\data\raw_files",11,11,11,"owner:unknown",internal,1763914303,"ตร
+3) อาจารย์ประจำหลักสูตร",7,a78bf6f14f78608b8e9e063b5ccbdcd4,pdf,259,flagged
+  raw_files.txt,"C:\Users\KritChaJ\OneDrive\Documents\CPE CHAT 0.0.2\data\raw_files",11,11,11,"owner:unknown",internal,1763914303,"ตร
+3) อาจารย์ประจำหลักสูตร",7,7953839d39005294f4c68fbc9620ba74,pdf,263,flagged
+  raw_files.txt,"C:\Users\KritChaJ\OneDrive\Documents\CPE CHAT 0.0.2\data\raw_files",4,4,4,"owner:unknown",internal,1763914303,"น์
+2) บำเพ็ญประโยชน์",5,69f928b8408c1278474c4728ba6e0c49,pdf,345,flagged
+  raw_files.txt,"C:\Users\KritChaJ\OneDrive\Documents\CPE CHAT 0.0.2\data\raw_files",4,4,4,"owner:unknown",internal,1763914303,"ติ
+3) ตัดคะแนนความประพฤติ",7,0fb68e7d3b8706b8f9327c1e5bc33f8c,pdf,346,flagged
+  raw_files.txt,"C:\Users\KritChaJ\OneDrive\Documents\CPE CHAT 0.0.2\data\raw_files",5,5,5,"owner:unknown",internal,1763914303,"ติ
+1) ตัดคะแนนความประพฤติ",7,3d27629a795d3320f8bf1ececeb8e173,pdf,349,flagged
+  raw_files.txt,"C:\Users\KritChaJ\OneDrive\Documents\CPE CHAT 0.0.2\data\raw_files",9,9,9,"owner:unknown",internal,1763914303,"ัก
+1) อาจารย์ที่ปรึกษาหลัก",7,6cbfa01ce4d2750ac8f443bd321112af,pdf,363,flagged
+  raw_files.txt,"C:\Users\KritChaJ\OneDrive\Documents\CPE CHAT 0.0.2\data\raw_files",2,2,2,"owner:unknown",internal,1763914303,"ตร
+1. รหัสและชื่อหลักสูตร",7,c9aacb67684cfc9775772a28c3b76f04,pdf,407,flagged
+  raw_files.txt,"C:\Users\KritChaJ\OneDrive\Documents\CPE CHAT 0.0.2\data\raw_files",2,2,2,"owner:unknown",internal,1763914303,"ชา
+2. ชื่อปริญญาและสาขาวิชา",7,22d2f50f7e9a144aad04afd7b7a6b994,pdf,408,flagged
+  raw_files.txt,"C:\Users\KritChaJ\OneDrive\Documents\CPE CHAT 0.0.2\data\raw_files",2,2,2,"owner:unknown",internal,1763914303,"ี)
+3. วิชาเอก (ถ้ามี)",6,a62860ff1699df7c049e23790d378197,pdf,409,flagged
+  raw_files.txt,"C:\Users\KritChaJ\OneDrive\Documents\CPE CHAT 0.0.2\data\raw_files",2,2,2,"owner:unknown",internal,1763914303,"ตร
+5. รูปแบบของหลักสูตร",6,45bce04d733eb09950585be5e158626e,pdf,411,flagged
+  raw_files.txt,"C:\Users\KritChaJ\OneDrive\Documents\CPE CHAT 0.0.2\data\raw_files",2,2,2,"owner:unknown",internal,1763914303,"
+14
+1. ระบบการจัดการศึกษา
+
+14",8,c8406640c2a45f3c95901559a4e0e5fd,pdf,422,flagged
+  raw_files.txt,"C:\Users\KritChaJ\OneDrive\Documents\CPE CHAT 0.0.2\data\raw_files",4,4,4,"owner:unknown",internal,1763914303,"61
+1. การกากับมาตรฐาน
+
+61",7,0460a23fc65b03a2520d6eaa270cb35a,pdf,436,flagged
+  raw_files.txt,"C:\Users\KritChaJ\OneDrive\Documents\CPE CHAT 0.0.2\data\raw_files",4,4,4,"owner:unknown",internal,1763914303,"1
+2. บัณฑิต
+
+61",4,274959c20db27605acf1f5f2e5d1464a,pdf,437,flagged
+  raw_files.txt,"C:\Users\KritChaJ\OneDrive\Documents\CPE CHAT 0.0.2\data\raw_files",4,4,4,"owner:unknown",internal,1763914303,"2
+3. นักศึกษา
+
+62",5,0d9762c4f49c6a38b59e4f3c9dafd482,pdf,438,flagged
+  raw_files.txt,"C:\Users\KritChaJ\OneDrive\Documents\CPE CHAT 0.0.2\data\raw_files",4,4,4,"owner:unknown",internal,1763914303,"3
+4. อาจารย์
+
+63",4,09cdc97bdcb95728532935a3b2d1b4cc,pdf,439,flagged
+  raw_files.txt,"C:\Users\KritChaJ\OneDrive\Documents\CPE CHAT 0.0.2\data\raw_files",5,5,5,"owner:unknown",internal,1763914303,"่มี
+3. วิชาเอก (ถ้ามี)
+
+ไม่มี",8,67758e0d26b9e2a557b40484129dc48a,pdf,449,flagged
+  raw_files.txt,"C:\Users\KritChaJ\OneDrive\Documents\CPE CHAT 0.0.2\data\raw_files",54,54,54,"owner:unknown",internal,1763914303,"รม
+1. คุณธรรมจริยธรรม",6,d57fa4eff6a576b230f7ef499e9b5969,pdf,525,flagged
+  raw_files.txt,"C:\Users\KritChaJ\OneDrive\Documents\CPE CHAT 0.0.2\data\raw_files",54,54,54,"owner:unknown",internal,1763914303,"้
+2. ความรู้",3,ba3e004c80bebe7c36c690d96e9ecfac,pdf,526,flagged
+  raw_files.txt,"C:\Users\KritChaJ\OneDrive\Documents\CPE CHAT 0.0.2\data\raw_files",54,54,54,"owner:unknown",internal,1763914303,"า
+3. ทักษะทางปัญญา",5,fc39c1cc4f65a1a21875ed75daae50e6,pdf,527,flagged
+  raw_files.txt,"C:\Users\KritChaJ\OneDrive\Documents\CPE CHAT 0.0.2\data\raw_files",104,104,104,"owner:unknown",internal,1763914303,"niques
+5. Find anti-derivatives by using standard techniques",15,42b73eeaff0296c3ab70665a893598e0,pdf,760,flagged
+  raw_files.txt,"C:\Users\KritChaJ\OneDrive\Documents\CPE CHAT 0.0.2\data\raw_files",105,105,105,"owner:unknown",internal,1763914303,"genvectors.
+2. Students are ak,ble to compute matrix algebra, determinant, eigenvalues and
+
+eigenvectors.",27,d2407972a0e1e02eea366383ad2e46c9,pdf,773,flagged
+  raw_files.txt,"C:\Users\KritChaJ\OneDrive\Documents\CPE CHAT 0.0.2\data\raw_files",111,111,111,"owner:unknown",internal,1763914303,"e devices
+1. Analyze basic digital circuits containing discrete ICs and programmable devices",23,2f9ddc4d02eb5a673a72bd23b529dc6e,pdf,795,flagged
+  raw_files.txt,"C:\Users\KritChaJ\OneDrive\Documents\CPE CHAT 0.0.2\data\raw_files",119,119,119,"owner:unknown",internal,1763914303,"sal.
+4. Create an effective project proposal.",12,6acd0ab764f309c4db3b474261615c3b,pdf,839,flagged
+  raw_files.txt,"C:\Users\KritChaJ\OneDrive\Documents\CPE CHAT 0.0.2\data\raw_files",121,121,121,"owner:unknown",internal,1763914303,"oblems.
+1. Identify appropriate optimization techniques to solve problems.",19,4211675fc5fab6fb0f23eb6abeeae860,pdf,853,flagged
+  raw_files.txt,"C:\Users\KritChaJ\OneDrive\Documents\CPE CHAT 0.0.2\data\raw_files",125,125,125,"owner:unknown",internal,1763914303,"ments.
+1. Implement Java program based on given requirements.",16,cdf2841a48465f8fb8c353b7eb34dfb7,pdf,873,flagged
+  raw_files.txt,"C:\Users\KritChaJ\OneDrive\Documents\CPE CHAT 0.0.2\data\raw_files",132,132,132,"owner:unknown",internal,1763914303,"images.
+1. Use image processing technique to enhance digital images.",17,c3e34bd08d910857cb97ee95fd2a2acf,pdf,905,flagged
+  raw_files.txt,"C:\Users\KritChaJ\OneDrive\Documents\CPE CHAT 0.0.2\data\raw_files",134,134,135,"owner:unknown",internal,1763914303," (6 ม.ค. 64)
+1. Explain concepts and techniques of computer game design.
+
+135
+อนุมัติจากสภามจธ.ครั้งที่ 257 (6 ม.ค. 64)",30,b6b87f23f0bafcd526034b487f05f4c0,pdf,914,flagged
+  raw_files.txt,"C:\Users\KritChaJ\OneDrive\Documents\CPE CHAT 0.0.2\data\raw_files",137,137,137,"owner:unknown",internal,1763914303,"ัย
+1. กลุ่มวิชาสุขพลานามัย",7,69c9ad062b95597902fee0de6f2a76c2,pdf,924,flagged
+  raw_files.txt,"C:\Users\KritChaJ\OneDrive\Documents\CPE CHAT 0.0.2\data\raw_files",138,138,138,"owner:unknown",internal,1763914303,"ัย
+1. กลุ่มวิชาสุขพลานามัย",7,25d2ec6f3c779fb8a707e7978ecb144a,pdf,938,flagged
+  raw_files.txt,"C:\Users\KritChaJ\OneDrive\Documents\CPE CHAT 0.0.2\data\raw_files",21,21,21,"owner:unknown",internal,1763914303,"รม
+1. ด้านคุณธรรมจริยธรรม",7,bc5367362335e5d9e8a08b51bfd21883,pdf,1141,flagged
+  raw_files.txt,"C:\Users\KritChaJ\OneDrive\Documents\CPE CHAT 0.0.2\data\raw_files",21,21,21,"owner:unknown",internal,1763914303,"้
+2. ด้านความรู้",4,b5059c8ca922a833bd888f13d683849e,pdf,1142,flagged
+  raw_files.txt,"C:\Users\KritChaJ\OneDrive\Documents\CPE CHAT 0.0.2\data\raw_files",21,21,21,"owner:unknown",internal,1763914303,"ญา
+3. ด้านทักษะทางปัญญา",6,7b02ab06b833c657e4236dfc012ab468,pdf,1143,flagged
+  raw_files.txt,"C:\Users\KritChaJ\OneDrive\Documents\CPE CHAT 0.0.2\data\raw_files",22,22,22,"owner:unknown",internal,1763914303,"รม
+1. ด้านคุณธรรมจริยธรรม",7,41c41fc23f84eb8348f1c7d3483b050e,pdf,1147,flagged
+  raw_files.txt,"C:\Users\KritChaJ\OneDrive\Documents\CPE CHAT 0.0.2\data\raw_files",22,22,22,"owner:unknown",internal,1763914303,"้
+2. ด้านความรู้",4,8a96b490e3ab754df6adfb2638964c36,pdf,1148,flagged
+  raw_files.txt,"C:\Users\KritChaJ\OneDrive\Documents\CPE CHAT 0.0.2\data\raw_files",22,22,22,"owner:unknown",internal,1763914303,"ญา
+3. ด้านทักษะทางปัญญา",6,ecf10e0bd0bd51b70602075ec68bd4d2,pdf,1149,flagged
+  raw_files.txt,"C:\Users\KritChaJ\OneDrive\Documents\CPE CHAT 0.0.2\data\raw_files",23,23,23,"owner:unknown",internal,1763914303,"รม
+1. ด้านคุณธรรมจริยธรรม",7,d79ecf63defcb8a98187e5d71d1116a0,pdf,1153,flagged
+  raw_files.txt,"C:\Users\KritChaJ\OneDrive\Documents\CPE CHAT 0.0.2\data\raw_files",23,23,23,"owner:unknown",internal,1763914303,"้
+2. ด้านความรู้",4,7dffd0a6351e6a57418ca892acf2e4a1,pdf,1154,flagged
+  raw_files.txt,"C:\Users\KritChaJ\OneDrive\Documents\CPE CHAT 0.0.2\data\raw_files",23,23,23,"owner:unknown",internal,1763914303,"ญา
+3. ด้านทักษะทางปัญญา",6,656a6c846b70e16bf988fba06ead230b,pdf,1155,flagged
+  raw_files.txt,"C:\Users\KritChaJ\OneDrive\Documents\CPE CHAT 0.0.2\data\raw_files",24,24,24,"owner:unknown",internal,1763914303,"รม
+1. ด้านคุณธรรมจริยธรรม",7,ae1c2b9496f4d0822e35f4a183c16c2d,pdf,1159,flagged
+  raw_files.txt,"C:\Users\KritChaJ\OneDrive\Documents\CPE CHAT 0.0.2\data\raw_files",24,24,24,"owner:unknown",internal,1763914303,"้
+2. ด้านความรู้",4,d139a6c8e5928830d9b6966f1084dadd,pdf,1160,flagged
+  raw_files.txt,"C:\Users\KritChaJ\OneDrive\Documents\CPE CHAT 0.0.2\data\raw_files",24,24,24,"owner:unknown",internal,1763914303,"ญา
+3. ด้านทักษะทางปัญญา",6,8db9d30726853d2e803acf56fd6fb79d,pdf,1161,flagged
+  raw_files.txt,"C:\Users\KritChaJ\OneDrive\Documents\CPE CHAT 0.0.2\data\raw_files",25,25,25,"owner:unknown",internal,1763914303,"รม
+1. ด้านคุณธรรมจริยธรรม",7,64e5ba0e46a3b4b3c5b0ca8356153043,pdf,1165,flagged
+  raw_files.txt,"C:\Users\KritChaJ\OneDrive\Documents\CPE CHAT 0.0.2\data\raw_files",25,25,25,"owner:unknown",internal,1763914303,"้
+2. ด้านความรู้",4,b835cfaf392ab3df8e707bb786eef83a,pdf,1166,flagged
+  raw_files.txt,"C:\Users\KritChaJ\OneDrive\Documents\CPE CHAT 0.0.2\data\raw_files",25,25,25,"owner:unknown",internal,1763914303,"ญา
+3. ด้านทักษะทางปัญญา",6,f3d0152b8c741386ae856e3f9b8a3e25,pdf,1167,flagged
