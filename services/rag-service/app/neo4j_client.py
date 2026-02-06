@@ -68,14 +68,19 @@ def graph_doc_ids_for_codes(codes: List[str], domain: str, limit: int = 50) -> L
         "LIMIT $limit"
     )
 
-    with _session(drv) as session:
-        rows = session.run(cypher, codes=codes, domain=dom, limit=limit)
-        out = [r.get('doc_id') for r in rows if r.get('doc_id')]
-
     try:
-        drv.close()
-    except Exception:
-        pass
+        with _session(drv) as session:
+            rows = session.run(cypher, codes=codes, domain=dom, limit=limit)
+            out = [r.get('doc_id') for r in rows if r.get('doc_id')]
+    except Exception as e:
+        # Graceful fallback if Neo4j is unavailable
+        print(f"[Neo4j] Connection error in graph_doc_ids_for_codes, skipping: {e}")
+        return []
+    finally:
+        try:
+            drv.close()
+        except Exception:
+            pass
 
     return out
 
@@ -137,13 +142,18 @@ def graph_expand_from_seed_chunks(
 
     out: List[str] = []
     try:
-        with _session(drv) as session:
-            rows = session.run(cypher, seed=seed, domain=dom, window=int(window), limit=int(limit))
-            out.extend([r.get('doc_id') for r in rows if r.get('doc_id')])
-            rows2 = session.run(cypher_prev, seed=seed, domain=dom, limit=int(limit))
-            out.extend([r.get('doc_id') for r in rows2 if r.get('doc_id')])
-            rows3 = session.run(cypher_next, seed=seed, domain=dom, limit=int(limit))
-            out.extend([r.get('doc_id') for r in rows3 if r.get('doc_id')])
+        try:
+            with _session(drv) as session:
+                rows = session.run(cypher, seed=seed, domain=dom, window=int(window), limit=int(limit))
+                out.extend([r.get('doc_id') for r in rows if r.get('doc_id')])
+                rows2 = session.run(cypher_prev, seed=seed, domain=dom, limit=int(limit))
+                out.extend([r.get('doc_id') for r in rows2 if r.get('doc_id')])
+                rows3 = session.run(cypher_next, seed=seed, domain=dom, limit=int(limit))
+                out.extend([r.get('doc_id') for r in rows3 if r.get('doc_id')])
+        except Exception as e:
+            # Graceful fallback if Neo4j is unavailable
+            print(f"[Neo4j] Connection error, skipping graph expansion: {e}")
+            return []
     finally:
         try:
             drv.close()

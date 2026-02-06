@@ -14,6 +14,9 @@ from .config import (
     OPENAI_API_KEY,
     OPENAI_BASE_URL,
     OPENAI_TIMEOUT_S,
+    TYPHOON_API_KEY,
+    TYPHOON_BASE_URL,
+    TYPHOON_TIMEOUT_S,
 )
 
 import requests
@@ -144,6 +147,9 @@ class LLMEngine:
         provider = (LLM_PROVIDER or '').strip().lower()
         if provider == 'openai' or (provider == '' and (self.model_name or '').startswith('gpt-')):
             return self._generate_openai(prompt=prompt, messages=messages)
+        
+        if provider == 'typhoon':
+            return self._generate_typhoon(prompt=prompt, messages=messages)
 
         self.load()
         # Pipeline path
@@ -319,6 +325,52 @@ class LLMEngine:
             return '(empty response)'
         except Exception as e:
             return f"(OpenAI request failed: {e})"
+
+    def _generate_typhoon(self, prompt: str, messages: Optional[List[Dict[str, str]]] = None) -> str:
+        if not TYPHOON_API_KEY:
+            return "(Typhoon unavailable: set TYPHOON_API_KEY)"
+
+        base = (TYPHOON_BASE_URL or 'https://api.opentyphoon.ai/v1').rstrip('/')
+        debug = os.getenv('TYPHOON_DEBUG', '0') in ('1', 'true', 'True')
+        
+        headers = {
+            'Authorization': f'Bearer {TYPHOON_API_KEY}',
+            'Content-Type': 'application/json',
+        }
+
+        # Build messages for Typhoon API
+        # If messages are supplied, use them; otherwise use prompt as user message
+        if messages:
+            msgs = messages
+        else:
+            msgs = [{'role': 'user', 'content': prompt}]
+
+        try:
+            url = f"{base}/chat/completions"
+            payload: Dict[str, Any] = {
+                'model': self.model_name,
+                'messages': msgs,
+                'temperature': LLM_TEMPERATURE,
+                'max_completion_tokens': LLM_MAX_TOKENS,
+                'top_p': 0.6,
+                'frequency_penalty': 0,
+            }
+
+            resp = requests.post(url, headers=headers, json=payload, timeout=TYPHOON_TIMEOUT_S)
+            if debug:
+                print(f"[Typhoon][chat.completions] status={resp.status_code}")
+            if resp.status_code >= 300:
+                return f"(Typhoon error {resp.status_code}: {resp.text[:300]})"
+            data = resp.json()
+            content = (((data or {}).get('choices') or [{}])[0].get('message') or {}).get('content')
+            out = (content or '').strip()
+            if out:
+                return out
+            if debug:
+                print('[Typhoon][chat.completions] empty content; raw:', resp.text[:800])
+            return '(empty response)'
+        except Exception as e:
+            return f"(Typhoon request failed: {e})"
 
 # Singleton
 llm_engine = LLMEngine(LLM_MODEL)

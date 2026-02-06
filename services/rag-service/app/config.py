@@ -65,8 +65,13 @@ LLM_CPU_FALLBACK = os.getenv('LLM_CPU_FALLBACK', '1') in ('1','true','True')  # 
 LLM_DEVICE_MAP = os.getenv('LLM_DEVICE_MAP', 'auto')  # override accelerate device_map
 
 # Remote LLM (OpenAI) settings (optional)
-LLM_PROVIDER = os.getenv('LLM_PROVIDER', '').strip().lower()  # '', 'hf', 'openai'
+LLM_PROVIDER = os.getenv('LLM_PROVIDER', '').strip().lower()  # '', 'hf', 'openai', 'typhoon'
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY', '')
 OPENAI_BASE_URL = os.getenv('OPENAI_BASE_URL', 'https://api.openai.com/v1')
 OPENAI_TIMEOUT_S = float(os.getenv('OPENAI_TIMEOUT_S', '60'))
+
+# Typhoon API settings (optional)
+TYPHOON_API_KEY = os.getenv('TYPHOON_API_KEY', '')
+TYPHOON_BASE_URL = os.getenv('TYPHOON_BASE_URL', 'https://api.opentyphoon.ai/v1')
+TYPHOON_TIMEOUT_S = float(os.getenv('TYPHOON_TIMEOUT_S', '60'))
 
