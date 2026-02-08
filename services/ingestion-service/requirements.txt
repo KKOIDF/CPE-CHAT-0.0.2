@@ -12,7 +12,6 @@ xlrd
 # Embeddings / vector store
 chromadb
 sentence-transformers
-typhoon-ocr
 python-dotenv
 
 # Graph (optional; used for curriculum hybrid graph RAG)

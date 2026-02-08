@@ -10,11 +10,9 @@ from .extract_pdf import extract_pages_with_fallback, extract_text_mupdf, ocr_pa
 from .extract_excel import extract_excel_to_records
 from .utils import split_paragraphs_smart, clean_for_index
 from .ocr_postprocess import postprocess_ocr_text
-from .typhoon_ocr import ocr_pdf_typhoon_pages
 from .toon_converter import write_toon
 from .config import (
     OCR_ENGINE,
-    TY_OCR_ENABLE,
     POPPLER_PATH,
     TESSERACT_PATH,
     OCR_DPI,
@@ -57,24 +55,14 @@ def _pages_tesseract(pdf_path: str) -> List[str]:
     return out
 
 
-def _pages_typhoon(pdf_path: str) -> List[str]:
-    pages: List[str] = []
-    with fitz.open(pdf_path) as doc:
-        indices = list(range(doc.page_count))
-    results = ocr_pdf_typhoon_pages(pdf_path, indices)
-    for i in indices:
-        pages.append(clean_for_index(results.get(i, '')))
-    return pages
-
-
 def ingest_pdf(pdf_path: str) -> List[Dict]:
     # Highest priority fast path if explicitly requested
     if MUPDF_ONLY:
         pages = _pages_poppler(pdf_path)
         method = 'pdf-mupdf-only'
     else:
-        engine = OCR_ENGINE  # auto | poppler | tesseract | typhoon
-        if engine not in ('auto', 'poppler', 'tesseract', 'typhoon'):
+        engine = OCR_ENGINE  # auto | poppler | tesseract
+        if engine not in ('auto', 'poppler', 'tesseract'):
             engine = 'auto'
 
         if engine == 'poppler':
@@ -83,11 +71,8 @@ def ingest_pdf(pdf_path: str) -> List[Dict]:
         elif engine == 'tesseract':
             pages = _pages_tesseract(pdf_path)
             method = 'pdf-tesseract'
-        elif engine == 'typhoon' and TY_OCR_ENABLE:
-            pages = _pages_typhoon(pdf_path)
-            method = 'pdf-typhoon'
         else:
-            # auto fallback chain (MuPDF -> Typhoon -> Tesseract per page)
+            # auto fallback chain (MuPDF -> Tesseract per page)
             pages = extract_pages_with_fallback(pdf_path)
             method = 'pdf-auto'
 

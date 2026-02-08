@@ -1,4 +1,7 @@
-﻿"""Reprocess flagged chunks with alternative OCR engines."""
+﻿"""Reprocess flagged chunks with alternative OCR engines.
+
+Typhoon OCR has been removed; supported engines are auto/poppler/tesseract.
+"""
 
 import json
 import sys
@@ -10,13 +13,11 @@ from collections import defaultdict
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from app.extract_pdf import extract_pages_with_fallback
 from app.quality import ocr_quality_score, is_valid_ocr, make_quality_entry
 from app.utils import split_paragraphs_smart
 from app.chunking import make_chunks, paragraphs_from_records
 from app.db import init_db, insert_chunks, log_ocr_quality
 from app.chroma_client import upsert_chunks
-from app.config import OCR_ENGINE, TY_OCR_ENABLE
 
 
 def load_flagged(review_file: str) -> List[Dict]:
@@ -25,7 +26,7 @@ def load_flagged(review_file: str) -> List[Dict]:
         return [json.loads(line) for line in f if line.strip()]
 
 
-def reprocess_with_engine(pdf_path: str, engine: str = 'typhoon') -> List[str]:
+def reprocess_with_engine(pdf_path: str, engine: str = 'tesseract') -> List[str]:
     '''Reprocess PDF with specified engine.'''
     # Temporarily override OCR_ENGINE
     original = os.environ.get('OCR_ENGINE', 'auto')
@@ -39,7 +40,7 @@ def reprocess_with_engine(pdf_path: str, engine: str = 'typhoon') -> List[str]:
         os.environ['OCR_ENGINE'] = original
 
 
-def reprocess_flagged(review_file: str, engine: str = 'typhoon',
+def reprocess_flagged(review_file: str, engine: str = 'tesseract',
                      store: bool = True, embed: bool = True,
                      quality_threshold: float = 0.3):
     '''Reprocess flagged chunks with alternative OCR engine.'''
@@ -152,8 +153,8 @@ if __name__ == '__main__':
     
     parser = argparse.ArgumentParser(description='Reprocess flagged chunks')
     parser.add_argument('review_file', help='Path to flagged review JSONL')
-    parser.add_argument('--engine', choices=['auto', 'typhoon', 'tesseract', 'poppler'],
-                       default='typhoon', help='OCR engine (default: typhoon)')
+    parser.add_argument('--engine', choices=['auto', 'tesseract', 'poppler'],
+                       default='tesseract', help='OCR engine (default: tesseract)')
     parser.add_argument('--no-store', action='store_true', help='Skip database')
     parser.add_argument('--no-embed', action='store_true', help='Skip embedding')
     parser.add_argument('--quality-threshold', type=float, default=0.3,
