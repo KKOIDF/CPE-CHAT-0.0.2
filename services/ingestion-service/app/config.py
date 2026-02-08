@@ -84,6 +84,12 @@ THAI_SENT_TOKENIZER = os.getenv('THAI_SENT_TOKENIZER', 'crfcut').lower()
 # MuPDF-only fast path (skip all OCR fallback if set)
 MUPDF_ONLY = os.getenv('MUPDF_ONLY', '0').lower() in ('1','true','yes')
 
+# OCR post-processing (opt-in)
+OCR_POSTPROCESS = os.getenv('OCR_POSTPROCESS', '0').lower() in ('1', 'true', 'yes')
+OCR_MERGE_LINES = os.getenv('OCR_MERGE_LINES', '0').lower() in ('1', 'true', 'yes')
+OCR_NORMALIZE_THAI_DIGITS = os.getenv('OCR_NORMALIZE_THAI_DIGITS', '0').lower() in ('1', 'true', 'yes')
+OCR_SPELL_CORRECT_THAI = os.getenv('OCR_SPELL_CORRECT_THAI', '0').lower() in ('1', 'true', 'yes')
+
 # Whether to embed flagged (low-quality) chunks
 EMBED_FLAGGED = os.getenv('EMBED_FLAGGED', 'false').lower() in ('1','true','yes')
 

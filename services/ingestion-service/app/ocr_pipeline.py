@@ -9,9 +9,22 @@ from datetime import datetime
 from .extract_pdf import extract_pages_with_fallback, extract_text_mupdf, ocr_page_images
 from .extract_excel import extract_excel_to_records
 from .utils import split_paragraphs_smart, clean_for_index
+from .ocr_postprocess import postprocess_ocr_text
 from .typhoon_ocr import ocr_pdf_typhoon_pages
 from .toon_converter import write_toon
-from .config import OCR_ENGINE, TY_OCR_ENABLE, POPPLER_PATH, TESSERACT_PATH, OCR_DPI, OCR_LANG_DEFAULT, MUPDF_ONLY
+from .config import (
+    OCR_ENGINE,
+    TY_OCR_ENABLE,
+    POPPLER_PATH,
+    TESSERACT_PATH,
+    OCR_DPI,
+    OCR_LANG_DEFAULT,
+    MUPDF_ONLY,
+    OCR_POSTPROCESS,
+    OCR_MERGE_LINES,
+    OCR_NORMALIZE_THAI_DIGITS,
+    OCR_SPELL_CORRECT_THAI,
+)
 
 # Set Tesseract path if configured
 if TESSERACT_PATH:
@@ -80,6 +93,13 @@ def ingest_pdf(pdf_path: str) -> List[Dict]:
 
     records = []
     for i, ptxt in enumerate(pages, start=1):
+        if OCR_POSTPROCESS:
+            ptxt = postprocess_ocr_text(
+                ptxt,
+                merge_lines=OCR_MERGE_LINES,
+                normalize_thai_digits=OCR_NORMALIZE_THAI_DIGITS,
+                spell_correct_thai=OCR_SPELL_CORRECT_THAI,
+            )
         records.append({
             'source': str(Path(pdf_path).resolve()),
             'page_no': i,
@@ -92,6 +112,29 @@ def ingest_pdf(pdf_path: str) -> List[Dict]:
 
 def ingest_excel(path: str) -> List[Dict]:
     return extract_excel_to_records(path)
+
+
+def ingest_txt(path: str) -> List[Dict]:
+    p = Path(path)
+    try:
+        raw = p.read_text(encoding='utf-8', errors='ignore')
+    except Exception:
+        raw = ''
+    txt = clean_for_index(raw)
+    if OCR_POSTPROCESS:
+        txt = postprocess_ocr_text(
+            txt,
+            merge_lines=OCR_MERGE_LINES,
+            normalize_thai_digits=OCR_NORMALIZE_THAI_DIGITS,
+            spell_correct_thai=OCR_SPELL_CORRECT_THAI,
+        )
+    return [{
+        'source': str(p.resolve()),
+        'page_no': 1,
+        'method': 'txt',
+        'text': txt,
+        'paragraphs': split_paragraphs_smart(txt),
+    }]
 
 
 def write_jsonl(records: List[Dict], out_path: str) -> str:

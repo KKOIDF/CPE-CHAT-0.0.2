@@ -12,7 +12,7 @@ foreach ($d in $domains) {
     continue
   }
 
-  $files = Get-ChildItem -Path $input -Recurse -File -Include *.pdf,*.xlsx,*.xls,*.csv,*.tsv -ErrorAction SilentlyContinue
+  $files = Get-ChildItem -Path $input -Recurse -File -Include *.pdf,*.txt,*.xlsx,*.xls,*.csv,*.tsv -ErrorAction SilentlyContinue
   if (-not $files -or $files.Count -eq 0) {
     Write-Host "[SKIP] ${d}: no supported files in $input"
     continue

@@ -4,23 +4,26 @@ import hashlib
 import os
 from pathlib import Path
 from typing import List, Dict
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 def gather_files(input_dir: str) -> List[Path]:
     base = Path(input_dir)
     pdfs = list(base.rglob('*.pdf'))
+    txts = list(base.rglob('*.txt'))
     excs = []
     for patt in ['*.xlsx', '*.xls', '*.csv', '*.tsv']:
         excs.extend(base.rglob(patt))
-    return sorted(set(pdfs + excs))
+    return sorted(set(pdfs + txts + excs))
 
 
 def process_file(fp: Path) -> List[dict]:
     # Delay import so env (domain paths) can be set before loading config
-    from .ocr_pipeline import ingest_pdf, ingest_excel
+    from .ocr_pipeline import ingest_pdf, ingest_excel, ingest_txt
     if fp.suffix.lower() == '.pdf':
         return ingest_pdf(str(fp))
+    if fp.suffix.lower() == '.txt':
+        return ingest_txt(str(fp))
     if fp.suffix.lower() in ['.xlsx', '.xls', '.csv', '.tsv']:
         return ingest_excel(str(fp))
     return []
@@ -57,7 +60,7 @@ def run_ingest(input_dir: str, output_base: str, store: bool = True, embed: bool
     # Write records in TOON format (default)
     records_out = output_base.replace('.jsonl', '.toon') if '.jsonl' in output_base else f"{output_base}_records.toon"
     write_toon({'records': all_records}, records_out)
-    print(f"✅ Wrote {len(all_records)} records → {records_out}")
+    print(f"Wrote {len(all_records)} records -> {records_out}")
 
     # build paragraphs then chunks
     paragraphs = paragraphs_from_records(all_records)
@@ -89,7 +92,7 @@ def run_ingest(input_dir: str, output_base: str, store: bool = True, embed: bool
     # Write chunks in TOON format (default)
     chunks_out = output_base.replace('.jsonl', '.toon') if '.jsonl' in output_base else f"{output_base}_chunks.toon"
     write_toon({'chunks': enriched_chunks}, chunks_out)
-    print(f"✅ Wrote {len(enriched_chunks)} chunks → {chunks_out}")
+    print(f"Wrote {len(enriched_chunks)} chunks -> {chunks_out}")
 
     if store:
         init_db()
@@ -101,7 +104,7 @@ def run_ingest(input_dir: str, output_base: str, store: bool = True, embed: bool
 
     if flagged_chunks and not EMBED_FLAGGED:
         review_dir = REVIEW_DIR
-        review_path = review_dir / f"flagged_{datetime.utcnow().strftime('%Y%m%d%H%M%S')}.jsonl"
+        review_path = review_dir / f"flagged_{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}.jsonl"
         with review_path.open('w', encoding='utf-8') as rf:
             for c in flagged_chunks:
                 rf.write(json.dumps(c, ensure_ascii=False) + '\n')
