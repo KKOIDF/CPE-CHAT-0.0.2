@@ -44,6 +44,21 @@ class RagAnswerResponse(BaseModel):
     token_est: int
 
 
+# OpenAI API compatible models
+class ChatCompletionChoice(BaseModel):
+    index: int
+    message: dict
+    finish_reason: str = "stop"
+
+class ChatCompletionResponse(BaseModel):
+    id: str
+    object: str = "chat.completion"
+    created: int
+    model: str
+    choices: list[ChatCompletionChoice]
+    usage: dict = {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
+
+
 _FALLBACK = 'ไม่พบข้อมูลในเอกสาร'
 _CITE_RE = re.compile(r"\[[^\]]+?/\d+\]")
 _BRACKET_RE = re.compile(r"\[[^\]]*\]")
@@ -236,6 +251,108 @@ async def rag_answer_endpoint(req: RagAnswerRequest):
         contexts=result['contexts'],
         token_est=result['token_est']
     )
+
+@app.get('/v1/models')
+async def list_models():
+    """OpenAI API compatible models endpoint for OpenWeb-UI."""
+    import time
+    from .config import LLM_MODEL
+    
+    return {
+        "object": "list",
+        "data": [
+            {
+                "id": LLM_MODEL or "typhoon-v2.5-30b-a3b-instruct",
+                "object": "model",
+                "created": int(time.time()),
+                "owned_by": "cpe-chat-rag"
+            }
+        ]
+    }
+
+@app.post('/v1/chat/completions')
+async def openai_compatible_endpoint(request: dict):
+    """OpenAI API compatible endpoint for OpenWeb-UI integration."""
+    import time
+    import uuid
+    
+    messages = request.get('messages', [])
+    domain = request.get('domain', None)  # Custom parameter for domain selection
+    
+    # Extract question from last user message
+    question = ""
+    for msg in reversed(messages):
+        if msg.get('role') == 'user':
+            question = msg.get('content', '')
+            break
+    
+    if not question:
+        return {
+            "error": "No user message found in request"
+        }
+    
+    # Get RAG response
+    try:
+        result = rag_query_domain(question, domain) if domain else rag_query(question)
+    except Exception as e:
+        return {
+            "error": f"RAG query failed: {str(e)}"
+        }
+    
+    # Build system message for RAG context
+    system_msg = { 'role': 'system', 'content': 'คุณคือผู้ช่วยของภาควิชาวิศวกรรมคอมพิวเตอร์ ใช้เฉพาะข้อมูลในบริบทเท่านั้น ตอบเป็น bullet และทุก bullet ต้องลงท้ายด้วยอ้างอิงรูปแบบ [src/page] (เช่น [foo.pdf/3]) หากข้อมูลในบริบทไม่พอให้ตอบว่า ไม่พบข้อมูลในเอกสาร' }
+    user_msg = { 'role': 'user', 'content': result['prompt'] }
+
+    # Generate answer
+    if not (result.get('contexts') or []):
+        answer = _FALLBACK
+    else:
+        extracted = _try_extract_total_credits(result.get('prompt') or '')
+        if extracted:
+            answer = extracted
+        else:
+            answer = llm_engine.generate(result['prompt'], messages=[system_msg, user_msg])
+        
+        if not (answer or '').strip().startswith('('):
+            answer = _repair_citations((answer or '').strip(), result.get('prompt') or '')
+            if _FALLBACK in answer and answer != _FALLBACK:
+                answer = _FALLBACK
+            else:
+                allowed = _extract_allowed_citations(result.get('prompt') or '')
+                cited = set(re.findall(r"\[([^\]]+?/\d+)\]", answer))
+                if not _CITE_RE.search(answer or ''):
+                    answer = _FALLBACK
+                elif any(not _CITE_RE.fullmatch(b) for b in _BRACKET_RE.findall(answer or '')):
+                    answer = _FALLBACK
+                elif allowed and cited and not cited.issubset(allowed):
+                    answer = _FALLBACK
+                else:
+                    bullets = _split_bullets(answer)
+                    if any(not _CITE_RE.search(b or '') for b in bullets):
+                        answer = _FALLBACK
+
+    # Return OpenAI-compatible response
+    return {
+        "id": f"chatcpe-{uuid.uuid4().hex[:12]}",
+        "object": "chat.completion",
+        "created": int(time.time()),
+        "model": request.get('model', 'typhoon-rag'),
+        "choices": [
+            {
+                "index": 0,
+                "message": {
+                    "role": "assistant",
+                    "content": answer
+                },
+                "finish_reason": "stop"
+            }
+        ],
+        "usage": {
+            "prompt_tokens": result.get('token_est', 0),
+            "completion_tokens": 0,
+            "total_tokens": result.get('token_est', 0)
+        }
+    }
 
 @app.get('/health')
 async def health():

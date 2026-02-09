@@ -1,15 +1,89 @@
 # Secrets
 .env
 .env.*
+*.key
+*.pem
+secrets/
 
 # Python
 .venv/
+venv/
+env/
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
 .pytest_cache/
+*.egg-info/
+dist/
+build/
+*.egg
+.coverage
+htmlcov/
+.tox/
+*.log
 
-# OS / Editor
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+yarn.lock
+.npm/
+.pnpm-debug.log*
+
+# Jupyter Notebook
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+
+
+
+# Docker
+*.env.docker
+docker-compose.override.yml
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# Build outputs
+dist/
+build/
+out/
+*.bundle.js
+*.bundle.js.map
+
+# IDEs and Editors
 .DS_Store
 .vscode/*
 !.vscode/extensions.json
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
 .idea/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.c9/
+*.launch
+.settings/
+
+# OS
+Thumbs.db
+Desktop.ini
+
+# Testing
+coverage/
+.nyc_output/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.bak
+venv/
