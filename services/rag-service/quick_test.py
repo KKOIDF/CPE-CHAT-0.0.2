@@ -7,20 +7,19 @@ import json
 
 def main():
     parser = argparse.ArgumentParser(description='Test RAG with domain')
-    parser.add_argument('--domain', default='curriculum', help='Domain to query (announcements, regulations, curriculum)')
+    parser.add_argument('--domain', default=None, help='Domain to query (announcements|regulations|curriculum). Omit to query ALL domains')
     parser.add_argument('--query', '-q', required=True, help='Query string')
     parser.add_argument('--port', default=8001, type=int, help='Server port (default: 8001)')
     
     args = parser.parse_args()
     
     url = f"http://127.0.0.1:{args.port}/rag/answer"
-    payload = {
-        "question": args.query,
-        "domain": args.domain
-    }
+    payload = {"question": args.query}
+    if args.domain:
+        payload["domain"] = args.domain
     
     print(f"\n🔍 Query: {args.query}")
-    print(f"📂 Domain: {args.domain}")
+    print(f"📂 Domain: {args.domain or 'ALL'}")
     print(f"🌐 URL: {url}")
     print("\n" + "="*70)
     
@@ -51,7 +50,11 @@ def main():
         print("   cd services/rag-service && python run_server.py")
     except requests.exceptions.HTTPError as e:
         print(f"\n❌ HTTP Error: {e}")
-        print(f"Response: {resp.text}")
+        try:
+            if getattr(e, 'response', None) is not None:
+                print(f"Response: {e.response.text}")
+        except Exception:
+            pass
     except Exception as e:
         print(f"\n❌ Error: {e}")
 

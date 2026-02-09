@@ -29,6 +29,9 @@ DATA_DIR = Path(os.getenv('DATA_DIR', str(ROOT_DIR / 'services' / 'ingestion-ser
 
 _KNOWN_DOMAINS = {'announcements', 'regulations', 'curriculum'}
 
+# Public, stable ordering for "query all domains" behavior.
+KNOWN_DOMAINS = ('announcements', 'regulations', 'curriculum')
+
 def domain_paths(domain: str | None):
 	"""Return (chroma_dir, sqlite_path) for a domain.
 

@@ -158,7 +158,6 @@ function App() {
                 </ul>
               </div>
             ) : null}
-            </p>
             <hr />
           </div>
         ))}

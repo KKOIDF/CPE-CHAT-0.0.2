@@ -29,7 +29,9 @@ indexes/
 RAG Service จะเลือก path ตามโดเมนโดยดูจาก:
 1) request body field `domain` (แนะนำ)
 2) หรือ env `CPE_DOMAIN`
-3) ถ้าไม่ระบุ จะ fallback ไป `DATA_DIR` แบบเดิม
+3) ถ้าไม่ระบุ จะค้นข้ามทุกโดเมนที่รองรับ (announcements/regulations/curriculum)
+
+หมายเหตุ: หากต้องการบังคับโดเมนเดียว ให้ส่ง `domain` ใน request body หรือกำหนด `CPE_DOMAIN`.
 
 ### การปรับแต่งตำแหน่ง (ถ้าต้องการ)
 

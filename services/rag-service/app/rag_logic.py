@@ -5,7 +5,7 @@ from pathlib import Path
 
 from .sqlite_client import keyword_search, fetch_docs_with_path, domain_sqlite_path
 from .chroma_client import semantic_search_domain
-from .config import TOKEN_BUDGET, RRF_K, MAX_CONTEXTS
+from .config import TOKEN_BUDGET, RRF_K, MAX_CONTEXTS, KNOWN_DOMAINS
 from .neo4j_client import extract_course_codes, graph_doc_ids_for_codes, graph_expand_from_seed_chunks
 
 # Simple token counter heuristic (~4 chars/token Thai)
@@ -30,7 +30,42 @@ def _cite_label(c: Dict) -> str:
 
 
 def hybrid_retrieve(question: str, k_vec: int = 20, k_kw: int = 30) -> List[Dict]:
-    return retrieve_by_domain(question, domain=None, k_vec=k_vec, k_kw=k_kw)
+    return retrieve_all_domains(question, k_vec=k_vec, k_kw=k_kw)
+
+
+def retrieve_all_domains(
+    question: str,
+    k_vec: int = 20,
+    k_kw: int = 30,
+    domains: List[str] | None = None,
+) -> List[Dict]:
+    doms = [d.strip().lower() for d in (domains or list(KNOWN_DOMAINS)) if (d or '').strip()]
+    if not doms:
+        doms = list(KNOWN_DOMAINS)
+
+    bank: Dict[str, Dict] = {}
+    ranks: Dict[str, float] = {}
+
+    for dom in doms:
+        try:
+            results = retrieve_by_domain(question, domain=dom, k_vec=k_vec, k_kw=k_kw)
+        except Exception:
+            # Best-effort: if one domain is missing/corrupt, still answer from others.
+            continue
+
+        # retrieve_by_domain already returns a ranked list; fuse across domains via RRF.
+        for r, d in enumerate(results, 1):
+            doc_id = d.get('doc_id') or d.get('source') or f'unk_{r}'
+            key = f"{dom}:{doc_id}"
+            if key not in bank:
+                bank[key] = {**d, 'doc_id': doc_id, 'domain': dom}
+            else:
+                bank[key].setdefault('domain', dom)
+            ranks[key] = ranks.get(key, 0.0) + 1.0 / (RRF_K + r)
+
+    merged = [{**bank[k], 'score_rrf': v} for k, v in ranks.items()]
+    merged.sort(key=lambda x: x.get('score_rrf', 0.0), reverse=True)
+    return merged[:MAX_CONTEXTS]
 
 
 def retrieve_by_domain(question: str, domain: str | None, k_vec: int = 20, k_kw: int = 30) -> List[Dict]:
@@ -190,7 +225,7 @@ def build_prompt(question: str, ctx: str, cites: Dict[int, str]) -> str:
 
 
 def rag_query(question: str) -> Dict:
-    retrieved = retrieve_by_domain(question, domain=None)
+    retrieved = retrieve_all_domains(question)
     ctx, cites = pack_context(retrieved)
     prompt = build_prompt(question, ctx, cites)
     return {
@@ -198,6 +233,7 @@ def rag_query(question: str) -> Dict:
         'contexts': [
             {
                 'doc_id': r.get('doc_id'),
+                'domain': r.get('domain'),
                 'source': r.get('source'),
                 'path': r.get('path'),
                 'page_start': r.get('page_start'),
