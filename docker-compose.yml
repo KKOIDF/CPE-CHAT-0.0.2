@@ -28,8 +28,8 @@ services:
       # LLM Configuration - Using Typhoon API
       LLM_ENABLE: "1"
       LLM_PROVIDER: "typhoon"
-      LLM_MODEL: "typhoon-v1"
-      LLM_MAX_TOKENS: "512"
+      LLM_MODEL: "typhoon-v2.5-30b-a3b-instruct"
+      LLM_MAX_TOKENS: "4096"
       LLM_TEMPERATURE: "0.4"
       
       # Typhoon API Configuration
@@ -54,7 +54,7 @@ services:
       - cpe-network
     
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      test: ["CMD", "python", "-c", "import urllib.request,sys; urllib.request.urlopen('http://localhost:8001/health').read(); sys.exit(0)"]
       interval: 30s
       timeout: 10s
       retries: 3

@@ -21,6 +21,8 @@ from .config import (
 
 import requests
 import os
+import json
+import re
 
 try:
     from transformers import AutoTokenizer, AutoModelForCausalLM, pipeline
@@ -345,20 +347,60 @@ class LLMEngine:
         else:
             msgs = [{'role': 'user', 'content': prompt}]
 
-        try:
+        def _parse_token_error(resp_text: str) -> tuple[int, int, int] | None:
+            """Return (prompt_tokens, required, provided) if resp_text matches token-limit error."""
+            try:
+                data = json.loads(resp_text or '')
+                detail = data.get('detail') if isinstance(data, dict) else None
+                if not isinstance(detail, str):
+                    return None
+                m = re.search(
+                    r"prompt_tokens:\s*(\d+).*required:\s*(\d+).*provided:\s*(\d+)",
+                    detail,
+                    flags=re.IGNORECASE,
+                )
+                if not m:
+                    return None
+                return int(m.group(1)), int(m.group(2)), int(m.group(3))
+            except Exception:
+                return None
+
+        def _post(payload: Dict[str, Any]) -> requests.Response:
             url = f"{base}/chat/completions"
+            return requests.post(url, headers=headers, json=payload, timeout=TYPHOON_TIMEOUT_S)
+
+        try:
             payload: Dict[str, Any] = {
                 'model': self.model_name,
                 'messages': msgs,
                 'temperature': LLM_TEMPERATURE,
+                # Typhoon's API enforces max_tokens >= prompt_tokens + 1.
+                # Some deployments accept max_completion_tokens, others only max_tokens.
                 'max_completion_tokens': LLM_MAX_TOKENS,
+                'max_tokens': LLM_MAX_TOKENS,
                 'top_p': 0.6,
                 'frequency_penalty': 0,
             }
 
-            resp = requests.post(url, headers=headers, json=payload, timeout=TYPHOON_TIMEOUT_S)
+            resp = _post(payload)
             if debug:
                 print(f"[Typhoon][chat.completions] status={resp.status_code}")
+
+            # Auto-retry once when max_tokens is too small for the prompt.
+            if resp.status_code == 400:
+                parsed = _parse_token_error(resp.text)
+                if parsed:
+                    _prompt_tokens, required, _provided = parsed
+                    margin = int(os.getenv('TYPHOON_TOKEN_MARGIN', '512'))
+                    cap = int(os.getenv('TYPHOON_MAX_TOKENS_CAP', '8192'))
+                    bumped = min(required + max(1, margin), cap)
+                    if bumped > int(payload.get('max_tokens') or 0):
+                        payload['max_tokens'] = bumped
+                        payload['max_completion_tokens'] = bumped
+                        resp = _post(payload)
+                        if debug:
+                            print(f"[Typhoon][chat.completions] retry status={resp.status_code} (max_tokens={bumped})")
+
             if resp.status_code >= 300:
                 return f"(Typhoon error {resp.status_code}: {resp.text[:300]})"
             data = resp.json()

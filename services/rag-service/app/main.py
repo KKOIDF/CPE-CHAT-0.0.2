@@ -63,17 +63,108 @@ _FALLBACK = 'ไม่พบข้อมูลในเอกสาร'
 _CITE_RE = re.compile(r"\[[^\]]+?/\d+\]")
 _BRACKET_RE = re.compile(r"\[[^\]]*\]")
 
+_THAI_MONTHS = (
+    'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน',
+    'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'
+)
+_MONTH_RE = re.compile(r"(" + "|".join(map(re.escape, _THAI_MONTHS)) + r")")
+_DOW_RE = re.compile(r"(จันทร์|อังคาร|พุธ|พฤหัสบดี|ศุกร์|เสาร์|อาทิตย์)")
+
+
+def _strip_citations(text: str) -> str:
+    # Remove packed-context cite labels like [file.txt/1]
+    out = re.sub(_CITE_RE, '', text or '')
+    # Remove any remaining bracket blocks (models sometimes echo them)
+    out = re.sub(_BRACKET_RE, '', out)
+    return out
+
+
+def _normalize_day_token(day_token: str) -> str:
+    tok = re.sub(r"\D", "", (day_token or ''))
+    if not tok:
+        return day_token
+
+    def _ok(n: int) -> bool:
+        return 1 <= n <= 31
+
+    # Try direct
+    try:
+        n = int(tok)
+        if _ok(n):
+            return str(n)
+    except Exception:
+        pass
+
+    # Heuristics for OCR/table artifacts like 108 ตุลาคม, 109 พฤศจิกายน, 1936 มิถุนายน
+    candidates: list[str] = []
+    if len(tok) >= 2:
+        candidates.append(tok[-2:])
+        candidates.append(tok[:2])
+    candidates.append(tok[-1:])
+
+    for c in candidates:
+        try:
+            n = int(c)
+        except Exception:
+            continue
+        if _ok(n):
+            return str(n)
+
+    return day_token
+
+
+def _normalize_calendar_text(text: str) -> str:
+    t = (text or '').replace('\u00a0', ' ')
+
+    # OCR/table artifacts sometimes break numbers across lines (e.g., "1\n0").
+    t = re.sub(r"(\d)\s*\n\s*(\d)", r"\1\2", t)
+
+    # Normalize odd term formatting like 25692 -> 2569/2 when it appears after keyword.
+    t = re.sub(r"(ภาคการศึกษาที่\s*)(\d{4})\s*([12])\b", r"\1\2/\3", t)
+
+    # Fix day tokens that were merged (e.g., 108 ตุลาคม -> 8 ตุลาคม)
+    def _fix_day_month(m: re.Match) -> str:
+        day = _normalize_day_token(m.group(1))
+        month = m.group(2)
+        return f"{day} {month}"
+
+    t = re.sub(rf"\b(\d{{3,4}})\s*{_MONTH_RE.pattern}\b", _fix_day_month, t)
+    t = re.sub(
+        rf"(ที่\s*)(\d{{3,4}})\s*{_MONTH_RE.pattern}\b",
+        lambda m: f"{m.group(1)}{_normalize_day_token(m.group(2))} {m.group(3)}",
+        t,
+    )
+
+    # Collapse excessive whitespace
+    t = re.sub(r"[ \t]+", " ", t)
+    t = re.sub(r"\s*\n\s*", "\n", t).strip()
+    return t
+
+
+def _clean_answer_text(answer: str) -> str:
+    a = (answer or '').strip()
+    a = _strip_citations(a)
+    a = _normalize_calendar_text(a)
+    # Remove stray spaces at line ends
+    a = "\n".join([ln.rstrip() for ln in a.splitlines()]).strip()
+    # If empty after cleaning, fallback
+    return a or _FALLBACK
+
 
 def _extract_ctx_blocks(prompt: str) -> list[tuple[str, str]]:
     """Return list of (cite, text) blocks from the packed context section in the prompt."""
     p = prompt or ''
     start_marker = 'บริบท'
     end_marker = 'รายชื่ออ้างอิงที่อนุญาต'
-    if start_marker not in p or end_marker not in p:
+    # Newer prompt format may not include the allowed-citation section; fall back to the answer header.
+    end_marker_alt = '\n\nคำตอบ:'
+    if start_marker not in p or (end_marker not in p and end_marker_alt not in p):
         return []
     mid = p.split(start_marker, 1)[1]
     if end_marker in mid:
         mid = mid.split(end_marker, 1)[0]
+    elif end_marker_alt in mid:
+        mid = mid.split(end_marker_alt, 1)[0]
     # Each packed block is like: [name.pdf/12] some text...
     blocks: list[tuple[str, str]] = []
     for m in re.finditer(r"\[([^\]]+?/\d+)\]\s*", mid):
@@ -129,7 +220,141 @@ def _try_extract_total_credits(prompt: str) -> str | None:
     if not cite:
         return None
 
-    return f"- หลักสูตรกำหนดหน่วยกิตรวม {best_n} หน่วยกิต [{cite}]"
+    # Return without visible citation; context is still used for grounding.
+    return f"- หลักสูตรกำหนดหน่วยกิตรวม {best_n} หน่วยกิต"
+
+
+def _try_extract_withdraw_w_dates(prompt: str, question: str | None = None) -> str | None:
+    q = (question or '').lower()
+    if q and ('ถอน' not in q or 'w' not in q):
+        # If question is provided and doesn't look like W-withdrawal, skip.
+        return None
+
+    blocks = _extract_ctx_blocks(prompt)
+    if not blocks:
+        return None
+
+    # Merge all text from context blocks (strip cite labels).
+    raw = "\n".join([t for _c, t in blocks])
+    raw = _normalize_calendar_text(_strip_citations(raw))
+
+    # Fast path: extract a clear date range after the W-withdraw marker.
+    # This avoids accidentally grabbing unrelated deadlines that appear before the marker
+    # (common in OCR/table chunks where everything is on one long line).
+    marker_re = re.compile(r"วันถอนรายวิชา[^\n]{0,80}?W", re.IGNORECASE)
+    mm = marker_re.search(raw)
+    window = raw[mm.start():] if mm else raw
+    window = window[:1200]
+
+    date_re = re.compile(
+        rf"วัน(?P<dow>{_DOW_RE.pattern})ที่\s*(?P<day>\d{{1,4}})\s*(?P<month>{_MONTH_RE.pattern})(?:\s*(?P<year>\d{{4}}))?"
+    )
+
+    def _range_from_text(txt: str) -> str | None:
+        ms = list(date_re.finditer(txt or ''))
+        if len(ms) < 2:
+            return None
+        m1, m2 = ms[0], ms[1]
+        y1, y2 = m1.group('year'), m2.group('year')
+        if not y1 and y2:
+            y1 = y2
+        if not y2 and y1:
+            y2 = y1
+
+        def _fmt(m: re.Match, year: str | None) -> str:
+            dow = (m.group('dow') or '').strip()
+            day = _normalize_day_token(m.group('day') or '')
+            month = (m.group('month') or '').strip()
+            tail = f" {year}" if year else ""
+            return f"วัน{dow}ที่ {day} {month}{tail}".strip()
+
+        return f"{_fmt(m1, y1)} – {_fmt(m2, y2)}"
+
+    date_range = _range_from_text(window)
+    saw_acis = ('new acis' in window.lower()) or ('new acis' in raw.lower())
+
+    def _extract_term(qtext: str) -> str | None:
+        qq = qtext or ''
+        m1 = re.search(r"ภาคการศึกษาที่\s*(\d{1,2})\s*/\s*(\d{4})", qq)
+        if m1:
+            return f"{m1.group(1)}/{m1.group(2)}"
+        m2 = re.search(r"ภาคการศึกษาที่\s*(\d{4})\s*/\s*([12])", qq)
+        if m2:
+            return f"{m2.group(1)}/{m2.group(2)}"
+        return None
+
+    if date_range:
+        term = _extract_term(question or '')
+        term_part = f" ภาคการศึกษาที่ {term}" if term else ""
+        out = [f"- วันถอนรายวิชาติด W{term_part}: {date_range}"]
+        if saw_acis:
+            out.append("- การถอนรายวิชาติด W ต้องดำเนินการผ่านระบบ New ACIS")
+        return "\n".join(out).strip()
+
+    lines = [ln.strip() for ln in raw.splitlines() if ln.strip()]
+
+    # Capture only within the W-withdrawal section if present.
+    in_w = False
+    captured: list[str] = []
+    for ln in lines:
+        if ('วันถอนรายวิชา' in ln and 'W' in ln) or ('วันถอนรายวิชา' in ln and 'ติด W' in ln):
+            in_w = True
+            split_m = re.search(r"วันถอนรายวิชา.*?W", ln)
+            if split_m and split_m.end() < len(ln):
+                tail = (ln[split_m.end():] or '').strip(' :-\t')
+                if tail:
+                    captured.append(tail)
+            continue
+        if in_w and ln.startswith('หมายเหตุ'):
+            break
+        if in_w:
+            captured.append(ln)
+
+    if not captured:
+        return None
+
+    # Parse label -> date line pairs based on nearest preceding label.
+    label: str | None = None
+    dates: dict[str, str] = {}
+    saw_acis = False
+    for ln in captured:
+        low = ln.lower()
+        if 'new acis' in low:
+            saw_acis = True
+
+        if 'รายวิชาทั่วไป/โมดูล' in ln or ('รายวิชาทั่วไป' in ln and 'โมดูล' in ln):
+            label = 'รายวิชาทั่วไปและรายวิชาโมดูล'
+        if 'รายวิชาทั่วไป' in ln and 'โมดูล' not in ln:
+            label = 'รายวิชาทั่วไป'
+        if 'รายวิชาโมดูล 10' in ln:
+            label = 'รายวิชาโมดูล 10 สัปดาห์'
+        if 'รายวิชาโมดูล 5' in ln:
+            label = 'รายวิชาโมดูล 5 สัปดาห์'
+
+        # Date-ish line.
+        is_dateish = (
+            (_DOW_RE.search(ln) is not None and _MONTH_RE.search(ln) is not None) or
+            (ln.startswith('ภายในวัน') and _MONTH_RE.search(ln) is not None)
+        )
+        if is_dateish and label and label not in dates:
+            dates[label] = _range_from_text(ln) or ln
+
+    if not dates and not saw_acis:
+        return None
+
+    # Compose clean, user-facing answer.
+    out: list[str] = []
+    if 'รายวิชาทั่วไปและรายวิชาโมดูล' in dates:
+        out.append(f"- วันถอนรายวิชาติด W (รายวิชาทั่วไป/รายวิชาโมดูล): {dates['รายวิชาทั่วไปและรายวิชาโมดูล']}")
+    if 'รายวิชาทั่วไป' in dates:
+        out.append(f"- วันถอนรายวิชาติด W (รายวิชาทั่วไป): {dates['รายวิชาทั่วไป']}")
+    if 'รายวิชาโมดูล 10 สัปดาห์' in dates:
+        out.append(f"- วันถอนรายวิชาติด W (รายวิชาโมดูล 10 สัปดาห์): {dates['รายวิชาโมดูล 10 สัปดาห์']}")
+    if 'รายวิชาโมดูล 5 สัปดาห์' in dates:
+        out.append(f"- วันถอนรายวิชาติด W (รายวิชาโมดูล 5 สัปดาห์): {dates['รายวิชาโมดูล 5 สัปดาห์']}")
+    if saw_acis:
+        out.append("- การถอนรายวิชาติด W ต้องดำเนินการผ่านระบบ New ACIS")
+    return "\n".join(out).strip() if out else None
 
 
 def _default_allowed_citation(prompt: str) -> str | None:
@@ -218,11 +443,15 @@ async def rag_answer_endpoint(req: RagAnswerRequest):
         if extracted:
             answer = extracted
         else:
-            answer = llm_engine.generate(result['prompt'], messages=[system_msg, user_msg])
+            extracted_w = _try_extract_withdraw_w_dates(result.get('prompt') or '', question=req.question)
+            if extracted_w:
+                answer = extracted_w
+            else:
+                answer = llm_engine.generate(result['prompt'], messages=[system_msg, user_msg])
         # If generation is unavailable/disabled, preserve the diagnostic message.
         if not (answer or '').strip().startswith('('):
             # Clean and validate answer - keep it natural without enforcing citations
-            answer = (answer or '').strip()
+            answer = _clean_answer_text(answer)
 
             # If model uses fallback phrase, it must be the entire answer.
             if _FALLBACK in answer and answer != _FALLBACK:
@@ -282,8 +511,8 @@ async def openai_compatible_endpoint(request: dict):
             "error": f"RAG query failed: {str(e)}"
         }
     
-    # Build system message for RAG context
-    system_msg = { 'role': 'system', 'content': 'คุณคือผู้ช่วยของภาควิชาวิศวกรรมคอมพิวเตอร์ ใช้เฉพาะข้อมูลในบริบทเท่านั้น ตอบเป็น bullet และทุก bullet ต้องลงท้ายด้วยอ้างอิงรูปแบบ [src/page] (เช่น [foo.pdf/3]) หากข้อมูลในบริบทไม่พอให้ตอบว่า ไม่พบข้อมูลในเอกสาร' }
+    # Build system message for RAG context (clean answers, no forced citations)
+    system_msg = { 'role': 'system', 'content': 'คุณคือผู้ช่วยของภาควิชาวิศวกรรมคอมพิวเตอร์ ใช้เฉพาะข้อมูลในบริบทเท่านั้น ตอบโดยตรงและชัดเจน ห้ามคัดลอกบริบททั้งก้อน หากข้อมูลในบริบทไม่พอให้ตอบว่า ไม่พบข้อมูลในเอกสาร' }
     user_msg = { 'role': 'user', 'content': result['prompt'] }
 
     # Generate answer
@@ -294,25 +523,14 @@ async def openai_compatible_endpoint(request: dict):
         if extracted:
             answer = extracted
         else:
-            answer = llm_engine.generate(result['prompt'], messages=[system_msg, user_msg])
+            extracted_w = _try_extract_withdraw_w_dates(result.get('prompt') or '', question=question)
+            if extracted_w:
+                answer = extracted_w
+            else:
+                answer = llm_engine.generate(result['prompt'], messages=[system_msg, user_msg])
         
         if not (answer or '').strip().startswith('('):
-            answer = _repair_citations((answer or '').strip(), result.get('prompt') or '')
-            if _FALLBACK in answer and answer != _FALLBACK:
-                answer = _FALLBACK
-            else:
-                allowed = _extract_allowed_citations(result.get('prompt') or '')
-                cited = set(re.findall(r"\[([^\]]+?/\d+)\]", answer))
-                if not _CITE_RE.search(answer or ''):
-                    answer = _FALLBACK
-                elif any(not _CITE_RE.fullmatch(b) for b in _BRACKET_RE.findall(answer or '')):
-                    answer = _FALLBACK
-                elif allowed and cited and not cited.issubset(allowed):
-                    answer = _FALLBACK
-                else:
-                    bullets = _split_bullets(answer)
-                    if any(not _CITE_RE.search(b or '') for b in bullets):
-                        answer = _FALLBACK
+            answer = _clean_answer_text(answer)
 
     # Return OpenAI-compatible response
     return {
