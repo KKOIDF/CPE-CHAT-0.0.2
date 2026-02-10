@@ -206,7 +206,7 @@ async def rag_endpoint(req: RagRequest):
 async def rag_answer_endpoint(req: RagAnswerRequest):
     result = rag_query_domain(req.question, req.domain) if req.domain else rag_query(req.question)
     # Build chat style messages for models that support it
-    system_msg = { 'role': 'system', 'content': 'คุณคือผู้ช่วยของภาควิชาวิศวกรรมคอมพิวเตอร์ ใช้เฉพาะข้อมูลในบริบทเท่านั้น ตอบเป็น bullet และทุก bullet ต้องลงท้ายด้วยอ้างอิงรูปแบบ [src/page] (เช่น [foo.pdf/3]) หากข้อมูลในบริบทไม่พอให้ตอบว่า ไม่พบข้อมูลในเอกสาร' }
+    system_msg = { 'role': 'system', 'content': 'คุณคือผู้ช่วยของภาควิชาวิศวกรรมคอมพิวเตอร์ ใช้เฉพาะข้อมูลในบริบทเท่านั้น ตอบโดยตรงและชัดเจน หากข้อมูลในบริบทไม่พอให้ตอบว่า ไม่พบข้อมูลในเอกสาร' }
     user_msg = { 'role': 'user', 'content': result['prompt'] }
 
     # Hard guardrails: if no context, never hallucinate.
@@ -221,29 +221,12 @@ async def rag_answer_endpoint(req: RagAnswerRequest):
             answer = llm_engine.generate(result['prompt'], messages=[system_msg, user_msg])
         # If generation is unavailable/disabled, preserve the diagnostic message.
         if not (answer or '').strip().startswith('('):
-            answer = _repair_citations((answer or '').strip(), result.get('prompt') or '')
+            # Clean and validate answer - keep it natural without enforcing citations
+            answer = (answer or '').strip()
 
             # If model uses fallback phrase, it must be the entire answer.
             if _FALLBACK in answer and answer != _FALLBACK:
                 answer = _FALLBACK
-            else:
-                allowed = _extract_allowed_citations(result.get('prompt') or '')
-                cited = set(re.findall(r"\[([^\]]+?/\d+)\]", answer))
-
-                # 1) Must contain at least one valid [src/page] citation.
-                if not _CITE_RE.search(answer or ''):
-                    answer = _FALLBACK
-                # 2) Forbid any bracketed blocks that are not [src/page] citations.
-                elif any(not _CITE_RE.fullmatch(b) for b in _BRACKET_RE.findall(answer or '')):
-                    answer = _FALLBACK
-                # 3) All citations must be in allowed list.
-                elif allowed and cited and not cited.issubset(allowed):
-                    answer = _FALLBACK
-                else:
-                    # 4) Every bullet must have a citation.
-                    bullets = _split_bullets(answer)
-                    if any(not _CITE_RE.search(b or '') for b in bullets):
-                        answer = _FALLBACK
     return RagAnswerResponse(
         question=req.question,
         prompt=result['prompt'],
