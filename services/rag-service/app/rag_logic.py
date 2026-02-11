@@ -103,6 +103,75 @@ def retrieve_by_domain(question: str, domain: str | None, k_vec: int = 20, k_kw:
     kw_ids = keyword_search(question, limit=k_kw, sqlite_path=sqlite_path)
     kw_docs = fetch_docs_with_path(kw_ids, sqlite_path=sqlite_path)
 
+    # Heuristic: users often ask "LNGxxx มีวิชาอะไรให้เลือกเรียนบ้าง" without naming languages.
+    # Pull in curriculum chunks anchored by the "รายวิชา: LNG" header to increase recall.
+    lng_docs: List[Dict] = []
+    lng_diverse_docs: List[Dict] = []
+    wants_lng_list = False
+    q = (question or '')
+    if dom == 'curriculum':
+        wants_lng_list = (
+            re.search(r"LNG", q, re.IGNORECASE) is not None
+            and any(t in q for t in ('เลือกเรียน', 'มีวิชา', 'วิชาอะไร', 'เลือกได้', 'ตัวเลือก'))
+        )
+        if wants_lng_list:
+            lng_ids = keyword_search('รายวิชา: LNG', limit=max(80, k_kw * 2), sqlite_path=sqlite_path)
+            lng_docs = fetch_docs_with_path(lng_ids, sqlite_path=sqlite_path)
+
+            # Prefer diversity across *non-English* languages rather than many English-only chunks.
+            # Many curriculum chunks start with "รายวิชา: LNG ... ภาษาอังกฤษ..." and can crowd out
+            # Japanese/Chinese/Burmese/etc. So we pick non-English first.
+            def _lang_name(txt: str) -> str | None:
+                m = re.search(r"ภาษา([\u0E00-\u0E7F]{2,20})", txt or '')
+                return m.group(1) if m else None
+
+            non_en: dict[str, Dict] = {}
+            en: dict[str, Dict] = {}
+            other: list[Dict] = []
+            for d in lng_docs:
+                txt = (d.get('text') or '')
+                name = _lang_name(txt)
+                if not name:
+                    other.append(d)
+                    continue
+                if name.startswith('อังกฤษ') or name.startswith('ไทย'):
+                    en.setdefault(name, d)
+                else:
+                    non_en.setdefault(name, d)
+
+            # Seed some specific languages if present (helps when OCR variations exist).
+            priority_markers = ['ญี่ปุ่น', 'จีน', 'พม่า', 'เกาหลี', 'ฝรั่งเศส', 'สเปน', 'เยอรมัน', 'รัสเซีย']
+            picked_ids: set[str] = set()
+            for mkr in priority_markers:
+                for d in lng_docs:
+                    did = d.get('doc_id')
+                    if not isinstance(did, str) or did in picked_ids:
+                        continue
+                    if mkr in (d.get('text') or ''):
+                        lng_diverse_docs.append(d)
+                        picked_ids.add(did)
+                        break
+
+            for _name, d in non_en.items():
+                did = d.get('doc_id')
+                if isinstance(did, str) and did not in picked_ids:
+                    lng_diverse_docs.append(d)
+                    picked_ids.add(did)
+                if len(lng_diverse_docs) >= 14:
+                    break
+
+            # Keep a couple of English chunks too (often required in answers).
+            for _name, d in en.items():
+                did = d.get('doc_id')
+                if isinstance(did, str) and did not in picked_ids:
+                    lng_diverse_docs.append(d)
+                    picked_ids.add(did)
+                if len(lng_diverse_docs) >= 18:
+                    break
+
+    # Default context cap; expand for list-style LNG questions.
+    max_contexts = max(MAX_CONTEXTS, 20) if wants_lng_list else MAX_CONTEXTS
+
     # Graph expansion (best-effort; requires Neo4j + graph ingested)
     codes = sorted(extract_course_codes(question))
     graph_docs: List[Dict] = []
@@ -146,6 +215,14 @@ def retrieve_by_domain(question: str, domain: str | None, k_vec: int = 20, k_kw:
             if txt and credit_total_re.search(txt):
                 ranks[doc_id] = ranks.get(doc_id, 0.0) + 1.0
 
+    # LNG anchor ranks (boost diverse languages to surface options beyond EN/TH)
+    if wants_lng_list and lng_diverse_docs:
+        for r, d in enumerate(lng_diverse_docs, 1):
+            doc_id = d.get('doc_id') or f'lng_{r}'
+            bank.setdefault(doc_id, d)
+            # Stronger boost for list-style questions so multiple languages appear in context.
+            ranks[doc_id] = ranks.get(doc_id, 0.0) + 6.0 / (RRF_K + r)
+
     # graph ranks
     for r, d in enumerate(graph_docs, 1):
         doc_id = d.get('doc_id') or f'graph_{r}'
@@ -164,7 +241,7 @@ def retrieve_by_domain(question: str, domain: str | None, k_vec: int = 20, k_kw:
     if dom == 'curriculum' and graph_neighbor_docs:
         neighbor_set = {d.get('doc_id') for d in graph_neighbor_docs if d.get('doc_id')}
         # Force-include up to 2 neighbor chunks to make graph expansion observable/useful.
-        must_include = min(2, MAX_CONTEXTS)
+        must_include = min(2, max_contexts)
         picked: List[Dict] = []
         seen: set[str] = set()
         for m in merged:
@@ -179,23 +256,31 @@ def retrieve_by_domain(question: str, domain: str | None, k_vec: int = 20, k_kw:
             if isinstance(did, str) and did not in seen:
                 picked.append(m)
                 seen.add(did)
-                if len(picked) >= MAX_CONTEXTS:
+                if len(picked) >= max_contexts:
                     break
         return picked
 
-    return merged[:MAX_CONTEXTS]
+    return merged[:max_contexts]
 
 
-def pack_context(chunks: List[Dict], budget_tokens: int = TOKEN_BUDGET) -> Tuple[str, Dict[int, str]]:
+def pack_context(
+    chunks: List[Dict],
+    budget_tokens: int = TOKEN_BUDGET,
+    truncate_chars: int | None = None,
+) -> Tuple[str, Dict[int, str]]:
     packed_blocks = []
     used = 0
     cites = {}
     for i, c in enumerate(chunks, 1):
         cite = _cite_label(c)
-        block = f"[{cite}] {c.get('text','').strip()}"
+        txt = (c.get('text', '') or '').strip()
+        if truncate_chars is not None and truncate_chars > 0 and len(txt) > truncate_chars:
+            txt = txt[:truncate_chars].rstrip() + ' ...'
+        block = f"[{cite}] {txt}"
         t = est_tokens(block)
         if used + t > budget_tokens:
-            break
+            # Don't stop entirely; later chunks may be smaller and still fit.
+            continue
         packed_blocks.append(block)
         used += t
         cites[i] = cite
@@ -239,7 +324,12 @@ def rag_query(question: str) -> Dict:
 
 def rag_query_domain(question: str, domain: str | None) -> Dict:
     retrieved = retrieve_by_domain(question, domain=domain)
-    ctx, cites = pack_context(retrieved)
+    q = (question or '')
+    wants_lng_list = (
+        re.search(r"LNG", q, re.IGNORECASE) is not None
+        and any(t in q for t in ('เลือกเรียน', 'มีวิชา', 'วิชาอะไร', 'เลือกได้', 'ตัวเลือก'))
+    )
+    ctx, cites = pack_context(retrieved, truncate_chars=(450 if wants_lng_list else None))
     prompt = build_prompt(question, ctx, cites)
     return {
         'prompt': prompt,

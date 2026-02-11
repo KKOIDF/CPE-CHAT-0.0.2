@@ -45,8 +45,30 @@ def keyword_search(query: str, limit: int = 30, sqlite_path: Optional[str] = Non
         norm_q = query.translate(thai_to_arabic)
         candidates: List[str] = []
         candidates += re.findall(r"[\u0E00-\u0E7F]{2,}", norm_q)
-        candidates += re.findall(r"[A-Za-z]{2,}", norm_q)
+        ascii_words = re.findall(r"[A-Za-z]{2,}", norm_q)
+        # Support placeholder-like course prefixes such as "LNGxxx" by also searching the prefix ("LNG").
+        # This helps when users refer to a family of courses without a specific numeric suffix.
+        expanded: List[str] = []
+        for w in ascii_words:
+            if re.fullmatch(r"[A-Z]{2,6}[xX]{2,}", w):
+                prefix = re.sub(r"[xX]+$", "", w)
+                if len(prefix) >= 2:
+                    expanded.append(prefix)
+            else:
+                expanded.append(w)
+        candidates += expanded
         candidates += re.findall(r"\d{2,}", norm_q)
+
+        # If the query references a course prefix (e.g., "LNG"), add curriculum-shaped anchors.
+        # This helps pull course description chunks instead of generic narrative text.
+        course_prefixes = {w for w in expanded if re.fullmatch(r"[A-Z]{2,6}", w)}
+        if course_prefixes:
+            for pref in sorted(course_prefixes):
+                candidates += [
+                    f"รายวิชา: {pref}",
+                    f"รายวิชา {pref}",
+                    f"{pref} ",
+                ]
 
         # Heuristic expansions for common Thai curriculum questions.
         # OCR often introduces extra spaces; we'll also use a space-insensitive LIKE below.
@@ -63,10 +85,19 @@ def keyword_search(query: str, limit: int = 30, sqlite_path: Optional[str] = Non
         if 'รวม' in norm_q:
             candidates += ['รวม', 'รวมทั้งสิ้น', 'รวมไม่น้อยกว่า', 'ไม่น้อยกว่า']
 
-        # Remove duplicates, prefer longer tokens, cap count
+        # Remove duplicates and rank tokens.
+        # Prefer course-like tokens/prefixes first, then longer tokens.
+        def _token_priority(tok: str) -> tuple[int, int]:
+            # Lower is better.
+            if re.fullmatch(r"รายวิชา[: ]+[A-Z]{2,6}\s*", tok) or re.fullmatch(r"รายวิชา[: ]+[A-Z]{2,6}", tok):
+                return (0, -len(tok))
+            if re.fullmatch(r"[A-Z]{2,6}\s*", tok) or re.fullmatch(r"[A-Z]{2,6}", tok):
+                return (1, -len(tok))
+            return (2, -len(tok))
+
         uniq: List[str] = []
         seen = set()
-        for c in sorted(set(candidates), key=len, reverse=True):
+        for c in sorted(set(candidates), key=lambda s: (_token_priority(s.strip()), -len(s.strip()), s)):
             c = c.strip()
             if not c or c in seen:
                 continue
@@ -83,6 +114,9 @@ def keyword_search(query: str, limit: int = 30, sqlite_path: Optional[str] = Non
             # Query per-token (longest first) to prioritize specific matches.
             try:
                 seen_like = set()
+                # Don't let the first broad token consume the entire limit;
+                # allocate a small quota per token to improve recall diversity.
+                per_token = max(4, int(limit / max(1, len(uniq))))
                 for u in uniq:
                     if len(like_ids) >= limit:
                         break
@@ -90,7 +124,7 @@ def keyword_search(query: str, limit: int = 30, sqlite_path: Optional[str] = Non
                     needle2 = f"%{u.replace(' ', '')}%"
                     cur = conn.execute(
                         "SELECT doc_id FROM documents WHERE text LIKE ? OR REPLACE(text, ' ', '') LIKE ? LIMIT ?",
-                        (needle, needle2, limit),
+                        (needle, needle2, per_token),
                     )
                     for (did,) in cur.fetchall():
                         if did and did not in seen_like:
