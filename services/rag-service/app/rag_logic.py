@@ -169,14 +169,14 @@ def retrieve_by_domain(question: str, domain: str | None, k_vec: int = 20, k_kw:
         seen: set[str] = set()
         for m in merged:
             did = m.get('doc_id')
-            if did in neighbor_set and did not in seen:
+            if isinstance(did, str) and did in neighbor_set and did not in seen:
                 picked.append(m)
                 seen.add(did)
                 if len(picked) >= must_include:
                     break
         for m in merged:
             did = m.get('doc_id')
-            if did and did not in seen:
+            if isinstance(did, str) and did not in seen:
                 picked.append(m)
                 seen.add(did)
                 if len(picked) >= MAX_CONTEXTS:
@@ -204,9 +204,9 @@ def pack_context(chunks: List[Dict], budget_tokens: int = TOKEN_BUDGET) -> Tuple
 
 def build_prompt(question: str, ctx: str, cites: Dict[int, str]) -> str:
     instruction = (
-        "คุณคือผู้ช่วยของภาควิชาวิศวกรรมคอมพิวเตอร์ ณ มหาวิทยาลัยไทย ตอบเป็นภาษาไทย.\n"
+        "คุณคือผู้ช่วยของภาควิชาวิศวกรรมคอมพิวเตอร์ ณ มหาวิทยาลัยเทคโนโลยีพระจอมเกล้าธนบุรี ตอบเป็นภาษาไทย.\n"
         "หลักการตอบ:\n"
-        "1) ใช้เฉพาะข้อมูลในบริบทที่ให้ หากไม่พบให้ตอบว่า 'ไม่พบข้อมูลในเอกสาร'.\n"
+        "1) ใช้เฉพาะข้อมูลในบริบทที่ให้ หากไม่พบคำตอบแบบชัดเจน ให้ตอบสิ่งที่สรุปได้จากบริบทเท่านั้น และระบุชัดเจนว่าเอกสารไม่ได้กล่าวตรง ๆ หรือไม่มีข้อความยืนยันโดยตรง.\n"
         "2) ตอบโดยตรงและชัดเจน สามารถใช้รูปแบบ bullet หรือย่อหน้าตามความเหมาะสม.\n"
         "3) ห้ามเดาข้อมูลนอกรายการที่มี ใช้เฉพาะข้อมูลที่มีในบริบทเท่านั้น.\n"
         "4) หากคำถามขอ 'สรุป' หรือ 'โครงสร้าง' ให้จัดลำดับหัวข้อก่อนรายละเอียด.\n"
