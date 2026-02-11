@@ -85,6 +85,44 @@ def graph_doc_ids_for_codes(codes: List[str], domain: str, limit: int = 50) -> L
     return out
 
 
+def graph_doc_ids_for_course_prefix(prefix: str, domain: str, limit: int = 80) -> List[str]:
+    """Return Chunk.doc_id values connected to Course nodes by a code prefix.
+
+    Example: prefix="LNG" will match courses like LNG275, LNG280, etc.
+    If Neo4j isn't configured, returns empty list.
+    """
+    drv = _driver()
+    if not drv or not prefix:
+        return []
+
+    dom = (domain or 'curriculum').strip().lower()
+    pref = re.sub(r"[^A-Za-z0-9]", "", (prefix or "")).upper()
+    if len(pref) < 2:
+        return []
+
+    cypher = (
+        "MATCH (co:Course) WHERE co.code STARTS WITH $prefix "
+        "MATCH (co)-[:MENTIONED_IN]->(ch:Chunk {domain:$domain}) "
+        "RETURN DISTINCT ch.doc_id AS doc_id "
+        "LIMIT $limit"
+    )
+
+    try:
+        with _session(drv) as session:
+            rows = session.run(cypher, prefix=pref, domain=dom, limit=int(limit))
+            out = [r.get('doc_id') for r in rows if r.get('doc_id')]
+    except Exception as e:
+        print(f"[Neo4j] Connection error in graph_doc_ids_for_course_prefix, skipping: {e}")
+        return []
+    finally:
+        try:
+            drv.close()
+        except Exception:
+            pass
+
+    return out
+
+
 def graph_expand_from_seed_chunks(
     seed_doc_ids: List[str],
     domain: str,
@@ -168,3 +206,51 @@ def graph_expand_from_seed_chunks(
             uniq.append(d)
             seen.add(d)
     return uniq
+
+
+def graph_doc_ids_for_requisites(
+    codes: List[str],
+    domain: str,
+    kind: str = 'prereq',
+    limit: int = 80,
+) -> List[str]:
+    """Return Chunk.doc_id values for courses related via PREREQ/COREQ.
+
+    We traverse:
+      (:Course {code})-[:PREREQ|:COREQ]->(:Course)-[:MENTIONED_IN]->(:Chunk)
+
+    This is used to answer questions like "ลงวิชา X ต้องผ่านอะไร" by pulling
+    chunks about the prerequisite courses as supporting context.
+    """
+    drv = _driver()
+    if not drv or not codes:
+        return []
+
+    dom = (domain or 'curriculum').strip().lower()
+    codes = [c.replace('-', '') for c in codes if c]
+    if not codes:
+        return []
+
+    rel = 'COREQ' if (kind or '').strip().lower() == 'coreq' else 'PREREQ'
+    cypher = (
+        f"MATCH (co:Course) WHERE co.code IN $codes "
+        f"MATCH (co)-[:{rel} {{domain:$domain}}]->(req:Course) "
+        f"MATCH (req)-[:MENTIONED_IN]->(ch:Chunk {{domain:$domain}}) "
+        f"RETURN DISTINCT ch.doc_id AS doc_id "
+        f"LIMIT $limit"
+    )
+
+    try:
+        with _session(drv) as session:
+            rows = session.run(cypher, codes=codes, domain=dom, limit=int(limit))
+            out = [r.get('doc_id') for r in rows if r.get('doc_id')]
+    except Exception as e:
+        print(f"[Neo4j] Connection error in graph_doc_ids_for_requisites, skipping: {e}")
+        return []
+    finally:
+        try:
+            drv.close()
+        except Exception:
+            pass
+
+    return out

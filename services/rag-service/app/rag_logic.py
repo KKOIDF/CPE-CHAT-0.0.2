@@ -6,7 +6,13 @@ from pathlib import Path
 from .sqlite_client import keyword_search, fetch_docs_with_path, domain_sqlite_path
 from .chroma_client import semantic_search_domain
 from .config import TOKEN_BUDGET, RRF_K, MAX_CONTEXTS, KNOWN_DOMAINS
-from .neo4j_client import extract_course_codes, graph_doc_ids_for_codes, graph_expand_from_seed_chunks
+from .neo4j_client import (
+    extract_course_codes,
+    graph_doc_ids_for_codes,
+    graph_doc_ids_for_course_prefix,
+    graph_expand_from_seed_chunks,
+    graph_doc_ids_for_requisites,
+)
 
 # Simple token counter heuristic (~4 chars/token Thai)
 CHAR_PER_TOKEN = 4.0
@@ -118,6 +124,11 @@ def retrieve_by_domain(question: str, domain: str | None, k_vec: int = 20, k_kw:
             lng_ids = keyword_search('รายวิชา: LNG', limit=max(80, k_kw * 2), sqlite_path=sqlite_path)
             lng_docs = fetch_docs_with_path(lng_ids, sqlite_path=sqlite_path)
 
+            # If Neo4j is configured, also fetch LNG* chunks via graph to improve recall.
+            graph_lng_ids = graph_doc_ids_for_course_prefix('LNG', domain=dom, limit=160)
+            if graph_lng_ids:
+                lng_docs.extend(fetch_docs_with_path(graph_lng_ids, sqlite_path=sqlite_path))
+
             # Prefer diversity across *non-English* languages rather than many English-only chunks.
             # Many curriculum chunks start with "รายวิชา: LNG ... ภาษาอังกฤษ..." and can crowd out
             # Japanese/Chinese/Burmese/etc. So we pick non-English first.
@@ -172,12 +183,34 @@ def retrieve_by_domain(question: str, domain: str | None, k_vec: int = 20, k_kw:
     # Default context cap; expand for list-style LNG questions.
     max_contexts = max(MAX_CONTEXTS, 20) if wants_lng_list else MAX_CONTEXTS
 
+    wants_prereq = False
+    if dom == 'curriculum':
+        ql = q.lower()
+        wants_prereq = any(
+            t in ql
+            for t in (
+                'ต้องผ่าน',
+                'บังคับก่อน',
+                'วิชาบังคับก่อน',
+                'ก่อนเรียน',
+                'prerequisite',
+                'pre-requisite',
+                'pre requisite',
+            )
+        )
+
     # Graph expansion (best-effort; requires Neo4j + graph ingested)
     codes = sorted(extract_course_codes(question))
     graph_docs: List[Dict] = []
     if dom == 'curriculum' and codes:
         graph_ids = graph_doc_ids_for_codes(codes=codes, domain=dom, limit=max(30, MAX_CONTEXTS * 8))
         graph_docs = fetch_docs_with_path(graph_ids, sqlite_path=sqlite_path)
+
+    prereq_docs: List[Dict] = []
+    if dom == 'curriculum' and wants_prereq and codes:
+        prereq_ids = graph_doc_ids_for_requisites(codes=codes, domain=dom, kind='prereq', limit=max(60, MAX_CONTEXTS * 10))
+        if prereq_ids:
+            prereq_docs = fetch_docs_with_path(prereq_ids, sqlite_path=sqlite_path)
 
     # Graph neighborhood expansion from retrieved chunks (works even without course codes)
     graph_neighbor_docs: List[Dict] = []
@@ -234,6 +267,13 @@ def retrieve_by_domain(question: str, domain: str | None, k_vec: int = 20, k_kw:
         doc_id = d.get('doc_id') or f'graphn_{r}'
         bank.setdefault(doc_id, d)
         ranks[doc_id] = ranks.get(doc_id, 0.0) + 1.0 / (RRF_K + (r + 10))
+
+    # prereq ranks (boost when question is explicitly about prerequisites)
+    if dom == 'curriculum' and wants_prereq and prereq_docs:
+        for r, d in enumerate(prereq_docs, 1):
+            doc_id = d.get('doc_id') or f'prereq_{r}'
+            bank.setdefault(doc_id, d)
+            ranks[doc_id] = ranks.get(doc_id, 0.0) + 2.5 / (RRF_K + r)
 
     merged = [{**bank[k], 'score_rrf': v, 'doc_id': k} for k, v in ranks.items()]
     merged.sort(key=lambda x: x['score_rrf'], reverse=True)

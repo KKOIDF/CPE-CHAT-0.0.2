@@ -8,6 +8,7 @@ pythainlp
 pandas
 openpyxl
 xlrd
+langdetect
 
 # Embeddings / vector store
 chromadb

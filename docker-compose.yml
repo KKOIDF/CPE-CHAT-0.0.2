@@ -39,6 +39,14 @@ services:
       
       # CORS Configuration for OpenWeb-UI
       CORS_ORIGINS: "http://localhost:3000,http://localhost:8080,${OPENWEB_UI_URL:-http://localhost:3000}"
+
+      # Optional Neo4j (Graph RAG) configuration
+      # If not set, Graph features will gracefully fall back to non-graph retrieval.
+      NEO4J_URI: "${NEO4J_URI:-}"
+      NEO4J_USERNAME: "${NEO4J_USERNAME:-}"
+      NEO4J_USER: "${NEO4J_USER:-}"
+      NEO4J_PASSWORD: "${NEO4J_PASSWORD:-}"
+      NEO4J_DATABASE: "${NEO4J_DATABASE:-}"
       
       # Python configuration
       PYTHONUNBUFFERED: "1"
