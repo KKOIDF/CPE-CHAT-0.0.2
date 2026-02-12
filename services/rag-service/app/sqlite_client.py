@@ -45,7 +45,8 @@ def keyword_search(query: str, limit: int = 30, sqlite_path: Optional[str] = Non
         norm_q = query.translate(thai_to_arabic)
         candidates: List[str] = []
         candidates += re.findall(r"[\u0E00-\u0E7F]{2,}", norm_q)
-        ascii_words = re.findall(r"[A-Za-z]{2,}", norm_q)
+        # Upper-case ASCII tokens so course-prefix logic works even if user types "lng".
+        ascii_words = [w.upper() for w in re.findall(r"[A-Za-z]{2,}", norm_q)]
         # Support placeholder-like course prefixes such as "LNGxxx" by also searching the prefix ("LNG").
         # This helps when users refer to a family of courses without a specific numeric suffix.
         expanded: List[str] = []

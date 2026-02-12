@@ -2,6 +2,7 @@ from typing import List, Dict, Tuple
 import re
 import math
 from pathlib import Path
+import unicodedata
 
 from .sqlite_client import keyword_search, fetch_docs_with_path, domain_sqlite_path
 from .chroma_client import semantic_search_domain
@@ -14,8 +15,248 @@ from .neo4j_client import (
     graph_doc_ids_for_requisites,
 )
 
+from .structured_curriculum import (
+    Course,
+    extract_courses_from_text,
+    format_required_cpe_answer,
+)
+
 # Simple token counter heuristic (~4 chars/token Thai)
 CHAR_PER_TOKEN = 4.0
+
+
+_LANG_SYNONYMS: list[tuple[str, str]] = [
+    ('อาจาร์ย', 'อาจารย์'),
+    ('ภาษามาเล', 'ภาษามลายู'),
+    ('ภาษา มาเล', 'ภาษามลายู'),
+]
+
+_LANG_AUGMENT: dict[str, str] = {
+    'ภาษามลายู': 'Malay',
+    'ภาษาฝรั่งเศส': 'French',
+    'ภาษาจีน': 'Chinese',
+    'ภาษาญี่ปุ่น': 'Japanese',
+    'ภาษาเกาหลี': 'Korean',
+    'ภาษาเยอรมัน': 'German',
+    'ภาษาสเปน': 'Spanish',
+    'ภาษารัสเซีย': 'Russian',
+}
+
+
+_THAI_TO_ARABIC = str.maketrans('๐๑๒๓๔๕๖๗๘๙', '0123456789')
+
+
+_COMMON_TYPO_FIXES: list[tuple[str, str]] = [
+    # common Thai typos that frequently appear in chat inputs
+    ('หนวยกิต', 'หน่วยกิต'),
+    ('หน่วยกิจ', 'หน่วยกิต'),
+    ('หนวยกิจ', 'หน่วยกิต'),
+    ('หลกสตร', 'หลักสูตร'),
+    ('หลักสุตร', 'หลักสูตร'),
+    ('แผนการเรยน', 'แผนการเรียน'),
+    ('ลงทะเบยน', 'ลงทะเบียน'),
+    ('ลงทะเบีย', 'ลงทะเบียน'),
+]
+
+
+def normalize_question(question: str) -> str:
+    """Normalize user input while keeping it readable for the prompt."""
+    q = (question or '').strip()
+    if not q:
+        return ''
+
+    # Unicode normalization helps with odd punctuation/fullwidth characters.
+    q = unicodedata.normalize('NFKC', q)
+
+    # Normalize Thai digits and common dash characters.
+    q = q.translate(_THAI_TO_ARABIC)
+    q = q.replace('–', '-').replace('—', '-').replace('−', '-')
+
+    # Normalize whitespace
+    q = re.sub(r"\s+", " ", q).strip()
+
+    # Fix a few common typos / synonyms
+    for src, dst in _LANG_SYNONYMS:
+        q = q.replace(src, dst)
+    for src, dst in _COMMON_TYPO_FIXES:
+        q = q.replace(src, dst)
+
+    # Light bilingual augmentation for better recall (vector/keyword).
+    # Keep this readable (only appends a single English hint).
+    for th, en in _LANG_AUGMENT.items():
+        if th in q and en not in q:
+            q = f"{q} ({en})"
+    return q
+
+
+def _expand_course_code_variants(q: str) -> list[str]:
+    """Generate compact search variants for common course-code formats.
+
+    Keeps output small; intended for retrieval/query-time only.
+    """
+    if not q:
+        return []
+
+    variants: list[str] = []
+
+    # Normalize common digit typos in alphanum codes, e.g. CPE1O0 -> CPE100
+    q2 = re.sub(r"(?<=\d)[oO](?=\d)", "0", q)
+
+    # Alphanumeric course codes: CPE100 / CPE-100 / CPE 100
+    for m in re.finditer(r"\b([A-Za-z]{2,6})\s*[-]?\s*([0-9]{3})\b", q2):
+        pfx = (m.group(1) or '').upper()
+        num = m.group(2) or ''
+        if not pfx or not num:
+            continue
+        variants.extend([f"{pfx}{num}", f"{pfx} {num}", f"{pfx}-{num}"])
+
+    # Placeholder family codes: LNGxxx / lngXX -> LNGxxx + LNG
+    for m in re.finditer(r"\b([A-Za-z]{2,6})[xX]{2,}\b", q2):
+        pfx = (m.group(1) or '').upper()
+        if len(pfx) >= 2:
+            variants.extend([f"{pfx}xxx", pfx])
+
+    # Numeric Thai uni codes: 261-101 / 261 101 / 261.101 -> 261101 and friends
+    for m in re.finditer(r"\b([0-9]{3})\s*[- .]\s*([0-9]{3})\b", q2):
+        a = m.group(1) or ''
+        b = m.group(2) or ''
+        if a and b:
+            variants.extend([f"{a}{b}", f"{a}-{b}", f"{a} {b}"])
+
+    # De-dup, keep order, cap for prompt safety
+    seen: set[str] = set()
+    out: list[str] = []
+    for v in variants:
+        v = (v or '').strip()
+        if not v or v in seen:
+            continue
+        out.append(v)
+        seen.add(v)
+        if len(out) >= 8:
+            break
+    return out
+
+
+def search_query_from_question(question: str) -> str:
+    """Return a retrieval-optimized query string.
+
+    Important: this may include additional normalized variants, but should not
+    be used verbatim as the question shown to the model/user.
+    """
+    q = normalize_question(question)
+    if not q:
+        return ''
+    variants = _expand_course_code_variants(q)
+    if not variants:
+        return q
+    # Append compact hint block; keep it short.
+    hint = ' / '.join(variants[:8])
+    if hint and hint not in q:
+        return f"{q} ({hint})"
+    return q
+
+
+def _extract_prefix_from_question(question: str) -> str | None:
+    q = (question or '')
+    # Prefer explicit patterns like LNGxxx / CPExxx
+    m = re.search(r"\b([A-Za-z]{2,6})[xX]{2,}\b", q)
+    if m:
+        pref = re.sub(r"[xX]+$", "", m.group(1) or '')
+        pref = pref.strip().upper()
+        return pref or None
+    # Or standalone prefix tokens
+    toks = [t.upper() for t in re.findall(r"\b[A-Za-z]{2,6}\b", q)]
+    if not toks:
+        return None
+    stop = {
+        'AND', 'OR', 'NOT', 'THE', 'THIS', 'THAT', 'WITH', 'FROM', 'WHAT', 'HOW', 'WHY',
+        'CAN', 'COULD', 'SHOULD', 'WANT', 'FIND', 'COURSE', 'COURSES', 'CODE'
+    }
+    toks = [t for t in toks if t not in stop]
+    return toks[0] if toks else None
+
+
+def _is_prefix_list_question(question: str) -> bool:
+    q = (question or '')
+    ql = q.lower()
+    if 'xxx' in ql:
+        return True
+    return any(t in q for t in ('รหัสวิชา', 'มีวิชาอะไร', 'วิชาอะไรบ้าง', 'รายวิชา', 'ทั้งหมด', 'มีวิชาอะไรบ้าง'))
+
+
+def structured_curriculum_answer(question: str) -> str | None:
+    """Deterministic answers for curriculum domain (no top-k dependence)."""
+    q = normalize_question(question)
+
+    # 1) Full required CPE list (curriculum 2564 study plan)
+    required = format_required_cpe_answer(q)
+    if required:
+        return required
+
+    # 2) List courses under a prefix (e.g., LNGxxx / CPE มีรหัสวิชาอะไรบ้าง)
+    pref = _extract_prefix_from_question(q)
+    if pref and _is_prefix_list_question(q):
+        sqlite_path = domain_sqlite_path('curriculum')
+        # Pull chunks that look like course descriptions first.
+        ids = keyword_search(f"รายวิชา: {pref}", limit=600, sqlite_path=sqlite_path)
+        if not ids:
+            ids = keyword_search(pref, limit=600, sqlite_path=sqlite_path)
+        docs = fetch_docs_with_path(ids, sqlite_path=sqlite_path)
+        bank: dict[str, Course] = {}
+        sources: list[str] = []
+        for d in docs:
+            if d.get('source') and d.get('source') not in sources:
+                sources.append(str(d.get('source')))
+            for c in extract_courses_from_text(d.get('text') or '', prefix_filter=pref):
+                bank.setdefault(c.code, c)
+
+        if not bank:
+            return None
+
+        items = sorted(bank.values(), key=lambda c: int(c.number))
+        lines: list[str] = []
+        lines.append(f"รหัสวิชา {pref} ที่พบในโดเมนหลักสูตร (curriculum):")
+        for c in items:
+            cred = f" ({c.credits} หน่วยกิต)" if c.credits else ""
+            lines.append(f"- {c.prefix} {c.number} {c.title_th}{cred}")
+        if sources:
+            lines.append(f"\nแหล่งอ้างอิง (ตัวอย่าง): {', '.join(sources[:3])}")
+        return "\n".join(lines).strip()
+
+    return None
+
+
+def infer_domain(question: str) -> str | None:
+    """Best-effort domain inference to reduce cross-domain noise.
+
+    Returns one of KNOWN_DOMAINS (e.g., 'curriculum', 'regulations', 'announcements')
+    or None if unclear.
+    """
+    q = (question or '').strip()
+    if not q:
+        return None
+
+    ql = q.lower()
+
+    # Curriculum signals: course codes / prefixes / curriculum-specific keywords.
+    if re.search(r"\b[A-Za-z]{2,6}\s*\d{3}\b", q):
+        return 'curriculum'
+    if re.search(r"\b(cpe|lng|ssc|gen|cpx|cen|csc)\b", ql):
+        return 'curriculum'
+    if any(t in q for t in ('หลักสูตร', 'แผนการเรียน', 'หน่วยกิต', 'วิชาบังคับ', 'วิชาเลือก', 'คำอธิบายรายวิชา', 'รายวิชา')):
+        return 'curriculum'
+    if 'ภาษา' in q and any(t in q for t in ('จีน', 'ญี่ปุ่น', 'เกาหลี', 'ฝรั่งเศส', 'สเปน', 'เยอรมัน', 'รัสเซีย', 'มลายู', 'มาเล')):
+        return 'curriculum'
+
+    # Regulations/registrar signals.
+    if any(t in q for t in ('คำร้อง', 'แบบฟอร์ม', 'RO-', 'ลาออก', 'ลาป่วย', 'ลากิจ', 'ทัณฑ์บน', 'วินัย', 'ตัดคะแนนความประพฤติ', 'สอบซ้อน', 'เข้าสอบ', 'ถอนรายวิชา', 'ติด W')):
+        return 'regulations'
+
+    # Announcements signals.
+    if 'ประกาศ' in q or 'announcement' in ql:
+        return 'announcements'
+
+    return None
 
 def est_tokens(text: str) -> int:
     return max(1, int(math.ceil(len(text) / CHAR_PER_TOKEN)))
@@ -404,6 +645,8 @@ def build_prompt(question: str, ctx: str, cites: Dict[int, str]) -> str:
         "2) ตอบโดยตรงและชัดเจน สามารถใช้รูปแบบ bullet หรือย่อหน้าตามความเหมาะสม.\n"
         "3) ห้ามเดาข้อมูลนอกรายการที่มี ใช้เฉพาะข้อมูลที่มีในบริบทเท่านั้น.\n"
         "4) หากคำถามขอ 'สรุป' หรือ 'โครงสร้าง' ให้จัดลำดับหัวข้อก่อนรายละเอียด.\n"
+        "5) หากคำถามกำกวม/สั้นมาก (เช่น พิมพ์แค่ชื่อภาษา หรือ xxx) ให้ถามกลับ 1 คำถามเพื่อขอรายละเอียดที่จำเป็นก่อน.\n"
+        "6) ห้ามให้ URL/ลิงก์ภายนอก เว้นแต่ URL นั้นปรากฏอยู่ในบริบท.\n"
     )
     return (
         f"{instruction}\nคำถาม:\n{question}\n\nบริบท:\n{ctx}\n\nคำตอบ:\n"
@@ -411,9 +654,18 @@ def build_prompt(question: str, ctx: str, cites: Dict[int, str]) -> str:
 
 
 def rag_query(question: str) -> Dict:
-    retrieved = retrieve_all_domains(question)
+    q_display = normalize_question(question)
+    q_search = search_query_from_question(question)
+    dom = infer_domain(q_display)
+    if dom:
+        retrieved = retrieve_by_domain(q_search, domain=dom)
+        # If too few results, fall back to all domains.
+        if len(retrieved) < 4:
+            retrieved = retrieve_all_domains(q_search)
+    else:
+        retrieved = retrieve_all_domains(q_search)
     ctx, cites = pack_context(retrieved)
-    prompt = build_prompt(question, ctx, cites)
+    prompt = build_prompt(q_display, ctx, cites)
     return {
         'prompt': prompt,
         'contexts': [
@@ -432,14 +684,15 @@ def rag_query(question: str) -> Dict:
 
 
 def rag_query_domain(question: str, domain: str | None) -> Dict:
-    retrieved = retrieve_by_domain(question, domain=domain)
-    q = (question or '')
+    q_display = normalize_question(question)
+    q_search = search_query_from_question(question)
+    retrieved = retrieve_by_domain(q_search, domain=domain)
     wants_lng_list = (
-        re.search(r"LNG", q, re.IGNORECASE) is not None
-        and any(t in q for t in ('เลือกเรียน', 'มีวิชา', 'วิชาอะไร', 'เลือกได้', 'ตัวเลือก'))
+        re.search(r"LNG", q_display, re.IGNORECASE) is not None
+        and any(t in q_display for t in ('เลือกเรียน', 'มีวิชา', 'วิชาอะไร', 'เลือกได้', 'ตัวเลือก'))
     )
     ctx, cites = pack_context(retrieved, truncate_chars=(450 if wants_lng_list else None))
-    prompt = build_prompt(question, ctx, cites)
+    prompt = build_prompt(q_display, ctx, cites)
     return {
         'prompt': prompt,
         'contexts': [

@@ -14,8 +14,25 @@ except Exception:
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# Repo root (..../CPE-CHAT-0.0.2)
-ROOT_DIR = BASE_DIR.parent.parent
+
+def _find_repo_root(start_dir: Path) -> Path:
+	"""Best-effort locate the project root.
+
+	In local dev, this repo typically has `docker-compose.yml` and `indexes/` at the root.
+	In the Docker image, the app is copied to `/app/app`, and runtime volumes mount
+	`/app/indexes`, `/app/data`, etc.
+	"""
+	for p in (start_dir, *start_dir.parents):
+		try:
+			if (p / 'indexes').exists() or (p / 'docker-compose.yml').exists():
+				return p
+		except Exception:
+			continue
+	return start_dir
+
+
+# Repo root (best-effort; used to locate `indexes/` and optional `.env`)
+ROOT_DIR = _find_repo_root(BASE_DIR)
 
 # Load repo-level .env if available (best-effort)
 if load_dotenv:

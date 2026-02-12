@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import re
 from .rag_logic import rag_query, rag_query_domain
+from .rag_logic import structured_curriculum_answer
 from .llm import llm_engine
 
 app = FastAPI(title="RAG Service", version="0.1.0")
@@ -62,6 +63,65 @@ class ChatCompletionResponse(BaseModel):
 _FALLBACK = 'ไม่พบข้อมูลในเอกสาร'
 _CITE_RE = re.compile(r"\[[^\]]+?/\d+\]")
 _BRACKET_RE = re.compile(r"\[[^\]]*\]")
+
+
+def _build_effective_question(messages: list[dict] | None, default_question: str) -> str:
+    """Use a bit of chat history so follow-up questions keep context.
+
+    OpenWebUI often sends multiple turns, but this service previously used only the
+    last user message, causing follow-ups like "มีวิชาเดียวหรอ" to lose intent.
+    """
+    if not messages:
+        return (default_question or '').strip()
+
+    user_msgs: list[str] = []
+    for m in messages:
+        if (m or {}).get('role') == 'user':
+            txt = (m.get('content') or '').strip()
+            if txt:
+                user_msgs.append(txt)
+
+    if not user_msgs:
+        return (default_question or '').strip()
+
+    last = user_msgs[-1]
+    prev = user_msgs[-2] if len(user_msgs) >= 2 else ''
+
+    short = len(last) < 25
+    looks_like_placeholder = ('xxx' in last.lower())
+    followup_phrases = (
+        'ขอรหัส', 'มีวิชาเดียว', 'ไม่เกี่ยว', 'ขออีก', 'หมายถึง', 'อันนี้', 'แบบไหน', 'อันไหน'
+    )
+    is_followup = short or looks_like_placeholder or any(p in last for p in followup_phrases)
+
+    if is_followup and prev:
+        return f"{prev}\nคำถามต่อเนื่อง: {last}".strip()
+    return last
+
+
+def _clarify_when_no_context(question: str) -> str | None:
+    q = (question or '').strip()
+    if not q:
+        return None
+
+    # Placeholder patterns: LNGxxx / CPExxx
+    if re.search(r"\b[a-z]{2,6}xxx\b", q, re.IGNORECASE) or 'xxx' in q.lower():
+        return (
+            "ผมยังไม่แน่ใจว่าคุณหมายถึงรหัสวิชาแบบไหนครับ — ช่วยพิมพ์รหัสเต็ม (เช่น LNG 275 หรือ CPE 223) "
+            "หรือบอกว่าอยากได้ ‘รายชื่อวิชาในหมวด LNG’ สำหรับภาคการศึกษาไหน (เช่น 2568/2)"
+        )
+
+    if 'รหัสวิชา' in q or re.search(r"\b(LNG|CPE|SSC|GEN)\b", q, re.IGNORECASE):
+        return (
+            "ผมยังไม่พบข้อมูลที่ยืนยันรหัสวิชาจากเอกสารที่ค้นได้ตอนนี้ครับ — "
+            "ช่วยระบุเพิ่มนิดนึงว่าอยากได้ (1) รหัสวิชาแบบ ‘LNG 275’ หรือ (2) รหัสกลุ่ม/section ในตารางเรียน "
+            "และเป็นภาคการศึกษาใด"
+        )
+
+    if 'ภาษา' in q:
+        return "หมายถึงวิชา LNG ภาษาอะไรในหลักสูตร (เช่น ภาษาจีน/ญี่ปุ่น/มลายู) หรืออยากทราบรหัสวิชา/คำอธิบายรายวิชาครับ?"
+
+    return None
 
 _THAI_MONTHS = (
     'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน',
@@ -429,14 +489,26 @@ async def rag_endpoint(req: RagRequest):
 
 @app.post('/rag/answer', response_model=RagAnswerResponse)
 async def rag_answer_endpoint(req: RagAnswerRequest):
+    # Structured curriculum shortcut (deterministic, not top-k dependent)
+    if (req.domain or '').strip().lower() == 'curriculum' or req.domain is None:
+        structured = structured_curriculum_answer(req.question)
+        if structured:
+            return RagAnswerResponse(
+                question=req.question,
+                prompt='(structured curriculum answer)',
+                answer=structured,
+                contexts=[],
+                token_est=0,
+            )
+
     result = rag_query_domain(req.question, req.domain) if req.domain else rag_query(req.question)
     # Build chat style messages for models that support it
-    system_msg = { 'role': 'system', 'content': 'คุณคือผู้ช่วยของภาควิชาวิศวกรรมคอมพิวเตอร์ ใช้เฉพาะข้อมูลในบริบทเท่านั้น ตอบโดยตรงและชัดเจน หากไม่พบคำตอบแบบชัดเจน ให้สรุปเท่าที่สรุปได้จากบริบท และระบุว่าเอกสารไม่ได้กล่าวตรง ๆ หรือไม่มีข้อความยืนยันโดยตรง' }
+    system_msg = { 'role': 'system', 'content': 'คุณคือผู้ช่วยของภาควิชาวิศวกรรมคอมพิวเตอร์ ใช้เฉพาะข้อมูลในบริบทเท่านั้น ตอบโดยตรงและชัดเจน ห้ามให้ลิงก์/URL ภายนอก เว้นแต่ปรากฏอยู่ในบริบท หากคำถามกำกวมให้ถามกลับ 1 คำถามสั้น ๆ เพื่อขอรายละเอียดที่จำเป็น หากไม่พบคำตอบแบบชัดเจน ให้สรุปเท่าที่สรุปได้จากบริบท และระบุว่าเอกสารไม่ได้กล่าวตรง ๆ หรือไม่มีข้อความยืนยันโดยตรง' }
     user_msg = { 'role': 'user', 'content': result['prompt'] }
 
     # Hard guardrails: if no context, never hallucinate.
     if not (result.get('contexts') or []):
-        answer = _FALLBACK
+        answer = _clarify_when_no_context(req.question) or _FALLBACK
     else:
         # If we can deterministically answer from the retrieved context, do it.
         extracted = _try_extract_total_credits(result.get('prompt') or '')
@@ -491,12 +563,34 @@ async def openai_compatible_endpoint(request: dict):
     messages = request.get('messages', [])
     domain = request.get('domain', None)  # Custom parameter for domain selection
     
-    # Extract question from last user message
-    question = ""
+    # Extract question from chat history (keep follow-up context)
+    raw_last_user = ""
     for msg in reversed(messages):
         if msg.get('role') == 'user':
-            question = msg.get('content', '')
+            raw_last_user = msg.get('content', '')
             break
+
+    question = _build_effective_question(messages, raw_last_user)
+
+    # Structured curriculum shortcut for OpenWebUI (works even without retrieval)
+    structured = structured_curriculum_answer(question)
+    if structured:
+        import time
+        import uuid
+        return {
+            "id": f"chatcpe-{uuid.uuid4().hex[:12]}",
+            "object": "chat.completion",
+            "created": int(time.time()),
+            "model": request.get('model', 'typhoon-rag'),
+            "choices": [
+                {
+                    "index": 0,
+                    "message": {"role": "assistant", "content": structured},
+                    "finish_reason": "stop",
+                }
+            ],
+            "usage": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
+        }
     
     if not question:
         return {
@@ -512,12 +606,12 @@ async def openai_compatible_endpoint(request: dict):
         }
     
     # Build system message for RAG context (clean answers, no forced citations)
-    system_msg = { 'role': 'system', 'content': 'คุณคือผู้ช่วยของภาควิชาวิศวกรรมคอมพิวเตอร์ ใช้เฉพาะข้อมูลในบริบทเท่านั้น ตอบโดยตรงและชัดเจน ห้ามคัดลอกบริบททั้งก้อน หากไม่พบคำตอบแบบชัดเจน ให้สรุปเท่าที่สรุปได้จากบริบท และระบุว่าเอกสารไม่ได้กล่าวตรง ๆ หรือไม่มีข้อความยืนยันโดยตรง' }
+    system_msg = { 'role': 'system', 'content': 'คุณคือผู้ช่วยของภาควิชาวิศวกรรมคอมพิวเตอร์ ใช้เฉพาะข้อมูลในบริบทเท่านั้น ตอบโดยตรงและชัดเจน ห้ามคัดลอกบริบททั้งก้อน ห้ามให้ลิงก์/URL ภายนอก เว้นแต่ปรากฏอยู่ในบริบท หากคำถามกำกวมให้ถามกลับ 1 คำถามสั้น ๆ เพื่อขอรายละเอียดที่จำเป็น หากไม่พบคำตอบแบบชัดเจน ให้สรุปเท่าที่สรุปได้จากบริบท และระบุว่าเอกสารไม่ได้กล่าวตรง ๆ หรือไม่มีข้อความยืนยันโดยตรง' }
     user_msg = { 'role': 'user', 'content': result['prompt'] }
 
     # Generate answer
     if not (result.get('contexts') or []):
-        answer = _FALLBACK
+        answer = _clarify_when_no_context(question) or _FALLBACK
     else:
         extracted = _try_extract_total_credits(result.get('prompt') or '')
         if extracted:

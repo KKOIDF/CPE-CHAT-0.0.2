@@ -22,6 +22,9 @@ def extract_course_codes(text: str) -> Set[str]:
     if not text:
         return set()
     norm = text.translate(_THAI_TO_ARABIC)
+    # Normalize dash variants and common digit typos inside codes (e.g., "1O1" -> "101").
+    norm = norm.replace('–', '-').replace('—', '-').replace('−', '-')
+    norm = re.sub(r"(?<=\d)[oO](?=\d)", "0", norm)
     out: Set[str] = set()
     for patt in COURSE_CODE_PATTERNS:
         for m in patt.findall(norm):
