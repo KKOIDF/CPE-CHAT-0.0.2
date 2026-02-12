@@ -10,8 +10,11 @@ const DOMAIN_OPTIONS = [
 
 function inferDomain(question) {
   const q = (question || "").toLowerCase();
-  // Heuristic routing for prototype: course codes => curriculum
-  if (/\b(?:cpe|coe|cen|css|swe|it)\s*\d{3,4}\b/i.test(question || "")) return "curriculum";
+  // Heuristic routing for prototype: course codes/prefixes => curriculum
+  // Match common KMUTT-style codes like CPE 100, LNG 120, GEN101, SSC-162, etc.
+  if (/\b[a-z]{2,6}\s*[-]?\s*\d{3,4}\b/i.test(question || "")) return "curriculum";
+  // Standalone course prefix queries (often short): LNG / SSC / GEN / etc.
+  if (/\b(?:cpe|coe|cen|css|swe|it|lng|ssc|gen|phy|chm|mth|hum|eng)\b/i.test(q)) return "curriculum";
   if (q.includes("โครงสร้าง") || q.includes("หลักสูตร") || q.includes("หน่วยกิต") || q.includes("รายวิชา")) {
     return "curriculum";
   }
