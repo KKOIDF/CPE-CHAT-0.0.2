@@ -199,6 +199,44 @@ def retrieve_by_domain(question: str, domain: str | None, k_vec: int = 20, k_kw:
             )
         )
 
+    # Heuristic: short course-prefix queries like "SSC" often get drowned out by generic
+    # curriculum chunks containing the word "วิชา". If users are clearly asking for courses
+    # under a prefix, force-boost prefix-matching chunks.
+    prefix_docs: List[Dict] = []
+    wants_prefix_list = False
+    if dom == 'curriculum':
+        # Capture standalone ASCII prefixes (2-6 letters) like SSC, LNG, GEN.
+        prefixes = [m.upper() for m in re.findall(r"\b[A-Za-z]{2,6}\b", q or '')]
+        # Drop overly-generic/common English words that can appear in questions.
+        stop = {
+            'AND', 'OR', 'NOT', 'THE', 'THIS', 'THAT', 'WITH', 'FROM', 'WHAT', 'HOW', 'WHY',
+            'CAN', 'COULD', 'SHOULD', 'WANT', 'FIND', 'COURSE', 'COURSES', 'CODE'
+        }
+        prefixes = [p for p in prefixes if p not in stop]
+
+        wants_prefix_list = bool(prefixes) and any(
+            t in (q or '')
+            for t in (
+                'หาวิชา', 'หา', 'วิชา', 'รายวิชา', 'มีวิชา', 'รหัสวิชา', 'เลือกเรียน', 'ตัวเลือก'
+            )
+        )
+
+        if wants_prefix_list:
+            pref_ids: List[str] = []
+            seen: set[str] = set()
+            # Pull a wider candidate pool then let ranking/packing decide.
+            for pref in prefixes:
+                # Prefer exact prefix hits (e.g., "SSC 162")
+                for needle in (f"{pref} ", pref):
+                    ids = keyword_search(needle, limit=max(80, k_kw * 3), sqlite_path=sqlite_path)
+                    for did in ids:
+                        if did and did not in seen:
+                            pref_ids.append(did)
+                            seen.add(did)
+                if len(pref_ids) >= 200:
+                    break
+            prefix_docs = fetch_docs_with_path(pref_ids, sqlite_path=sqlite_path)
+
     # Graph expansion (best-effort; requires Neo4j + graph ingested)
     codes = sorted(extract_course_codes(question))
     graph_docs: List[Dict] = []
@@ -256,6 +294,14 @@ def retrieve_by_domain(question: str, domain: str | None, k_vec: int = 20, k_kw:
             # Stronger boost for list-style questions so multiple languages appear in context.
             ranks[doc_id] = ranks.get(doc_id, 0.0) + 6.0 / (RRF_K + r)
 
+    # Course-prefix anchor ranks (e.g., SSC/GEN/LNG*)
+    if dom == 'curriculum' and wants_prefix_list and prefix_docs:
+        for r, d in enumerate(prefix_docs, 1):
+            doc_id = d.get('doc_id') or f'pref_{r}'
+            bank.setdefault(doc_id, d)
+            # Strong boost so prefix-relevant chunks survive the top-k cutoff.
+            ranks[doc_id] = ranks.get(doc_id, 0.0) + 8.0 / (RRF_K + r)
+
     # graph ranks
     for r, d in enumerate(graph_docs, 1):
         doc_id = d.get('doc_id') or f'graph_{r}'
@@ -277,6 +323,29 @@ def retrieve_by_domain(question: str, domain: str | None, k_vec: int = 20, k_kw:
 
     merged = [{**bank[k], 'score_rrf': v, 'doc_id': k} for k, v in ranks.items()]
     merged.sort(key=lambda x: x['score_rrf'], reverse=True)
+
+    if dom == 'curriculum' and wants_prefix_list and prefix_docs:
+        pref_set = {d.get('doc_id') for d in prefix_docs if d.get('doc_id')}
+        must_include = min(2, max_contexts)
+        picked: List[Dict] = []
+        seen: set[str] = set()
+        # Force-include a couple prefix chunks first.
+        for m in merged:
+            did = m.get('doc_id')
+            if isinstance(did, str) and did in pref_set and did not in seen:
+                picked.append(m)
+                seen.add(did)
+                if len(picked) >= must_include:
+                    break
+        # Then fill as usual.
+        for m in merged:
+            did = m.get('doc_id')
+            if isinstance(did, str) and did not in seen:
+                picked.append(m)
+                seen.add(did)
+                if len(picked) >= max_contexts:
+                    break
+        return picked
 
     if dom == 'curriculum' and graph_neighbor_docs:
         neighbor_set = {d.get('doc_id') for d in graph_neighbor_docs if d.get('doc_id')}

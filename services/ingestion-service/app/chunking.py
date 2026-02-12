@@ -127,19 +127,35 @@ def make_chunks(paragraphs: List[Dict], source_path: str) -> List[Dict]:
             if est_tokens(p['text']) > CHUNK_MAX_TOKENS:
                 # split long paragraph using Thai-aware sentence segmentation
                 sents = segment_sentences_thai(p['text'])
-                buf = []
+                buf: List[str] = []
+                def _flush_buf_as_chunk():
+                    nonlocal buf
+                    if not buf:
+                        return
+                    # Emit a chunk immediately from the buffered sentences.
+                    final = ' '.join(buf).strip()
+                    if final:
+                        chunks.append({
+                            'source': normalize_doc_name(source_path),
+                            'path': str(Path(source_path).resolve()),
+                            'page': p['page'],
+                            'page_start': p['page'],
+                            'page_end': p['page'],
+                            'owner': 'owner:unknown',
+                            'sensitivity': 'internal',
+                            'updated_at': int(time.time()),
+                            'text': final,
+                            'tokens_est': est_tokens(final),
+                        })
+                    buf = []
                 for s in sents:
                     tentative = '\n'.join(buf + [s])
                     if est_tokens(tentative) > CHUNK_MAX_TOKENS:
-                        finalize_chunk()
+                        _flush_buf_as_chunk()
                         buf = [s]
                     else:
                         buf.append(s)
-                if buf:
-                    final = ' '.join(buf)
-                    cur_texts = [final]
-                    cur_pages = [p['page']]
-                    cur_tokens = est_tokens(final)
+                _flush_buf_as_chunk()
             else:
                 cur_texts = [p['text']]
                 cur_pages = [p['page']]

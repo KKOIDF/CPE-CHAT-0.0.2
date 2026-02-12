@@ -80,7 +80,7 @@ OCR_NORMALIZE_THAI_DIGITS = os.getenv('OCR_NORMALIZE_THAI_DIGITS', '0').lower() 
 OCR_SPELL_CORRECT_THAI = os.getenv('OCR_SPELL_CORRECT_THAI', '0').lower() in ('1', 'true', 'yes')
 
 # Whether to embed flagged (low-quality) chunks
-EMBED_FLAGGED = os.getenv('EMBED_FLAGGED', 'false').lower() in ('1','true','yes')
+EMBED_FLAGGED = os.getenv('EMBED_FLAGGED', 'True').lower() in ('1','true','yes')
 
 for d in [RAW_DIR, TEXT_DIR, DB_DIR, CHROMA_DIR]:
     d.mkdir(parents=True, exist_ok=True)
