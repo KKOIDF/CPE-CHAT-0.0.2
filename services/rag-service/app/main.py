@@ -1,4 +1,5 @@
 import os
+import re
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -7,6 +8,61 @@ import re
 from .rag_logic import rag_query, rag_query_domain
 from .rag_logic import structured_curriculum_answer
 from .llm import llm_engine
+
+_USE_LANGCHAIN = os.getenv('RAG_USE_LANGCHAIN', '0') in ('1', 'true', 'True')
+
+_CITE_RE = re.compile(r"\[([^\]]+?/\d+)\]")
+
+
+def _extract_allowed_cites(prompt: str) -> list[str]:
+    p = prompt or ''
+    marker = 'รายชื่ออ้างอิงที่อนุญาต'
+    if marker not in p:
+        return []
+    after = p.split(marker, 1)[1]
+    if '\n\nคำตอบ:' in after:
+        after = after.split('\n\nคำตอบ:', 1)[0]
+    found = _CITE_RE.findall(after)
+    out: list[str] = []
+    seen: set[str] = set()
+    for c in found:
+        if not c or c in seen:
+            continue
+        seen.add(c)
+        out.append(c)
+    return out
+
+
+def _has_citations(answer: str) -> bool:
+    return bool(_CITE_RE.search(answer or ''))
+
+
+def _repair_answer_with_citations(answer: str, prompt: str) -> str:
+    """Best-effort one-shot rewrite enforcing required citations.
+
+    This is intentionally conservative: if we can't get citations, caller can
+    decide to return the original answer or fallback.
+    """
+    allowed = _extract_allowed_cites(prompt)
+    if not allowed:
+        return answer
+    if _has_citations(answer):
+        return answer
+
+    allowed_lines = "\n".join([f"- [{c}]" for c in allowed])
+    repair_prompt = (
+        "เขียนคำตอบใหม่จากคำตอบเดิม โดยบังคับรูปแบบดังนี้:\n"
+        "- ต้องตอบเป็น bullet ทุกบรรทัด (ขึ้นต้นด้วย '- ')\n"
+        "- ทุก bullet ต้องลงท้ายด้วยการอ้างอิงอย่างน้อย 1 รายการในรูปแบบ [source/page]\n"
+        "- อนุญาตให้อ้างอิงได้เฉพาะรายการใน 'รายชื่ออ้างอิงที่อนุญาต' เท่านั้น\n"
+        "- ห้ามใช้วงเล็บเหลี่ยม [] สำหรับอย่างอื่น\n\n"
+        "รายชื่ออ้างอิงที่อนุญาต:\n"
+        f"{allowed_lines}\n\n"
+        "คำตอบเดิม:\n"
+        f"{(answer or '').strip()}\n"
+    )
+    repaired = llm_engine.generate(repair_prompt)
+    return repaired or answer
 
 app = FastAPI(title="RAG Service", version="0.1.0")
 
@@ -501,7 +557,11 @@ async def rag_answer_endpoint(req: RagAnswerRequest):
                 token_est=0,
             )
 
-    result = rag_query_domain(req.question, req.domain) if req.domain else rag_query(req.question)
+    if _USE_LANGCHAIN:
+        from .langchain_rag import rag_answer_langchain
+        result = rag_answer_langchain(req.question, req.domain)
+    else:
+        result = rag_query_domain(req.question, req.domain) if req.domain else rag_query(req.question)
     # Build chat style messages for models that support it
     system_msg = { 'role': 'system', 'content': 'คุณคือผู้ช่วยของภาควิชาวิศวกรรมคอมพิวเตอร์ ใช้เฉพาะข้อมูลในบริบทเท่านั้น ตอบโดยตรงและชัดเจน ห้ามให้ลิงก์/URL ภายนอก เว้นแต่ปรากฏอยู่ในบริบท หากคำถามกำกวมให้ถามกลับ 1 คำถามสั้น ๆ เพื่อขอรายละเอียดที่จำเป็น หากไม่พบคำตอบแบบชัดเจน ให้สรุปเท่าที่สรุปได้จากบริบท และระบุว่าเอกสารไม่ได้กล่าวตรง ๆ หรือไม่มีข้อความยืนยันโดยตรง' }
     user_msg = { 'role': 'user', 'content': result['prompt'] }
@@ -519,7 +579,15 @@ async def rag_answer_endpoint(req: RagAnswerRequest):
             if extracted_w:
                 answer = extracted_w
             else:
-                answer = llm_engine.generate(result['prompt'], messages=[system_msg, user_msg])
+                if _USE_LANGCHAIN:
+                    # Already generated in langchain path.
+                    answer = result.get('answer') or ''
+                else:
+                    answer = llm_engine.generate(result['prompt'], messages=[system_msg, user_msg])
+
+                # Enforce citations when we have context, otherwise retrieval-grounding becomes fuzzy.
+                if (result.get('contexts') or []) and answer and not answer.strip().startswith('('):
+                    answer = _repair_answer_with_citations(answer, result.get('prompt') or '')
         # If generation is unavailable/disabled, preserve the diagnostic message.
         if not (answer or '').strip().startswith('('):
             # Clean and validate answer - keep it natural without enforcing citations
@@ -599,7 +667,11 @@ async def openai_compatible_endpoint(request: dict):
     
     # Get RAG response
     try:
-        result = rag_query_domain(question, domain) if domain else rag_query(question)
+        if _USE_LANGCHAIN:
+            from .langchain_rag import rag_answer_langchain
+            result = rag_answer_langchain(question, domain)
+        else:
+            result = rag_query_domain(question, domain) if domain else rag_query(question)
     except Exception as e:
         return {
             "error": f"RAG query failed: {str(e)}"
@@ -621,7 +693,13 @@ async def openai_compatible_endpoint(request: dict):
             if extracted_w:
                 answer = extracted_w
             else:
-                answer = llm_engine.generate(result['prompt'], messages=[system_msg, user_msg])
+                if _USE_LANGCHAIN:
+                    answer = result.get('answer') or ''
+                else:
+                    answer = llm_engine.generate(result['prompt'], messages=[system_msg, user_msg])
+
+                if (result.get('contexts') or []) and answer and not answer.strip().startswith('('):
+                    answer = _repair_answer_with_citations(answer, result.get('prompt') or '')
         
         if not (answer or '').strip().startswith('('):
             answer = _clean_answer_text(answer)

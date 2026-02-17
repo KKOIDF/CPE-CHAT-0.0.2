@@ -141,6 +141,8 @@ def cli():
     p.add_argument('--domain', default=os.getenv('CPE_DOMAIN', ''), help='announcements|regulations|curriculum (optional; isolates indexes)')
     p.add_argument('--input', required=True, help='Input directory containing PDF/Excel files')
     p.add_argument('--output', default='data/db/data', help='Output base path (default: data/db/data)')
+    p.add_argument('--chunk-strategy', default=os.getenv('CHUNK_STRATEGY', ''), help='Override chunking strategy (e.g., langchain_recursive)')
+    p.add_argument('--langchain', action='store_true', help='Use LangChain recursive splitter chunking (sets CHUNK_STRATEGY=langchain_recursive)')
     p.add_argument('--no-store', action='store_true', help='Skip database storage')
     p.add_argument('--no-embed', action='store_true', help='Skip embedding generation')
     args = p.parse_args()
@@ -148,6 +150,12 @@ def cli():
     # Ensure domain is set before config/db/chroma modules are imported
     if args.domain:
         os.environ['CPE_DOMAIN'] = str(args.domain).strip().lower()
+
+    # Ensure chunking strategy is set before importing chunking/config modules.
+    if args.chunk_strategy and str(args.chunk_strategy).strip():
+        os.environ['CHUNK_STRATEGY'] = str(args.chunk_strategy).strip().lower()
+    elif args.langchain:
+        os.environ.setdefault('CHUNK_STRATEGY', 'langchain_recursive')
     run_ingest(args.input, args.output, store=not args.no_store, embed=not args.no_embed)
 
 if __name__ == '__main__':

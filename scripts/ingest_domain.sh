@@ -73,4 +73,4 @@ export CPE_DOMAIN="$DOMAIN"
 export CPE_INDEX_ROOT="$REPO_ROOT/indexes"
 export PYTHONPATH="$SVC_DIR${PYTHONPATH:+:$PYTHONPATH}"
 
-"$PY" -m app.main --domain "$DOMAIN" --input "$INPUT_PATH" --output "$OUTPUT"
+"$PY" -m app.main --domain "$DOMAIN" --input "$INPUT_PATH" --output "$OUTPUT" --langchain

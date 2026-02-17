@@ -1929,6 +1929,8 @@ def _make_chunks_sentence_window(paragraphs: List[Dict], source_path: str) -> Li
 
 def make_chunks(paragraphs: List[Dict], source_path: str) -> List[Dict]:
     strat = (CHUNK_STRATEGY or 'structure').strip().lower()
+    if strat in ('langchain_recursive', 'langchain'):
+        return _make_chunks_langchain_recursive(paragraphs, source_path)
     if strat == 'sentence_window':
         return _make_chunks_sentence_window(paragraphs, source_path)
     if strat in ('announcement_template', 'announcements'):
@@ -1938,3 +1940,115 @@ def make_chunks(paragraphs: List[Dict], source_path: str) -> List[Dict]:
     if strat in ('regulation_template', 'regulations'):
         return _make_chunks_regulation_template(paragraphs, source_path)
     return _make_chunks_structure(paragraphs, source_path)
+
+
+def _make_chunks_langchain_recursive(paragraphs: List[Dict], source_path: str) -> List[Dict]:
+    """Simple, generic LangChain splitter strategy.
+
+    Notes:
+    - Intended as an optional baseline/fallback. Domain-tuned strategies in this
+      repo often outperform generic splitters.
+    - Preserves page ranges approximately using paragraph boundary mapping.
+    """
+    try:
+        from bisect import bisect_right
+        from langchain_text_splitters import RecursiveCharacterTextSplitter
+    except Exception:
+        # LangChain not installed; fall back to existing default.
+        return _make_chunks_structure(paragraphs, source_path)
+
+    resolved_source = normalize_doc_name(source_path)
+    resolved_path = str(Path(source_path).resolve())
+
+    paras = [p for p in (paragraphs or []) if (p.get('text') or '').strip()]
+    if not paras:
+        return []
+
+    texts: list[str] = []
+    pages: list[int] = []
+    starts: list[int] = []
+    cur = 0
+    for p in paras:
+        t = (p.get('text') or '').strip()
+        try:
+            pg = int(p.get('page') or 0)
+        except Exception:
+            pg = 0
+        if texts:
+            # separator between paragraphs
+            cur += 2
+        starts.append(cur)
+        texts.append(t)
+        pages.append(pg)
+        cur += len(t)
+
+    full_text = "\n\n".join(texts)
+
+    # Best-effort shared metadata inference (kept lightweight/robust).
+    # Domain-specific strategies still exist and may outperform this baseline.
+    doc_title = _infer_doc_title((full_text.splitlines() if full_text else []), source_path)
+    year_be = _extract_year_be_from_text_or_source(full_text, source_path)
+    topic = _infer_topic(full_text, source_path)
+    audience = _infer_audience(full_text)
+    effective_from = _infer_effective_from(full_text)
+    base_meta: Dict = {
+        'doc_title': doc_title,
+        'doc_type': '',
+        'topic': topic,
+        'year_be': year_be,
+        'effective_from': effective_from,
+        'audience': audience,
+    }
+    # Approximate token->char conversion using configured heuristics.
+    chunk_size = max(200, int(CHUNK_MAX_TOKENS * CHAR_PER_TOKEN))
+    overlap = max(0, int(chunk_size * float(CHUNK_OVERLAP_RATIO or 0.0)))
+
+    splitter = RecursiveCharacterTextSplitter(
+        chunk_size=chunk_size,
+        chunk_overlap=overlap,
+        separators=["\n\n", "\n", " ", ""],
+        add_start_index=True,
+    )
+
+    docs = splitter.create_documents([full_text], metadatas=[{'source_path': source_path}])
+    out: list[Dict] = []
+    for i, d in enumerate(docs):
+        content = (getattr(d, 'page_content', '') or '').strip()
+        if not content:
+            continue
+        md = getattr(d, 'metadata', {}) or {}
+        try:
+            start_idx = int(md.get('start_index') or 0)
+        except Exception:
+            start_idx = 0
+        end_idx = start_idx + len(content)
+
+        # Map char positions back to approximate paragraph pages.
+        # starts[] stores the start char index of each paragraph.
+        pi_start = max(0, bisect_right(starts, start_idx) - 1)
+        pi_end = max(0, bisect_right(starts, max(start_idx, end_idx - 1)) - 1)
+        pg_start = pages[pi_start] if pi_start < len(pages) else 0
+        pg_end = pages[pi_end] if pi_end < len(pages) else pg_start
+
+        chunk_uid = hashlib.sha1(f"{source_path}|{start_idx}|{end_idx}".encode('utf-8', 'ignore')).hexdigest()[:16]
+        source_file = Path(source_path).name
+        out.append({
+            **base_meta,
+            'source': resolved_source,
+            'path': resolved_path,
+            'page': int(pg_start),
+            'page_start': int(pg_start),
+            'page_end': int(pg_end),
+            'owner': 'owner:unknown',
+            'sensitivity': 'internal',
+            'updated_at': int(time.time()),
+            'text': content,
+            'tokens_est': est_tokens(content),
+            'section': 'body',
+            'clause_id': '',
+            'source_file': source_file,
+            'chunk_uid': chunk_uid,
+            'source_priority': _source_priority(source_path),
+            'chunk_id': i,
+        })
+    return out

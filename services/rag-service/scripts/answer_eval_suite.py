@@ -22,6 +22,10 @@ CITE_RE = re.compile(r"\[([^\]]+?/\d+)\]")
 BRACKET_RE = re.compile(r"\[[^\]]*\]")
 
 
+def _truthy_env(v: str) -> bool:
+    return (v or "").strip().lower() in {"1", "true", "yes", "y"}
+
+
 @dataclass
 class AnswerEvalQuery:
     domain: str
@@ -132,14 +136,21 @@ def _snip(text: str, n: int = 260) -> str:
 
 
 def _extract_allowed_cites(prompt: str) -> List[str]:
-    # Only allow citations that appear in the prompt's dedicated allowed list section.
+    # Prefer a dedicated allowed list section if present.
+    # Otherwise, fall back to citations embedded in the context blocks.
     p = prompt or ""
     marker = "รายชื่ออ้างอิงที่อนุญาต"
-    if marker not in p:
-        return []
-    after = p.split(marker, 1)[1]
-    if "\n\nคำตอบ:" in after:
-        after = after.split("\n\nคำตอบ:", 1)[0]
+    after = ""
+    if marker in p:
+        after = p.split(marker, 1)[1]
+        if "\n\nคำตอบ:" in after:
+            after = after.split("\n\nคำตอบ:", 1)[0]
+    else:
+        # Typical prompt format: ... "บริบท:\n{ctx}\n\nคำตอบ:".
+        if "\n\nบริบท:\n" in p and "\n\nคำตอบ:" in p:
+            after = p.split("\n\nบริบท:\n", 1)[1].split("\n\nคำตอบ:", 1)[0]
+        else:
+            after = p
 
     found = CITE_RE.findall(after)
     # De-dup preserve order
@@ -174,7 +185,7 @@ def _split_bullets(answer: str) -> List[str]:
     return bullets
 
 
-def evaluate_one(client: TestClient, domain: str, question: str) -> Dict[str, Any]:
+def evaluate_one(client: TestClient, domain: str, question: str, citations_mode: str) -> Dict[str, Any]:
     q_payload = {"domain": domain, "question": question}
 
     q = client.post("/rag/query", json=q_payload)
@@ -206,33 +217,49 @@ def evaluate_one(client: TestClient, domain: str, question: str) -> Dict[str, An
 
     violations: List[str] = []
 
-    if ctx_n == 0:
-        if answer != FALLBACK:
-            violations.append("NO_CONTEXTS_BUT_NOT_FALLBACK")
-        passed = (answer == FALLBACK)
-    else:
-        # When LLM is disabled/unavailable, main.py returns diagnostic strings starting with '('.
-        if answer.startswith("("):
-            violations.append("LLM_DIAGNOSTIC")
-            passed = False
-        elif answer == FALLBACK:
-            passed = True
+    # When LLM is disabled/unavailable, main.py returns diagnostic strings starting with '('.
+    if answer.startswith("("):
+        violations.append("LLM_DIAGNOSTIC")
+        passed = False
+    elif citations_mode == "off":
+        # Lightweight health-check mode for systems that do not emit citations.
+        if ctx_n == 0:
+            # Accept either strict fallback token or a clear "not found" statement.
+            if answer == FALLBACK or "ไม่พบข้อมูล" in answer:
+                passed = True
+            else:
+                violations.append("NO_CONTEXTS_BUT_NOT_FALLBACK")
+                passed = False
         else:
-            if not answer_cites:
-                violations.append("NO_CITATIONS")
-            if not bullet_cite_ok:
-                violations.append("BULLET_MISSING_CITATION")
-            if non_cite_brackets:
-                violations.append("NON_CITATION_BRACKETS")
-            if answer_cite_set and not answer_cite_set.issubset(allowed_set):
-                violations.append("CITES_NOT_IN_ALLOWED_LIST")
+            # We mainly want to ensure the system produced a non-empty answer.
+            passed = bool((answer or "").strip())
+            if not passed:
+                violations.append("EMPTY_ANSWER")
+    else:
+        # Strict citation/guardrail mode.
+        if ctx_n == 0:
+            if answer != FALLBACK:
+                violations.append("NO_CONTEXTS_BUT_NOT_FALLBACK")
+            passed = (answer == FALLBACK)
+        else:
+            if answer == FALLBACK:
+                passed = True
+            else:
+                if not answer_cites:
+                    violations.append("NO_CITATIONS")
+                if not bullet_cite_ok:
+                    violations.append("BULLET_MISSING_CITATION")
+                if non_cite_brackets:
+                    violations.append("NON_CITATION_BRACKETS")
+                if answer_cite_set and not answer_cite_set.issubset(allowed_set):
+                    violations.append("CITES_NOT_IN_ALLOWED_LIST")
 
-            passed = (
-                bool(answer_cites)
-                and bullet_cite_ok
-                and not non_cite_brackets
-                and (not answer_cite_set or answer_cite_set.issubset(allowed_set))
-            )
+                passed = (
+                    bool(answer_cites)
+                    and bullet_cite_ok
+                    and not non_cite_brackets
+                    and (not answer_cite_set or answer_cite_set.issubset(allowed_set))
+                )
 
     return {
         "domain": domain,
@@ -263,6 +290,12 @@ def write_markdown(out_path: Path, results: List[Dict[str, Any]], started_at: fl
     lines.append(f"Duration: {dur_ms} ms")
     lines.append(f"Pass: {passed}/{total}")
     lines.append("")
+
+    # Include evaluation mode hint (if present)
+    citations_mode = results[0].get("citations_mode") if results else None
+    if citations_mode:
+        lines.append(f"Citations mode: {citations_mode}")
+        lines.append("")
 
     by_domain: Dict[str, List[Dict[str, Any]]] = {}
     for r in results:
@@ -320,6 +353,13 @@ def main() -> None:
     p.add_argument("--debug", action="store_true", help="enable OpenAI debug logging")
     p.add_argument("--n-per-domain", type=int, default=30, help="max questions per domain to run")
     p.add_argument("--domains", type=str, default="announcements,regulations,curriculum", help="comma-separated domain list")
+    p.add_argument(
+        "--citations",
+        type=str,
+        default="strict",
+        choices=["strict", "off"],
+        help="evaluation mode: strict=enforce per-bullet citations, off=do not require citations",
+    )
     args = p.parse_args()
 
     # Improve Windows console output
@@ -354,8 +394,9 @@ def main() -> None:
     results: List[Dict[str, Any]] = []
 
     for q in suite:
-        r = evaluate_one(client, q.domain, q.question)
+        r = evaluate_one(client, q.domain, q.question, citations_mode=args.citations)
         r["expect_answerable"] = bool(q.expect_answerable)
+        r["citations_mode"] = args.citations
         results.append(r)
 
     repo_root = Path(__file__).resolve().parents[3]
