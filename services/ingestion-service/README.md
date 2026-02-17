@@ -80,6 +80,8 @@ docker run --rm -v /absolute/path/input:/input ingestion-service --input /input
 | CHUNK_MIN_TOKENS | Lower token target | 400 |
 | CHUNK_MAX_TOKENS | Upper token target | 800 |
 | CHUNK_OVERLAP_RATIO | Overlap ratio for tail carry | 0.12 |
+| CHUNK_STRATEGY | Chunking strategy (structure\|sentence_window\|announcement_template\|curriculum_course\|regulation_template) | announcements default to announcement_template; curriculum defaults to curriculum_course; regulations default to regulation_template |
+| CURRICULUM_PROGRAM | Program name for curriculum metadata | B.Eng. Computer Engineering |
 | EMBEDDING_MODEL | SentenceTransformer model | BAAI/bge-m3 |
 | EMBEDDING_API_BASE | External embedding API base | (unset) |
 | EMBEDDING_API_KEY | Embedding API key | (unset) |
@@ -98,6 +100,34 @@ Set `OCR_ENGINE` to:
 ### Flagged Chunk Handling
 
 Chunks whose page text fails quality heuristics get `status=flagged`. When `EMBED_FLAGGED=false`, these are skipped during embedding and written to a timestamped review file under `data/db/review/flagged_*.jsonl` for manual inspection.
+
+### Per-domain Chunking Overrides
+
+When you run with `--domain announcements|regulations|curriculum` (or set `CPE_DOMAIN`), you can override chunking settings per-domain by prefixing env vars with the uppercased domain name:
+
+```bash
+# Example: use smaller, sentence-based chunks for announcements
+export CPE_DOMAIN=announcements
+export ANNOUNCEMENTS_CHUNK_STRATEGY=announcement_template
+export ANNOUNCEMENTS_CHUNK_MIN_TOKENS=200
+export ANNOUNCEMENTS_CHUNK_MAX_TOKENS=500
+export ANNOUNCEMENTS_CHUNK_OVERLAP_RATIO=0.10
+
+# Example: keep structure-aware chunking for regulations
+export CPE_DOMAIN=regulations
+export REGULATIONS_CHUNK_STRATEGY=structure
+export REGULATIONS_CHUNK_MIN_TOKENS=400
+export REGULATIONS_CHUNK_MAX_TOKENS=900
+export REGULATIONS_CHUNK_OVERLAP_RATIO=0.12
+
+# Example: course-centric chunks for curriculum (recommended)
+export CPE_DOMAIN=curriculum
+export CURRICULUM_PROGRAM='B.Eng. Computer Engineering (2564)'
+# This is already the default for curriculum if not set:
+export CURRICULUM_CHUNK_STRATEGY=curriculum_course
+```
+
+If a per-domain variable is not set, the service falls back to the global `CHUNK_*` env vars, then to defaults.
 
 ## Extending
 

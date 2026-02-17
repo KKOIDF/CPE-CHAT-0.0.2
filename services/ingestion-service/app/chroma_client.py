@@ -5,7 +5,7 @@ import os
 import chromadb
 from chromadb.config import Settings
 
-from .config import CHROMA_DIR, EMBEDDING_MODEL, EMBED_BATCH, EMBEDDING_API_BASE, EMBEDDING_API_KEY
+from .config import CHROMA_DIR, EMBEDDING_MODEL, EMBED_BATCH, EMBEDDING_API_BASE, EMBEDDING_API_KEY, EMBEDDING_DIM
 from .utils import clean_and_spell_correct_thai
 
 try:
@@ -39,6 +39,35 @@ def _fallback_vec(text: str, dim: int) -> List[float]:
     return out
 
 
+def _l2_normalize(vec: List[float]) -> List[float]:
+    s = 0.0
+    for x in vec:
+        try:
+            s += float(x) * float(x)
+        except Exception:
+            pass
+    if s <= 0.0:
+        return vec
+    inv = (s ** 0.5)
+    if inv == 0.0:
+        return vec
+    inv = 1.0 / inv
+    return [float(x) * inv for x in vec]
+
+
+def _resize_embedding(vec: List[float], target_dim: int) -> List[float]:
+    if target_dim <= 0:
+        return vec
+    if not vec:
+        return [0.0] * target_dim
+    if len(vec) == target_dim:
+        return vec
+    if len(vec) > target_dim:
+        return vec[:target_dim]
+    meanv = sum(vec) / (len(vec) or 1)
+    return vec + [float(meanv)] * (target_dim - len(vec))
+
+
 def _embed_texts(texts: List[str], is_query: bool = False) -> List[List[float]]:
     """Embed texts with BGE-M3 instruction support
     
@@ -65,7 +94,8 @@ def _embed_texts(texts: List[str], is_query: bool = False) -> List[List[float]]:
             if dim == 0:
                 embs = []
         if embs:
-            return embs
+            resized = [_l2_normalize(_resize_embedding(list(e), EMBEDDING_DIM)) for e in embs]
+            return resized
     # Remote API
     if EMBEDDING_API_BASE and EMBEDDING_API_KEY:
         import requests
@@ -87,14 +117,14 @@ def _embed_texts(texts: List[str], is_query: bool = False) -> List[List[float]]:
             if vec and isinstance(vec, list) and len(vec) > 0:
                 if dim_detected is None:
                     dim_detected = len(vec)
-                out.append(vec)
+                out.append(_l2_normalize(_resize_embedding([float(x) for x in vec], EMBEDDING_DIM)))
             else:
                 if dim_detected is None:
-                    dim_detected = 32
-                out.append(_fallback_vec(t, dim_detected))
+                    dim_detected = EMBEDDING_DIM
+                out.append(_l2_normalize(_resize_embedding(_fallback_vec(t, dim_detected), EMBEDDING_DIM)))
         return out
     # Final deterministic fallback (hash-based) with fixed dim
-    return [_fallback_vec(t, 32) for t in texts]
+    return [_l2_normalize(_resize_embedding(_fallback_vec(t, EMBEDDING_DIM), EMBEDDING_DIM)) for t in texts]
 
 
 def upsert_chunks(chunks: List[Dict[str, Any]]):
@@ -111,35 +141,60 @@ def upsert_chunks(chunks: List[Dict[str, Any]]):
     if not embeddings or any(len(e) == 0 for e in embeddings):
         print("Embeddings empty after fallback; skipping upsert to avoid error.")
         return
-    # enforce consistent dimension
-    dim = len(embeddings[0])
-    fixed = []
-    for e in embeddings:
-        if len(e) != dim:
-            # resize by truncating or padding with mean value
-            if len(e) > dim:
-                e = e[:dim]
-            else:
-                meanv = sum(e) / (len(e) or 1)
-                e = e + [meanv] * (dim - len(e))
-        fixed.append(e)
+    # Enforce configured embedding dimension for storage.
+    dim = EMBEDDING_DIM
+    fixed = [_l2_normalize(_resize_embedding(list(e), dim)) for e in embeddings]
     ids: List[str] = []
     metadatas: List[Dict[str, Any]] = []
     documents: List[str] = []
     for i, c in enumerate(chunks):
         cid = f"{c.get('doc_id') or c.get('source','')}-{i}"
         ids.append(cid)
-        metadatas.append({
+        meta: Dict[str, Any] = {
             'source': c.get('source'),
             'path': c.get('path'),
             'page_start': c.get('page_start'),
             'page_end': c.get('page_end'),
             'file_type': c.get('file_type'),
             'status': c.get('status'),
-        })
+        }
+        # Pass-through optional metadata (curriculum course-centric)
+        for k in [
+            'doc_type', 'program', 'course_code', 'course_th', 'course_en',
+            'category', 'section', 'section_heading', 'source_file', 'year',
+            'chunk_uid', 'source_priority',
+            # Announcements / shared
+            'doc_title', 'topic', 'year_be', 'effective_from', 'audience',
+            'clause_id', 'supersedes', 'amends', 'delta_type', 'targets',
+            # Regulations
+            'effective_to', 'section_path', 'term', 'semester_scope',
+            'table_keys', 'target_clause',
+            'person_name', 'email', 'phone',
+            'form_name_th', 'purpose', 'url',
+        ]:
+            v = c.get(k)
+            if v is None:
+                continue
+            # Keep metadata JSON-serializable
+            if isinstance(v, (str, int, float, bool)):
+                meta[k] = v
+            else:
+                meta[k] = str(v)
+        metadatas.append(meta)
         # Store cleaned text in vector store for better retrieval, keep metadata unchanged
         documents.append(cleaned_texts[i] if i < len(cleaned_texts) else c.get('text',''))
-    _collection.upsert(ids=ids, embeddings=fixed, documents=documents, metadatas=metadatas)  # type: ignore[arg-type]
+    try:
+        _collection.upsert(ids=ids, embeddings=fixed, documents=documents, metadatas=metadatas)  # type: ignore[arg-type]
+    except Exception as e:
+        msg = str(e)
+        if 'dimension' in msg.lower() or 'dim' in msg.lower():
+            print(
+                f"Chroma upsert failed (likely dimension mismatch). "
+                f"Configured EMBEDDING_DIM={EMBEDDING_DIM}. "
+                f"If your existing Chroma index was built with a different dim, delete the domain chroma dir under {CHROMA_DIR} and re-ingest. Error: {e}"
+            )
+            return
+        raise
     print(f"Upserted {len(ids)} chunks into Chroma (dim={dim}).")
 
 
@@ -151,7 +206,18 @@ def semantic_search(query: str, n_results: int = 10) -> List[Dict[str, Any]]:
         cleaned_query = query
     
     query_embedding = _embed_texts([cleaned_query], is_query=True)[0]
-    res = _collection.query(query_embeddings=[query_embedding], n_results=n_results)
+    try:
+        res = _collection.query(query_embeddings=[query_embedding], n_results=n_results)
+    except Exception as e:
+        msg = str(e)
+        if 'dimension' in msg.lower() or 'dim' in msg.lower():
+            print(
+                f"Chroma query failed (likely dimension mismatch). "
+                f"Configured EMBEDDING_DIM={EMBEDDING_DIM}. "
+                f"If your existing Chroma index was built with a different dim, delete {CHROMA_DIR} and re-ingest. Error: {e}"
+            )
+            return []
+        raise
     ids_list = res.get('ids') or [[]]
     docs_list = res.get('documents') or [[]]
     meta_list = res.get('metadatas') or [[]]

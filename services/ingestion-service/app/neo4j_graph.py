@@ -125,11 +125,11 @@ def _ensure_schema(tx):
     tx.run("CREATE INDEX course_domain IF NOT EXISTS FOR (c:Course) ON (c.domain)")
 
     # Vector index (Neo4j 5.11+). Best-effort: ignore if unsupported.
-    # We use a fixed dim default for BGE-M3 (1024) but allow override by env.
+    # Default aligns with EMBEDDING_DIM (512) but allow override by env.
     try:
-        dim = int(os.getenv('NEO4J_VECTOR_DIM', '1024'))
+        dim = int(os.getenv('NEO4J_VECTOR_DIM', '512'))
     except Exception:
-        dim = 1024
+        dim = 512
     try:
         tx.run(
             """

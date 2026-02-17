@@ -29,8 +29,12 @@ def process_file(fp: Path) -> List[dict]:
     return []
 
 
-def _gen_doc_id(path: str, page: int, chunk_id: int) -> str:
-    basis = f"{path}|{page}|{chunk_id}"
+def _gen_doc_id(path: str, page: int, chunk_id: int, chunk_uid: str = '') -> str:
+    # Prefer chunk_uid when available for deterministic IDs across re-ingestion.
+    if chunk_uid:
+        basis = f"{path}|{chunk_uid}"
+    else:
+        basis = f"{path}|{page}|{chunk_id}"
     return hashlib.sha1(basis.encode('utf-8', 'ignore')).hexdigest()[:32]
 
 
@@ -83,10 +87,17 @@ def run_ingest(input_dir: str, output_base: str, store: bool = True, embed: bool
         except (ValueError, TypeError):
             page = 0
         file_type = Path(ch.get('path','')).suffix.lower().lstrip('.') or 'pdf'
-        doc_id = _gen_doc_id(ch.get('path',''), page, idx)
+        # Keep deterministic chunk ordering when chunker provided it.
+        chunk_id = ch.get('chunk_id')
+        try:
+            chunk_id_int = int(chunk_id) if chunk_id is not None else idx
+        except (ValueError, TypeError):
+            chunk_id_int = idx
+        chunk_uid = str(ch.get('chunk_uid') or '').strip()
+        doc_id = _gen_doc_id(ch.get('path',''), page, chunk_id_int, chunk_uid=chunk_uid)
         status = 'ok' if is_valid_ocr(ch.get('text','')) else 'flagged'
         quality_entries.append(make_quality_entry(doc_id, page, ch.get('text',''), 'auto', status))
-        ch.update({'doc_id': doc_id, 'file_type': file_type, 'chunk_id': idx, 'status': status})
+        ch.update({'doc_id': doc_id, 'file_type': file_type, 'chunk_id': chunk_id_int, 'status': status})
         enriched_chunks.append(ch)
 
     # Write chunks in TOON format (default)

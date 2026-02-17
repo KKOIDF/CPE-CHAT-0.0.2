@@ -46,13 +46,92 @@ OCR_LANG_DEFAULT = os.getenv('OCR_LANG', 'tha')  # "tha" or "tha+eng"
 OCR_DPI = int(os.getenv('OCR_DPI', '450'))
 MIN_QUALITY_SCORE = float(os.getenv('MIN_QUALITY_SCORE', '0.2'))
 MIN_LENGTH = int(os.getenv('MIN_LENGTH', '50'))
-CHUNK_MIN_TOKENS = int(os.getenv('CHUNK_MIN_TOKENS', '400'))
-CHUNK_MAX_TOKENS = int(os.getenv('CHUNK_MAX_TOKENS', '800'))
-CHUNK_OVERLAP_RATIO = float(os.getenv('CHUNK_OVERLAP_RATIO', '0.12'))
-CHAR_PER_TOKEN = float(os.getenv('CHAR_PER_TOKEN', '4.0'))
+
+
+def _domain_env_key(key: str) -> str:
+    if DOMAIN:
+        dom_prefix = f"{DOMAIN.upper()}_"
+        if key.upper().startswith(dom_prefix):
+            return key
+        return f"{dom_prefix}{key}"
+    return key
+
+
+def _get_env(key: str, default: str) -> str:
+    """Return domain override if set, else global, else default."""
+    v = os.getenv(_domain_env_key(key))
+    if v is None or str(v).strip() == '':
+        v = os.getenv(key)
+    if v is None or str(v).strip() == '':
+        v = default
+    return str(v)
+
+
+def _get_int(key: str, default: int) -> int:
+    try:
+        return int(_get_env(key, str(default)))
+    except Exception:
+        return int(default)
+
+
+def _get_float(key: str, default: float) -> float:
+    try:
+        return float(_get_env(key, str(default)))
+    except Exception:
+        return float(default)
+
+
+def _get_str(key: str, default: str) -> str:
+    return _get_env(key, default)
+
+
+# Chunking settings (domain-aware)
+_DEFAULT_CHUNK_MIN = 400
+_DEFAULT_CHUNK_MAX = 800
+_DEFAULT_CHUNK_OVERLAP = 0.12
+if DOMAIN == 'announcements':
+    # Announcements are clause/schedule driven; smaller chunks work better.
+    # NOTE: Keep min low enough that heading boundaries can flush chunks
+    # in sentence/structure strategies (common OCR output yields many mid-size chunks).
+    _DEFAULT_CHUNK_MIN = 150
+    _DEFAULT_CHUNK_MAX = 450
+    _DEFAULT_CHUNK_OVERLAP = 0.12
+elif DOMAIN == 'regulations':
+    # Regulations: clause/subclause oriented; keep overlap low.
+    # NOTE: Lower min so heading boundaries can flush chunks in edge cases (e.g., COVID/calendar sections).
+    _DEFAULT_CHUNK_MIN = 120
+    _DEFAULT_CHUNK_MAX = 450
+    _DEFAULT_CHUNK_OVERLAP = 0.08
+
+CHUNK_MIN_TOKENS = _get_int('CHUNK_MIN_TOKENS', _DEFAULT_CHUNK_MIN)
+CHUNK_MAX_TOKENS = _get_int('CHUNK_MAX_TOKENS', _DEFAULT_CHUNK_MAX)
+CHUNK_OVERLAP_RATIO = _get_float('CHUNK_OVERLAP_RATIO', _DEFAULT_CHUNK_OVERLAP)
+CHAR_PER_TOKEN = _get_float('CHAR_PER_TOKEN', 4.0)
+
+# Chunking strategy (domain-aware)
+# - 'structure' (default): paragraph+heading aware
+# - 'sentence_window': pack Thai sentence segments into a token window
+# - 'announcement_template': clause/table/calendar/memo template chunking
+# - 'curriculum_course': course-centric chunking for curriculum domain
+if DOMAIN == 'curriculum':
+    _DEFAULT_CHUNK_STRATEGY = 'curriculum_course'
+elif DOMAIN == 'announcements':
+    _DEFAULT_CHUNK_STRATEGY = 'announcement_template'
+elif DOMAIN == 'regulations':
+    _DEFAULT_CHUNK_STRATEGY = 'regulation_template'
+else:
+    _DEFAULT_CHUNK_STRATEGY = 'structure'
+CHUNK_STRATEGY = _get_str('CHUNK_STRATEGY', _DEFAULT_CHUNK_STRATEGY).strip().lower()
+
+# Curriculum-specific metadata defaults (domain-aware)
+CURRICULUM_PROGRAM = _get_str('CURRICULUM_PROGRAM', 'B.Eng. Computer Engineering')
 
 EMBEDDING_MODEL = os.getenv('EMBEDDING_MODEL', 'BAAI/bge-m3')
 EMBED_BATCH = int(os.getenv('EMBED_BATCH', '32'))
+
+# Target embedding dimension stored in vector DBs (Chroma/Neo4j).
+# NOTE: Some models (e.g., BGE-M3) output 1024 dims; we may project/trim to this size.
+EMBEDDING_DIM = int(os.getenv('EMBEDDING_DIM', '512'))
 
 POPPLER_PATH = os.getenv('POPPLER_PATH')  # For pdf2image on Windows
 TESSERACT_PATH = os.getenv('TESSERACT_PATH')  # If not on PATH

@@ -3,7 +3,7 @@ from chromadb.config import Settings
 from typing import List, Optional
 from functools import lru_cache
 from pathlib import Path
-from .config import CHROMA_DIR, EMBEDDING_MODEL, EMBED_BATCH, domain_paths
+from .config import CHROMA_DIR, EMBEDDING_MODEL, EMBED_BATCH, EMBEDDING_DIM, domain_paths
 import os
 
 try:
@@ -51,6 +51,42 @@ def embed_texts(texts: List[str], is_query: bool = False) -> List[List[float]]:
         texts: List of texts to embed
         is_query: If True and using BGE-M3, adds query instruction prefix
     """
+    def _l2_normalize(vec: List[float]) -> List[float]:
+        s = 0.0
+        for x in vec:
+            try:
+                s += float(x) * float(x)
+            except Exception:
+                pass
+        if s <= 0.0:
+            return vec
+        inv = (s ** 0.5)
+        if inv == 0.0:
+            return vec
+        inv = 1.0 / inv
+        return [float(x) * inv for x in vec]
+
+    def _resize_embedding(vec: List[float], target_dim: int) -> List[float]:
+        if target_dim <= 0:
+            return vec
+        if not vec:
+            return [0.0] * target_dim
+        if len(vec) == target_dim:
+            return vec
+        if len(vec) > target_dim:
+            return vec[:target_dim]
+        meanv = sum(vec) / (len(vec) or 1)
+        return vec + [float(meanv)] * (target_dim - len(vec))
+
+    def _fallback_vec(text: str, dim: int) -> List[float]:
+        b = bytearray(text.encode('utf-8', 'ignore')) or bytearray(b'0')
+        out: List[float] = []
+        acc = 0
+        for i in range(dim):
+            acc = (acc + b[i % len(b)] * (i + 1)) % 9973
+            out.append((acc / 9973.0))
+        return out
+
     if _embedder:
         # BGE-M3: Add instruction for queries only
         texts_to_encode = texts
@@ -59,7 +95,7 @@ def embed_texts(texts: List[str], is_query: bool = False) -> List[List[float]]:
             texts_to_encode = [query_instruction + t for t in texts]
         
         try:
-            return _embedder.encode(
+            embs = _embedder.encode(
                 texts_to_encode,
                 batch_size=EMBED_BATCH,
                 normalize_embeddings=True,
@@ -69,7 +105,7 @@ def embed_texts(texts: List[str], is_query: bool = False) -> List[List[float]]:
             # Common case: torch CPU build + EMBED_DEVICE=cuda
             if _EMBED_DEVICE == 'cuda':
                 try:
-                    return _embedder.encode(
+                    embs = _embedder.encode(
                         texts_to_encode,
                         batch_size=EMBED_BATCH,
                         normalize_embeddings=True,
@@ -78,7 +114,10 @@ def embed_texts(texts: List[str], is_query: bool = False) -> List[List[float]]:
                 except Exception:
                     pass
             raise e
-    return [[float((sum(bytearray(t.encode('utf-8'))) % 100) / 100.0)] for t in texts]
+        return [_l2_normalize(_resize_embedding(list(e), EMBEDDING_DIM)) for e in embs]
+
+    # Deterministic fallback (hash-based) with fixed dim
+    return [_l2_normalize(_resize_embedding(_fallback_vec(t, EMBEDDING_DIM), EMBEDDING_DIM)) for t in texts]
 
 
 def semantic_search(query: str, top_k: int = 12) -> List[dict]:
@@ -90,7 +129,19 @@ def semantic_search_domain(query: str, top_k: int = 12, domain: Optional[str] = 
     collection = _get_collection_for_domain(dom)
     # Embed query with instruction (for BGE-M3)
     qvec = embed_texts([query], is_query=True)[0]
-    res = collection.query(query_embeddings=[qvec], n_results=top_k, include=['documents','metadatas','distances'])
+    try:
+        res = collection.query(query_embeddings=[qvec], n_results=top_k, include=['documents','metadatas','distances'])
+    except Exception as e:
+        msg = str(e)
+        if 'dimension' in msg.lower() or 'dim' in msg.lower():
+            chroma_dir, _ = domain_paths(dom)
+            print(
+                f"[RAG] Chroma query failed (likely dimension mismatch). "
+                f"Configured EMBEDDING_DIM={EMBEDDING_DIM}. "
+                f"If your existing Chroma index was built with a different dim, delete {chroma_dir} and re-ingest. Error: {e}"
+            )
+            return []
+        raise
     out = []
     if not res.get('ids'):
         return out
