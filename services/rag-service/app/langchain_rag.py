@@ -38,19 +38,58 @@ _SYSTEM_MSG: dict[str, str] = {
 
 _MULTIQUERY_ENABLE = os.getenv('RAG_LC_MULTIQUERY', '0') in ('1', 'true', 'True')
 _MULTIQUERY_N = int(os.getenv('RAG_LC_MULTIQUERY_N', '3') or '3')
+_MULTIQUERY_ALL = os.getenv('RAG_LC_MULTIQUERY_ALL', '0') in ('1', 'true', 'True')
 
 _PARALLEL_ENABLE = os.getenv('RAG_LC_PARALLEL', '0') in ('1', 'true', 'True')
 _PARALLEL_WORKERS = int(os.getenv('RAG_LC_PARALLEL_WORKERS', '4') or '4')
 
 _RERANK_ENABLE = os.getenv('RAG_LC_RERANK', '0') in ('1', 'true', 'True')
 _RERANK_TOPN = int(os.getenv('RAG_LC_RERANK_TOPN', '24') or '24')
+_RERANK_ALL = os.getenv('RAG_LC_RERANK_ALL', '0') in ('1', 'true', 'True')
 
 _COMPRESS_ENABLE = os.getenv('RAG_LC_COMPRESS', '0') in ('1', 'true', 'True')
 _COMPRESS_MAX_CHARS = int(os.getenv('RAG_LC_COMPRESS_MAX_CHARS', '700') or '700')
+_COMPRESS_ALL = os.getenv('RAG_LC_COMPRESS_ALL', '0') in ('1', 'true', 'True')
 
 _ROUTE_LLM_ENABLE = os.getenv('RAG_LC_ROUTE_LLM', '0') in ('1', 'true', 'True')
 
 _STRUCTURED_ENABLE = os.getenv('RAG_LC_STRUCTURED', '0') in ('1', 'true', 'True')
+
+_ENFORCE_CITATIONS = os.getenv('RAG_LC_ENFORCE_CITATIONS', '0') in ('1', 'true', 'True')
+
+
+def _extract_citations_from_text(answer: str) -> List[str]:
+    cites: List[str] = []
+    for m in re.finditer(r"\[([^\[\]]+?)\]", answer or ''):
+        c = (m.group(1) or '').strip()
+        if c:
+            cites.append(c)
+    return cites
+
+
+def _ensure_bullet_has_cite(line: str, fallback_cite: str) -> str:
+    s = (line or '').rstrip()
+    if not s.strip().startswith('- '):
+        return s
+    # If the line already contains at least one [..] citation, keep as-is.
+    if re.search(r"\[[^\[\]]+\]", s):
+        return s
+    if not fallback_cite:
+        return s
+    return f"{s} [{fallback_cite}]"
+
+
+def _enforce_citations(answer: str, allowed_cites: List[str]) -> str:
+    if not answer or not allowed_cites:
+        return answer
+    fallback = (allowed_cites[0] or '').strip()
+    if not fallback:
+        return answer
+    lines = (answer or '').splitlines()
+    out_lines: List[str] = []
+    for ln in lines:
+        out_lines.append(_ensure_bullet_has_cite(ln, fallback))
+    return "\n".join(out_lines).strip()
 
 
 def _parse_query_list(raw: str) -> List[str]:
@@ -282,12 +321,19 @@ def rag_answer_langchain(question: str, domain: Optional[str] = None) -> Dict[st
 
     dom = (domain or '').strip().lower()
     if not dom:
-        dom = _route_domain_llm(q_display) or infer_domain(q_display) or ''
+        # Prefer deterministic heuristic routing first (stable + fast).
+        dom = infer_domain(q_display) or ''
+        # Use LLM router only when heuristic is unclear.
+        if not dom:
+            dom = _route_domain_llm(q_display) or ''
     dom = dom or None
 
     # Multi-query retrieval (best-effort): use LLM to generate query variants,
     # retrieve for each query, then fuse with RRF.
-    variants = _multiquery_variants(q_display, q_search, dom)
+    # Safer default: apply to curriculum where wording variability is high.
+    variants: List[str] = []
+    if _MULTIQUERY_ENABLE and (_MULTIQUERY_ALL or (dom == 'curriculum') or (dom is None)):
+        variants = _multiquery_variants(q_display, q_search, dom)
     queries = _dedupe_keep_order([q_search, *variants], cap=1 + len(variants))
 
     wants_listy = (
@@ -299,10 +345,22 @@ def rag_answer_langchain(question: str, domain: Optional[str] = None) -> Dict[st
     retrieved_lists: List[Tuple[str, List[Dict]]] = []
 
     def _retrieve_one(q: str) -> Tuple[str, List[Dict]]:
+        def _fallback_domains(primary: str) -> List[str] | None:
+            p = (primary or '').strip().lower()
+            if p == 'announcements':
+                return ['announcements', 'regulations']
+            if p == 'regulations':
+                return ['regulations', 'announcements']
+            if p == 'curriculum':
+                # Curriculum questions sometimes need registrar schedules.
+                return ['curriculum', 'announcements', 'regulations']
+            return None
+
         if dom:
             items = retrieve_by_domain(q, domain=dom)
             if len(items) < 4:
-                items = retrieve_all_domains(q)
+                doms = _fallback_domains(dom)
+                items = retrieve_all_domains(q, domains=doms)
         else:
             items = retrieve_all_domains(q)
         return q, items
@@ -327,7 +385,8 @@ def rag_answer_langchain(question: str, domain: Optional[str] = None) -> Dict[st
     retrieved = _fuse_rrf(retrieved_lists, cap=cap)
 
     # Optional rerank (embedding-based) to reduce noise.
-    if _RERANK_ENABLE and retrieved:
+    # Safer default: apply to curriculum where chunks are highly structured.
+    if _RERANK_ENABLE and retrieved and (_RERANK_ALL or (dom == 'curriculum')):
         try:
             retrieved = _rerank_by_embedding(q_search, retrieved, topn=_RERANK_TOPN)
             retrieved = retrieved[:cap]
@@ -335,7 +394,8 @@ def rag_answer_langchain(question: str, domain: Optional[str] = None) -> Dict[st
             pass
 
     # Optional extractive compression to pack more relevant context.
-    if _COMPRESS_ENABLE and retrieved:
+    # Safer default: apply to curriculum; announcements/regulations often rely on date lines.
+    if _COMPRESS_ENABLE and retrieved and (_COMPRESS_ALL or (dom == 'curriculum')):
         try:
             max_chars = max(200, int(_COMPRESS_MAX_CHARS))
             compressed: List[Dict] = []
@@ -393,6 +453,15 @@ def rag_answer_langchain(question: str, domain: Optional[str] = None) -> Dict[st
         else:
             answer = (raw or '').strip()
 
+    # Optional: enforce at least one citation per bullet line using allowed cites.
+    # This never invents new citations; it only uses the ones we already allowed.
+    if _ENFORCE_CITATIONS and answer:
+        try:
+            allowed = [str(x) for x in (cites or {}).values() if (x or '').strip()]
+            answer = _enforce_citations(answer, allowed)
+        except Exception:
+            pass
+
     out: Dict[str, Any] = {
         'question': question,
         'prompt': prompt,
@@ -413,6 +482,16 @@ def rag_answer_langchain(question: str, domain: Optional[str] = None) -> Dict[st
     }
 
     if _STRUCTURED_ENABLE:
+        # Keep structured.citations aligned with the final answer when possible.
+        if isinstance(structured, dict):
+            used = _extract_citations_from_text(answer)
+            allowed_set = {str(x) for x in (cites or {}).values() if (x or '').strip()}
+            used = [c for c in used if c in allowed_set]
+            structured = {**structured}
+            structured.setdefault('citations', used)
+            # If enforcement appended a fallback cite, ensure it's reflected.
+            if used:
+                structured['citations'] = _dedupe_keep_order([str(x) for x in used], cap=24)
         out['structured'] = structured
         out['follow_up_question'] = follow_up_question
 

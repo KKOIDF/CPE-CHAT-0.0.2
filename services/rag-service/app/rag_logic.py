@@ -243,13 +243,25 @@ def infer_domain(question: str) -> str | None:
         return 'curriculum'
     if re.search(r"\b(cpe|lng|ssc|gen|cpx|cen|csc)\b", ql):
         return 'curriculum'
-    if any(t in q for t in ('หลักสูตร', 'แผนการเรียน', 'หน่วยกิต', 'วิชาบังคับ', 'วิชาเลือก', 'คำอธิบายรายวิชา', 'รายวิชา')):
+    # Note: 'รายวิชา' can appear in registrar actions like 'ถอนรายวิชา', which are not curriculum.
+    _registrar_ops = ('ถอนรายวิชา', 'เพิ่ม-ลด', 'เพิ่มลด', 'ลงทะเบียน', 'ปฏิทิน', 'กำหนดการ')
+    if any(t in q for t in ('หลักสูตร', 'แผนการเรียน', 'หน่วยกิต', 'วิชาบังคับ', 'วิชาเลือก', 'คำอธิบายรายวิชา', 'รายวิชา')) and not any(op in q for op in _registrar_ops):
         return 'curriculum'
     if 'ภาษา' in q and any(t in q for t in ('จีน', 'ญี่ปุ่น', 'เกาหลี', 'ฝรั่งเศส', 'สเปน', 'เยอรมัน', 'รัสเซีย', 'มลายู', 'มาเล')):
         return 'curriculum'
 
     # Regulations/registrar signals.
-    if any(t in q for t in ('คำร้อง', 'แบบฟอร์ม', 'RO-', 'ลาออก', 'ลาป่วย', 'ลากิจ', 'ทัณฑ์บน', 'วินัย', 'ตัดคะแนนความประพฤติ', 'สอบซ้อน', 'เข้าสอบ', 'ถอนรายวิชา', 'ติด W')):
+    # Schedule / calendar / registration timing: these usually live in announcements.
+    if any(t in q for t in ('ปฏิทิน', 'กำหนดการ', 'ลงทะเบียน', 'เพิ่ม-ลด', 'เพิ่มลด', 'ช่วง', 'วัน', 'วันที่', 'เมื่อไหร่')):
+        return 'announcements'
+    # Withdraw/W questions often need the academic calendar (announcements) more than policy text.
+    if ('ถอนรายวิชา' in q or re.search(r"\bW\b|\(W\)", q, re.IGNORECASE)):
+        # If user asks for when/how, prefer announcements.
+        if any(t in q for t in ('เมื่อไหร่', 'ทำได้เมื่อไหร่', 'ช่วงไหน', 'ทำอย่างไร', 'ขั้นตอน', 'กำหนด')):
+            return 'announcements'
+        return 'regulations'
+
+    if any(t in q for t in ('คำร้อง', 'แบบฟอร์ม', 'RO-', 'ลาออก', 'ลาป่วย', 'ลากิจ', 'ทัณฑ์บน', 'วินัย', 'ตัดคะแนนความประพฤติ', 'สอบซ้อน', 'เข้าสอบ')):
         return 'regulations'
 
     # Announcements signals.
