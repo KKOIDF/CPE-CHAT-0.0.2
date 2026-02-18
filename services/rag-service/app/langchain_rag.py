@@ -316,99 +316,12 @@ def rag_answer_langchain(question: str, domain: Optional[str] = None) -> Dict[st
 
     Retrieval intentionally reuses the repo's tuned hybrid logic to keep quality.
     """
-    q_display = normalize_question(question)
-    q_search = search_query_from_question(question)
-
-    dom = (domain or '').strip().lower()
-    if not dom:
-        # Prefer deterministic heuristic routing first (stable + fast).
-        dom = infer_domain(q_display) or ''
-        # Use LLM router only when heuristic is unclear.
-        if not dom:
-            dom = _route_domain_llm(q_display) or ''
-    dom = dom or None
-
-    # Multi-query retrieval (best-effort): use LLM to generate query variants,
-    # retrieve for each query, then fuse with RRF.
-    # Safer default: apply to curriculum where wording variability is high.
-    variants: List[str] = []
-    if _MULTIQUERY_ENABLE and (_MULTIQUERY_ALL or (dom == 'curriculum') or (dom is None)):
-        variants = _multiquery_variants(q_display, q_search, dom)
-    queries = _dedupe_keep_order([q_search, *variants], cap=1 + len(variants))
-
-    wants_listy = (
-        'LNG' in q_display.upper()
-        and any(t in q_display for t in ('เลือกเรียน', 'มีวิชา', 'วิชาอะไร', 'เลือกได้', 'ตัวเลือก'))
-    )
-    cap = max(MAX_CONTEXTS, 20) if wants_listy else MAX_CONTEXTS
-
-    retrieved_lists: List[Tuple[str, List[Dict]]] = []
-
-    def _retrieve_one(q: str) -> Tuple[str, List[Dict]]:
-        def _fallback_domains(primary: str) -> List[str] | None:
-            p = (primary or '').strip().lower()
-            if p == 'announcements':
-                return ['announcements', 'regulations']
-            if p == 'regulations':
-                return ['regulations', 'announcements']
-            if p == 'curriculum':
-                # Curriculum questions sometimes need registrar schedules.
-                return ['curriculum', 'announcements', 'regulations']
-            return None
-
-        if dom:
-            items = retrieve_by_domain(q, domain=dom)
-            if len(items) < 4:
-                doms = _fallback_domains(dom)
-                items = retrieve_all_domains(q, domains=doms)
-        else:
-            items = retrieve_all_domains(q)
-        return q, items
-
-    if _PARALLEL_ENABLE and len(queries) > 1:
-        workers = max(1, min(12, int(_PARALLEL_WORKERS)))
-        with ThreadPoolExecutor(max_workers=workers) as ex:
-            futs = [ex.submit(_retrieve_one, q) for q in queries]
-            for fut in as_completed(futs):
-                try:
-                    retrieved_lists.append(fut.result())
-                except Exception:
-                    continue
-        # Keep deterministic ordering by original queries list.
-        order = {q: i for i, q in enumerate(queries)}
-        retrieved_lists.sort(key=lambda x: order.get(x[0], 10**9))
-    else:
-        for q in queries:
-            retrieved_lists.append(_retrieve_one(q))
-
-    # If multi-query is disabled (queries==[q_search]), this still works.
-    retrieved = _fuse_rrf(retrieved_lists, cap=cap)
-
-    # Optional rerank (embedding-based) to reduce noise.
-    # Safer default: apply to curriculum where chunks are highly structured.
-    if _RERANK_ENABLE and retrieved and (_RERANK_ALL or (dom == 'curriculum')):
-        try:
-            retrieved = _rerank_by_embedding(q_search, retrieved, topn=_RERANK_TOPN)
-            retrieved = retrieved[:cap]
-        except Exception:
-            pass
-
-    # Optional extractive compression to pack more relevant context.
-    # Safer default: apply to curriculum; announcements/regulations often rely on date lines.
-    if _COMPRESS_ENABLE and retrieved and (_COMPRESS_ALL or (dom == 'curriculum')):
-        try:
-            max_chars = max(200, int(_COMPRESS_MAX_CHARS))
-            compressed: List[Dict] = []
-            for d in retrieved:
-                txt = (d.get('text') or '')
-                ctxt = _compress_text_extractive(q_display, txt, max_chars=max_chars)
-                compressed.append({**d, 'text': ctxt or txt})
-            retrieved = compressed
-        except Exception:
-            pass
-
-    ctx, cites = pack_context(retrieved)
-    prompt = build_prompt(q_display, ctx, cites)
+    built = _build_rag_prompt_langchain(question=question, domain=domain)
+    q_display = built['q_display']
+    retrieved = built['retrieved']
+    ctx = built['ctx']
+    cites = built['cites']
+    prompt = built['prompt']
 
     if _STRUCTURED_ENABLE:
         prompt = (
@@ -496,3 +409,134 @@ def rag_answer_langchain(question: str, domain: Optional[str] = None) -> Dict[st
         out['follow_up_question'] = follow_up_question
 
     return out
+
+
+def _build_rag_prompt_langchain(question: str, domain: Optional[str] = None) -> Dict[str, Any]:
+    """Shared retrieval+prompt builder used by both query and answer endpoints."""
+    q_display = normalize_question(question)
+    q_search = search_query_from_question(question)
+
+    dom = (domain or '').strip().lower()
+    if not dom:
+        # Prefer deterministic heuristic routing first (stable + fast).
+        dom = infer_domain(q_display) or ''
+        # Use LLM router only when heuristic is unclear.
+        if not dom:
+            dom = _route_domain_llm(q_display) or ''
+    dom = dom or None
+
+    # Multi-query retrieval (best-effort): use LLM to generate query variants,
+    # retrieve for each query, then fuse with RRF.
+    variants: List[str] = []
+    if _MULTIQUERY_ENABLE and (_MULTIQUERY_ALL or (dom == 'curriculum') or (dom is None)):
+        variants = _multiquery_variants(q_display, q_search, dom)
+    queries = _dedupe_keep_order([q_search, *variants], cap=1 + len(variants))
+
+    wants_listy = (
+        'LNG' in q_display.upper()
+        and any(t in q_display for t in ('เลือกเรียน', 'มีวิชา', 'วิชาอะไร', 'เลือกได้', 'ตัวเลือก'))
+    )
+    cap = max(MAX_CONTEXTS, 20) if wants_listy else MAX_CONTEXTS
+
+    retrieved_lists: List[Tuple[str, List[Dict]]] = []
+
+    def _retrieve_one(q: str) -> Tuple[str, List[Dict]]:
+        def _fallback_domains(primary: str) -> List[str] | None:
+            p = (primary or '').strip().lower()
+            if p == 'announcements':
+                return ['announcements', 'regulations']
+            if p == 'regulations':
+                return ['regulations', 'announcements']
+            if p == 'curriculum':
+                # Curriculum questions sometimes need registrar schedules.
+                return ['curriculum', 'announcements', 'regulations']
+            return None
+
+        if dom:
+            items = retrieve_by_domain(q, domain=dom)
+            if len(items) < 4:
+                doms = _fallback_domains(dom)
+                items = retrieve_all_domains(q, domains=doms)
+        else:
+            items = retrieve_all_domains(q)
+        return q, items
+
+    if _PARALLEL_ENABLE and len(queries) > 1:
+        workers = max(1, min(12, int(_PARALLEL_WORKERS)))
+        with ThreadPoolExecutor(max_workers=workers) as ex:
+            futs = [ex.submit(_retrieve_one, q) for q in queries]
+            for fut in as_completed(futs):
+                try:
+                    retrieved_lists.append(fut.result())
+                except Exception:
+                    continue
+        order = {q: i for i, q in enumerate(queries)}
+        retrieved_lists.sort(key=lambda x: order.get(x[0], 10**9))
+    else:
+        for q in queries:
+            retrieved_lists.append(_retrieve_one(q))
+
+    retrieved = _fuse_rrf(retrieved_lists, cap=cap)
+
+    # Optional rerank (embedding-based) to reduce noise.
+    if _RERANK_ENABLE and retrieved and (_RERANK_ALL or (dom == 'curriculum')):
+        try:
+            retrieved = _rerank_by_embedding(q_search, retrieved, topn=_RERANK_TOPN)
+            retrieved = retrieved[:cap]
+        except Exception:
+            pass
+
+    # Optional extractive compression to pack more relevant context.
+    if _COMPRESS_ENABLE and retrieved and (_COMPRESS_ALL or (dom == 'curriculum')):
+        try:
+            max_chars = max(200, int(_COMPRESS_MAX_CHARS))
+            compressed: List[Dict] = []
+            for d in retrieved:
+                txt = (d.get('text') or '')
+                ctxt = _compress_text_extractive(q_display, txt, max_chars=max_chars)
+                compressed.append({**d, 'text': ctxt or txt})
+            retrieved = compressed
+        except Exception:
+            pass
+
+    ctx, cites = pack_context(retrieved)
+    prompt = build_prompt(q_display, ctx, cites)
+
+    return {
+        'q_display': q_display,
+        'q_search': q_search,
+        'domain': dom,
+        'retrieved': retrieved,
+        'ctx': ctx,
+        'cites': cites,
+        'prompt': prompt,
+    }
+
+
+def rag_query_langchain(question: str, domain: Optional[str] = None) -> Dict[str, Any]:
+    """Query-only RAG using the LangChain orchestration retrieval path.
+
+    Shape matches legacy rag_query/rag_query_domain outputs:
+    { prompt, contexts, token_est }
+    """
+    built = _build_rag_prompt_langchain(question=question, domain=domain)
+    retrieved = built['retrieved']
+    prompt = built['prompt']
+    ctx = built['ctx']
+
+    return {
+        'prompt': prompt,
+        'contexts': [
+            {
+                'doc_id': r.get('doc_id'),
+                'domain': r.get('domain'),
+                'source': r.get('source'),
+                'path': r.get('path'),
+                'page_start': r.get('page_start'),
+                'page_end': r.get('page_end'),
+                'score_rrf': r.get('score_rrf'),
+            }
+            for r in (retrieved or [])
+        ],
+        'token_est': est_tokens(ctx),
+    }

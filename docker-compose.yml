@@ -41,6 +41,24 @@ services:
       # CORS Configuration for OpenWeb-UI
       CORS_ORIGINS: "http://localhost:3000,http://localhost:8080,${OPENWEB_UI_URL:-http://localhost:3000}"
 
+      # LangChain orchestration path (optional)
+      # Controlled via .env; defaults keep legacy behavior unless enabled.
+      RAG_USE_LANGCHAIN: "${RAG_USE_LANGCHAIN:-0}"
+      RAG_LC_MULTIQUERY: "${RAG_LC_MULTIQUERY:-0}"
+      RAG_LC_MULTIQUERY_N: "${RAG_LC_MULTIQUERY_N:-3}"
+      RAG_LC_MULTIQUERY_ALL: "${RAG_LC_MULTIQUERY_ALL:-0}"
+      RAG_LC_PARALLEL: "${RAG_LC_PARALLEL:-0}"
+      RAG_LC_PARALLEL_WORKERS: "${RAG_LC_PARALLEL_WORKERS:-4}"
+      RAG_LC_RERANK: "${RAG_LC_RERANK:-0}"
+      RAG_LC_RERANK_TOPN: "${RAG_LC_RERANK_TOPN:-24}"
+      RAG_LC_RERANK_ALL: "${RAG_LC_RERANK_ALL:-0}"
+      RAG_LC_COMPRESS: "${RAG_LC_COMPRESS:-0}"
+      RAG_LC_COMPRESS_MAX_CHARS: "${RAG_LC_COMPRESS_MAX_CHARS:-700}"
+      RAG_LC_COMPRESS_ALL: "${RAG_LC_COMPRESS_ALL:-0}"
+      RAG_LC_ROUTE_LLM: "${RAG_LC_ROUTE_LLM:-0}"
+      RAG_LC_STRUCTURED: "${RAG_LC_STRUCTURED:-0}"
+      RAG_LC_ENFORCE_CITATIONS: "${RAG_LC_ENFORCE_CITATIONS:-0}"
+
       # Optional Neo4j (Graph RAG) configuration
       # If not set, Graph features will gracefully fall back to non-graph retrieval.
       NEO4J_URI: "${NEO4J_URI:-}"
