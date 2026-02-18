@@ -1,5 +1,7 @@
 import os
 import re
+import logging
+import traceback
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -8,6 +10,8 @@ import re
 from .rag_logic import rag_query, rag_query_domain
 from .rag_logic import structured_curriculum_answer
 from .llm import llm_engine
+
+logger = logging.getLogger("rag-service")
 
 _USE_LANGCHAIN = os.getenv('RAG_USE_LANGCHAIN', '0') in ('1', 'true', 'True')
 
@@ -572,6 +576,12 @@ def _extract_allowed_citations(prompt: str) -> set[str]:
     cites = re.findall(r"\[([^\]]+?/\d+)\]", after)
     return set(cites)
 
+
+def _require_citations() -> bool:
+    return (os.getenv('RAG_REQUIRE_CITATIONS', '0') or '0').strip().lower() in (
+        '1', 'true', 'yes', 'on'
+    )
+
 @app.post('/rag/query', response_model=RagResponse)
 async def rag_endpoint(req: RagRequest):
     if _USE_LANGCHAIN:
@@ -595,11 +605,21 @@ async def rag_answer_endpoint(req: RagAnswerRequest):
                 token_est=0,
             )
 
-    if _USE_LANGCHAIN:
-        from .langchain_rag import rag_answer_langchain
-        result = rag_answer_langchain(req.question, req.domain)
-    else:
-        result = rag_query_domain(req.question, req.domain) if req.domain else rag_query(req.question)
+    try:
+        if _USE_LANGCHAIN:
+            from .langchain_rag import rag_answer_langchain
+            result = rag_answer_langchain(req.question, req.domain)
+        else:
+            result = rag_query_domain(req.question, req.domain) if req.domain else rag_query(req.question)
+    except Exception as e:
+        logger.error("/rag/answer failed: %s\n%s", str(e), traceback.format_exc())
+        return RagAnswerResponse(
+            question=req.question,
+            prompt=f"(exception) {type(e).__name__}: {e}",
+            answer=f"(exception) {type(e).__name__}: {e}",
+            contexts=[],
+            token_est=0,
+        )
     # Build chat style messages for models that support it
     system_msg = { 'role': 'system', 'content': 'คุณคือผู้ช่วยของภาควิชาวิศวกรรมคอมพิวเตอร์ ใช้เฉพาะข้อมูลในบริบทเท่านั้น ตอบโดยตรงและชัดเจน ห้ามให้ลิงก์/URL ภายนอก เว้นแต่ปรากฏอยู่ในบริบท หากคำถามกำกวมให้ถามกลับ 1 คำถามสั้น ๆ เพื่อขอรายละเอียดที่จำเป็น หากไม่พบคำตอบแบบชัดเจน ให้สรุปเท่าที่สรุปได้จากบริบท และระบุว่าเอกสารไม่ได้กล่าวตรง ๆ หรือไม่มีข้อความยืนยันโดยตรง' }
     user_msg = { 'role': 'user', 'content': result['prompt'] }
@@ -623,14 +643,14 @@ async def rag_answer_endpoint(req: RagAnswerRequest):
                 else:
                     answer = llm_engine.generate(result['prompt'], messages=[system_msg, user_msg])
 
-                # Enforce citations when we have context, otherwise retrieval-grounding becomes fuzzy.
-                if (result.get('contexts') or []) and answer and not answer.strip().startswith('('):
+                # Optionally enforce citations when we have context.
+                if _require_citations() and (result.get('contexts') or []) and answer and not answer.strip().startswith('('):
                     answer = _repair_answer_with_citations(answer, result.get('prompt') or '')
                     answer = _sanitize_answer_citations(answer, result.get('prompt') or '')
         # If generation is unavailable/disabled, preserve the diagnostic message.
         if not (answer or '').strip().startswith('('):
             # Clean and validate answer - keep it natural without enforcing citations
-            answer = _clean_answer_text(answer, strip_citations=False)
+            answer = _clean_answer_text(answer, strip_citations=(not _require_citations()))
 
             # If model uses fallback phrase, it must be the entire answer.
             if _FALLBACK in answer and answer != _FALLBACK:

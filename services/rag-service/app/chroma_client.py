@@ -1,6 +1,6 @@
 import chromadb
 from chromadb.config import Settings
-from typing import List, Optional
+from typing import List, Optional, Sequence
 from functools import lru_cache
 from pathlib import Path
 from .config import CHROMA_DIR, EMBEDDING_MODEL, EMBED_BATCH, EMBEDDING_DIM, domain_paths
@@ -189,13 +189,49 @@ def semantic_search(query: str, top_k: int = 12) -> List[dict]:
     return semantic_search_domain(query, top_k=top_k, domain=None)
 
 
-def semantic_search_domain(query: str, top_k: int = 12, domain: Optional[str] = None) -> List[dict]:
+def semantic_search_domain(
+    query: str,
+    top_k: int = 12,
+    domain: Optional[str] = None,
+    source_allowlist: Optional[Sequence[str]] = None,
+) -> List[dict]:
     dom = (domain or os.getenv('CPE_DOMAIN', '')).strip().lower()
     collection = _get_collection_for_domain(dom)
     # Embed query with instruction (for BGE-M3)
     qvec = embed_texts([query], is_query=True)[0]
+    allow_src: list[str] = []
+    if source_allowlist:
+        seen = set()
+        for s in source_allowlist:
+            if not s:
+                continue
+            try:
+                name = Path(str(s)).name
+            except Exception:
+                name = str(s).strip()
+            if not name:
+                continue
+            key = name.strip().lower()
+            if not key or key in seen:
+                continue
+            allow_src.append(name.strip())
+            seen.add(key)
+
+    where = None
+    if allow_src:
+        # Chroma where syntax can vary by version. We'll try $in first.
+        where = {"source": {"$in": allow_src}} if len(allow_src) > 1 else {"source": allow_src[0]}
+
     try:
-        res = collection.query(query_embeddings=[qvec], n_results=top_k, include=['documents','metadatas','distances'])
+        if where is not None:
+            res = collection.query(
+                query_embeddings=[qvec],
+                n_results=top_k,
+                include=['documents', 'metadatas', 'distances'],
+                where=where,
+            )
+        else:
+            res = collection.query(query_embeddings=[qvec], n_results=top_k, include=['documents','metadatas','distances'])
     except Exception as e:
         msg = str(e)
         if 'dimension' in msg.lower() or 'dim' in msg.lower():
@@ -206,7 +242,14 @@ def semantic_search_domain(query: str, top_k: int = 12, domain: Optional[str] = 
                 f"If your existing Chroma index was built with a different dim, delete {chroma_dir} and re-ingest. Error: {e}"
             )
             return []
-        raise
+        # If where-filter isn't supported in this Chroma build, fall back to unfiltered search.
+        if where is not None:
+            try:
+                res = collection.query(query_embeddings=[qvec], n_results=top_k, include=['documents','metadatas','distances'])
+            except Exception:
+                raise
+        else:
+            raise
     out = []
     if not res.get('ids'):
         return out
@@ -226,4 +269,13 @@ def semantic_search_domain(query: str, top_k: int = 12, domain: Optional[str] = 
             **(res['metadatas'][0][i] or {}),
             'distance': (res.get('distances') or [[None]])[0][i]
         })
+    # In case the backend didn't apply filtering (or we fell back), enforce allowlist client-side.
+    if allow_src:
+        allowed_lower = {str(s).strip().lower() for s in allow_src if str(s).strip()}
+        def _src_name(d: dict) -> str:
+            try:
+                return Path(str(d.get('source') or '')).name.strip().lower()
+            except Exception:
+                return ''
+        out = [d for d in out if _src_name(d) in allowed_lower]
     return out

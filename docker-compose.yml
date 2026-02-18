@@ -30,7 +30,7 @@ services:
       LLM_ENABLE: "1"
       LLM_PROVIDER: "typhoon"
       LLM_MODEL: "typhoon-v2.5-30b-a3b-instruct"
-      LLM_MAX_TOKENS: "4096"
+      LLM_MAX_TOKENS: "512"
       LLM_TEMPERATURE: "0.4"
       
       # Typhoon API Configuration

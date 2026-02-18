@@ -15,6 +15,8 @@ from .rag_logic import (
     infer_domain,
     retrieve_by_domain,
     retrieve_all_domains,
+    _reference_candidates,
+    _filter_chunks_by_reference,
     pack_context,
     build_prompt,
     est_tokens,
@@ -416,6 +418,13 @@ def _build_rag_prompt_langchain(question: str, domain: Optional[str] = None) -> 
     q_display = normalize_question(question)
     q_search = search_query_from_question(question)
 
+    # If an evaluation-style reference hint is provided, make it strict (configurable)
+    # to prevent cross-document contamination of numeric facts.
+    strict_ref_hints = (os.getenv('STRICT_REFERENCE_HINTS', '1') or '1').strip().lower() in (
+        '1', 'true', 'yes', 'on'
+    )
+    has_ref = bool(_reference_candidates(question)) and strict_ref_hints
+
     dom = (domain or '').strip().lower()
     if not dom:
         # Prefer deterministic heuristic routing first (stable + fast).
@@ -428,9 +437,15 @@ def _build_rag_prompt_langchain(question: str, domain: Optional[str] = None) -> 
     # Multi-query retrieval (best-effort): use LLM to generate query variants,
     # retrieve for each query, then fuse with RRF.
     variants: List[str] = []
-    if _MULTIQUERY_ENABLE and (_MULTIQUERY_ALL or (dom == 'curriculum') or (dom is None)):
+    if (not has_ref) and _MULTIQUERY_ENABLE and (_MULTIQUERY_ALL or (dom == 'curriculum') or (dom is None)):
         variants = _multiquery_variants(q_display, q_search, dom)
-    queries = _dedupe_keep_order([q_search, *variants], cap=1 + len(variants))
+
+    # If we have an explicit reference hint, pass the full question down so
+    # retrieve_by_domain can apply source allowlisting.
+    if has_ref:
+        queries = [question]
+    else:
+        queries = _dedupe_keep_order([q_search, *variants], cap=1 + len(variants))
 
     wants_listy = (
         'LNG' in q_display.upper()
@@ -454,7 +469,7 @@ def _build_rag_prompt_langchain(question: str, domain: Optional[str] = None) -> 
 
         if dom:
             items = retrieve_by_domain(q, domain=dom)
-            if len(items) < 4:
+            if (not has_ref) and len(items) < 4:
                 doms = _fallback_domains(dom)
                 items = retrieve_all_domains(q, domains=doms)
         else:
@@ -477,6 +492,12 @@ def _build_rag_prompt_langchain(question: str, domain: Optional[str] = None) -> 
             retrieved_lists.append(_retrieve_one(q))
 
     retrieved = _fuse_rrf(retrieved_lists, cap=cap)
+
+    # If question explicitly references a file, keep contexts from that file.
+    try:
+        retrieved = _filter_chunks_by_reference(retrieved, question, strict=has_ref)
+    except Exception:
+        pass
 
     # Optional rerank (embedding-based) to reduce noise.
     if _RERANK_ENABLE and retrieved and (_RERANK_ALL or (dom == 'curriculum')):

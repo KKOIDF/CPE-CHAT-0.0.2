@@ -1,12 +1,13 @@
-from typing import List, Dict, Tuple
+from typing import List, Dict, Tuple, Sequence
 import re
 import math
 from pathlib import Path
 import unicodedata
+import os
 
 from .sqlite_client import keyword_search, fetch_docs_with_path, domain_sqlite_path
 from .chroma_client import semantic_search_domain
-from .config import TOKEN_BUDGET, RRF_K, MAX_CONTEXTS, KNOWN_DOMAINS
+from .config import TOKEN_BUDGET, RRF_K, MAX_CONTEXTS, KNOWN_DOMAINS, ROOT_DIR
 from .neo4j_client import (
     extract_course_codes,
     graph_doc_ids_for_codes,
@@ -288,6 +289,122 @@ def _cite_label(c: Dict) -> str:
     return f"{name}/{page_i}"
 
 
+def _extract_reference_filename(question: str) -> str | None:
+    """Extract a hinted source filename from the question.
+
+    Supports patterns used in evaluation CSV, e.g. "(อ้างอิง: t_fee.txt)".
+    Returns only the basename (no directories).
+    """
+    q = (question or '')
+    m = re.search(r"\(\s*อ้างอิง\s*:\s*([^\)]+)\)", q)
+    if not m:
+        return None
+    raw = (m.group(1) or '').strip().strip('"').strip("'")
+    if not raw:
+        return None
+    # If user wrote multiple, pick the first token.
+    raw = raw.split(',')[0].strip()
+    try:
+        return Path(raw).name
+    except Exception:
+        return raw
+
+
+def _reference_candidates(question: str) -> list[str]:
+    """Return likely filename variants for an '(อ้างอิง: ...)' hint."""
+    ref = _extract_reference_filename(question)
+    if not ref:
+        return []
+    try:
+        base = Path(ref).name
+    except Exception:
+        base = str(ref).strip()
+    base = (base or '').strip()
+    if not base:
+        return []
+
+    try:
+        p = Path(base)
+        stem = p.stem
+        ext = p.suffix
+    except Exception:
+        stem, ext = base, ''
+
+    variants = [
+        base,
+        base.replace('-', '_'),
+        base.replace('_', '-'),
+    ]
+
+    # Add .txt if missing or different
+    if ext.lower() != '.txt':
+        variants.append(stem + '.txt')
+
+    # Normalize stem dash/underscore
+    variants.append(stem.replace('-', '_') + '.txt')
+    variants.append(stem.replace('_', '-') + '.txt')
+
+    out: list[str] = []
+    seen: set[str] = set()
+    for v in variants:
+        v = (v or '').strip()
+        if not v:
+            continue
+        k = v.lower()
+        if k in seen:
+            continue
+        seen.add(k)
+        out.append(v)
+    return out
+
+
+def _infer_domain_from_reference(question: str) -> str | None:
+    """Infer domain by checking for the referenced file under repo data/<domain>/."""
+    cands = _reference_candidates(question)
+    if not cands:
+        return None
+    data_root = Path(ROOT_DIR) / 'data'
+    for dom in KNOWN_DOMAINS:
+        for c in cands:
+            try:
+                if (data_root / dom / c).exists():
+                    return dom
+            except Exception:
+                continue
+    return None
+
+
+def _filter_chunks_by_reference(chunks: List[Dict], question: str, strict: bool = False) -> List[Dict]:
+    """If question explicitly references a source file, keep only matching chunks.
+
+    If strict=True and the reference doesn't match any chunk, return an empty list.
+    Otherwise (default), behaves conservatively and keeps the original list.
+    """
+    cands = _reference_candidates(question)
+    if not cands:
+        return chunks
+    cand_l = {c.lower() for c in cands}
+
+    def _src_name(d: Dict) -> str:
+        src = d.get('source') or d.get('path') or (d.get('metadata') or {}).get('source') or (d.get('metadata') or {}).get('path')
+        try:
+            return Path(str(src)).name.lower()
+        except Exception:
+            return str(src or '').lower()
+
+    filtered = [c for c in (chunks or []) if _src_name(c) in cand_l]
+    # If strict match fails, allow "contains" (handles slightly different stored names).
+    if not filtered:
+        filtered = [c for c in (chunks or []) if any(cl in _src_name(c) for cl in cand_l)]
+
+    # Keep original if we'd lose essentially all context (unless strict).
+    if strict:
+        return filtered
+    if len(filtered) >= 2 or (len(filtered) == 1 and len(chunks) <= 3):
+        return filtered
+    return chunks
+
+
 def hybrid_retrieve(question: str, k_vec: int = 20, k_kw: int = 30) -> List[Dict]:
     return retrieve_all_domains(question, k_vec=k_vec, k_kw=k_kw)
 
@@ -330,12 +447,30 @@ def retrieve_all_domains(
 def retrieve_by_domain(question: str, domain: str | None, k_vec: int = 20, k_kw: int = 30) -> List[Dict]:
     dom = (domain or '').strip().lower()
 
-    # Domain 1&2: "RAG ธรรมดา" (vector + keyword/FTS)
+    # Use the original question to detect explicit reference hints, but use a cleaned query
+    # string for retrieval so the hint doesn't pollute embedding/keyword search.
+    q_search = search_query_from_question(question)
+
+    ref_allow = _reference_candidates(question)
+    source_allowlist: Sequence[str] | None = ref_allow if ref_allow else None
+    strict_ref_hints = (os.getenv('STRICT_REFERENCE_HINTS', '1') or '1').strip().lower() in (
+        '1', 'true', 'yes', 'on'
+    )
+    strict_ref = bool(source_allowlist) and strict_ref_hints
+
+    # Domain 1&2: vector + keyword/FTS
     if dom in ('announcements', 'regulations'):
         sqlite_path = domain_sqlite_path(dom)
-        sem = semantic_search_domain(question, top_k=k_vec, domain=dom)
-        kw_ids = keyword_search(question, limit=k_kw, sqlite_path=sqlite_path)
+
+        sem = semantic_search_domain(q_search, top_k=k_vec, domain=dom, source_allowlist=source_allowlist)
+        kw_ids = keyword_search(q_search, limit=k_kw, sqlite_path=sqlite_path, source_allowlist=source_allowlist)
         kw_docs = fetch_docs_with_path(kw_ids, sqlite_path=sqlite_path)
+
+        # If the user explicitly referenced a source, stay within it (avoid cross-doc hallucinations).
+        if (not strict_ref) and source_allowlist and (len(sem) + len(kw_docs) < 2):
+            sem = semantic_search_domain(q_search, top_k=k_vec, domain=dom, source_allowlist=None)
+            kw_ids = keyword_search(q_search, limit=k_kw, sqlite_path=sqlite_path, source_allowlist=None)
+            kw_docs = fetch_docs_with_path(kw_ids, sqlite_path=sqlite_path)
 
         bank: Dict[str, Dict] = {}
         ranks: Dict[str, float] = {}
@@ -354,13 +489,18 @@ def retrieve_by_domain(question: str, domain: str | None, k_vec: int = 20, k_kw:
         merged.sort(key=lambda x: x['score_rrf'], reverse=True)
         return merged[:MAX_CONTEXTS]
 
-    # Domain 3: curriculum = hybrid graph (vector + keyword + Neo4j expansion)
+    # Domain 3: curriculum = vector + keyword + graph expansion
     # If no domain was provided, keep legacy behavior (vector+keyword on default env paths)
     sqlite_path = domain_sqlite_path(dom) if dom else None
 
-    sem = semantic_search_domain(question, top_k=k_vec, domain=dom or None)
-    kw_ids = keyword_search(question, limit=k_kw, sqlite_path=sqlite_path)
+    sem = semantic_search_domain(q_search, top_k=k_vec, domain=dom or None, source_allowlist=source_allowlist)
+    kw_ids = keyword_search(q_search, limit=k_kw, sqlite_path=sqlite_path, source_allowlist=source_allowlist)
     kw_docs = fetch_docs_with_path(kw_ids, sqlite_path=sqlite_path)
+
+    if (not strict_ref) and source_allowlist and (len(sem) + len(kw_docs) < 2):
+        sem = semantic_search_domain(q_search, top_k=k_vec, domain=dom or None, source_allowlist=None)
+        kw_ids = keyword_search(q_search, limit=k_kw, sqlite_path=sqlite_path, source_allowlist=None)
+        kw_docs = fetch_docs_with_path(kw_ids, sqlite_path=sqlite_path)
 
     # Heuristic: users often ask "LNGxxx มีวิชาอะไรให้เลือกเรียนบ้าง" without naming languages.
     # Pull in curriculum chunks anchored by the "รายวิชา: LNG" header to increase recall.
@@ -650,6 +790,10 @@ def pack_context(
 
 
 def build_prompt(question: str, ctx: str, cites: Dict[int, str]) -> str:
+    require_citations = (os.getenv('RAG_REQUIRE_CITATIONS', '0') or '0').strip().lower() in (
+        '1', 'true', 'yes', 'on'
+    )
+
     allowed_cites: list[str] = []
     seen: set[str] = set()
     for c in (cites or {}).values():
@@ -661,26 +805,45 @@ def build_prompt(question: str, ctx: str, cites: Dict[int, str]) -> str:
 
     allowed_block = "\n".join([f"- [{c}]" for c in allowed_cites])
 
-    instruction = (
-        "คุณคือผู้ช่วยของภาควิชาวิศวกรรมคอมพิวเตอร์ ณ มหาวิทยาลัยเทคโนโลยีพระจอมเกล้าธนบุรี ตอบเป็นภาษาไทย.\n"
-        "หลักการตอบ:\n"
-        "1) ใช้เฉพาะข้อมูลในบริบทที่ให้ หากไม่พบคำตอบแบบชัดเจน ให้ตอบสิ่งที่สรุปได้จากบริบทเท่านั้น และระบุชัดเจนว่าเอกสารไม่ได้กล่าวตรง ๆ หรือไม่มีข้อความยืนยันโดยตรง.\n"
-        "2) ให้ตอบเป็น bullet เป็นหลัก (ขึ้นต้นด้วย '- ') และแต่ละ bullet ต้องลงท้ายด้วยการอ้างอิงอย่างน้อย 1 รายการต่อบรรทัด โดยใส่ท้ายบรรทัดในรูปแบบ [source/page].\n"
-        "3) ห้ามเดาข้อมูลนอกรายการที่มี ใช้เฉพาะข้อมูลที่มีในบริบทเท่านั้น.\n"
-        "4) หากคำถามขอ 'สรุป' หรือ 'โครงสร้าง' ให้จัดลำดับหัวข้อก่อนรายละเอียด.\n"
-        "5) หากคำถามกำกวม/สั้นมาก (เช่น พิมพ์แค่ชื่อภาษา หรือ xxx) ให้ถามกลับ 1 คำถามสั้น ๆ เพื่อขอรายละเอียดที่จำเป็นก่อน.\n"
-        "6) ห้ามให้ URL/ลิงก์ภายนอก เว้นแต่ URL นั้นปรากฏอยู่ในบริบท.\n"
-        "7) ห้ามใช้วงเล็บเหลี่ยม [] สำหรับอย่างอื่นนอกจากการอ้างอิงเท่านั้น และห้ามสร้างการอ้างอิงใหม่ที่ไม่มีในรายการที่อนุญาต.\n"
-        "\nตัวอย่างรูปแบบที่ถูกต้อง:\n"
-        "- ทำคำร้องแบบ ทำ.19 และให้ผู้เกี่ยวข้องลงนาม [duplicate2551.txt/1]\n"
-        "- ยื่นคำร้องภายในกำหนดเวลาที่ระบุ [academiccalendar2025th.txt/1] [ปฏิทินการศึกษา_2568.txt/1]\n"
-    )
+    if require_citations:
+        instruction = (
+            "คุณคือผู้ช่วยของภาควิชาวิศวกรรมคอมพิวเตอร์ ณ มหาวิทยาลัยเทคโนโลยีพระจอมเกล้าธนบุรี ตอบเป็นภาษาไทย.\n"
+            "หลักการตอบ:\n"
+            "1) ใช้เฉพาะข้อมูลในบริบทที่ให้ หากไม่พบคำตอบแบบชัดเจน ให้ตอบสิ่งที่สรุปได้จากบริบทเท่านั้น และระบุชัดเจนว่าเอกสารไม่ได้กล่าวตรง ๆ หรือไม่มีข้อความยืนยันโดยตรง.\n"
+            "2) ให้ตอบเป็น bullet เป็นหลัก (ขึ้นต้นด้วย '- ') และแต่ละ bullet ต้องลงท้ายด้วยการอ้างอิงอย่างน้อย 1 รายการต่อบรรทัด โดยใส่ท้ายบรรทัดในรูปแบบ [source/page].\n"
+            "3) ห้ามเดาข้อมูลนอกรายการที่มี ใช้เฉพาะข้อมูลที่มีในบริบทเท่านั้น.\n"
+            "4) หากคำถามขอ 'สรุป' หรือ 'โครงสร้าง' ให้จัดลำดับหัวข้อก่อนรายละเอียด.\n"
+            "5) หากคำถามกำกวม/สั้นมาก (เช่น พิมพ์แค่ชื่อภาษา หรือ xxx) ให้ถามกลับ 1 คำถามสั้น ๆ เพื่อขอรายละเอียดที่จำเป็นก่อน.\n"
+            "6) ห้ามให้ URL/ลิงก์ภายนอก เว้นแต่ URL นั้นปรากฏอยู่ในบริบท.\n"
+            "7) ห้ามใช้วงเล็บเหลี่ยม [] สำหรับอย่างอื่นนอกจากการอ้างอิงเท่านั้น และห้ามสร้างการอ้างอิงใหม่ที่ไม่มีในรายการที่อนุญาต.\n"
+            "\nตัวอย่างรูปแบบที่ถูกต้อง:\n"
+            "- ทำคำร้องแบบ ทำ.19 และให้ผู้เกี่ยวข้องลงนาม [duplicate2551.txt/1]\n"
+            "- ยื่นคำร้องภายในกำหนดเวลาที่ระบุ [academiccalendar2025th.txt/1] [ปฏิทินการศึกษา_2568.txt/1]\n"
+        )
+    else:
+        instruction = (
+            "คุณคือผู้ช่วยของภาควิชาวิศวกรรมคอมพิวเตอร์ ณ มหาวิทยาลัยเทคโนโลยีพระจอมเกล้าธนบุรี ตอบเป็นภาษาไทย.\n"
+            "หลักการตอบ:\n"
+            "1) ใช้เฉพาะข้อมูลในบริบทที่ให้ หากไม่พบคำตอบแบบชัดเจน ให้ตอบสิ่งที่สรุปได้จากบริบทเท่านั้น และระบุชัดเจนว่าเอกสารไม่ได้กล่าวตรง ๆ หรือไม่มีข้อความยืนยันโดยตรง.\n"
+            "2) ให้ตอบเป็น bullet เป็นหลัก (ขึ้นต้นด้วย '- ') และตอบให้ตรงคำถาม กระชับ ชัดเจน.\n"
+            "3) ห้ามเดาข้อมูลนอกรายการที่มี ใช้เฉพาะข้อมูลที่มีในบริบทเท่านั้น.\n"
+            "4) หากคำถามขอ 'สรุป' หรือ 'โครงสร้าง' ให้จัดลำดับหัวข้อก่อนรายละเอียด.\n"
+            "5) หากคำถามกำกวม/สั้นมาก (เช่น พิมพ์แค่ชื่อภาษา หรือ xxx) ให้ถามกลับ 1 คำถามสั้น ๆ เพื่อขอรายละเอียดที่จำเป็นก่อน.\n"
+            "6) ห้ามให้ URL/ลิงก์ภายนอก เว้นแต่ URL นั้นปรากฏอยู่ในบริบท.\n"
+        )
 
+    if require_citations:
+        return (
+            f"{instruction}\n"
+            f"คำถาม:\n{question}\n\n"
+            f"บริบท:\n{ctx}\n\n"
+            f"รายชื่ออ้างอิงที่อนุญาต (ใช้ได้เฉพาะรายการนี้เท่านั้น):\n{allowed_block}\n\n"
+            f"คำตอบ:\n"
+        )
     return (
         f"{instruction}\n"
         f"คำถาม:\n{question}\n\n"
         f"บริบท:\n{ctx}\n\n"
-        f"รายชื่ออ้างอิงที่อนุญาต (ใช้ได้เฉพาะรายการนี้เท่านั้น):\n{allowed_block}\n\n"
         f"คำตอบ:\n"
     )
 
@@ -688,14 +851,21 @@ def build_prompt(question: str, ctx: str, cites: Dict[int, str]) -> str:
 def rag_query(question: str) -> Dict:
     q_display = normalize_question(question)
     q_search = search_query_from_question(question)
-    dom = infer_domain(q_display)
+    ref_allow = _reference_candidates(question)
+    strict_ref_hints = (os.getenv('STRICT_REFERENCE_HINTS', '1') or '1').strip().lower() in (
+        '1', 'true', 'yes', 'on'
+    )
+    has_ref = bool(ref_allow) and strict_ref_hints
+    dom = infer_domain(q_display) or _infer_domain_from_reference(question)
     if dom:
-        retrieved = retrieve_by_domain(q_search, domain=dom)
+        retrieved = retrieve_by_domain(question, domain=dom)
         # If too few results, fall back to all domains.
-        if len(retrieved) < 4:
+        if (not has_ref) and len(retrieved) < 4:
             retrieved = retrieve_all_domains(q_search)
     else:
         retrieved = retrieve_all_domains(q_search)
+
+    retrieved = _filter_chunks_by_reference(retrieved, question, strict=has_ref)
     ctx, cites = pack_context(retrieved)
     prompt = build_prompt(q_display, ctx, cites)
     return {
@@ -718,7 +888,16 @@ def rag_query(question: str) -> Dict:
 def rag_query_domain(question: str, domain: str | None) -> Dict:
     q_display = normalize_question(question)
     q_search = search_query_from_question(question)
-    retrieved = retrieve_by_domain(q_search, domain=domain)
+    retrieved = retrieve_by_domain(question, domain=domain)
+
+    strict_ref_hints = (os.getenv('STRICT_REFERENCE_HINTS', '1') or '1').strip().lower() in (
+        '1', 'true', 'yes', 'on'
+    )
+    retrieved = _filter_chunks_by_reference(
+        retrieved,
+        question,
+        strict=bool(_reference_candidates(question)) and strict_ref_hints,
+    )
     wants_lng_list = (
         re.search(r"LNG", q_display, re.IGNORECASE) is not None
         and any(t in q_display for t in ('เลือกเรียน', 'มีวิชา', 'วิชาอะไร', 'เลือกได้', 'ตัวเลือก'))
