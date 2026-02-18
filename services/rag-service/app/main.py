@@ -540,7 +540,11 @@ def _extract_allowed_citations(prompt: str) -> set[str]:
 
 @app.post('/rag/query', response_model=RagResponse)
 async def rag_endpoint(req: RagRequest):
-    result = rag_query_domain(req.question, req.domain) if req.domain else rag_query(req.question)
+    if _USE_LANGCHAIN:
+        from .langchain_rag import rag_query_langchain
+        result = rag_query_langchain(req.question, req.domain)
+    else:
+        result = rag_query_domain(req.question, req.domain) if req.domain else rag_query(req.question)
     return RagResponse(**result)
 
 @app.post('/rag/answer', response_model=RagAnswerResponse)

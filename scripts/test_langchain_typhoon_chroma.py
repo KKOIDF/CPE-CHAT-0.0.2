@@ -8,6 +8,24 @@ from langchain_core.documents import Document
 from langchain_core.embeddings import Embeddings
 
 
+def _load_env_file() -> None:
+    """Best-effort load repo-level .env for local testing.
+
+    This script intentionally does not print env values.
+    """
+
+    try:
+        from dotenv import load_dotenv  # type: ignore
+
+        repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+        env_path = os.path.join(repo_root, ".env")
+        if os.path.exists(env_path):
+            load_dotenv(env_path, override=False)
+    except Exception:
+        # If python-dotenv isn't installed, we just rely on the existing environment.
+        return
+
+
 class SentenceTransformerEmbeddings(Embeddings):
     """Minimal LangChain Embeddings wrapper around sentence-transformers.
 
@@ -89,6 +107,7 @@ def _test_chroma_vectorstore() -> None:
 
 def main() -> None:
     print("== LangChain + Typhoon + Chroma quick test ==")
+    _load_env_file()
     _test_typhoon_llm()
     _test_chroma_vectorstore()
 

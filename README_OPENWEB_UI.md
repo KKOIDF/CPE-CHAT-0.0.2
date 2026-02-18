@@ -105,6 +105,14 @@ python run_server.py
 TYPHOON_API_KEY=your-api-key
 TYPHOON_BASE_URL=https://api.opentyphoon.ai/v1
 
+# (Recommended) Enable LangChain orchestration path
+RAG_USE_LANGCHAIN=1
+
+# Quality toggles (optional)
+RAG_LC_MULTIQUERY=1
+RAG_LC_RERANK=1
+RAG_LC_COMPRESS=1
+
 # RAG Service
 RAG_HOST=0.0.0.0
 RAG_PORT=8001
@@ -115,6 +123,21 @@ OPENWEB_UI_PORT=3000
 # Data paths
 CPE_INDEX_ROOT=./indexes
 ```
+
+### LangChain Mode (Recommended)
+
+This repo includes an optional LangChain orchestration pipeline used by both `/rag/query` and `/rag/answer` when `RAG_USE_LANGCHAIN=1`.
+
+What you get:
+- Multi-query retrieval (improves recall for Thai phrasing variance)
+- Optional embedding rerank (reduces noisy chunks)
+- Optional context compression (fits more relevant lines into token budget)
+
+Tuning knobs (all optional):
+- `RAG_LC_MULTIQUERY=1` and `RAG_LC_MULTIQUERY_N=3`
+- `RAG_LC_PARALLEL=1` to retrieve variants in parallel
+- `RAG_LC_RERANK=1` and `RAG_LC_RERANK_TOPN=24`
+- `RAG_LC_COMPRESS=1` and `RAG_LC_COMPRESS_MAX_CHARS=700`
 
 ### OpenWeb-UI Settings
 
