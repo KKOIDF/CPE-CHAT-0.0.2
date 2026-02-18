@@ -445,6 +445,52 @@ def retrieve_all_domains(
 
 
 def retrieve_by_domain(question: str, domain: str | None, k_vec: int = 20, k_kw: int = 30) -> List[Dict]:
+    def _hydrate_from_sqlite(items: List[Dict], sqlite_path: str | None) -> List[Dict]:
+        """Replace item text/metadata from SQLite when doc_id is known.
+
+        Chroma collections can be stale or OCR-corrupted compared to the SQLite index.
+        When both share doc_id, prefer SQLite as the canonical source of truth for
+        context packing.
+        """
+        if not items or not sqlite_path:
+            return items
+        doc_ids: List[str] = []
+        seen: set[str] = set()
+        for it in items:
+            did = it.get('doc_id')
+            if isinstance(did, str) and did and did not in seen:
+                doc_ids.append(did)
+                seen.add(did)
+        if not doc_ids:
+            return items
+        docs = fetch_docs_with_path(doc_ids, sqlite_path=sqlite_path)
+        by_id = {d.get('doc_id'): d for d in docs if d.get('doc_id')}
+        out: List[Dict] = []
+        for it in items:
+            did = it.get('doc_id')
+            db = by_id.get(did) if isinstance(did, str) else None
+            if not db:
+                out.append(it)
+                continue
+            # Preserve semantic scores/fields on `it`, but prefer canonical metadata/text from SQLite.
+            merged = dict(it)
+            for k in (
+                'text',
+                'source',
+                'path',
+                'file_type',
+                'page_start',
+                'page_end',
+                'owner',
+                'sensitivity',
+                'updated_at',
+                'tokens_est',
+            ):
+                if db.get(k) is not None:
+                    merged[k] = db.get(k)
+            out.append(merged)
+        return out
+
     dom = (domain or '').strip().lower()
 
     # Use the original question to detect explicit reference hints, but use a cleaned query
@@ -463,12 +509,14 @@ def retrieve_by_domain(question: str, domain: str | None, k_vec: int = 20, k_kw:
         sqlite_path = domain_sqlite_path(dom)
 
         sem = semantic_search_domain(q_search, top_k=k_vec, domain=dom, source_allowlist=source_allowlist)
+        sem = _hydrate_from_sqlite(sem, sqlite_path)
         kw_ids = keyword_search(q_search, limit=k_kw, sqlite_path=sqlite_path, source_allowlist=source_allowlist)
         kw_docs = fetch_docs_with_path(kw_ids, sqlite_path=sqlite_path)
 
         # If the user explicitly referenced a source, stay within it (avoid cross-doc hallucinations).
         if (not strict_ref) and source_allowlist and (len(sem) + len(kw_docs) < 2):
             sem = semantic_search_domain(q_search, top_k=k_vec, domain=dom, source_allowlist=None)
+            sem = _hydrate_from_sqlite(sem, sqlite_path)
             kw_ids = keyword_search(q_search, limit=k_kw, sqlite_path=sqlite_path, source_allowlist=None)
             kw_docs = fetch_docs_with_path(kw_ids, sqlite_path=sqlite_path)
 
@@ -494,11 +542,13 @@ def retrieve_by_domain(question: str, domain: str | None, k_vec: int = 20, k_kw:
     sqlite_path = domain_sqlite_path(dom) if dom else None
 
     sem = semantic_search_domain(q_search, top_k=k_vec, domain=dom or None, source_allowlist=source_allowlist)
+    sem = _hydrate_from_sqlite(sem, sqlite_path)
     kw_ids = keyword_search(q_search, limit=k_kw, sqlite_path=sqlite_path, source_allowlist=source_allowlist)
     kw_docs = fetch_docs_with_path(kw_ids, sqlite_path=sqlite_path)
 
     if (not strict_ref) and source_allowlist and (len(sem) + len(kw_docs) < 2):
         sem = semantic_search_domain(q_search, top_k=k_vec, domain=dom or None, source_allowlist=None)
+        sem = _hydrate_from_sqlite(sem, sqlite_path)
         kw_ids = keyword_search(q_search, limit=k_kw, sqlite_path=sqlite_path, source_allowlist=None)
         kw_docs = fetch_docs_with_path(kw_ids, sqlite_path=sqlite_path)
 

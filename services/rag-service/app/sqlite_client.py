@@ -97,7 +97,18 @@ def keyword_search(
         thai_to_arabic = str.maketrans('๐๑๒๓๔๕๖๗๘๙', '0123456789')
         norm_q = query.translate(thai_to_arabic)
         candidates: List[str] = []
-        candidates += re.findall(r"[\u0E00-\u0E7F]{2,}", norm_q)
+        # Thai runs: also add suffix/prefix slices to handle compound tokens such as
+        # "ไปรษณีย์ลงทะเบียน" where the corpus may contain OCR newlines inside the word.
+        # Keeping a short suffix often captures the meaningful term (e.g., "ลงทะเบียน").
+        thai_runs = re.findall(r"[\u0E00-\u0E7F]{2,}", norm_q)
+        candidates += thai_runs
+        for t in thai_runs:
+            tt = (t or '').strip()
+            if len(tt) >= 8:
+                candidates.append(tt[-8:])
+                candidates.append(tt[:8])
+            if len(tt) >= 10:
+                candidates.append(tt[-10:])
         # Upper-case ASCII tokens so course-prefix logic works even if user types "lng".
         ascii_words = [w.upper() for w in re.findall(r"[A-Za-z]{2,}", norm_q)]
         # Support placeholder-like course prefixes such as "LNGxxx" by also searching the prefix ("LNG").
@@ -171,6 +182,11 @@ def keyword_search(
                 # Don't let the first broad token consume the entire limit;
                 # allocate a small quota per token to improve recall diversity.
                 per_token = max(4, int(limit / max(1, len(uniq))))
+                # OCR often inserts newlines/tabs mid-word; make a compact text form
+                # to improve substring match recall.
+                compact_expr = (
+                    "REPLACE(REPLACE(REPLACE(REPLACE(text, ' ', ''), char(10), ''), char(13), ''), char(9), '')"
+                )
                 for u in uniq:
                     if len(like_ids) >= limit:
                         break
@@ -181,7 +197,7 @@ def keyword_search(
                         cur = conn.execute(
                             (
                                 "SELECT doc_id FROM documents "
-                                "WHERE (text LIKE ? OR REPLACE(text, ' ', '') LIKE ?) "
+                                f"WHERE (text LIKE ? OR {compact_expr} LIKE ?) "
                                 "AND "
                                 + clause
                                 + " LIMIT ?"
@@ -190,7 +206,7 @@ def keyword_search(
                         )
                     else:
                         cur = conn.execute(
-                            "SELECT doc_id FROM documents WHERE text LIKE ? OR REPLACE(text, ' ', '') LIKE ? LIMIT ?",
+                            f"SELECT doc_id FROM documents WHERE text LIKE ? OR {compact_expr} LIKE ? LIMIT ?",
                             (needle, needle2, per_token),
                         )
                     for (did,) in cur.fetchall():
