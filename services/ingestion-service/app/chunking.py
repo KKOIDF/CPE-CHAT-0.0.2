@@ -11,8 +11,123 @@ _HEADING_RE = re.compile("|".join(_HEADING_PATTS))
 _BULLET_PATTS = [r"^[\-\•\–]\s+", r"^[ก-ฮ]\)\s+", r"^\([ก-ฮ]\)\s+", r"^\([0-9]+\)\s+"]
 _BULLET_RE = re.compile("|".join(_BULLET_PATTS))
 
-_COURSE_CODE_RE = re.compile(r"^(?P<prefix>[A-Z]{3})\s*(?P<num>\d{3})\b")
-_COURSE_CODE_ANYWHERE_RE = re.compile(r"(?P<prefix>[A-Z]{3})\s*(?P<num>\d{3})\b")
+_COURSE_CODE_RE = re.compile(r"^(?P<prefix>[A-Z]{2,4})\s*(?P<num>\d{3})\b")
+_COURSE_CODE_ANYWHERE_RE = re.compile(r"(?P<prefix>[A-Z]{2,4})\s*(?P<num>\d{3})\b")
+_SSC_COURSE_RE = re.compile(r"^SSC\s*(?P<num>\d{3})\s*:\s*(?P<title>.+)$")
+
+_GE_GROUP_RE = re.compile(r"^(กลุ่มวิชา|กลุ่ม|หมวดวิชา).{0,80}$")
+_LANG_FRAMEWORK_RE = re.compile(r"(CEFR|common\s+european\s+framework|ระดับภาษา|framework|ภาษาอังกฤษ\s*เพื่อ)", re.IGNORECASE)
+
+_TABLE_CELL_SPLIT_RE = re.compile(r"\s{2,}|\|")
+_X_MARK_RE = re.compile(r"\b[Xx✓✔]\b")
+
+_DEGREE_RE = re.compile(
+    r"\b(Ph\.?D\.|D\.?Phil\.|M\.?Sc\.|M\.?Eng\.|B\.?Eng\.|B\.?Sc\.|MBA|M\.?A\.|B\.?A\.|วศ\.บ\.|วท\.บ\.|ค\.บ\.|ศ\.บ\.|วศ\.ม\.|วท\.ม\.|ปร\.ด\.)\b",
+    re.IGNORECASE,
+)
+
+
+def _sha1_32(s: str) -> str:
+    return hashlib.sha1((s or '').encode('utf-8', 'ignore')).hexdigest()[:32]
+
+
+def _split_table_cells(line: str) -> List[str]:
+    s = (line or '').strip()
+    if not s:
+        return []
+    if '|' in s:
+        parts = [p.strip() for p in s.split('|')]
+        # Trim at most one leading/trailing boundary cell caused by leading/trailing pipes.
+        # Do NOT strip all trailing empties; empties can be meaningful cells in X-matrix tables.
+        if parts and parts[0] == '':
+            parts = parts[1:]
+        if parts and parts[-1] == '':
+            parts = parts[:-1]
+        return parts
+    parts = [p.strip() for p in _TABLE_CELL_SPLIT_RE.split(s) if p is not None]
+    return [p for p in parts if p != '']
+
+
+def _extract_degrees(block_lines: List[str]) -> List[Dict]:
+    s = "\n".join([x for x in (block_lines or []) if x and x.strip()])
+    if not s:
+        return []
+    out: List[Dict] = []
+    for m in _DEGREE_RE.finditer(s):
+        deg = (m.group(1) or '').strip()
+        if not deg:
+            continue
+        out.append({'degree': deg})
+        if len(out) >= 12:
+            break
+    # de-dup in order
+    seen = set()
+    uniq: List[Dict] = []
+    for d in out:
+        key = (d.get('degree') or '').lower()
+        if not key or key in seen:
+            continue
+        seen.add(key)
+        uniq.append(d)
+    return uniq
+
+
+def _year_to_ad(y: int) -> int:
+    if y <= 0:
+        return 0
+    if y >= 2400:
+        return y - 543
+    return y
+
+
+def _extract_learning_outcomes(lines: List[str], lo_start_idx: int) -> List[str]:
+    if not lines or lo_start_idx is None or lo_start_idx < 0 or lo_start_idx >= len(lines):
+        return []
+    out: List[str] = []
+    for ln in lines[lo_start_idx + 1 : lo_start_idx + 80]:
+        s = (ln or '').strip()
+        if not s:
+            continue
+        # stop if a new section starts (common in course blocks)
+        if re.match(r"^(เนื้อหา|หัวข้อ|วิธีการสอน|การวัดผล|วิธีการวัด|การประเมิน)\b", s):
+            break
+        # bullets / numbering
+        if _BULLET_RE.match(s) or re.match(r"^\d+[\.)]\s+", s) or re.match(r"^[A-Za-z]\)\s+", s):
+            out.append(re.sub(r"^\s*(?:[\-\•\–]|\d+[\.)]|[A-Za-z]\))\s+", "", s).strip())
+        elif out and len(s) <= 220:
+            # continuation line
+            out[-1] = (out[-1] + ' ' + s).strip()
+        if len(out) >= 25:
+            break
+    # de-dup while preserving order
+    seen = set()
+    uniq: List[str] = []
+    for x in out:
+        key = (x or '').strip().lower()
+        if not key or key in seen:
+            continue
+        seen.add(key)
+        uniq.append(x)
+    return uniq
+
+_PLO_RE = re.compile(r"^\s*PLO\s*(?P<num>\d+)\b", re.IGNORECASE)
+_SUB_PLO_RE = re.compile(r"^\s*(?P<num>\d+)(?P<lemma>[A-Z])\b")
+_PLO_ANYWHERE_RE = re.compile(r"\bPLO\s*(?P<num>\d+)\b", re.IGNORECASE)
+_SUB_PLO_ANYWHERE_RE = re.compile(r"\b(?P<num>\d+)(?P<lemma>[A-Z])\b")
+_PLO_SECTION_HINT_RE = re.compile(r"(ผลลัพธ์การเรียนรู้ของหลักสูตร|program\s*learning\s*outcomes|PLO\b)", re.IGNORECASE)
+_PLO_MAP_HINT_RE = re.compile(r"(ตาราง\s*แมป|mapping|PLO\s*↔|PLO\s*\-\s*รายวิชา|PLO\s*กับ\s*รายวิชา)", re.IGNORECASE)
+
+_COURSE_EQUIV_RE = re.compile(
+    r"(?P<old>[A-Z]{3}\s*\d{3}).{0,40}?(?:→|->|แทน|เป็น|เปลี่ยนเป็น|ปรับรหัส).{0,40}?(?P<new>[A-Z]{3}\s*\d{3})"
+)
+
+_FACULTY_NAME_RE = re.compile(r"^(รศ\.ดร\.|ผศ\.ดร\.|ผศ\.|อ\.ดร\.|อ\.)\s+.+$")
+_FACULTY_SEC_RE = re.compile(r"^(?P<sec>\d+(?:\.\d+)*)\.\s+(.+)$")
+_FACULTY_EDU_RE = re.compile(r"(ประวัติการศึกษา|education)", re.IGNORECASE)
+_FACULTY_TEACH_RE = re.compile(r"(ภาระงานสอน|teaching\s*load|courses\s*taught)", re.IGNORECASE)
+_FACULTY_PUB_RE = re.compile(r"(ผลงาน|publication)", re.IGNORECASE)
+
+_CREDITS_HINT_RE = re.compile(r"\b(\d+)\s*\((\d+\s*[-–]\s*\d+\s*[-–]\s*\d+)\)\b")
 _LO_RE = re.compile(
     r"(ผลลัพธ์การเรียนรู้|ผลการเรียนรู้|learning\s+outcomes?|course\s+learning\s+outcomes?|\bC?LO\b)",
     re.IGNORECASE,
@@ -67,6 +182,95 @@ _DELTA_CHANGE_MARK_RE = re.compile(
 
 def est_tokens(text: str) -> int:
     return max(1, int(math.ceil(len(text) / CHAR_PER_TOKEN)))
+
+
+def _infer_lang(text: str) -> str:
+    s = text or ''
+    has_th = bool(re.search(r"[ก-๙]", s))
+    has_en = bool(re.search(r"[A-Za-z]", s))
+    if has_th and has_en:
+        return 'mixed'
+    if has_th:
+        return 'th'
+    if has_en:
+        return 'en'
+    return ''
+
+
+def _course_code_norm(code: str) -> str:
+    m = _COURSE_CODE_ANYWHERE_RE.search((code or '').strip())
+    if not m:
+        return re.sub(r"\s+", "", (code or '').strip()).upper()
+    return f"{m.group('prefix').upper()}{m.group('num')}"
+
+
+def _safe_int(x, default=0) -> int:
+    try:
+        return int(x)
+    except Exception:
+        return default
+
+
+def _make_curriculum_chunk(
+    *,
+    source_path: str,
+    resolved_source: str,
+    resolved_path: str,
+    pages: List[int],
+    text: str,
+    doc_type: str,
+    year: str,
+    section: str,
+    section_heading: str = '',
+    section_path: Optional[List[str]] = None,
+    clause_id: str = '',
+    extra_meta: Optional[Dict] = None,
+) -> Dict:
+    pages_int = [int(p) for p in pages if isinstance(p, int) or str(p).isdigit()]
+    page_start = min(pages_int) if pages_int else 0
+    page_end = max(pages_int) if pages_int else 0
+    source_file = Path(source_path).name
+    program_year = _safe_int(year, 0)
+    priority = _source_priority(source_path)
+    scope = f"p{page_start}-p{page_end}" if page_start or page_end else ''
+    spath = section_path or ([section_heading] if section_heading else [])
+    chunk_uid_basis = f"{source_file}|{year}|{doc_type}|{section}|{clause_id}|{'/'.join(spath)}"
+    chunk_uid = _sha1_32(chunk_uid_basis)
+    chunk_key = f"sha1:{chunk_uid}"
+    canonical_key = f"{year}|{doc_type}|{clause_id or section}|{chunk_uid[:8]}"
+
+    out: Dict = {
+        'source': resolved_source,
+        'path': resolved_path,
+        'page': page_start,
+        'page_start': page_start,
+        'page_end': page_end,
+        'owner': 'owner:unknown',
+        'sensitivity': 'internal',
+        'updated_at': int(time.time()),
+        'text': (text or '').strip(),
+        'tokens_est': est_tokens(text or ''),
+        # Metadata
+        'doc_type': doc_type,
+        'program': CURRICULUM_PROGRAM,
+        'program_year': program_year or (year if year else ''),
+        'source_file': source_file,
+        'source_scope': scope,
+        'section': section,
+        'section_heading': section_heading,
+        'section_path': spath,
+        'lang': _infer_lang(text or ''),
+        'year': year,
+        'priority': priority,
+        'chunk_uid': chunk_uid,
+        'chunk_key': chunk_key,
+        'canonical_key': canonical_key,
+        'source_priority': priority,
+        'clause_id': clause_id,
+    }
+    if extra_meta:
+        out.update(extra_meta)
+    return out
 
 
 def is_heading(text: str) -> bool:
@@ -1322,14 +1526,27 @@ def _make_curriculum_course_chunk(
     category: str,
     section: str,
     section_heading: str,
+    doc_type: str,
     year: str,
+    section_path: Optional[List[str]] = None,
+    credits_breakdown: str = '',
+    source_scope: str = '',
+    learning_outcomes: Optional[List[str]] = None,
 ) -> Dict:
     pages_int = [int(p) for p in pages if isinstance(p, int) or str(p).isdigit()]
     page_start = min(pages_int) if pages_int else 0
     page_end = max(pages_int) if pages_int else 0
     source_file = Path(source_path).name
-    chunk_uid_basis = f"{source_file}|{year}|{course_code}|{section}|course"
-    chunk_uid = hashlib.sha1(chunk_uid_basis.encode('utf-8', 'ignore')).hexdigest()[:32]
+    chunk_uid_basis = f"{source_file}|{year}|{course_code}|{doc_type}|{section}"
+    chunk_uid = _sha1_32(chunk_uid_basis)
+    course_code_norm = _course_code_norm(course_code)
+    chunk_key = f"sha1:{chunk_uid}"
+    canonical_key = f"{year}|{course_code_norm}|{doc_type}"
+
+    credits_total = 0
+    mct = re.match(r"\s*(\d+)", credits_breakdown or '')
+    if mct:
+        credits_total = _safe_int(mct.group(1), 0)
     return {
         'source': resolved_source,
         'path': resolved_path,
@@ -1342,18 +1559,30 @@ def _make_curriculum_course_chunk(
         'text': text.strip(),
         'tokens_est': est_tokens(text),
         # Metadata for retrieval
-        'doc_type': 'course',
+        'doc_type': doc_type,
         'program': CURRICULUM_PROGRAM,
+        'program_year': _safe_int(year, 0) or (year if year else ''),
         'course_code': course_code,
+        'course_code_norm': course_code_norm,
+        'course_code_raw': (course_code or '').strip(),
         'course_th': course_th,
         'course_en': course_en,
         'category': category,
+        'credits_total': credits_total,
+        'credits_breakdown': credits_breakdown,
         'section': section,
         'section_heading': section_heading,
+        'section_path': section_path or ([section_heading] if section_heading else []),
+        'lang': _infer_lang(text),
         'source_file': source_file,
+        'source_scope': source_scope or (f"p{page_start}-p{page_end}" if page_start or page_end else ''),
         'year': year,
         'chunk_uid': chunk_uid,
+        'chunk_key': chunk_key,
+        'canonical_key': canonical_key,
+        'priority': _source_priority(source_path),
         'source_priority': _source_priority(source_path),
+        'learning_outcomes': learning_outcomes or [],
     }
 
 
@@ -1369,8 +1598,247 @@ def _make_chunks_curriculum_course(paragraphs: List[Dict], source_path: str) -> 
     resolved_path = str(Path(source_path).resolve())
     year = _extract_year_from_source(source_path)
 
+    term_head_re = re.compile(r"(ชั้นปีที่\s*\d+|ปีที่\s*\d+).{0,30}(ภาค\s*\d|ภาคการศึกษาที่\s*\d|ภาคฤดูร้อน|ภาคพิเศษ)")
+
+    # File-specific parsing: SSC.txt style: "SSC 241 : ..."
+    name_lower = Path(source_path).name.lower()
+    if 'ssc' in name_lower:
+        lines: List[str] = []
+        pages: List[int] = []
+        for p in paragraphs:
+            page = _safe_int(p.get('page', 0), 0)
+            txt = (p.get('text') or '').strip()
+            if not txt:
+                continue
+            for raw_ln in txt.splitlines():
+                ln = (raw_ln or '').strip()
+                if not ln:
+                    continue
+                lines.append(ln)
+                pages.append(page)
+
+        out: List[Dict] = []
+        cur_code = ''
+        cur_title = ''
+        cur_lines: List[str] = []
+        cur_pages: List[int] = []
+
+        def flush():
+            nonlocal cur_code, cur_title, cur_lines, cur_pages
+            if not cur_code or not cur_lines:
+                cur_code = ''
+                cur_title = ''
+                cur_lines = []
+                cur_pages = []
+                return
+            code = f"SSC {cur_code}".strip()
+            course_th, course_en = _parse_course_names(cur_title)
+            text = "\n".join(cur_lines).strip()
+            out.append(_make_curriculum_course_chunk(
+                source_path=source_path,
+                resolved_source=resolved_source,
+                resolved_path=resolved_path,
+                pages=cur_pages,
+                text=text,
+                course_code=code,
+                course_th=course_th,
+                course_en=course_en,
+                category='SSC',
+                section='CourseFull',
+                section_heading='SSC',
+                doc_type='course_full',
+                year=year,
+                section_path=['SSC', code],
+            ))
+            cur_code = ''
+            cur_title = ''
+            cur_lines = []
+            cur_pages = []
+
+        for ln, pg in zip(lines, pages):
+            m = _SSC_COURSE_RE.match(ln)
+            if m:
+                flush()
+                cur_code = m.group('num')
+                cur_title = f"SSC {cur_code} : {m.group('title')}"
+                cur_lines = [cur_title]
+                cur_pages = [pg]
+                continue
+            if cur_code:
+                cur_lines.append(ln)
+                cur_pages.append(pg)
+        flush()
+        for idx, ch in enumerate(out):
+            ch.setdefault('chunk_id', idx)
+        return out
+
+    # File-specific parsing: GE structure / GEN-LNG grouped lists
+    if 'ge' in name_lower or 'gen' in name_lower or 'lng' in name_lower or 'ศึกษาทั่วไป' in name_lower:
+        lines: List[str] = []
+        pages: List[int] = []
+        for p in paragraphs:
+            page = _safe_int(p.get('page', 0), 0)
+            txt = (p.get('text') or '').strip()
+            if not txt:
+                continue
+            for raw_ln in txt.splitlines():
+                ln = (raw_ln or '').strip()
+                if not ln:
+                    continue
+                lines.append(ln)
+                pages.append(page)
+
+        out: List[Dict] = []
+        joined = "\n".join(lines)
+
+        # language framework chunk (optional)
+        if _LANG_FRAMEWORK_RE.search(joined):
+            fw_lines = []
+            fw_pages = []
+            for ln, pg in zip(lines, pages):
+                if _LANG_FRAMEWORK_RE.search(ln):
+                    fw_lines.append(ln)
+                    fw_pages.append(pg)
+                    if len(fw_lines) >= 60:
+                        break
+            if fw_lines:
+                out.append(_make_curriculum_chunk(
+                    source_path=source_path,
+                    resolved_source=resolved_source,
+                    resolved_path=resolved_path,
+                    pages=fw_pages,
+                    text="\n".join(fw_lines),
+                    doc_type='language_framework',
+                    year=year,
+                    section='LanguageFramework',
+                    section_heading='Language framework',
+                    section_path=['LNG', 'Framework'],
+                    clause_id='language_framework',
+                ))
+
+        # ge_structure: look for a dense credit-summary region
+        struct_idx = None
+        for i, ln in enumerate(lines[:2000]):
+            if re.search(r"(ตารางที่\s*1|โครงสร้าง|รวม\s*31\s*หน่วยกิต|หมวดวิชาศึกษาทั่วไป)", ln):
+                struct_idx = i
+                break
+        if struct_idx is not None:
+            end = min(len(lines), struct_idx + 220)
+            block = [x for x in lines[struct_idx:end] if x and x.strip()]
+            if block:
+                out.append(_make_curriculum_chunk(
+                    source_path=source_path,
+                    resolved_source=resolved_source,
+                    resolved_path=resolved_path,
+                    pages=pages[struct_idx:end],
+                    text="\n".join(block),
+                    doc_type='ge_structure',
+                    year=year,
+                    section='GEStructure',
+                    section_heading='GE structure',
+                    section_path=['GE', 'Structure'],
+                    clause_id='ge_structure',
+                ))
+
+        # ge_group blocks + course_full per GEN/LNG row
+        group_starts = [i for i, ln in enumerate(lines) if _GE_GROUP_RE.match(ln)]
+        if group_starts:
+            for gi, st in enumerate(group_starts[:120]):
+                en = group_starts[gi + 1] if gi + 1 < len(group_starts) else min(len(lines), st + 500)
+                ghead = lines[st][:160]
+                block = [x for x in lines[st:en] if x and x.strip()]
+                if not block:
+                    continue
+                out.append(_make_curriculum_chunk(
+                    source_path=source_path,
+                    resolved_source=resolved_source,
+                    resolved_path=resolved_path,
+                    pages=pages[st:en],
+                    text="\n".join(block),
+                    doc_type='ge_group',
+                    year=year,
+                    section='GEGroup',
+                    section_heading=ghead,
+                    section_path=['GE', ghead],
+                    clause_id=ghead,
+                ))
+
+                # course rows inside group
+                cur_code = ''
+                cur_lines: List[str] = []
+                cur_pages: List[int] = []
+
+                def flush_course():
+                    nonlocal cur_code, cur_lines, cur_pages
+                    if not cur_code or not cur_lines:
+                        cur_code = ''
+                        cur_lines = []
+                        cur_pages = []
+                        return
+                    course_code = _normalize_course_code(cur_code)
+                    category = course_code.split(' ', 1)[0] if course_code else ''
+                    course_th, course_en = _parse_course_names(cur_lines[0])
+                    credits_breakdown = ''
+                    cm = _CREDITS_HINT_RE.search(" ".join(cur_lines[:4]))
+                    if cm:
+                        credits_breakdown = f"{cm.group(1)} ({cm.group(2)})"
+                    out.append(_make_curriculum_course_chunk(
+                        source_path=source_path,
+                        resolved_source=resolved_source,
+                        resolved_path=resolved_path,
+                        pages=cur_pages,
+                        text="\n".join(cur_lines),
+                        course_code=course_code,
+                        course_th=course_th,
+                        course_en=course_en,
+                        category=category,
+                        section='CourseFull',
+                        section_heading=ghead,
+                        doc_type='course_full',
+                        year=year,
+                        section_path=['GE', ghead, course_code],
+                        credits_breakdown=credits_breakdown,
+                    ))
+                    cur_code = ''
+                    cur_lines = []
+                    cur_pages = []
+
+                def _ge_looks_like_course_header(line: str) -> bool:
+                    m = _COURSE_CODE_RE.match((line or '').strip())
+                    if not m:
+                        return False
+                    rest = (line[m.end():] or '').strip()
+                    if not rest:
+                        return False
+                    if _CREDITS_HINT_RE.search(line) or 'หน่วยกิต' in rest:
+                        return True
+                    if re.search(r"[ก-๙]", rest):
+                        return True
+                    if re.search(r"[A-Za-z]", rest) and len(rest) >= 6:
+                        return True
+                    return False
+
+                for ln, pg in zip(lines[st:en], pages[st:en]):
+                    m = _COURSE_CODE_RE.match(ln)
+                    if m and _ge_looks_like_course_header(ln):
+                        flush_course()
+                        cur_code = f"{m.group('prefix')} {m.group('num')}"
+                        cur_lines = [ln]
+                        cur_pages = [pg]
+                        continue
+                    if cur_code:
+                        cur_lines.append(ln)
+                        cur_pages.append(pg)
+                flush_course()
+
+        for idx, ch in enumerate(out):
+            ch.setdefault('chunk_id', idx)
+        if out:
+            return out
+
     prelude_lines: List[str] = []
     prelude_pages: List[int] = []
+    prelude_line_nos: List[int] = []
 
     active_heading = ''
     current_heading = ''
@@ -1378,20 +1846,62 @@ def _make_chunks_curriculum_course(paragraphs: List[Dict], source_path: str) -> 
     current_header_line = ''
     current_lines: List[str] = []
     current_pages: List[int] = []
+    current_line_start = 0
+    current_line_end = 0
+
+    line_no = 0
+    study_plan_hold = 0
+
+    def _looks_like_course_header(line: str) -> bool:
+        m = _COURSE_CODE_RE.match(line.strip())
+        if not m:
+            return False
+        rest = (line[m.end():] or '').strip()
+        if not rest:
+            return False
+        # Strong signals
+        if _CREDITS_HINT_RE.search(line) or 'หน่วยกิต' in rest:
+            return True
+        if re.search(r"[ก-๙]", rest):
+            return True
+        if '(' in rest or ')' in rest or ':' in rest or '-' in rest or '–' in rest or '—' in rest:
+            return True
+        # English-only titles are possible; avoid mapping rows like "PLO1 1A 1B".
+        if re.search(r"[A-Za-z]", rest) and not re.match(r"^PLO\s*\d+\b", rest, re.IGNORECASE) and len(rest) >= 8:
+            return True
+        return False
 
     def _flush_course(out: List[Dict]):
-        nonlocal current_code, current_header_line, current_lines, current_pages, current_heading
+        nonlocal current_code, current_header_line, current_lines, current_pages, current_heading, current_line_start, current_line_end
         if not current_code or not current_lines:
             current_code = ''
             current_header_line = ''
             current_lines = []
             current_pages = []
             current_heading = ''
+            current_line_start = 0
+            current_line_end = 0
             return
 
         course_code = _normalize_course_code(current_code)
         category = course_code.split(' ', 1)[0] if course_code else ''
         course_th, course_en = _parse_course_names(current_header_line or current_lines[0])
+
+        # Best-effort credits breakdown from header or nearby lines
+        credits_breakdown = ''
+        for probe in (current_header_line, " ".join(current_lines[:6])):
+            if not probe:
+                continue
+            cm = _CREDITS_HINT_RE.search(probe)
+            if cm:
+                credits_breakdown = f"{cm.group(1)} ({cm.group(2)})"
+                break
+
+        section_path = []
+        if current_heading:
+            section_path.append(current_heading)
+        if course_code:
+            section_path.append(course_code)
 
         lines = [ln for ln in current_lines if ln and ln.strip()]
         full_text = "\n".join(lines).strip()
@@ -1410,8 +1920,15 @@ def _make_chunks_curriculum_course(paragraphs: List[Dict], source_path: str) -> 
                 lo_idx = i
                 break
 
+        learning_outcomes = _extract_learning_outcomes(lines, lo_idx) if lo_idx is not None else []
+
+        scope = ''
+        if current_line_start and current_line_end:
+            scope = f"p{min(current_pages) if current_pages else 0}-p{max(current_pages) if current_pages else 0}:l{current_line_start}-l{current_line_end}"
+
         if est_tokens(full_text) <= CHUNK_MAX_TOKENS or lo_idx is None:
-            section = 'CourseDescription+LearningOutcomes' if lo_idx is not None else 'CourseDescription'
+            section = 'CourseFull'
+            doc_type = 'course_full'
             out.append(_make_curriculum_course_chunk(
                 source_path=source_path,
                 resolved_source=resolved_source,
@@ -1424,7 +1941,12 @@ def _make_chunks_curriculum_course(paragraphs: List[Dict], source_path: str) -> 
                 category=category,
                 section=section,
                 section_heading=current_heading,
+                doc_type=doc_type,
                 year=year,
+                section_path=section_path,
+                credits_breakdown=credits_breakdown,
+                source_scope=scope,
+                learning_outcomes=learning_outcomes,
             ))
         else:
             desc_lines = lines[:lo_idx]
@@ -1444,7 +1966,11 @@ def _make_chunks_curriculum_course(paragraphs: List[Dict], source_path: str) -> 
                     category=category,
                     section='CourseDescription',
                     section_heading=current_heading,
+                    doc_type='course_description',
                     year=year,
+                    section_path=section_path + ['CourseDescription'],
+                    credits_breakdown=credits_breakdown,
+                    source_scope=scope,
                 ))
             if lo_text:
                 out.append(_make_curriculum_course_chunk(
@@ -1459,7 +1985,12 @@ def _make_chunks_curriculum_course(paragraphs: List[Dict], source_path: str) -> 
                     category=category,
                     section='LearningOutcomes',
                     section_heading=current_heading,
+                    doc_type='course_learning_outcomes',
                     year=year,
+                    section_path=section_path + ['LearningOutcomes'],
+                    credits_breakdown=credits_breakdown,
+                    source_scope=scope,
+                    learning_outcomes=learning_outcomes,
                 ))
 
         current_code = ''
@@ -1467,6 +1998,8 @@ def _make_chunks_curriculum_course(paragraphs: List[Dict], source_path: str) -> 
         current_lines = []
         current_pages = []
         current_heading = ''
+        current_line_start = 0
+        current_line_end = 0
 
     chunks: List[Dict] = []
 
@@ -1487,6 +2020,23 @@ def _make_chunks_curriculum_course(paragraphs: List[Dict], source_path: str) -> 
             ln = (raw_ln or '').strip()
             if not ln:
                 continue
+            line_no += 1
+
+            # Heuristic: when inside a study-plan table/list, keep course-code lines as part of plan
+            # (do not start course chunks), because users ask by year/term and the plan table
+            # should be chunked at the plan level.
+            if not current_code:
+                if re.search(r"(คำอธิบายรายวิชา|ภาคผนวก\s*ก|course\s+description)", ln, re.IGNORECASE):
+                    study_plan_hold = 0
+                if term_head_re.search(ln) or _STUDY_PLAN_RE.search(ln) or ln.startswith('แผน'):
+                    study_plan_hold = max(study_plan_hold, 180)
+
+            if not current_code and study_plan_hold > 0:
+                prelude_lines.append(ln)
+                prelude_pages.append(page)
+                prelude_line_nos.append(line_no)
+                study_plan_hold -= 1
+                continue
 
             # Curriculum docs often have headings without punctuation; treat key markers as headings.
             if (
@@ -1500,7 +2050,7 @@ def _make_chunks_curriculum_course(paragraphs: List[Dict], source_path: str) -> 
                 active_heading = ln
 
             m = _COURSE_CODE_RE.match(ln)
-            if m:
+            if m and _looks_like_course_header(ln):
                 # New course block begins
                 _flush_course(chunks)
                 current_code = f"{m.group('prefix')} {m.group('num')}"
@@ -1508,52 +2058,518 @@ def _make_chunks_curriculum_course(paragraphs: List[Dict], source_path: str) -> 
                 current_heading = active_heading
                 current_lines = [ln]
                 current_pages = [page]
+                current_line_start = line_no
+                current_line_end = line_no
                 continue
 
             if current_code:
                 current_lines.append(ln)
                 current_pages.append(page)
+                current_line_end = line_no
             else:
                 prelude_lines.append(ln)
                 prelude_pages.append(page)
+                prelude_line_nos.append(line_no)
 
     _flush_course(chunks)
 
-    # Prelude/non-course content: keep as a single chunk if meaningful.
+    # --- Extractions from non-course content (multi-granularity) ---
     prelude_text = "\n".join([x for x in prelude_lines if x and x.strip()]).strip()
+    prelude_pages_int = [int(p) for p in prelude_pages if isinstance(p, int) or str(p).isdigit()]
+    prelude_page_start = min(prelude_pages_int) if prelude_pages_int else 0
+    prelude_page_end = max(prelude_pages_int) if prelude_pages_int else 0
+
+    # Program profile (title/year/degree lines)
+    prof_lines = []
+    for ln in prelude_lines[:120]:
+        if re.search(r"(หลักสูตร|ปริญญา|Bachelor|B\.Eng|วิศวกรรมคอมพิวเตอร์|Computer\s+Engineering)", ln, re.IGNORECASE):
+            prof_lines.append(ln)
+        if len(prof_lines) >= 18:
+            break
+    if prof_lines:
+        chunks.insert(0, _make_curriculum_chunk(
+            source_path=source_path,
+            resolved_source=resolved_source,
+            resolved_path=resolved_path,
+            pages=[prelude_page_start, prelude_page_end],
+            text="\n".join(prof_lines),
+            doc_type='program_profile',
+            year=year,
+            section='ProgramProfile',
+            section_heading='',
+            section_path=['Program Profile'],
+            clause_id='program_profile',
+        ))
+
+    # Program structure / study plan as before, but add a clearer doc_type
     if prelude_text and est_tokens(prelude_text) >= 10:
         doc_type = 'program_structure' if _STRUCTURE_RE.search(prelude_text) else ('study_plan' if _STUDY_PLAN_RE.search(prelude_text) else 'program_structure')
-        pages_int = [int(p) for p in prelude_pages if isinstance(p, int) or str(p).isdigit()]
-        page_start = min(pages_int) if pages_int else 0
-        page_end = max(pages_int) if pages_int else 0
-        source_file = Path(source_path).name
         section = 'ProgramStructure' if doc_type == 'program_structure' else 'StudyPlan'
-        chunk_uid_basis = f"{source_file}|{year}|{doc_type}|{section}"
-        chunk_uid = hashlib.sha1(chunk_uid_basis.encode('utf-8', 'ignore')).hexdigest()[:32]
-        chunks.insert(0, {
-            'source': resolved_source,
-            'path': resolved_path,
-            'page': page_start,
-            'page_start': page_start,
-            'page_end': page_end,
-            'owner': 'owner:unknown',
-            'sensitivity': 'internal',
-            'updated_at': int(time.time()),
-            'text': prelude_text,
-            'tokens_est': est_tokens(prelude_text),
-            'doc_type': doc_type,
-            'program': CURRICULUM_PROGRAM,
-            'course_code': '',
-            'course_th': '',
-            'course_en': '',
-            'category': '',
-            'section': section,
-            'section_heading': '',
-            'source_file': source_file,
-            'year': year,
-            'chunk_uid': chunk_uid,
-            'source_priority': _source_priority(source_path),
-        })
+
+        credits = None
+        if doc_type == 'program_structure':
+            # best-effort extract totals (common in FOE10 and มคอ.2 summary)
+            credits = {}
+            m_total = re.search(r"รวม\s*(\d{2,3})\s*หน่วยกิต", prelude_text)
+            if m_total:
+                credits['total'] = _safe_int(m_total.group(1), 0)
+            m_ge = re.search(r"ศึกษาทั่วไป\s*(\d{1,3})", prelude_text)
+            if m_ge:
+                credits['general'] = _safe_int(m_ge.group(1), 0)
+            m_major = re.search(r"วิชาเฉพาะ\s*(\d{1,3})", prelude_text)
+            if m_major:
+                credits['major'] = _safe_int(m_major.group(1), 0)
+            m_free = re.search(r"เลือกเสรี\s*(\d{1,3})", prelude_text)
+            if m_free:
+                credits['free_elective'] = _safe_int(m_free.group(1), 0)
+            if not credits:
+                credits = None
+
+        chunks.insert(1 if prof_lines else 0, _make_curriculum_chunk(
+            source_path=source_path,
+            resolved_source=resolved_source,
+            resolved_path=resolved_path,
+            pages=[prelude_page_start, prelude_page_end],
+            text=prelude_text,
+            doc_type=doc_type,
+            year=year,
+            section=section,
+            section_heading='',
+            section_path=[section],
+            clause_id=section,
+            extra_meta={'credits': credits, 'credits_total': (credits or {}).get('total') if credits else None},
+        ))
+
+    # Study plan term chunks (best-effort): split on year/term headers
+    term_starts = [i for i, ln in enumerate(prelude_lines) if term_head_re.search(ln)]
+    for ti, st in enumerate(term_starts[:80]):
+        en = term_starts[ti + 1] if ti + 1 < len(term_starts) else min(len(prelude_lines), st + 80)
+        block = [x for x in prelude_lines[st:en] if x and x.strip()]
+        if not block:
+            continue
+        head = block[0][:160]
+        block_pages = prelude_pages[st:en] if st < len(prelude_pages) else []
+        block_lines = prelude_line_nos[st:en] if st < len(prelude_line_nos) else []
+        scope = ''
+        if block_lines:
+            scope = f"p{min(block_pages) if block_pages else 0}-p{max(block_pages) if block_pages else 0}:l{min(block_lines)}-l{max(block_lines)}"
+        chunks.append(_make_curriculum_chunk(
+            source_path=source_path,
+            resolved_source=resolved_source,
+            resolved_path=resolved_path,
+            pages=block_pages,
+            text="\n".join(block),
+            doc_type='study_plan_term',
+            year=year,
+            section='StudyPlanTerm',
+            section_heading=head,
+            section_path=['Study Plan', head],
+            clause_id=head,
+            extra_meta={'term_label': head, 'plan_label': head if 'แผน' in head else '', 'source_scope': scope},
+        ))
+
+        # Optional row-level chunks inside the term block (1 row ~= 1 course line)
+        for ri, (ln, pg) in enumerate(zip(prelude_lines[st:en], prelude_pages[st:en])):
+            if '|' in (ln or ''):
+                continue
+            cm = _COURSE_CODE_RE.match((ln or '').strip())
+            if not cm:
+                continue
+            code = _course_code_norm(f"{cm.group('prefix')} {cm.group('num')}")
+            credits_breakdown = ''
+            ccm = _CREDITS_HINT_RE.search(ln)
+            if ccm:
+                credits_breakdown = f"{ccm.group(1)} ({ccm.group(2)})"
+            chunks.append(_make_curriculum_chunk(
+                source_path=source_path,
+                resolved_source=resolved_source,
+                resolved_path=resolved_path,
+                pages=[pg],
+                text=ln,
+                doc_type='study_plan_term_row',
+                year=year,
+                section='StudyPlanTermRow',
+                section_heading=head,
+                section_path=['Study Plan', head, code],
+                clause_id=f"{head}|{code}|{ri}",
+                extra_meta={
+                    'term_label': head,
+                    'plan_label': head if 'แผน' in head else '',
+                    'course_code_norm': code,
+                    'credits_breakdown': credits_breakdown,
+                    'canonical_key': f"{year}|{head}|{code}|study_plan_term_row",
+                },
+            ))
+
+    # PLO/Sub-PLO chunks
+    if _PLO_SECTION_HINT_RE.search(prelude_text):
+        plo_starts = []
+        for i, ln in enumerate(prelude_lines):
+            if _PLO_RE.match(ln) or re.match(r"^ผลลัพธ์การเรียนรู้ของหลักสูตร", ln):
+                plo_starts.append(i)
+        for pi, st in enumerate(plo_starts[:200]):
+            en = plo_starts[pi + 1] if pi + 1 < len(plo_starts) else min(len(prelude_lines), st + 120)
+            block = [x for x in prelude_lines[st:en] if x and x.strip()]
+            if not block:
+                continue
+            head = block[0]
+            m = _PLO_RE.search(head)
+            plo_num = m.group('num') if m else ''
+            clause = f"PLO{plo_num}" if plo_num else 'PLO'
+            chunks.append(_make_curriculum_chunk(
+                source_path=source_path,
+                resolved_source=resolved_source,
+                resolved_path=resolved_path,
+                pages=prelude_pages[st:en],
+                text="\n".join(block),
+                doc_type='plo',
+                year=year,
+                section='PLO',
+                section_heading='PLO',
+                section_path=['PLO', clause],
+                clause_id=clause,
+                extra_meta={'plo_id': clause},
+            ))
+            # Sub-PLO within the block
+            sub_idxs = [j for j, ln in enumerate(block[1:], start=1) if _SUB_PLO_RE.match(ln)]
+            for si, ss in enumerate(sub_idxs[:200]):
+                ee = sub_idxs[si + 1] if si + 1 < len(sub_idxs) else len(block)
+                sub_block = [head] + block[ss:ee]
+                sm = _SUB_PLO_RE.match(block[ss])
+                sub_id = f"{sm.group('num')}{sm.group('lemma')}" if sm else ''
+                if not sub_id:
+                    continue
+                chunks.append(_make_curriculum_chunk(
+                    source_path=source_path,
+                    resolved_source=resolved_source,
+                    resolved_path=resolved_path,
+                    pages=prelude_pages[st:en],
+                    text="\n".join(sub_block),
+                    doc_type='sub_plo',
+                    year=year,
+                    section='SubPLO',
+                    section_heading='PLO',
+                    section_path=['PLO', clause, sub_id],
+                    clause_id=sub_id,
+                    extra_meta={'plo_id': clause, 'sub_plo_id': sub_id},
+                ))
+
+    # Course equivalence / change log chunks
+    for i, ln in enumerate(prelude_lines[:5000]):
+        m = _COURSE_EQUIV_RE.search(ln)
+        if not m:
+            continue
+        old_code = _normalize_course_code(m.group('old'))
+        new_code = _normalize_course_code(m.group('new'))
+        chunks.append(_make_curriculum_chunk(
+            source_path=source_path,
+            resolved_source=resolved_source,
+            resolved_path=resolved_path,
+            pages=[prelude_pages[i] if i < len(prelude_pages) else 0],
+            text=ln,
+            doc_type='course_equivalence',
+            year=year,
+            section='CourseEquivalence',
+            section_heading='Course change',
+            section_path=['Course Equivalence', f"{old_code}->{new_code}"],
+            clause_id=f"{old_code}->{new_code}",
+            extra_meta={'old_code': old_code, 'new_code': new_code},
+        ))
+
+    # Faculty roster (best-effort): capture consecutive faculty lines
+    roster_idxs = [i for i, ln in enumerate(prelude_lines[:4000]) if _FACULTY_NAME_RE.match(ln)]
+    if roster_idxs:
+        start = roster_idxs[0]
+        end = min(len(prelude_lines), start + 160)
+        roster_block = [x for x in prelude_lines[start:end] if x and x.strip()]
+        degrees = _extract_degrees(roster_block)
+        chunks.append(_make_curriculum_chunk(
+            source_path=source_path,
+            resolved_source=resolved_source,
+            resolved_path=resolved_path,
+            pages=prelude_pages[start:end],
+            text="\n".join(roster_block),
+            doc_type='faculty_roster',
+            year=year,
+            section='FacultyRoster',
+            section_heading='Faculty roster',
+            section_path=['Faculty', 'Roster'],
+            clause_id='faculty_roster',
+            extra_meta={'degrees': degrees},
+        ))
+
+    # Faculty biography appendix (ภาคผนวก ง.) — parse per-person, then split sections 1/2/3
+    all_lines: List[str] = []
+    all_pages: List[int] = []
+    all_line_nos: List[int] = []
+    for p in paragraphs:
+        page = _safe_int(p.get('page', 0), 0)
+        txt = (p.get('text') or '').strip()
+        if not txt:
+            continue
+        for raw_ln in txt.splitlines():
+            ln = (raw_ln or '').strip()
+            if not ln:
+                continue
+            all_lines.append(ln)
+            all_pages.append(page)
+            all_line_nos.append(len(all_line_nos) + 1)
+
+    app_idx = None
+    for i, ln in enumerate(all_lines[:8000]):
+        if re.search(r"ภาคผนวก\s*ง", ln):
+            app_idx = i
+            break
+    if app_idx is not None:
+        bio_lines = all_lines[app_idx:]
+        bio_pages = all_pages[app_idx:]
+        bio_line_nos = all_line_nos[app_idx:]
+        starts = [i for i, ln in enumerate(bio_lines) if _FACULTY_NAME_RE.match(ln)]
+
+        def _person_id(name_th: str) -> str:
+            basis = f"{year}|{name_th.strip()}"
+            return f"kmuttt:{hashlib.sha1(basis.encode('utf-8','ignore')).hexdigest()[:16]}"
+
+        for pi, st in enumerate(starts[:300]):
+            en = starts[pi + 1] if pi + 1 < len(starts) else min(len(bio_lines), st + 400)
+            block = [x for x in bio_lines[st:en] if x and x.strip()]
+            if not block:
+                continue
+            name_th = block[0][:120]
+            name_en = block[1][:120] if len(block) > 1 and re.search(r"[A-Za-z]", block[1]) else ''
+            pid = _person_id(name_th)
+            rank_th = ''
+            rm = re.match(r"^(รศ\.ดร\.|ผศ\.ดร\.|ผศ\.|อ\.ดร\.|อ\.)", name_th)
+            if rm:
+                rank_th = rm.group(1)
+            degrees = _extract_degrees(block[:80])
+
+            scope = ''
+            if st < len(bio_line_nos) and (en - 1) < len(bio_line_nos):
+                scope = f"p{min(bio_pages[st:en]) if bio_pages[st:en] else 0}-p{max(bio_pages[st:en]) if bio_pages[st:en] else 0}:l{bio_line_nos[st]}-l{bio_line_nos[en-1]}"
+            # full profile
+            chunks.append(_make_curriculum_chunk(
+                source_path=source_path,
+                resolved_source=resolved_source,
+                resolved_path=resolved_path,
+                pages=bio_pages[st:en],
+                text="\n".join(block),
+                doc_type='faculty_profile_full',
+                year=year,
+                section='FacultyProfile',
+                section_heading=name_th,
+                section_path=['Faculty', name_th],
+                clause_id=pid,
+                extra_meta={
+                    'person_id': pid,
+                    'person_name_th': name_th,
+                    'person_name_en': name_en,
+                    'academic_rank_th': rank_th,
+                    'degrees': degrees,
+                    'source_scope': scope,
+                },
+            ))
+            # section splits
+            sec_starts = [j for j, ln in enumerate(block) if _FACULTY_SEC_RE.match(ln)]
+            for si, ss in enumerate(sec_starts[:20]):
+                ee = sec_starts[si + 1] if si + 1 < len(sec_starts) else len(block)
+                sec_block = block[ss:ee]
+                head_ln = sec_block[0]
+                dtype = 'faculty_section'
+                if _FACULTY_EDU_RE.search("\n".join(sec_block[:3])):
+                    dtype = 'faculty_education'
+                elif _FACULTY_TEACH_RE.search("\n".join(sec_block[:3])):
+                    dtype = 'faculty_teaching_load'
+                elif _FACULTY_PUB_RE.search("\n".join(sec_block[:3])):
+                    dtype = 'faculty_publications'
+                # extract taught courses
+                taught = []
+                if dtype == 'faculty_teaching_load':
+                    for ln2 in sec_block:
+                        for mm in _COURSE_CODE_ANYWHERE_RE.finditer(ln2):
+                            taught.append(_course_code_norm(f"{mm.group('prefix')} {mm.group('num')}"))
+                            if len(taught) >= 40:
+                                break
+                        if len(taught) >= 40:
+                            break
+                    taught = sorted(set(taught))
+
+                pubs_5y = []
+                pub_years = []
+                if dtype == 'faculty_publications':
+                    now_year = time.gmtime().tm_year
+                    for ln2 in sec_block:
+                        for ym in re.finditer(r"\b(20\d{2}|25\d{2}|26\d{2})\b", ln2):
+                            yy = _safe_int(ym.group(1), 0)
+                            ad = _year_to_ad(yy)
+                            if ad:
+                                pub_years.append(ad)
+                                if ad >= now_year - 5:
+                                    pubs_5y.append(ln2.strip())
+                        if len(pubs_5y) >= 40:
+                            break
+                    # de-dup
+                    pubs_5y = [x for i, x in enumerate(pubs_5y) if x and x not in pubs_5y[:i]]
+                    pub_years = sorted(set(pub_years))
+                chunks.append(_make_curriculum_chunk(
+                    source_path=source_path,
+                    resolved_source=resolved_source,
+                    resolved_path=resolved_path,
+                    pages=bio_pages[st:en],
+                    text="\n".join(sec_block),
+                    doc_type=dtype,
+                    year=year,
+                    section='FacultySection',
+                    section_heading=head_ln[:120],
+                    section_path=['Faculty', name_th, head_ln[:120]],
+                    clause_id=f"{pid}:{dtype}",
+                    extra_meta={
+                        'person_id': pid,
+                        'person_name_th': name_th,
+                        'person_name_en': name_en,
+                        'academic_rank_th': rank_th,
+                        'degrees': degrees,
+                        'teaching_current': taught,
+                        'teaching_in_program': taught,
+                        'publications_5y': pubs_5y,
+                        'publications_years': pub_years,
+                        'source_scope': scope,
+                    },
+                ))
+
+    # PLO↔Course mapping derived chunks (best-effort)
+    if _PLO_MAP_HINT_RE.search(prelude_text):
+        # Collect candidate lines
+        map_lines: List[str] = []
+        map_pages: List[int] = []
+        for ln, pg in zip(prelude_lines, prelude_pages or [0] * len(prelude_lines)):
+            if _COURSE_CODE_ANYWHERE_RE.search(ln) or _SUB_PLO_ANYWHERE_RE.search(ln) or '|' in ln or 'X' in ln or term_head_re.search(ln):
+                if _PLO_MAP_HINT_RE.search(ln) or _COURSE_CODE_ANYWHERE_RE.search(ln) or _SUB_PLO_ANYWHERE_RE.search(ln) or _X_MARK_RE.search(ln) or term_head_re.search(ln):
+                    map_lines.append(ln)
+                    map_pages.append(pg)
+                    if len(map_lines) >= 400:
+                        break
+
+        if map_lines:
+            chunks.append(_make_curriculum_chunk(
+                source_path=source_path,
+                resolved_source=resolved_source,
+                resolved_path=resolved_path,
+                pages=map_pages,
+                text="\n".join(map_lines),
+                doc_type='plo_course_map_table',
+                year=year,
+                section='PLOMapTable',
+                section_heading='PLO↔Course map',
+                section_path=['PLO Mapping', 'Table'],
+                clause_id='plo_course_map_table',
+            ))
+
+            # 1) Try column-based extraction using a header row of PLO/SubPLO labels
+            header_idx = None
+            header_cols: List[str] = []
+            for i, ln in enumerate(map_lines[:200]):
+                cols = _split_table_cells(ln)
+                labels = [c for c in cols if re.fullmatch(r"(?:PLO\d+|\d+[A-Z])", c, flags=re.IGNORECASE)]
+                if len(labels) >= 5:
+                    header_idx = i
+                    header_cols = [lab.upper().replace(' ', '') for lab in labels]
+                    break
+
+            derived: Dict[str, set] = {}
+            term_by_course: Dict[str, str] = {}
+            current_term = ''
+            if header_idx is not None and header_cols:
+                for ln in map_lines[header_idx + 1 : header_idx + 260]:
+                    if term_head_re.search(ln):
+                        if '|' in ln:
+                            cols = _split_table_cells(ln)
+                            current_term = (cols[0] if cols else ln).strip()[:160]
+                        else:
+                            current_term = ln.strip()[:160]
+                        continue
+                    cm = _COURSE_CODE_ANYWHERE_RE.search(ln)
+                    if not cm:
+                        continue
+                    code = _course_code_norm(f"{cm.group('prefix')} {cm.group('num')}")
+                    if current_term:
+                        term_by_course.setdefault(code, current_term)
+                    cols = _split_table_cells(ln)
+                    if len(cols) < len(header_cols):
+                        continue
+                    # Map using the rightmost N cells (handles variable left columns)
+                    right = cols[-len(header_cols):]
+                    plos = set()
+                    for lab, cell in zip(header_cols, right):
+                        if _X_MARK_RE.search(cell) or cell.strip() in {'X', 'x', '✓', '✔'}:
+                            plos.add(lab if lab.startswith('PLO') else lab)
+                    if plos:
+                        derived.setdefault(code, set()).update(plos)
+
+            # 2) Fallback: same-line labels
+            if not derived:
+                for ln in map_lines:
+                    cm = _COURSE_CODE_ANYWHERE_RE.search(ln)
+                    if not cm:
+                        continue
+                    code = _course_code_norm(f"{cm.group('prefix')} {cm.group('num')}")
+                    plos = set()
+                    for pm in _PLO_ANYWHERE_RE.finditer(ln):
+                        plos.add(f"PLO{pm.group('num')}")
+                    for sm in _SUB_PLO_ANYWHERE_RE.finditer(ln):
+                        if len(sm.group('num')) <= 2:
+                            plos.add(f"{sm.group('num')}{sm.group('lemma').upper()}")
+                    if plos:
+                        derived.setdefault(code, set()).update(plos)
+
+            for code, plos in sorted(derived.items())[:800]:
+                plos_list = sorted(plos)
+                chunks.append(_make_curriculum_chunk(
+                    source_path=source_path,
+                    resolved_source=resolved_source,
+                    resolved_path=resolved_path,
+                    pages=map_pages,
+                    text=f"Course {code} covers: {', '.join(plos_list)}",
+                    doc_type='course_plo_map',
+                    year=year,
+                    section='CoursePLOMap',
+                    section_heading=code,
+                    section_path=['PLO Mapping', code],
+                    clause_id=code,
+                    extra_meta={'course_code_norm': code, 'plos_covered': plos_list, 'canonical_key': f"{year}|{code}|course_plo_map"},
+                ))
+
+            # Term-level derived summary (if term headings were detected)
+            if term_by_course and derived:
+                term_agg: Dict[str, Dict[str, set]] = {}
+                for code, term in term_by_course.items():
+                    if code not in derived:
+                        continue
+                    rec = term_agg.setdefault(term, {'courses': set(), 'plos': set()})
+                    rec['courses'].add(code)
+                    rec['plos'].update(derived[code])
+                for term, rec in list(term_agg.items())[:80]:
+                    courses = sorted(rec['courses'])
+                    plos = sorted(rec['plos'])
+                    chunks.append(_make_curriculum_chunk(
+                        source_path=source_path,
+                        resolved_source=resolved_source,
+                        resolved_path=resolved_path,
+                        pages=map_pages,
+                        text=f"{term}\nCourses: {', '.join(courses)}\nPLOs covered: {', '.join(plos)}",
+                        doc_type='term_plo_map',
+                        year=year,
+                        section='TermPLOMap',
+                        section_heading=term,
+                        section_path=['PLO Mapping', 'By Term', term],
+                        clause_id=term,
+                        extra_meta={
+                            'term_label': term,
+                            'term_courses': courses,
+                            'plos_covered': plos,
+                            'canonical_key': f"{year}|{term}|term_plo_map",
+                        },
+                    ))
 
     # Deterministic ordering id within a source file
     for idx, ch in enumerate(chunks):

@@ -11,7 +11,11 @@ from .llm import llm_engine
 
 _USE_LANGCHAIN = os.getenv('RAG_USE_LANGCHAIN', '0') in ('1', 'true', 'True')
 
-_CITE_RE = re.compile(r"\[([^\]]+?/\d+)\]")
+_USE_STRUCTURED_CURRICULUM = os.getenv('RAG_USE_STRUCTURED_CURRICULUM', '1') in ('1', 'true', 'True')
+
+_CITE_CAPTURE_RE = re.compile(r"\[([^\]]+?/\d+)\]")
+_CITE_MATCH_RE = re.compile(r"\[[^\]]+?/\d+\]")
+_BRACKET_RE = re.compile(r"\[[^\]]*\]")
 
 
 def _extract_allowed_cites(prompt: str) -> list[str]:
@@ -22,7 +26,7 @@ def _extract_allowed_cites(prompt: str) -> list[str]:
     after = p.split(marker, 1)[1]
     if '\n\nคำตอบ:' in after:
         after = after.split('\n\nคำตอบ:', 1)[0]
-    found = _CITE_RE.findall(after)
+    found = _CITE_CAPTURE_RE.findall(after)
     out: list[str] = []
     seen: set[str] = set()
     for c in found:
@@ -34,7 +38,7 @@ def _extract_allowed_cites(prompt: str) -> list[str]:
 
 
 def _has_citations(answer: str) -> bool:
-    return bool(_CITE_RE.search(answer or ''))
+    return bool(_CITE_MATCH_RE.search(answer or ''))
 
 
 def _repair_answer_with_citations(answer: str, prompt: str) -> str:
@@ -63,6 +67,37 @@ def _repair_answer_with_citations(answer: str, prompt: str) -> str:
     )
     repaired = llm_engine.generate(repair_prompt)
     return repaired or answer
+
+
+def _sanitize_answer_citations(answer: str, prompt: str) -> str:
+    """Remove disallowed citations and ensure each bullet has >=1 allowed cite.
+
+    Deterministic and conservative: never invents new cite labels; only uses
+    the allowed list embedded in the prompt.
+    """
+    a = (answer or '').strip()
+    allowed = _extract_allowed_cites(prompt)
+    if not a or not allowed:
+        return a
+
+    allowed_set = set(allowed)
+    fallback = allowed[0]
+
+    # Drop any [source/page] citations not in the allowed list.
+    def _keep_or_drop(m: re.Match) -> str:
+        c = (m.group(1) or '').strip()
+        return f"[{c}]" if c in allowed_set else ""
+
+    a = _CITE_CAPTURE_RE.sub(_keep_or_drop, a)
+
+    # Ensure every bullet-start line has at least one allowed citation.
+    out_lines: list[str] = []
+    for ln in a.splitlines():
+        s = ln.rstrip()
+        if s.lstrip().startswith('- ') and not _CITE_MATCH_RE.search(s):
+            s = f"{s} [{fallback}]"
+        out_lines.append(s)
+    return "\n".join(out_lines).strip()
 
 app = FastAPI(title="RAG Service", version="0.1.0")
 
@@ -117,8 +152,7 @@ class ChatCompletionResponse(BaseModel):
 
 
 _FALLBACK = 'ไม่พบข้อมูลในเอกสาร'
-_CITE_RE = re.compile(r"\[[^\]]+?/\d+\]")
-_BRACKET_RE = re.compile(r"\[[^\]]*\]")
+ 
 
 
 def _build_effective_question(messages: list[dict] | None, default_question: str) -> str:
@@ -189,7 +223,7 @@ _DOW_RE = re.compile(r"(จันทร์|อังคาร|พุธ|พฤ�
 
 def _strip_citations(text: str) -> str:
     # Remove packed-context cite labels like [file.txt/1]
-    out = re.sub(_CITE_RE, '', text or '')
+    out = re.sub(_CITE_MATCH_RE, '', text or '')
     # Remove any remaining bracket blocks (models sometimes echo them)
     out = re.sub(_BRACKET_RE, '', out)
     return out
@@ -257,9 +291,10 @@ def _normalize_calendar_text(text: str) -> str:
     return t
 
 
-def _clean_answer_text(answer: str) -> str:
+def _clean_answer_text(answer: str, *, strip_citations: bool) -> str:
     a = (answer or '').strip()
-    a = _strip_citations(a)
+    if strip_citations:
+        a = _strip_citations(a)
     a = _normalize_calendar_text(a)
     # Remove stray spaces at line ends
     a = "\n".join([ln.rstrip() for ln in a.splitlines()]).strip()
@@ -336,8 +371,7 @@ def _try_extract_total_credits(prompt: str) -> str | None:
     if not cite:
         return None
 
-    # Return without visible citation; context is still used for grounding.
-    return f"- หลักสูตรกำหนดหน่วยกิตรวม {best_n} หน่วยกิต"
+    return f"- หลักสูตรกำหนดหน่วยกิตรวม {best_n} หน่วยกิต [{cite}]"
 
 
 def _try_extract_withdraw_w_dates(prompt: str, question: str | None = None) -> str | None:
@@ -550,7 +584,7 @@ async def rag_endpoint(req: RagRequest):
 @app.post('/rag/answer', response_model=RagAnswerResponse)
 async def rag_answer_endpoint(req: RagAnswerRequest):
     # Structured curriculum shortcut (deterministic, not top-k dependent)
-    if (req.domain or '').strip().lower() == 'curriculum' or req.domain is None:
+    if _USE_STRUCTURED_CURRICULUM and ((req.domain or '').strip().lower() == 'curriculum' or req.domain is None):
         structured = structured_curriculum_answer(req.question)
         if structured:
             return RagAnswerResponse(
@@ -592,10 +626,11 @@ async def rag_answer_endpoint(req: RagAnswerRequest):
                 # Enforce citations when we have context, otherwise retrieval-grounding becomes fuzzy.
                 if (result.get('contexts') or []) and answer and not answer.strip().startswith('('):
                     answer = _repair_answer_with_citations(answer, result.get('prompt') or '')
+                    answer = _sanitize_answer_citations(answer, result.get('prompt') or '')
         # If generation is unavailable/disabled, preserve the diagnostic message.
         if not (answer or '').strip().startswith('('):
             # Clean and validate answer - keep it natural without enforcing citations
-            answer = _clean_answer_text(answer)
+            answer = _clean_answer_text(answer, strip_citations=False)
 
             # If model uses fallback phrase, it must be the entire answer.
             if _FALLBACK in answer and answer != _FALLBACK:
@@ -704,9 +739,10 @@ async def openai_compatible_endpoint(request: dict):
 
                 if (result.get('contexts') or []) and answer and not answer.strip().startswith('('):
                     answer = _repair_answer_with_citations(answer, result.get('prompt') or '')
+                    answer = _sanitize_answer_citations(answer, result.get('prompt') or '')
         
         if not (answer or '').strip().startswith('('):
-            answer = _clean_answer_text(answer)
+            answer = _clean_answer_text(answer, strip_citations=True)
 
     # Return OpenAI-compatible response
     return {

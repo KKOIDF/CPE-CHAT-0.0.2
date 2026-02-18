@@ -1,5 +1,6 @@
 from pathlib import Path
 from typing import List, Dict, Any
+import json
 import os
 
 import chromadb
@@ -163,6 +164,22 @@ def upsert_chunks(chunks: List[Dict[str, Any]]):
             'doc_type', 'program', 'course_code', 'course_th', 'course_en',
             'category', 'section', 'section_heading', 'source_file', 'year',
             'chunk_uid', 'source_priority',
+            # Curriculum multi-granularity
+            'program_year', 'section_path', 'source_scope', 'lang', 'priority',
+            'chunk_key', 'canonical_key',
+            'course_code_norm', 'course_code_raw', 'credits_breakdown',
+            'credits_total', 'credits',
+            'learning_outcomes',
+            'plo_id', 'sub_plo_id',
+            'plos_covered',
+            'term_label', 'plan_label', 'term_courses',
+            'old_code', 'new_code',
+            'person_id', 'person_name_th', 'person_name_en',
+            'academic_rank_th', 'academic_rank_en',
+            'degrees',
+            'teaching_current',
+            'teaching_in_program',
+            'publications_5y', 'publications_years',
             # Announcements / shared
             'doc_title', 'topic', 'year_be', 'effective_from', 'audience',
             'clause_id', 'supersedes', 'amends', 'delta_type', 'targets',
@@ -179,7 +196,10 @@ def upsert_chunks(chunks: List[Dict[str, Any]]):
             if isinstance(v, (str, int, float, bool)):
                 meta[k] = v
             else:
-                meta[k] = str(v)
+                try:
+                    meta[k] = json.dumps(v, ensure_ascii=False)
+                except Exception:
+                    meta[k] = str(v)
         metadatas.append(meta)
         # Store cleaned text in vector store for better retrieval, keep metadata unchanged
         documents.append(cleaned_texts[i] if i < len(cleaned_texts) else c.get('text',''))
