@@ -234,7 +234,19 @@ def _make_curriculum_chunk(
     priority = _source_priority(source_path)
     scope = f"p{page_start}-p{page_end}" if page_start or page_end else ''
     spath = section_path or ([section_heading] if section_heading else [])
-    chunk_uid_basis = f"{source_file}|{year}|{doc_type}|{section}|{clause_id}|{'/'.join(spath)}"
+
+    # Important: keep chunk IDs stable even if we improve year parsing.
+    # Only use a strict 25xx/26xx year (from filename or content) in the UID basis.
+    year_uid = ''
+    m = re.search(r"(25\d{2}|26\d{2})", source_file)
+    if m:
+        year_uid = m.group(1)
+    else:
+        m = re.search(r"(25\d{2}|26\d{2})", text or '')
+        if m:
+            year_uid = m.group(1)
+
+    chunk_uid_basis = f"{source_file}|{year_uid}|{doc_type}|{section}|{clause_id}|{'/'.join(spath)}"
     chunk_uid = _sha1_32(chunk_uid_basis)
     chunk_key = f"sha1:{chunk_uid}"
     canonical_key = f"{year}|{doc_type}|{clause_id or section}|{chunk_uid[:8]}"
@@ -330,12 +342,38 @@ def normalize_doc_name(src_path: str) -> str:
 def _extract_year_from_source(source_path: str) -> str:
     """Best-effort year extraction for curriculum versions.
 
-    Uses 25xx/26xx matches from filename; returns '' if not found.
+    Uses 25xx/26xx matches from filename; also supports common short forms like
+    "_64" meaning BE 2564, and AD years like 2021 (converted to BE 2564).
+    Returns '' if not found.
     """
     name = Path(source_path).name
     # Avoid \b here because '_' is a word char and breaks boundaries.
     m = re.search(r"(25\d{2}|26\d{2})", name)
-    return m.group(1) if m else ''
+    if m:
+        return m.group(1)
+
+    # AD year (e.g., 2021 -> 2564)
+    m = re.search(r"(19\d{2}|20\d{2})", name)
+    if m:
+        try:
+            ad = int(m.group(1))
+            if 1900 <= ad <= 2099:
+                return str(ad + 543)
+        except ValueError:
+            pass
+
+    # Two-digit BE short year in filenames (common: _64, -64, .64)
+    # Be conservative: only accept 40-99 to avoid misclassifying random numbers.
+    m = re.search(r"(?:\.|_|-)(\d{2})(?:[^0-9]|$)", name)
+    if m:
+        try:
+            yy = int(m.group(1))
+            if 40 <= yy <= 99:
+                return f"25{yy:02d}"
+        except ValueError:
+            pass
+
+    return ''
 
 
 def _source_priority(source_path: str) -> int:
@@ -1537,7 +1575,18 @@ def _make_curriculum_course_chunk(
     page_start = min(pages_int) if pages_int else 0
     page_end = max(pages_int) if pages_int else 0
     source_file = Path(source_path).name
-    chunk_uid_basis = f"{source_file}|{year}|{course_code}|{doc_type}|{section}"
+
+    # Keep IDs stable even if we improve year parsing.
+    year_uid = ''
+    m = re.search(r"(25\d{2}|26\d{2})", source_file)
+    if m:
+        year_uid = m.group(1)
+    else:
+        m = re.search(r"(25\d{2}|26\d{2})", text or '')
+        if m:
+            year_uid = m.group(1)
+
+    chunk_uid_basis = f"{source_file}|{year_uid}|{course_code}|{doc_type}|{section}"
     chunk_uid = _sha1_32(chunk_uid_basis)
     course_code_norm = _course_code_norm(course_code)
     chunk_key = f"sha1:{chunk_uid}"
