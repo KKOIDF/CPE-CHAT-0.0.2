@@ -10,6 +10,11 @@ from .config import CHROMA_DIR, EMBEDDING_MODEL, EMBED_BATCH, EMBEDDING_API_BASE
 from .utils import clean_and_spell_correct_thai
 
 try:
+    import torch  # type: ignore
+except Exception:
+    torch = None  # type: ignore
+
+try:
     from sentence_transformers import SentenceTransformer
 except Exception:
     SentenceTransformer = None  # type: ignore
@@ -19,12 +24,75 @@ _collection = _client.get_or_create_collection(name="documents")
 
 _embedder = None
 _is_bge_m3 = False
+
+
+def _resolve_embed_device() -> str:
+    """Resolve embedding device from env + availability.
+
+    - EMBED_DEVICE can be: 'auto' (default), 'cuda', 'cuda:0', 'cpu'
+    - If CUDA is requested but unavailable, falls back to 'cpu'.
+    """
+    requested = (os.getenv('EMBED_DEVICE', 'auto') or 'auto').strip().lower()
+    if requested in ('', 'auto'):
+        if torch is not None:
+            try:
+                if torch.cuda.is_available():
+                    return 'cuda'
+            except Exception:
+                pass
+        return 'cpu'
+
+    if requested.startswith('cuda'):
+        if torch is None:
+            return 'cpu'
+        try:
+            if torch.cuda.is_available():
+                return requested
+        except Exception:
+            pass
+        return 'cpu'
+
+    return 'cpu'
+
+
+_EMBED_DEVICE = _resolve_embed_device()
+
+# Optional mixed precision for CUDA embeddings (reduce VRAM usage)
+_EMBED_MIXED_PRECISION = (os.getenv('EMBED_MIXED_PRECISION', '0') or '0').strip().lower() in (
+    '1', 'true', 'yes', 'on'
+)
+_EMBED_DTYPE = (os.getenv('EMBED_DTYPE', 'fp16') or 'fp16').strip().lower()  # fp16|bf16|fp32
+
+
+def _autocast_context(device: str):
+    if not _EMBED_MIXED_PRECISION:
+        return None
+    if torch is None:
+        return None
+    if not (device or '').startswith('cuda'):
+        return None
+    try:
+        if _EMBED_DTYPE in ('bf16', 'bfloat16'):
+            dtype = torch.bfloat16  # type: ignore[attr-defined]
+        elif _EMBED_DTYPE in ('fp32', 'float32'):
+            dtype = torch.float32  # type: ignore[attr-defined]
+        else:
+            dtype = torch.float16  # type: ignore[attr-defined]
+        return torch.autocast(device_type='cuda', dtype=dtype)  # type: ignore[attr-defined]
+    except Exception:
+        return None
 if SentenceTransformer and EMBEDDING_MODEL and not EMBEDDING_API_BASE:
     try:
-        _embedder = SentenceTransformer(EMBEDDING_MODEL)
+        try:
+            _embedder = SentenceTransformer(EMBEDDING_MODEL, device=_EMBED_DEVICE)
+        except TypeError:
+            # Older sentence-transformers versions may not accept device in ctor.
+            _embedder = SentenceTransformer(EMBEDDING_MODEL)
         _is_bge_m3 = 'bge-m3' in EMBEDDING_MODEL.lower()
         if _is_bge_m3:
-            print(f"Loaded BGE-M3 model: {EMBEDDING_MODEL}")
+            print(f"Loaded BGE-M3 model: {EMBEDDING_MODEL} (device={_EMBED_DEVICE})")
+        else:
+            print(f"Loaded embedding model: {EMBEDDING_MODEL} (device={_EMBED_DEVICE})")
     except Exception as e:
         print("Embedding model load failed, will fallback to API if configured:", e)
 
@@ -78,17 +146,87 @@ def _embed_texts(texts: List[str], is_query: bool = False) -> List[List[float]]:
     """
     # Local model
     if _embedder:
+        embedder = _embedder  # help type checkers
+        # BGE-M3: Add instruction for queries only
+        texts_to_encode = texts
+        if _is_bge_m3 and is_query:
+            query_instruction = "Represent this sentence for searching relevant passages: "
+            texts_to_encode = [query_instruction + t for t in texts]
+        def _encode(batch_size: int, device: str | None):
+            ctx = _autocast_context(device or '')
+            try:
+                if ctx is None:
+                    return embedder.encode(
+                        texts_to_encode,
+                        batch_size=batch_size,
+                        normalize_embeddings=True,
+                        device=device,
+                    ).tolist()  # type: ignore
+                with ctx:
+                    return embedder.encode(
+                        texts_to_encode,
+                        batch_size=batch_size,
+                        normalize_embeddings=True,
+                        device=device,
+                    ).tolist()  # type: ignore
+            except TypeError:
+                # Some versions don't support device= in encode()
+                if ctx is None:
+                    return embedder.encode(
+                        texts_to_encode,
+                        batch_size=batch_size,
+                        normalize_embeddings=True,
+                    ).tolist()  # type: ignore
+                with ctx:
+                    return embedder.encode(
+                        texts_to_encode,
+                        batch_size=batch_size,
+                        normalize_embeddings=True,
+                    ).tolist()  # type: ignore
+
         try:
-            # BGE-M3: Add instruction for queries only
-            texts_to_encode = texts
-            if _is_bge_m3 and is_query:
-                query_instruction = "Represent this sentence for searching relevant passages: "
-                texts_to_encode = [query_instruction + t for t in texts]
-            
-            embs = _embedder.encode(texts_to_encode, batch_size=EMBED_BATCH, normalize_embeddings=True).tolist()  # type: ignore
+            # Prefer GPU when requested/available; if OOM, retry with smaller batch on GPU.
+            if _EMBED_DEVICE.startswith('cuda'):
+                batch = max(int(EMBED_BATCH), 1)
+                last_err: Exception | None = None
+                while batch >= 1:
+                    try:
+                        embs = _encode(batch, _EMBED_DEVICE)
+                        break
+                    except Exception as e:
+                        last_err = e
+                        msg = str(e).lower()
+                        is_oom = ('out of memory' in msg) or ('cuda oom' in msg)
+                        if is_oom and batch > 1:
+                            try:
+                                if torch is not None:
+                                    torch.cuda.empty_cache()  # type: ignore[attr-defined]
+                            except Exception:
+                                pass
+                            batch = max(batch // 2, 1)
+                            print(f"[Embed] CUDA OOM; retry with smaller batch_size={batch}")
+                            continue
+                        # Non-OOM CUDA error or batch already minimal -> stop retry loop
+                        raise e
+                else:
+                    # Should not reach here, but keep safe.
+                    raise last_err or RuntimeError('CUDA embedding failed')
+
+            else:
+                embs = _encode(max(int(EMBED_BATCH), 1), _EMBED_DEVICE)
+
         except Exception as e:
-            print("Local embedding encode failed, falling back to hashing:", e)
-            embs = []
+            # If CUDA path failed, fall back to CPU; otherwise fall back to hashing.
+            if _EMBED_DEVICE.startswith('cuda'):
+                try:
+                    embs = _encode(max(int(EMBED_BATCH), 1), 'cpu')
+                    print("[Embed] CUDA encode failed; fell back to CPU.")
+                except Exception:
+                    print("Local embedding encode failed, falling back to hashing:", e)
+                    embs = []
+            else:
+                print("Local embedding encode failed, falling back to hashing:", e)
+                embs = []
         else:
             # ensure non-empty and consistent
             dim = len(embs[0]) if embs and len(embs[0]) > 0 else 0

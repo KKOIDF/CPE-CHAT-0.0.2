@@ -126,12 +126,12 @@ CHUNK_STRATEGY = _get_str('CHUNK_STRATEGY', _DEFAULT_CHUNK_STRATEGY).strip().low
 # Curriculum-specific metadata defaults (domain-aware)
 CURRICULUM_PROGRAM = _get_str('CURRICULUM_PROGRAM', 'B.Eng. Computer Engineering')
 
-EMBEDDING_MODEL = os.getenv('EMBEDDING_MODEL', 'BAAI/bge-m3')
-EMBED_BATCH = int(os.getenv('EMBED_BATCH', '32'))
+EMBEDDING_MODEL = _get_str('EMBEDDING_MODEL', 'BAAI/bge-m3')
+EMBED_BATCH = _get_int('EMBED_BATCH', 32)
 
 # Target embedding dimension stored in vector DBs (Chroma/Neo4j).
 # NOTE: Some models (e.g., BGE-M3) output 1024 dims; we may project/trim to this size.
-EMBEDDING_DIM = int(os.getenv('EMBEDDING_DIM', '512'))
+EMBEDDING_DIM = _get_int('EMBEDDING_DIM', 512)
 
 POPPLER_PATH = os.getenv('POPPLER_PATH')  # For pdf2image on Windows
 TESSERACT_PATH = os.getenv('TESSERACT_PATH')  # If not on PATH

@@ -27,19 +27,74 @@ def _get_collection_for_domain(domain: str) -> any:
 
 _embedder = None
 _is_bge_m3 = False
-_EMBED_DEVICE = os.getenv('EMBED_DEVICE', 'cpu')  # default to cpu for broad compatibility
-if _EMBED_DEVICE == 'cuda' and torch is not None:
+
+
+def _resolve_embed_device() -> str:
+    """Resolve embedding device from env + availability.
+
+    - EMBED_DEVICE can be: 'auto' (default), 'cuda', 'cuda:0', 'cpu'
+    - If CUDA is requested but unavailable, falls back to 'cpu'.
+    """
+    requested = (os.getenv('EMBED_DEVICE', 'auto') or 'auto').strip().lower()
+    if requested in ('', 'auto'):
+        if torch is not None:
+            try:
+                if torch.cuda.is_available():
+                    return 'cuda'
+            except Exception:
+                pass
+        return 'cpu'
+
+    if requested.startswith('cuda'):
+        if torch is None:
+            return 'cpu'
+        try:
+            if torch.cuda.is_available():
+                return requested
+        except Exception:
+            pass
+        return 'cpu'
+
+    return 'cpu'
+
+
+_EMBED_DEVICE = _resolve_embed_device()
+
+# Optional mixed precision for CUDA embeddings (reduce VRAM usage)
+_EMBED_MIXED_PRECISION = (os.getenv('EMBED_MIXED_PRECISION', '0') or '0').strip().lower() in (
+    '1', 'true', 'yes', 'on'
+)
+_EMBED_DTYPE = (os.getenv('EMBED_DTYPE', 'fp16') or 'fp16').strip().lower()  # fp16|bf16|fp32
+
+
+def _autocast_context(device: str):
+    if not _EMBED_MIXED_PRECISION:
+        return None
+    if torch is None:
+        return None
+    if not (device or '').startswith('cuda'):
+        return None
     try:
-        if not torch.cuda.is_available():
-            _EMBED_DEVICE = 'cpu'
+        if _EMBED_DTYPE in ('bf16', 'bfloat16'):
+            dtype = torch.bfloat16  # type: ignore[attr-defined]
+        elif _EMBED_DTYPE in ('fp32', 'float32'):
+            dtype = torch.float32  # type: ignore[attr-defined]
+        else:
+            dtype = torch.float16  # type: ignore[attr-defined]
+        return torch.autocast(device_type='cuda', dtype=dtype)  # type: ignore[attr-defined]
     except Exception:
-        _EMBED_DEVICE = 'cpu'
+        return None
 if SentenceTransformer and EMBEDDING_MODEL:
     try:
-        _embedder = SentenceTransformer(EMBEDDING_MODEL)
+        try:
+            _embedder = SentenceTransformer(EMBEDDING_MODEL, device=_EMBED_DEVICE)
+        except TypeError:
+            _embedder = SentenceTransformer(EMBEDDING_MODEL)
         _is_bge_m3 = 'bge-m3' in EMBEDDING_MODEL.lower()
         if _is_bge_m3:
-            print(f"[RAG] Loaded BGE-M3 model: {EMBEDDING_MODEL}")
+            print(f"[RAG] Loaded BGE-M3 model: {EMBEDDING_MODEL} (device={_EMBED_DEVICE})")
+        else:
+            print(f"[RAG] Loaded embedding model: {EMBEDDING_MODEL} (device={_EMBED_DEVICE})")
     except Exception as e:
         print('Embedder load failed:', e)
 
@@ -95,12 +150,22 @@ def embed_texts(texts: List[str], is_query: bool = False) -> List[List[float]]:
             texts_to_encode = [query_instruction + t for t in texts]
         
         try:
-            embs = _embedder.encode(
-                texts_to_encode,
-                batch_size=EMBED_BATCH,
-                normalize_embeddings=True,
-                device=_EMBED_DEVICE,
-            ).tolist()  # type: ignore
+            ctx = _autocast_context(_EMBED_DEVICE)
+            if ctx is None:
+                embs = _embedder.encode(
+                    texts_to_encode,
+                    batch_size=EMBED_BATCH,
+                    normalize_embeddings=True,
+                    device=_EMBED_DEVICE,
+                ).tolist()  # type: ignore
+            else:
+                with ctx:
+                    embs = _embedder.encode(
+                        texts_to_encode,
+                        batch_size=EMBED_BATCH,
+                        normalize_embeddings=True,
+                        device=_EMBED_DEVICE,
+                    ).tolist()  # type: ignore
         except Exception as e:
             # Common case: torch CPU build + EMBED_DEVICE=cuda
             if _EMBED_DEVICE == 'cuda':

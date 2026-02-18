@@ -1,5 +1,7 @@
 param(
-  [string]$Root = (Split-Path -Parent $PSScriptRoot)
+  [string]$Root = (Split-Path -Parent $PSScriptRoot),
+  # Embedding device: 'cuda' (use NVIDIA GPU), 'cpu' (force CPU), or 'auto'
+  [ValidateSet('cuda','cpu','auto')][string]$EmbedDevice = 'cuda'
 )
 
 $repo = $Root
@@ -19,5 +21,5 @@ foreach ($d in $domains) {
   }
 
   Write-Host "[RUN] Ingest domain=$d (files=$($files.Count))"
-  & (Join-Path $PSScriptRoot "ingest_domain.ps1") -Domain $d -InputPath $input -Output ("data/db/" + $d)
+  & (Join-Path $PSScriptRoot "ingest_domain.ps1") -Domain $d -InputPath $input -Output ("data/db/" + $d) -EmbedDevice $EmbedDevice
 }

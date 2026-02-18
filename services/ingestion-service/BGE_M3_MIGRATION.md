@@ -148,10 +148,52 @@ pip install sentence-transformers --upgrade
 pip install transformers torch --upgrade
 ```
 
+### ต้องการให้ Embedding ใช้ RTX GPU แต่ `torch.cuda.is_available()` เป็น False
+
+ถ้าใน env ของคุณ `torch` เป็นเวอร์ชัน CPU-only (มักเห็นเป็น `+cpu`) ระบบจะไม่สามารถใช้ RTX 4050 ได้
+ถึงแม้ตั้ง `EMBED_DEVICE=cuda` แล้วก็ตาม
+
+1) ตรวจสอบก่อน:
+
+```powershell
+python -c "import torch; print(torch.__version__); print('cuda_available', torch.cuda.is_available())"
+```
+
+2) ติดตั้ง PyTorch แบบ CUDA (Windows / pip) — เลือกให้ตรงกับ CUDA ที่รองรับของ PyTorch เวอร์ชันนั้น:
+
+```powershell
+pip uninstall -y torch torchvision torchaudio
+
+# ตัวอย่าง (CUDA 12.4) — ถ้าใช้ไม่ได้ให้เปลี่ยนเป็น cu121 ตามที่ PyTorch แนะนำ
+pip install --index-url https://download.pytorch.org/whl/cu124 torch torchvision torchaudio
+```
+
+3) ทดสอบใหม่ แล้วค่อยรัน ingestion:
+
+```powershell
+$env:EMBED_DEVICE = "cuda"
+python -c "import torch; print('cuda_available', torch.cuda.is_available()); print(torch.cuda.get_device_name(0) if torch.cuda.is_available() else None)"
+```
+
+หมายเหตุ: การติดตั้งที่เหมาะสมขึ้นกับเวอร์ชัน Python/Windows/driver ปัจจุบัน ถ้าติดตั้งไม่ผ่าน ให้ใช้ตัวเลือกจากหน้า "Get Started" ของ PyTorch แล้วนำคำสั่งมาติดตั้งแทน
+
 ### Out of Memory
 ```bash
 # ใช้ CPU แทน GPU สำหรับ embedding
 export EMBED_DEVICE=cpu
+```
+
+### ลดโอกาส OOM ด้วย Mixed Precision (GPU)
+
+บน GPU VRAM 6GB (เช่น RTX 4050) แนะนำเปิด mixed precision เพื่อให้กิน VRAM น้อยลง:
+
+```bash
+export EMBED_DEVICE=cuda
+export EMBED_MIXED_PRECISION=1
+export EMBED_DTYPE=fp16   # หรือ bf16 (ถ้ารองรับ), fp32 เพื่อปิดผลของ mixed precision
+
+# ถ้ายัง OOM ให้ลด batch (รองรับแบบแยกโดเมน เช่น CURRICULUM_EMBED_BATCH)
+export EMBED_BATCH=16
 ```
 
 ### Dimension Mismatch

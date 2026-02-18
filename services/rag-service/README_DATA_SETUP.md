@@ -46,6 +46,27 @@ $env:CPE_DOMAIN = "announcements"             # optional default domain
 $env:DATA_DIR = "C:\path\to\legacy\ingestion-service\data"
 ```
 
+### การตั้งค่าให้ Embedding ใช้ GPU (RTX 4050)
+
+RAG Service จะ embed query เพื่อทำ semantic search โดยจะเลือกใช้ GPU อัตโนมัติถ้าเครื่องมี CUDA พร้อมใช้งาน
+(และมี PyTorch แบบ CUDA ติดตั้งอยู่) โดยสามารถ override ได้ด้วย:
+
+```powershell
+# ใช้ GPU (ถ้ามี CUDA)
+$env:EMBED_DEVICE = "cuda"   # หรือ "cuda:0"
+
+# บังคับใช้ CPU
+$env:EMBED_DEVICE = "cpu"
+```
+
+หมายเหตุ: ถ้า `EMBED_DEVICE=cuda` แต่เครื่องไม่มี CUDA/torch แบบ CUDA ระบบจะ fallback เป็น CPU.
+
+ตรวจสอบ CUDA ใน environment ที่รัน RAG Service:
+
+```powershell
+python -c "import torch; print(torch.__version__); print('cuda_available', torch.cuda.is_available())"
+```
+
 ## การตรวจสอบการเชื่อมต่อ
 
 ### 1. รันสคริปต์ทดสอบ
