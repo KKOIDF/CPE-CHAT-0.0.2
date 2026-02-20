@@ -1,12 +1,69 @@
 import sqlite3
 import re
+import threading
 from typing import List, Dict, Optional, Sequence
 from pathlib import Path
+
 from .config import SQLITE_PATH, domain_paths
+
+
+_thread_local = threading.local()
+
+
+def _conn_cache() -> dict[str, sqlite3.Connection]:
+    cache = getattr(_thread_local, 'sqlite_conns', None)
+    if cache is None:
+        cache = {}
+        setattr(_thread_local, 'sqlite_conns', cache)
+    return cache
+
+
+def close_thread_connections() -> None:
+    cache = getattr(_thread_local, 'sqlite_conns', None)
+    if not cache:
+        return
+    for conn in list(cache.values()):
+        try:
+            conn.close()
+        except Exception:
+            pass
+    try:
+        cache.clear()
+    except Exception:
+        pass
 
 def get_conn(sqlite_path: Optional[str] = None):
     p = Path(sqlite_path) if sqlite_path else Path(SQLITE_PATH)
-    return sqlite3.connect(str(p))
+    key = str(p.resolve())
+    cache = _conn_cache()
+    conn = cache.get(key)
+    if conn is not None:
+        return conn
+
+    # Prefer read-only connections for safety + concurrency.
+    # If the file doesn't exist yet (e.g., misconfigured volume), fall back to normal connect.
+    try:
+        uri = f"file:{p.as_posix()}?mode=ro"
+        conn = sqlite3.connect(uri, uri=True)
+    except Exception:
+        conn = sqlite3.connect(str(p))
+
+    try:
+        conn.row_factory = sqlite3.Row
+    except Exception:
+        pass
+
+    # A few lightweight PRAGMAs for read-mostly workload.
+    try:
+        conn.execute('PRAGMA query_only=ON')
+        conn.execute('PRAGMA temp_store=MEMORY')
+        # Negative cache_size means KiB (approx). Keep it modest.
+        conn.execute('PRAGMA cache_size=-20000')
+    except Exception:
+        pass
+
+    cache[key] = conn
+    return conn
 
 
 def keyword_search(
@@ -61,7 +118,6 @@ def keyword_search(
     
     # If query becomes empty after sanitization, return empty list
     if not sanitized.strip():
-        conn.close()
         return []
     
     try:
@@ -218,7 +274,6 @@ def keyword_search(
             except Exception:
                 like_ids = []
     
-    conn.close()
     if not like_ids:
         return ids
 
@@ -249,7 +304,6 @@ def fetch_docs_with_path(doc_ids: List[str], sqlite_path: Optional[str] = None) 
     )
     cols = [c[0] for c in cur.description]
     rows = [dict(zip(cols, r)) for r in cur.fetchall()]
-    conn.close()
 
     # Preserve the original input ordering (IN (...) has undefined ordering).
     by_id = {r.get('doc_id'): r for r in rows if r.get('doc_id')}

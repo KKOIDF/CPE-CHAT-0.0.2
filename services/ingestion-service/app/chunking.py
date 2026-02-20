@@ -122,7 +122,15 @@ _COURSE_EQUIV_RE = re.compile(
 )
 
 _FACULTY_NAME_RE = re.compile(r"^(รศ\.ดร\.|ผศ\.ดร\.|ผศ\.|อ\.ดร\.|อ\.)\s+.+$")
-_FACULTY_SEC_RE = re.compile(r"^(?P<sec>\d+(?:\.\d+)*)\.\s+(.+)$")
+# Faculty profile section headings are often numbered.
+# Notes:
+# - Accept both "2. หัวข้อ" and "2.1 หัวข้อ" (some sources omit the trailing dot).
+# - Filter using heading-hint regex so we don't split on publication numbering lines like "1. Author, ...".
+_FACULTY_SEC_RE = re.compile(r"^(?P<sec>\d+(?:\.\d+)*)(?:\.)?\s+(?P<title>.+)$")
+_FACULTY_SEC_HEADING_HINT_RE = re.compile(
+    r"(ประวัติการศึกษา|education|ภาระงานสอน|teaching\s*load|courses\s*taught|เหตุผล|รับผิดชอบหลักสูตร|ประจำหลักสูตร|คุณวุฒิ|ผลงาน|publication)",
+    re.IGNORECASE,
+)
 _FACULTY_EDU_RE = re.compile(r"(ประวัติการศึกษา|education)", re.IGNORECASE)
 _FACULTY_TEACH_RE = re.compile(r"(ภาระงานสอน|teaching\s*load|courses\s*taught)", re.IGNORECASE)
 _FACULTY_PUB_RE = re.compile(r"(ผลงาน|publication)", re.IGNORECASE)
@@ -2375,6 +2383,44 @@ def _make_chunks_curriculum_course(paragraphs: List[Dict], source_path: str) -> 
         bio_line_nos = all_line_nos[app_idx:]
         starts = [i for i, ln in enumerate(bio_lines) if _FACULTY_NAME_RE.match(ln)]
 
+        def _pack_lines_with_prefix(
+            *,
+            prefix_lines: List[str],
+            lines: List[str],
+            pages: List[int],
+            max_tokens: int,
+        ) -> List[Dict]:
+            """Pack (line,page) pairs into <= max_tokens chunks, repeating prefix per chunk."""
+            prefix = [x for x in (prefix_lines or []) if x and x.strip()]
+            prefix_text = "\n".join(prefix).strip()
+            prefix_tok = est_tokens(prefix_text) if prefix_text else 0
+
+            budget = max(40, int(max_tokens) - prefix_tok)
+            out_parts: List[Dict] = []
+
+            cur_lines: List[str] = []
+            cur_pages: List[int] = []
+            cur_tok = 0
+
+            for ln, pg in zip(lines or [], pages or []):
+                s = (ln or '').strip()
+                if not s:
+                    continue
+                t = est_tokens(s)
+                if cur_lines and (cur_tok + t > budget):
+                    out_parts.append({'lines': cur_lines, 'pages': cur_pages})
+                    cur_lines = []
+                    cur_pages = []
+                    cur_tok = 0
+                cur_lines.append(s)
+                cur_pages.append(pg)
+                cur_tok += t
+
+            if cur_lines:
+                out_parts.append({'lines': cur_lines, 'pages': cur_pages})
+
+            return out_parts
+
         def _person_id(name_th: str) -> str:
             basis = f"{year}|{name_th.strip()}"
             return f"kmuttt:{hashlib.sha1(basis.encode('utf-8','ignore')).hexdigest()[:16]}"
@@ -2419,17 +2465,37 @@ def _make_chunks_curriculum_course(paragraphs: List[Dict], source_path: str) -> 
                 },
             ))
             # section splits
-            sec_starts = [j for j, ln in enumerate(block) if _FACULTY_SEC_RE.match(ln)]
-            for si, ss in enumerate(sec_starts[:20]):
+            sec_starts: List[int] = []
+            for j, ln in enumerate(block[:800]):
+                m = _FACULTY_SEC_RE.match((ln or '').strip())
+                if not m:
+                    continue
+                # Avoid splitting on publication numbering like "1. Author, ...".
+                if not _FACULTY_SEC_HEADING_HINT_RE.search(ln):
+                    continue
+                # Keep headings reasonably short (helps avoid false positives).
+                if len((ln or '').strip()) > 180:
+                    continue
+                sec_starts.append(j)
+
+            for si, ss in enumerate(sec_starts[:60]):
                 ee = sec_starts[si + 1] if si + 1 < len(sec_starts) else len(block)
-                sec_block = block[ss:ee]
-                head_ln = sec_block[0]
+                sec_block = [x for x in block[ss:ee] if x and x.strip()]
+                if not sec_block:
+                    continue
+                head_ln = (sec_block[0] or '').strip()
+                if est_tokens("\n".join(sec_block)) < 12:
+                    continue
+
+                sm = _FACULTY_SEC_RE.match(head_ln)
+                sec_id = (sm.group('sec') if sm else '').strip()
                 dtype = 'faculty_section'
-                if _FACULTY_EDU_RE.search("\n".join(sec_block[:3])):
+                probe = "\n".join(sec_block[:5])
+                if _FACULTY_EDU_RE.search(probe):
                     dtype = 'faculty_education'
-                elif _FACULTY_TEACH_RE.search("\n".join(sec_block[:3])):
+                elif _FACULTY_TEACH_RE.search(probe):
                     dtype = 'faculty_teaching_load'
-                elif _FACULTY_PUB_RE.search("\n".join(sec_block[:3])):
+                elif _FACULTY_PUB_RE.search(probe):
                     dtype = 'faculty_publications'
                 # extract taught courses
                 taught = []
@@ -2460,31 +2526,85 @@ def _make_chunks_curriculum_course(paragraphs: List[Dict], source_path: str) -> 
                     # de-dup
                     pubs_5y = [x for i, x in enumerate(pubs_5y) if x and x not in pubs_5y[:i]]
                     pub_years = sorted(set(pub_years))
-                chunks.append(_make_curriculum_chunk(
-                    source_path=source_path,
-                    resolved_source=resolved_source,
-                    resolved_path=resolved_path,
-                    pages=bio_pages[st:en],
-                    text="\n".join(sec_block),
-                    doc_type=dtype,
-                    year=year,
-                    section='FacultySection',
-                    section_heading=head_ln[:120],
-                    section_path=['Faculty', name_th, head_ln[:120]],
-                    clause_id=f"{pid}:{dtype}",
-                    extra_meta={
-                        'person_id': pid,
-                        'person_name_th': name_th,
-                        'person_name_en': name_en,
-                        'academic_rank_th': rank_th,
-                        'degrees': degrees,
-                        'teaching_current': taught,
-                        'teaching_in_program': taught,
-                        'publications_5y': pubs_5y,
-                        'publications_years': pub_years,
-                        'source_scope': scope,
-                    },
-                ))
+
+                # Add person-name prefix to help name-specific retrieval.
+                prefix_lines = [name_th]
+                if name_en:
+                    prefix_lines.append(name_en)
+
+                # NOTE: block lines are filtered for empties; keep page/scope coarse to avoid misalignment.
+                sec_pages = bio_pages[st:en]
+                sec_scope = scope
+
+                sec_text_full = "\n".join(prefix_lines + sec_block).strip()
+                if est_tokens(sec_text_full) <= CHUNK_MAX_TOKENS:
+                    chunks.append(_make_curriculum_chunk(
+                        source_path=source_path,
+                        resolved_source=resolved_source,
+                        resolved_path=resolved_path,
+                        pages=sec_pages,
+                        text=sec_text_full,
+                        doc_type=dtype,
+                        year=year,
+                        section='FacultySection',
+                        section_heading=head_ln[:120],
+                        section_path=['Faculty', name_th, head_ln[:120]],
+                        clause_id=f"{pid}:{sec_id or head_ln[:16]}:{dtype}",
+                        extra_meta={
+                            'person_id': pid,
+                            'person_name_th': name_th,
+                            'person_name_en': name_en,
+                            'academic_rank_th': rank_th,
+                            'degrees': degrees,
+                            'teaching_current': taught,
+                            'teaching_in_program': taught,
+                            'publications_5y': pubs_5y,
+                            'publications_years': pub_years,
+                            'source_scope': sec_scope,
+                            'section_id': sec_id,
+                        },
+                    ))
+                else:
+                    # Split long sections to avoid embedding truncation.
+                    packed = _pack_lines_with_prefix(
+                        prefix_lines=prefix_lines,
+                        lines=sec_block,
+                        pages=sec_pages,
+                        max_tokens=CHUNK_MAX_TOKENS,
+                    )
+                    for part_i, part in enumerate(packed[:50]):
+                        part_lines = part.get('lines') or []
+                        part_pages = part.get('pages') or []
+                        part_text = "\n".join(prefix_lines + part_lines).strip()
+                        if not part_text:
+                            continue
+                        chunks.append(_make_curriculum_chunk(
+                            source_path=source_path,
+                            resolved_source=resolved_source,
+                            resolved_path=resolved_path,
+                            pages=part_pages,
+                            text=part_text,
+                            doc_type=dtype,
+                            year=year,
+                            section='FacultySection',
+                            section_heading=(head_ln[:110] + f" (part {part_i+1})")[:120],
+                            section_path=['Faculty', name_th, head_ln[:120]],
+                            clause_id=f"{pid}:{sec_id or head_ln[:16]}:{dtype}:{part_i}",
+                            extra_meta={
+                                'person_id': pid,
+                                'person_name_th': name_th,
+                                'person_name_en': name_en,
+                                'academic_rank_th': rank_th,
+                                'degrees': degrees,
+                                'teaching_current': taught,
+                                'teaching_in_program': taught,
+                                'publications_5y': pubs_5y,
+                                'publications_years': pub_years,
+                                'source_scope': sec_scope,
+                                'section_id': sec_id,
+                                'chunk_part': part_i,
+                            },
+                        ))
 
     # PLO↔Course mapping derived chunks (best-effort)
     if _PLO_MAP_HINT_RE.search(prelude_text):

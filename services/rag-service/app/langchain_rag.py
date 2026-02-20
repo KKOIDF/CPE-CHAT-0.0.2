@@ -230,16 +230,57 @@ def _compress_text_extractive(query: str, text: str, max_chars: int) -> str:
         return t[: max(0, max_chars)]
 
     # Keywords: keep longer tokens + course codes.
-    toks = re.findall(r"[A-Za-z]{2,6}\s*\d{3}|[A-Za-z]{2,6}|[\u0E00-\u0E7F]{2,}", q)
-    toks = [x.strip() for x in toks if x and len(x.strip()) >= 2]
-    toks = toks[:18]
+    # Note: Thai phrases in questions often include particles like 'ของ' (e.g., 'ภาระงานสอนของ')
+    # while the source text uses a different form (e.g., 'ภาระงานสอนในปัจจุบัน').
+    # To avoid losing the actual course list, we add a few robust anchors and also keep
+    # course-code lines when the question asks about teaching load / course lists.
+    raw_toks = re.findall(r"[A-Za-z]{2,6}\s*\d{3}|[A-Za-z]{2,6}|[\u0E00-\u0E7F]{2,}", q)
+    toks: list[str] = []
+    seen: set[str] = set()
+
+    def _add(tok: str) -> None:
+        t2 = (tok or '').strip()
+        if len(t2) < 2:
+            return
+        if t2 in seen:
+            return
+        toks.append(t2)
+        seen.add(t2)
+
+    # Basic tokens (in order)
+    for rt in raw_toks:
+        _add(rt)
+
+        # Thai sub-token robustness: keep shorter prefix/suffix slices and strip a couple
+        # common trailing particles.
+        if re.search(r"[\u0E00-\u0E7F]", rt or ''):
+            s = (rt or '').strip()
+            if len(s) >= 6:
+                _add(s[:6])
+                _add(s[-6:])
+            if s.endswith('ของ') and len(s) > 2:
+                _add(s[:-2])
+            if s.endswith('ใน') and len(s) > 2:
+                _add(s[:-1])
+
+    # When users ask to list taught courses / teaching load, keep course-code lines.
+    wants_course_list = any(k in q for k in ('รายวิชา', 'วิชาอะไร', 'วิชาอะไรบ้าง', 'ภาระงานสอน', 'สอน'))
+    if wants_course_list:
+        for extra in ('ภาระงานสอน', 'รายวิชา', 'หน่วยกิต', 'ระดับปริญญาตรี', 'ระดับบัณฑิตศึกษา'):
+            if extra in q or extra in t:
+                _add(extra)
+
+    # Cap for safety.
+    toks = toks[:24]
+
+    course_code_re = re.compile(r"\b[A-Za-z]{2,6}\s*\d{3}\b")
 
     lines: List[str] = []
     for ln in t.splitlines():
         s = (ln or '').strip()
         if not s:
             continue
-        if any(k in s for k in toks):
+        if any(k in s for k in toks) or (wants_course_list and course_code_re.search(s) is not None):
             lines.append(s)
         if sum(len(x) for x in lines) >= max_chars:
             break

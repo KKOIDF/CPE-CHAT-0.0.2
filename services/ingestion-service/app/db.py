@@ -62,21 +62,43 @@ def insert_chunks(chunks: Iterable[Dict[str, Any]]):
   conn = get_conn()
   cur = conn.cursor()
   for c in chunks:
+    doc_id = c.get('doc_id')
+    text = c.get('text')
+
+    # Keep documents up-to-date across re-ingestion runs.
+    # The old behavior (INSERT OR IGNORE) caused documents + docs_fts to drift
+    # and resulted in keyword search returning doc_ids whose stored text didn't match.
     cur.execute(
       """
-      INSERT OR IGNORE INTO documents(doc_id,source,path,file_type,page_start,page_end,chunk_id,owner,sensitivity,updated_at,tokens_est,text)
+      INSERT INTO documents(doc_id,source,path,file_type,page_start,page_end,chunk_id,owner,sensitivity,updated_at,tokens_est,text)
       VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
+      ON CONFLICT(doc_id) DO UPDATE SET
+        source=excluded.source,
+        path=excluded.path,
+        file_type=excluded.file_type,
+        page_start=excluded.page_start,
+        page_end=excluded.page_end,
+        chunk_id=excluded.chunk_id,
+        owner=excluded.owner,
+        sensitivity=excluded.sensitivity,
+        updated_at=excluded.updated_at,
+        tokens_est=excluded.tokens_est,
+        text=excluded.text
       """,
       (
-        c.get('doc_id'), c.get('source'), c.get('path'), c.get('file_type'),
+        doc_id, c.get('source'), c.get('path'), c.get('file_type'),
         c.get('page_start'), c.get('page_end'), c.get('chunk_id'), c.get('owner'),
-        c.get('sensitivity'), c.get('updated_at'), c.get('tokens_est'), c.get('text')
+        c.get('sensitivity'), c.get('updated_at'), c.get('tokens_est'), text
       )
     )
-    # FTS content
+
+    # Keep FTS in sync (one row per doc_id).
+    # FTS5 virtual tables don't enforce uniqueness, so delete then insert.
+    if doc_id is not None:
+      cur.execute("DELETE FROM docs_fts WHERE doc_id = ?", (doc_id,))
     cur.execute(
       "INSERT INTO docs_fts(content, doc_id) VALUES (?,?)",
-      (c.get('text'), c.get('doc_id'))
+      (text, doc_id)
     )
   conn.commit()
   conn.close()

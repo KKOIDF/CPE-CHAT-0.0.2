@@ -25,6 +25,12 @@ _collection = _client.get_or_create_collection(name="documents")
 _embedder = None
 _is_bge_m3 = False
 
+# Optional: disable expensive Thai spell correction during embedding/queries.
+# Default keeps legacy behavior (spell correction enabled).
+_EMBED_SPELL_CORRECT = (os.getenv('EMBED_SPELL_CORRECT', '1') or '1').strip().lower() in (
+    '1', 'true', 'yes', 'on'
+)
+
 
 def _resolve_embed_device() -> str:
     """Resolve embedding device from env + availability.
@@ -272,7 +278,7 @@ def upsert_chunks(chunks: List[Dict[str, Any]]):
         return
     texts = [c.get('text','') for c in chunks]
     try:
-        cleaned_texts = [clean_and_spell_correct_thai(t) for t in texts]
+        cleaned_texts = [clean_and_spell_correct_thai(t, do_spell=_EMBED_SPELL_CORRECT) for t in texts]
     except Exception:
         cleaned_texts = texts
     # Documents: no query instruction needed
@@ -359,7 +365,7 @@ def upsert_chunks(chunks: List[Dict[str, Any]]):
 def semantic_search(query: str, n_results: int = 10) -> List[Dict[str, Any]]:
     # Clean query and embed with query instruction (for BGE-M3)
     try:
-        cleaned_query = clean_and_spell_correct_thai(query)
+        cleaned_query = clean_and_spell_correct_thai(query, do_spell=_EMBED_SPELL_CORRECT)
     except Exception:
         cleaned_query = query
     

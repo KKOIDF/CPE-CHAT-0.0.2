@@ -109,7 +109,18 @@ def _neo4j_driver():
     password = os.getenv('NEO4J_PASSWORD')
     if not (uri and user and password):
         return None
-    return GraphDatabase.driver(uri, auth=(user, password))
+    # Avoid hanging ingestion when Neo4j is unreachable.
+    # neo4j-python-driver uses this timeout for socket operations.
+    try:
+        timeout = float(os.getenv('NEO4J_TIMEOUT', '10'))
+    except Exception:
+        timeout = 10.0
+    return GraphDatabase.driver(
+        uri,
+        auth=(user, password),
+        connection_timeout=timeout,
+        max_transaction_retry_time=timeout,
+    )
 
 
 def _ensure_schema(tx):

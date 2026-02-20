@@ -31,6 +31,10 @@ except Exception:
     AutoModelForCausalLM = None  # type: ignore
     pipeline = None  # type: ignore
 
+
+# Reuse HTTP connections to remote providers (OpenAI/Typhoon) to reduce latency.
+_HTTP = requests.Session()
+
 class LLMEngine:
     def __init__(self, model_name: str):
         self.model_name = model_name
@@ -247,7 +251,7 @@ class LLMEngine:
                 # Reduce reasoning so we get visible text within token budget.
                 payload['reasoning'] = {'effort': 'minimal'}
                 payload['text'] = {'format': {'type': 'text'}}
-            resp = requests.post(url, headers=headers, json=payload, timeout=OPENAI_TIMEOUT_S)
+            resp = _HTTP.post(url, headers=headers, json=payload, timeout=OPENAI_TIMEOUT_S)
             if debug:
                 print(f"[OpenAI][responses] status={resp.status_code}")
             if resp.status_code < 300:
@@ -312,7 +316,7 @@ class LLMEngine:
             else:
                 payload['max_tokens'] = LLM_MAX_TOKENS
 
-            resp = requests.post(url, headers=headers, json=payload, timeout=OPENAI_TIMEOUT_S)
+            resp = _HTTP.post(url, headers=headers, json=payload, timeout=OPENAI_TIMEOUT_S)
             if debug:
                 print(f"[OpenAI][chat.completions] status={resp.status_code}")
             if resp.status_code >= 300:
@@ -367,7 +371,7 @@ class LLMEngine:
 
         def _post(payload: Dict[str, Any]) -> requests.Response:
             url = f"{base}/chat/completions"
-            return requests.post(url, headers=headers, json=payload, timeout=TYPHOON_TIMEOUT_S)
+            return _HTTP.post(url, headers=headers, json=payload, timeout=TYPHOON_TIMEOUT_S)
 
         try:
             payload: Dict[str, Any] = {

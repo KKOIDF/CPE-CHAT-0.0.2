@@ -2,8 +2,6 @@ from pathlib import Path
 from typing import List, Dict
 import json
 import fitz  # PyMuPDF
-from pdf2image import convert_from_path
-import pytesseract
 from datetime import datetime
 
 from .extract_pdf import extract_pages_with_fallback, extract_text_mupdf, ocr_page_images
@@ -24,11 +22,6 @@ from .config import (
     OCR_SPELL_CORRECT_THAI,
 )
 
-# Set Tesseract path if configured
-if TESSERACT_PATH:
-    pytesseract.pytesseract.tesseract_cmd = TESSERACT_PATH
-
-
 def _pages_poppler(pdf_path: str) -> List[str]:
     pages: List[str] = []
     with fitz.open(pdf_path) as doc:
@@ -44,6 +37,21 @@ def _pages_poppler(pdf_path: str) -> List[str]:
 
 
 def _pages_tesseract(pdf_path: str) -> List[str]:
+    # Lazy imports so txt-only ingestion doesn't require OCR extras.
+    try:
+        from pdf2image import convert_from_path  # type: ignore
+        import pytesseract  # type: ignore
+    except Exception as e:
+        raise RuntimeError(
+            "Tesseract OCR requested but required packages are missing. "
+            "Install 'pdf2image' and 'pytesseract' (and ensure poppler/tesseract binaries exist). "
+            f"Original error: {e}"
+        )
+
+    # Set Tesseract binary path if configured
+    if TESSERACT_PATH:
+        pytesseract.pytesseract.tesseract_cmd = TESSERACT_PATH
+
     kwargs = {}
     if POPPLER_PATH:
         kwargs['poppler_path'] = POPPLER_PATH

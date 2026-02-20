@@ -5,6 +5,8 @@ from pathlib import Path
 import unicodedata
 import os
 
+from .perf import time_block, add_metric
+
 from .sqlite_client import keyword_search, fetch_docs_with_path, domain_sqlite_path
 from .chroma_client import semantic_search_domain
 from .config import TOKEN_BUDGET, RRF_K, MAX_CONTEXTS, KNOWN_DOMAINS, ROOT_DIR
@@ -508,17 +510,25 @@ def retrieve_by_domain(question: str, domain: str | None, k_vec: int = 20, k_kw:
     if dom in ('announcements', 'regulations'):
         sqlite_path = domain_sqlite_path(dom)
 
-        sem = semantic_search_domain(q_search, top_k=k_vec, domain=dom, source_allowlist=source_allowlist)
-        sem = _hydrate_from_sqlite(sem, sqlite_path)
-        kw_ids = keyword_search(q_search, limit=k_kw, sqlite_path=sqlite_path, source_allowlist=source_allowlist)
-        kw_docs = fetch_docs_with_path(kw_ids, sqlite_path=sqlite_path)
+        with time_block('vector_search'):
+            sem = semantic_search_domain(q_search, top_k=k_vec, domain=dom, source_allowlist=source_allowlist)
+        with time_block('hydrate_sqlite'):
+            sem = _hydrate_from_sqlite(sem, sqlite_path)
+        with time_block('keyword_search'):
+            kw_ids = keyword_search(q_search, limit=k_kw, sqlite_path=sqlite_path, source_allowlist=source_allowlist)
+        with time_block('fetch_kw_docs'):
+            kw_docs = fetch_docs_with_path(kw_ids, sqlite_path=sqlite_path)
 
         # If the user explicitly referenced a source, stay within it (avoid cross-doc hallucinations).
         if (not strict_ref) and source_allowlist and (len(sem) + len(kw_docs) < 2):
-            sem = semantic_search_domain(q_search, top_k=k_vec, domain=dom, source_allowlist=None)
-            sem = _hydrate_from_sqlite(sem, sqlite_path)
-            kw_ids = keyword_search(q_search, limit=k_kw, sqlite_path=sqlite_path, source_allowlist=None)
-            kw_docs = fetch_docs_with_path(kw_ids, sqlite_path=sqlite_path)
+            with time_block('vector_search_fallback'):
+                sem = semantic_search_domain(q_search, top_k=k_vec, domain=dom, source_allowlist=None)
+            with time_block('hydrate_sqlite_fallback'):
+                sem = _hydrate_from_sqlite(sem, sqlite_path)
+            with time_block('keyword_search_fallback'):
+                kw_ids = keyword_search(q_search, limit=k_kw, sqlite_path=sqlite_path, source_allowlist=None)
+            with time_block('fetch_kw_docs_fallback'):
+                kw_docs = fetch_docs_with_path(kw_ids, sqlite_path=sqlite_path)
 
         bank: Dict[str, Dict] = {}
         ranks: Dict[str, float] = {}
@@ -541,16 +551,24 @@ def retrieve_by_domain(question: str, domain: str | None, k_vec: int = 20, k_kw:
     # If no domain was provided, keep legacy behavior (vector+keyword on default env paths)
     sqlite_path = domain_sqlite_path(dom) if dom else None
 
-    sem = semantic_search_domain(q_search, top_k=k_vec, domain=dom or None, source_allowlist=source_allowlist)
-    sem = _hydrate_from_sqlite(sem, sqlite_path)
-    kw_ids = keyword_search(q_search, limit=k_kw, sqlite_path=sqlite_path, source_allowlist=source_allowlist)
-    kw_docs = fetch_docs_with_path(kw_ids, sqlite_path=sqlite_path)
+    with time_block('vector_search'):
+        sem = semantic_search_domain(q_search, top_k=k_vec, domain=dom or None, source_allowlist=source_allowlist)
+    with time_block('hydrate_sqlite'):
+        sem = _hydrate_from_sqlite(sem, sqlite_path)
+    with time_block('keyword_search'):
+        kw_ids = keyword_search(q_search, limit=k_kw, sqlite_path=sqlite_path, source_allowlist=source_allowlist)
+    with time_block('fetch_kw_docs'):
+        kw_docs = fetch_docs_with_path(kw_ids, sqlite_path=sqlite_path)
 
     if (not strict_ref) and source_allowlist and (len(sem) + len(kw_docs) < 2):
-        sem = semantic_search_domain(q_search, top_k=k_vec, domain=dom or None, source_allowlist=None)
-        sem = _hydrate_from_sqlite(sem, sqlite_path)
-        kw_ids = keyword_search(q_search, limit=k_kw, sqlite_path=sqlite_path, source_allowlist=None)
-        kw_docs = fetch_docs_with_path(kw_ids, sqlite_path=sqlite_path)
+        with time_block('vector_search_fallback'):
+            sem = semantic_search_domain(q_search, top_k=k_vec, domain=dom or None, source_allowlist=None)
+        with time_block('hydrate_sqlite_fallback'):
+            sem = _hydrate_from_sqlite(sem, sqlite_path)
+        with time_block('keyword_search_fallback'):
+            kw_ids = keyword_search(q_search, limit=k_kw, sqlite_path=sqlite_path, source_allowlist=None)
+        with time_block('fetch_kw_docs_fallback'):
+            kw_docs = fetch_docs_with_path(kw_ids, sqlite_path=sqlite_path)
 
     # Heuristic: users often ask "LNGxxx มีวิชาอะไรให้เลือกเรียนบ้าง" without naming languages.
     # Pull in curriculum chunks anchored by the "รายวิชา: LNG" header to increase recall.
@@ -564,13 +582,17 @@ def retrieve_by_domain(question: str, domain: str | None, k_vec: int = 20, k_kw:
             and any(t in q for t in ('เลือกเรียน', 'มีวิชา', 'วิชาอะไร', 'เลือกได้', 'ตัวเลือก'))
         )
         if wants_lng_list:
-            lng_ids = keyword_search('รายวิชา: LNG', limit=max(80, k_kw * 2), sqlite_path=sqlite_path)
-            lng_docs = fetch_docs_with_path(lng_ids, sqlite_path=sqlite_path)
+            with time_block('lng_keyword_search'):
+                lng_ids = keyword_search('รายวิชา: LNG', limit=max(80, k_kw * 2), sqlite_path=sqlite_path)
+            with time_block('lng_fetch_docs'):
+                lng_docs = fetch_docs_with_path(lng_ids, sqlite_path=sqlite_path)
 
             # If Neo4j is configured, also fetch LNG* chunks via graph to improve recall.
-            graph_lng_ids = graph_doc_ids_for_course_prefix('LNG', domain=dom, limit=160)
+            with time_block('neo4j_course_prefix'):
+                graph_lng_ids = graph_doc_ids_for_course_prefix('LNG', domain=dom, limit=160)
             if graph_lng_ids:
-                lng_docs.extend(fetch_docs_with_path(graph_lng_ids, sqlite_path=sqlite_path))
+                with time_block('neo4j_fetch_docs'):
+                    lng_docs.extend(fetch_docs_with_path(graph_lng_ids, sqlite_path=sqlite_path))
 
             # Prefer diversity across *non-English* languages rather than many English-only chunks.
             # Many curriculum chunks start with "รายวิชา: LNG ... ภาษาอังกฤษ..." and can crowd out
@@ -682,16 +704,21 @@ def retrieve_by_domain(question: str, domain: str | None, k_vec: int = 20, k_kw:
 
     # Graph expansion (best-effort; requires Neo4j + graph ingested)
     codes = sorted(extract_course_codes(question))
+    add_metric('course_codes', len(codes))
     graph_docs: List[Dict] = []
     if dom == 'curriculum' and codes:
-        graph_ids = graph_doc_ids_for_codes(codes=codes, domain=dom, limit=max(30, MAX_CONTEXTS * 8))
-        graph_docs = fetch_docs_with_path(graph_ids, sqlite_path=sqlite_path)
+        with time_block('neo4j_codes'):
+            graph_ids = graph_doc_ids_for_codes(codes=codes, domain=dom, limit=max(30, MAX_CONTEXTS * 8))
+        with time_block('neo4j_fetch_docs'):
+            graph_docs = fetch_docs_with_path(graph_ids, sqlite_path=sqlite_path)
 
     prereq_docs: List[Dict] = []
     if dom == 'curriculum' and wants_prereq and codes:
-        prereq_ids = graph_doc_ids_for_requisites(codes=codes, domain=dom, kind='prereq', limit=max(60, MAX_CONTEXTS * 10))
+        with time_block('neo4j_prereq'):
+            prereq_ids = graph_doc_ids_for_requisites(codes=codes, domain=dom, kind='prereq', limit=max(60, MAX_CONTEXTS * 10))
         if prereq_ids:
-            prereq_docs = fetch_docs_with_path(prereq_ids, sqlite_path=sqlite_path)
+            with time_block('neo4j_fetch_docs'):
+                prereq_docs = fetch_docs_with_path(prereq_ids, sqlite_path=sqlite_path)
 
     # Graph neighborhood expansion from retrieved chunks (works even without course codes)
     graph_neighbor_docs: List[Dict] = []
@@ -702,8 +729,10 @@ def retrieve_by_domain(question: str, domain: str | None, k_vec: int = 20, k_kw:
             if did and did not in seed_ids:
                 seed_ids.append(did)
         if seed_ids:
-            neighbor_ids = graph_expand_from_seed_chunks(seed_ids, domain=dom, window=2, limit=max(60, MAX_CONTEXTS * 8))
-            graph_neighbor_docs = fetch_docs_with_path(neighbor_ids, sqlite_path=sqlite_path)
+            with time_block('neo4j_neighbors'):
+                neighbor_ids = graph_expand_from_seed_chunks(seed_ids, domain=dom, window=2, limit=max(60, MAX_CONTEXTS * 8))
+            with time_block('neo4j_fetch_docs'):
+                graph_neighbor_docs = fetch_docs_with_path(neighbor_ids, sqlite_path=sqlite_path)
 
     bank: Dict[str, Dict] = {}
     ranks: Dict[str, float] = {}

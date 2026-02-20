@@ -10,10 +10,27 @@ import re
 from .rag_logic import rag_query, rag_query_domain
 from .rag_logic import structured_curriculum_answer
 from .llm import llm_engine
+from .sqlite_client import close_thread_connections
+from .neo4j_client import close_driver
+from .perf import request_timing, time_block, add_metric
 
 logger = logging.getLogger("rag-service")
 
 _USE_LANGCHAIN = os.getenv('RAG_USE_LANGCHAIN', '0') in ('1', 'true', 'True')
+
+# If LangChain is enabled but dependencies are missing, fall back gracefully.
+_LANGCHAIN_READY = False
+_langchain_rag = None
+if _USE_LANGCHAIN:
+    try:
+        from . import langchain_rag as _langchain_rag  # type: ignore
+        _LANGCHAIN_READY = True
+    except Exception as e:
+        logger.warning(
+            "RAG_USE_LANGCHAIN enabled but LangChain is unavailable (%s). Falling back to built-in RAG.",
+            str(e),
+        )
+        _USE_LANGCHAIN = False
 
 _USE_STRUCTURED_CURRICULUM = os.getenv('RAG_USE_STRUCTURED_CURRICULUM', '1') in ('1', 'true', 'True')
 
@@ -104,6 +121,19 @@ def _sanitize_answer_citations(answer: str, prompt: str) -> str:
     return "\n".join(out_lines).strip()
 
 app = FastAPI(title="RAG Service", version="0.1.0")
+
+
+@app.on_event('shutdown')
+def _shutdown_cleanup():
+    # Best-effort cleanup (useful in dev/reload; safe to ignore failures).
+    try:
+        close_thread_connections()
+    except Exception:
+        pass
+    try:
+        close_driver()
+    except Exception:
+        pass
 
 # CORS (for browser-based clients)
 # Configure via env: CORS_ORIGINS="https://your.domain,https://other.domain"
@@ -583,16 +613,15 @@ def _require_citations() -> bool:
     )
 
 @app.post('/rag/query', response_model=RagResponse)
-async def rag_endpoint(req: RagRequest):
-    if _USE_LANGCHAIN:
-        from .langchain_rag import rag_query_langchain
-        result = rag_query_langchain(req.question, req.domain)
+def rag_endpoint(req: RagRequest):
+    if _USE_LANGCHAIN and _LANGCHAIN_READY and _langchain_rag is not None:
+        result = _langchain_rag.rag_query_langchain(req.question, req.domain)
     else:
         result = rag_query_domain(req.question, req.domain) if req.domain else rag_query(req.question)
     return RagResponse(**result)
 
 @app.post('/rag/answer', response_model=RagAnswerResponse)
-async def rag_answer_endpoint(req: RagAnswerRequest):
+def rag_answer_endpoint(req: RagAnswerRequest):
     # Structured curriculum shortcut (deterministic, not top-k dependent)
     if _USE_STRUCTURED_CURRICULUM and ((req.domain or '').strip().lower() == 'curriculum' or req.domain is None):
         structured = structured_curriculum_answer(req.question)
@@ -605,66 +634,79 @@ async def rag_answer_endpoint(req: RagAnswerRequest):
                 token_est=0,
             )
 
-    try:
-        if _USE_LANGCHAIN:
-            from .langchain_rag import rag_answer_langchain
-            result = rag_answer_langchain(req.question, req.domain)
+    with request_timing('rag_answer', endpoint='/rag/answer', domain=req.domain):
+        add_metric('q_len', len((req.question or '').strip()))
+        try:
+            if _USE_LANGCHAIN and _LANGCHAIN_READY and _langchain_rag is not None:
+                with time_block('langchain_rag'):
+                    result = _langchain_rag.rag_answer_langchain(req.question, req.domain)
+            else:
+                with time_block('rag_query'):
+                    result = rag_query_domain(req.question, req.domain) if req.domain else rag_query(req.question)
+        except Exception as e:
+            logger.error("/rag/answer failed: %s\n%s", str(e), traceback.format_exc())
+            return RagAnswerResponse(
+                question=req.question,
+                prompt=f"(exception) {type(e).__name__}: {e}",
+                answer=f"(exception) {type(e).__name__}: {e}",
+                contexts=[],
+                token_est=0,
+            )
+
+        add_metric('ctx_n', len(result.get('contexts') or []))
+        add_metric('token_est', result.get('token_est', 0))
+
+        # Build chat style messages for models that support it
+        system_msg = { 'role': 'system', 'content': 'คุณคือผู้ช่วยของภาควิชาวิศวกรรมคอมพิวเตอร์ ใช้เฉพาะข้อมูลในบริบทเท่านั้น ตอบโดยตรงและชัดเจน ห้ามให้ลิงก์/URL ภายนอก เว้นแต่ปรากฏอยู่ในบริบท หากคำถามกำกวมให้ถามกลับ 1 คำถามสั้น ๆ เพื่อขอรายละเอียดที่จำเป็น หากไม่พบคำตอบแบบชัดเจน ให้สรุปเท่าที่สรุปได้จากบริบท และระบุว่าเอกสารไม่ได้กล่าวตรง ๆ หรือไม่มีข้อความยืนยันโดยตรง' }
+        user_msg = { 'role': 'user', 'content': result['prompt'] }
+
+        # Hard guardrails: if no context, never hallucinate.
+        if not (result.get('contexts') or []):
+            answer = _clarify_when_no_context(req.question) or _FALLBACK
         else:
-            result = rag_query_domain(req.question, req.domain) if req.domain else rag_query(req.question)
-    except Exception as e:
-        logger.error("/rag/answer failed: %s\n%s", str(e), traceback.format_exc())
+            # If we can deterministically answer from the retrieved context, do it.
+            extracted = _try_extract_total_credits(result.get('prompt') or '')
+            if extracted:
+                answer = extracted
+            else:
+                extracted_w = _try_extract_withdraw_w_dates(result.get('prompt') or '', question=req.question)
+                if extracted_w:
+                    answer = extracted_w
+                else:
+                    if _USE_LANGCHAIN:
+                        # Already generated in langchain path.
+                        answer = result.get('answer') or ''
+                    else:
+                        with time_block('llm_generate'):
+                            answer = llm_engine.generate(result['prompt'], messages=[system_msg, user_msg])
+
+                    # Optionally enforce citations when we have context.
+                    if _require_citations() and (result.get('contexts') or []) and answer and not answer.strip().startswith('('):
+                        with time_block('repair_citations_llm'):
+                            answer = _repair_answer_with_citations(answer, result.get('prompt') or '')
+                        with time_block('sanitize_citations'):
+                            answer = _sanitize_answer_citations(answer, result.get('prompt') or '')
+
+            # If generation is unavailable/disabled, preserve the diagnostic message.
+            if not (answer or '').strip().startswith('('):
+                # Clean and validate answer - keep it natural without enforcing citations
+                with time_block('clean_answer'):
+                    answer = _clean_answer_text(answer, strip_citations=(not _require_citations()))
+
+                # If model uses fallback phrase, it must be the entire answer.
+                if _FALLBACK in answer and answer != _FALLBACK:
+                    answer = _FALLBACK
+
         return RagAnswerResponse(
             question=req.question,
-            prompt=f"(exception) {type(e).__name__}: {e}",
-            answer=f"(exception) {type(e).__name__}: {e}",
-            contexts=[],
-            token_est=0,
+            prompt=result['prompt'],
+            answer=answer,
+            contexts=result['contexts'],
+            token_est=result['token_est']
         )
-    # Build chat style messages for models that support it
-    system_msg = { 'role': 'system', 'content': 'คุณคือผู้ช่วยของภาควิชาวิศวกรรมคอมพิวเตอร์ ใช้เฉพาะข้อมูลในบริบทเท่านั้น ตอบโดยตรงและชัดเจน ห้ามให้ลิงก์/URL ภายนอก เว้นแต่ปรากฏอยู่ในบริบท หากคำถามกำกวมให้ถามกลับ 1 คำถามสั้น ๆ เพื่อขอรายละเอียดที่จำเป็น หากไม่พบคำตอบแบบชัดเจน ให้สรุปเท่าที่สรุปได้จากบริบท และระบุว่าเอกสารไม่ได้กล่าวตรง ๆ หรือไม่มีข้อความยืนยันโดยตรง' }
-    user_msg = { 'role': 'user', 'content': result['prompt'] }
-
-    # Hard guardrails: if no context, never hallucinate.
-    if not (result.get('contexts') or []):
-        answer = _clarify_when_no_context(req.question) or _FALLBACK
-    else:
-        # If we can deterministically answer from the retrieved context, do it.
-        extracted = _try_extract_total_credits(result.get('prompt') or '')
-        if extracted:
-            answer = extracted
-        else:
-            extracted_w = _try_extract_withdraw_w_dates(result.get('prompt') or '', question=req.question)
-            if extracted_w:
-                answer = extracted_w
-            else:
-                if _USE_LANGCHAIN:
-                    # Already generated in langchain path.
-                    answer = result.get('answer') or ''
-                else:
-                    answer = llm_engine.generate(result['prompt'], messages=[system_msg, user_msg])
-
-                # Optionally enforce citations when we have context.
-                if _require_citations() and (result.get('contexts') or []) and answer and not answer.strip().startswith('('):
-                    answer = _repair_answer_with_citations(answer, result.get('prompt') or '')
-                    answer = _sanitize_answer_citations(answer, result.get('prompt') or '')
-        # If generation is unavailable/disabled, preserve the diagnostic message.
-        if not (answer or '').strip().startswith('('):
-            # Clean and validate answer - keep it natural without enforcing citations
-            answer = _clean_answer_text(answer, strip_citations=(not _require_citations()))
-
-            # If model uses fallback phrase, it must be the entire answer.
-            if _FALLBACK in answer and answer != _FALLBACK:
-                answer = _FALLBACK
-    return RagAnswerResponse(
-        question=req.question,
-        prompt=result['prompt'],
-        answer=answer,
-        contexts=result['contexts'],
-        token_est=result['token_est']
-    )
 
 @app.get('/v1/models')
-async def list_models():
+def list_models():
     """OpenAI API compatible models endpoint for OpenWeb-UI."""
     import time
     from .config import LLM_MODEL
@@ -682,7 +724,7 @@ async def list_models():
     }
 
 @app.post('/v1/chat/completions')
-async def openai_compatible_endpoint(request: dict):
+def openai_compatible_endpoint(request: dict):
     """OpenAI API compatible endpoint for OpenWeb-UI integration."""
     import time
     import uuid
@@ -699,11 +741,83 @@ async def openai_compatible_endpoint(request: dict):
 
     question = _build_effective_question(messages, raw_last_user)
 
-    # Structured curriculum shortcut for OpenWebUI (works even without retrieval)
-    structured = structured_curriculum_answer(question)
-    if structured:
-        import time
-        import uuid
+    with request_timing(
+        'v1_chat_completions',
+        endpoint='/v1/chat/completions',
+        domain=domain,
+        model=request.get('model', 'typhoon-rag'),
+        msg_n=len(messages or []),
+    ):
+        add_metric('q_len', len((question or '').strip()))
+
+        # Structured curriculum shortcut for OpenWebUI (works even without retrieval)
+        with time_block('structured_curriculum'):
+            structured = structured_curriculum_answer(question)
+        if structured:
+            import time
+            import uuid
+            return {
+                "id": f"chatcpe-{uuid.uuid4().hex[:12]}",
+                "object": "chat.completion",
+                "created": int(time.time()),
+                "model": request.get('model', 'typhoon-rag'),
+                "choices": [
+                    {
+                        "index": 0,
+                        "message": {"role": "assistant", "content": structured},
+                        "finish_reason": "stop",
+                    }
+                ],
+                "usage": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
+            }
+
+        if not question:
+            return {
+                "error": "No user message found in request"
+            }
+
+        # Get RAG response
+        try:
+            if _USE_LANGCHAIN and _LANGCHAIN_READY and _langchain_rag is not None:
+                with time_block('langchain_rag'):
+                    result = _langchain_rag.rag_answer_langchain(question, domain)
+            else:
+                with time_block('rag_query'):
+                    result = rag_query_domain(question, domain) if domain else rag_query(question)
+        except Exception as e:
+            return {
+                "error": f"RAG query failed: {str(e)}"
+            }
+
+        add_metric('ctx_n', len(result.get('contexts') or []))
+        add_metric('token_est', result.get('token_est', 0))
+
+        # Build system message for RAG context (clean answers, no forced citations)
+        system_msg = { 'role': 'system', 'content': 'คุณคือผู้ช่วยของภาควิชาวิศวกรรมคอมพิวเตอร์ ใช้เฉพาะข้อมูลในบริบทเท่านั้น ตอบโดยตรงและชัดเจน ห้ามคัดลอกบริบททั้งก้อน ห้ามให้ลิงก์/URL ภายนอก เว้นแต่ปรากฏอยู่ในบริบท หากคำถามกำกวมให้ถามกลับ 1 คำถามสั้น ๆ เพื่อขอรายละเอียดที่จำเป็น หากไม่พบคำตอบแบบชัดเจน ให้สรุปเท่าที่สรุปได้จากบริบท และระบุว่าเอกสารไม่ได้กล่าวตรง ๆ หรือไม่มีข้อความยืนยันโดยตรง' }
+        user_msg = { 'role': 'user', 'content': result['prompt'] }
+
+        # Generate answer
+        if not (result.get('contexts') or []):
+            answer = _clarify_when_no_context(question) or _FALLBACK
+        else:
+            extracted = _try_extract_total_credits(result.get('prompt') or '')
+            if extracted:
+                answer = extracted
+            else:
+                extracted_w = _try_extract_withdraw_w_dates(result.get('prompt') or '', question=question)
+                if extracted_w:
+                    answer = extracted_w
+                else:
+                    if _USE_LANGCHAIN:
+                        answer = result.get('answer') or ''
+                    else:
+                        with time_block('llm_generate'):
+                            answer = llm_engine.generate(result['prompt'], messages=[system_msg, user_msg])
+
+            if not (answer or '').strip().startswith('('):
+                answer = _clean_answer_text(answer, strip_citations=True)
+
+        # Return OpenAI-compatible response
         return {
             "id": f"chatcpe-{uuid.uuid4().hex[:12]}",
             "object": "chat.completion",
@@ -712,81 +826,20 @@ async def openai_compatible_endpoint(request: dict):
             "choices": [
                 {
                     "index": 0,
-                    "message": {"role": "assistant", "content": structured},
-                    "finish_reason": "stop",
+                    "message": {
+                        "role": "assistant",
+                        "content": answer
+                    },
+                    "finish_reason": "stop"
                 }
             ],
-            "usage": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
-        }
-    
-    if not question:
-        return {
-            "error": "No user message found in request"
-        }
-    
-    # Get RAG response
-    try:
-        if _USE_LANGCHAIN:
-            from .langchain_rag import rag_answer_langchain
-            result = rag_answer_langchain(question, domain)
-        else:
-            result = rag_query_domain(question, domain) if domain else rag_query(question)
-    except Exception as e:
-        return {
-            "error": f"RAG query failed: {str(e)}"
-        }
-    
-    # Build system message for RAG context (clean answers, no forced citations)
-    system_msg = { 'role': 'system', 'content': 'คุณคือผู้ช่วยของภาควิชาวิศวกรรมคอมพิวเตอร์ ใช้เฉพาะข้อมูลในบริบทเท่านั้น ตอบโดยตรงและชัดเจน ห้ามคัดลอกบริบททั้งก้อน ห้ามให้ลิงก์/URL ภายนอก เว้นแต่ปรากฏอยู่ในบริบท หากคำถามกำกวมให้ถามกลับ 1 คำถามสั้น ๆ เพื่อขอรายละเอียดที่จำเป็น หากไม่พบคำตอบแบบชัดเจน ให้สรุปเท่าที่สรุปได้จากบริบท และระบุว่าเอกสารไม่ได้กล่าวตรง ๆ หรือไม่มีข้อความยืนยันโดยตรง' }
-    user_msg = { 'role': 'user', 'content': result['prompt'] }
-
-    # Generate answer
-    if not (result.get('contexts') or []):
-        answer = _clarify_when_no_context(question) or _FALLBACK
-    else:
-        extracted = _try_extract_total_credits(result.get('prompt') or '')
-        if extracted:
-            answer = extracted
-        else:
-            extracted_w = _try_extract_withdraw_w_dates(result.get('prompt') or '', question=question)
-            if extracted_w:
-                answer = extracted_w
-            else:
-                if _USE_LANGCHAIN:
-                    answer = result.get('answer') or ''
-                else:
-                    answer = llm_engine.generate(result['prompt'], messages=[system_msg, user_msg])
-
-                if (result.get('contexts') or []) and answer and not answer.strip().startswith('('):
-                    answer = _repair_answer_with_citations(answer, result.get('prompt') or '')
-                    answer = _sanitize_answer_citations(answer, result.get('prompt') or '')
-        
-        if not (answer or '').strip().startswith('('):
-            answer = _clean_answer_text(answer, strip_citations=True)
-
-    # Return OpenAI-compatible response
-    return {
-        "id": f"chatcpe-{uuid.uuid4().hex[:12]}",
-        "object": "chat.completion",
-        "created": int(time.time()),
-        "model": request.get('model', 'typhoon-rag'),
-        "choices": [
-            {
-                "index": 0,
-                "message": {
-                    "role": "assistant",
-                    "content": answer
-                },
-                "finish_reason": "stop"
+            "usage": {
+                "prompt_tokens": result.get('token_est', 0),
+                "completion_tokens": 0,
+                "total_tokens": result.get('token_est', 0)
             }
-        ],
-        "usage": {
-            "prompt_tokens": result.get('token_est', 0),
-            "completion_tokens": 0,
-            "total_tokens": result.get('token_est', 0)
         }
-    }
 
 @app.get('/health')
-async def health():
+def health():
     return {'status': 'ok'}

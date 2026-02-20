@@ -43,7 +43,6 @@ def run_ingest(input_dir: str, output_base: str, store: bool = True, embed: bool
     # Delay imports so env (domain paths) can be set before loading config
     from .chunking import paragraphs_from_records, make_chunks
     from .db import init_db, insert_chunks, log_ocr_quality
-    from .chroma_client import upsert_chunks
     from .quality import is_valid_ocr, make_quality_entry
     from .config import EMBED_FLAGGED, REVIEW_DIR, DOMAIN
     from .toon_converter import write_toon
@@ -122,6 +121,8 @@ def run_ingest(input_dir: str, output_base: str, store: bool = True, embed: bool
         print(f"Wrote flagged review file: {review_path}")
 
     if embed:
+        # Import lazily to avoid importing heavy deps (e.g., torch) when --no-embed is used.
+        from .chroma_client import upsert_chunks
         upsert_chunks(embed_candidates)
 
     # Curriculum: optional Neo4j graph upsert (hybrid graph RAG)

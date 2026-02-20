@@ -2,6 +2,8 @@ import os
 import re
 from typing import List, Optional, Set
 
+from functools import lru_cache
+
 try:
     from neo4j import GraphDatabase  # type: ignore
 except Exception:  # pragma: no cover
@@ -41,7 +43,37 @@ def _driver():
     password = os.getenv('NEO4J_PASSWORD')
     if not (uri and user and password):
         return None
-    return GraphDatabase.driver(uri, auth=(user, password))
+    # Driver creation can be expensive; cache it for the process lifetime.
+    pool_size = int(os.getenv('NEO4J_POOL_SIZE', '10') or '10')
+    timeout_s = float(os.getenv('NEO4J_TIMEOUT_S', '3') or '3')
+    try:
+        return GraphDatabase.driver(
+            uri,
+            auth=(user, password),
+            max_connection_pool_size=pool_size,
+            connection_timeout=timeout_s,
+        )
+    except TypeError:
+        # Older neo4j driver versions may not support these kwargs.
+        return GraphDatabase.driver(uri, auth=(user, password))
+
+
+@lru_cache(maxsize=1)
+def _driver_cached():
+    return _driver()
+
+
+def close_driver() -> None:
+    try:
+        drv = _driver_cached()
+        if drv:
+            drv.close()
+    except Exception:
+        pass
+    try:
+        _driver_cached.cache_clear()
+    except Exception:
+        pass
 
 
 def _session(drv):
@@ -57,7 +89,7 @@ def graph_doc_ids_for_codes(codes: List[str], domain: str, limit: int = 50) -> L
     This keeps Neo4j payload light; full chunk text is fetched from SQLite.
     If Neo4j isn't configured, returns empty list.
     """
-    drv = _driver()
+    drv = _driver_cached()
     if not drv or not codes:
         return []
 
@@ -79,12 +111,6 @@ def graph_doc_ids_for_codes(codes: List[str], domain: str, limit: int = 50) -> L
         # Graceful fallback if Neo4j is unavailable
         print(f"[Neo4j] Connection error in graph_doc_ids_for_codes, skipping: {e}")
         return []
-    finally:
-        try:
-            drv.close()
-        except Exception:
-            pass
-
     return out
 
 
@@ -94,7 +120,7 @@ def graph_doc_ids_for_course_prefix(prefix: str, domain: str, limit: int = 80) -
     Example: prefix="LNG" will match courses like LNG275, LNG280, etc.
     If Neo4j isn't configured, returns empty list.
     """
-    drv = _driver()
+    drv = _driver_cached()
     if not drv or not prefix:
         return []
 
@@ -117,12 +143,6 @@ def graph_doc_ids_for_course_prefix(prefix: str, domain: str, limit: int = 80) -
     except Exception as e:
         print(f"[Neo4j] Connection error in graph_doc_ids_for_course_prefix, skipping: {e}")
         return []
-    finally:
-        try:
-            drv.close()
-        except Exception:
-            pass
-
     return out
 
 
@@ -140,7 +160,7 @@ def graph_expand_from_seed_chunks(
 
     Returns additional Chunk.doc_id values (no text payload).
     """
-    drv = _driver()
+    drv = _driver_cached()
     if not drv or not seed_doc_ids:
         return []
 
@@ -183,24 +203,17 @@ def graph_expand_from_seed_chunks(
 
     out: List[str] = []
     try:
-        try:
-            with _session(drv) as session:
-                rows = session.run(cypher, seed=seed, domain=dom, window=int(window), limit=int(limit))
-                out.extend([r.get('doc_id') for r in rows if r.get('doc_id')])
-                rows2 = session.run(cypher_prev, seed=seed, domain=dom, limit=int(limit))
-                out.extend([r.get('doc_id') for r in rows2 if r.get('doc_id')])
-                rows3 = session.run(cypher_next, seed=seed, domain=dom, limit=int(limit))
-                out.extend([r.get('doc_id') for r in rows3 if r.get('doc_id')])
-        except Exception as e:
-            # Graceful fallback if Neo4j is unavailable
-            print(f"[Neo4j] Connection error, skipping graph expansion: {e}")
-            return []
-    finally:
-        try:
-            drv.close()
-        except Exception:
-            pass
-
+        with _session(drv) as session:
+            rows = session.run(cypher, seed=seed, domain=dom, window=int(window), limit=int(limit))
+            out.extend([r.get('doc_id') for r in rows if r.get('doc_id')])
+            rows2 = session.run(cypher_prev, seed=seed, domain=dom, limit=int(limit))
+            out.extend([r.get('doc_id') for r in rows2 if r.get('doc_id')])
+            rows3 = session.run(cypher_next, seed=seed, domain=dom, limit=int(limit))
+            out.extend([r.get('doc_id') for r in rows3 if r.get('doc_id')])
+    except Exception as e:
+        # Graceful fallback if Neo4j is unavailable
+        print(f"[Neo4j] Connection error, skipping graph expansion: {e}")
+        return []
     # preserve order + uniqueness
     seen = set(seed)
     uniq: List[str] = []
@@ -225,7 +238,7 @@ def graph_doc_ids_for_requisites(
     This is used to answer questions like "ลงวิชา X ต้องผ่านอะไร" by pulling
     chunks about the prerequisite courses as supporting context.
     """
-    drv = _driver()
+    drv = _driver_cached()
     if not drv or not codes:
         return []
 
@@ -250,10 +263,4 @@ def graph_doc_ids_for_requisites(
     except Exception as e:
         print(f"[Neo4j] Connection error in graph_doc_ids_for_requisites, skipping: {e}")
         return []
-    finally:
-        try:
-            drv.close()
-        except Exception:
-            pass
-
     return out
