@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # RAG Service with Typhoon LLM integration
   rag-service:
@@ -41,6 +39,9 @@ services:
       # CORS Configuration for OpenWeb-UI
       CORS_ORIGINS: "http://localhost:3000,http://localhost:8080,${OPENWEB_UI_URL:-http://localhost:3000}"
 
+      # Debug endpoints (disabled by default)
+      RAG_EXPOSE_CONFIG: "${RAG_EXPOSE_CONFIG:-0}"
+
       # LangChain orchestration path (optional)
       # Controlled via .env; defaults keep legacy behavior unless enabled.
       RAG_USE_LANGCHAIN: "${RAG_USE_LANGCHAIN:-0}"
@@ -71,6 +72,21 @@ services:
       # Python configuration
       PYTHONUNBUFFERED: "1"
       PYTHONDONTWRITEBYTECODE: "1"
+
+      # MLflow (optional experiment tracking)
+      MLFLOW_TRACKING_URI: "http://mlflow:5000"
+
+      # MLflow Observability (disabled by default)
+      MLFLOW_OBSERVABILITY_ENABLE: "${MLFLOW_OBSERVABILITY_ENABLE:-0}"
+      MLFLOW_OBSERVABILITY_EXPERIMENT: "${MLFLOW_OBSERVABILITY_EXPERIMENT:-cpe-chat-observability}"
+      MLFLOW_OBS_FLUSH_S: "${MLFLOW_OBS_FLUSH_S:-10}"
+      MLFLOW_OBS_WINDOW_N: "${MLFLOW_OBS_WINDOW_N:-500}"
+
+      # MLflow Tracing (disabled by default)
+      MLFLOW_TRACING_ENABLE: "${MLFLOW_TRACING_ENABLE:-0}"
+      MLFLOW_TRACE_SAMPLE_RATE: "${MLFLOW_TRACE_SAMPLE_RATE:-0.05}"
+      MLFLOW_TRACE_CONTENT: "${MLFLOW_TRACE_CONTENT:-0}"
+      MLFLOW_TRACE_MAX_CHARS: "${MLFLOW_TRACE_MAX_CHARS:-1200}"
     
     volumes:
       # Mount indexed data from host
@@ -128,10 +144,27 @@ services:
     # stdin_open: true
     # tty: true
 
+  # MLflow - Experiment tracking UI/API
+  mlflow:
+    build:
+      context: ./services/mlflow
+      dockerfile: Dockerfile
+    container_name: cpe-chat-mlflow
+    ports:
+      - "${MLFLOW_PORT:-5000}:5000"
+    volumes:
+      - mlflow-data:/mlflow
+    networks:
+      - cpe-network
+    restart: unless-stopped
+
 networks:
   cpe-network:
     driver: bridge
 
 volumes:
   openweb-ui-data:
+    driver: local
+
+  mlflow-data:
     driver: local

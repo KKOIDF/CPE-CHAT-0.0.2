@@ -27,6 +27,7 @@ import argparse
 import csv
 import json
 import re
+import sys
 import time
 from dataclasses import dataclass
 from datetime import datetime
@@ -34,6 +35,14 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 import requests
+
+# Allow running from anywhere (so repo-root helpers like mlflow_utils are importable).
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+try:
+    import mlflow_utils as mlf
+except Exception:  # pragma: no cover
+    mlf = None  # type: ignore
 
 
 DOMAIN_TITLES = {
@@ -158,6 +167,12 @@ def _post_answer(base_url: str, question: str, domain: Optional[str], timeout_s:
     r = requests.post(url, json=payload, timeout=timeout_s)
     r.raise_for_status()
     return r.json()
+
+
+def _get_json(url: str, timeout_s: float) -> Dict[str, Any]:
+    r = requests.get(url, timeout=timeout_s)
+    r.raise_for_status()
+    return dict(r.json() or {})
 
 
 def _sources_from_contexts(contexts: List[Dict[str, Any]]) -> List[str]:
@@ -432,6 +447,50 @@ def main() -> int:
             lines.append("")
 
     out_md.write_text("\n".join(lines).strip() + "\n", encoding="utf-8")
+
+    if mlf and getattr(mlf, "enabled", lambda: False)():
+        with mlf.start_run(
+            run_name=f"testqa_csv_live_eval_{ts}",
+            tags={"script": "scripts/eval_testqa_csv_live.py"},
+        ):
+            mlf.log_params(
+                {
+                    "input": str(in_path),
+                    "base_url": str(args.base_url),
+                    "timeout_s": float(args.timeout),
+                    "sleep_s": float(args.sleep),
+                    "limit": int(args.limit),
+                }
+            )
+            mlf.log_metrics(
+                {
+                    "total_questions": len(results),
+                    "errors": errors,
+                    "passes_heuristic": len(passes),
+                    "fails_heuristic": len(fails),
+                    "ref_hint_questions": len(ref_cases),
+                    "ref_leaks": len(ref_leaks),
+                    "numeric_mismatches": len(numeric_mismatches),
+                }
+            )
+            mlf.log_artifacts([str(out_json), str(out_md)])
+
+            ctx: Dict[str, Any] = {
+                "generated": ts,
+                "input": str(in_path),
+                "base_url": str(args.base_url),
+                "env": mlf.env_snapshot(),
+            }
+            try:
+                ctx["rag_service_health"] = _get_json(args.base_url.rstrip("/") + "/health", timeout_s=3.0)
+            except Exception as e:
+                ctx["rag_service_health_error"] = f"{type(e).__name__}: {e}"
+            try:
+                ctx["rag_service_config"] = _get_json(args.base_url.rstrip("/") + "/debug/config", timeout_s=3.0)
+            except Exception as e:
+                ctx["rag_service_config_error"] = f"{type(e).__name__}: {e}"
+
+            mlf.log_dict_artifact(ctx, artifact_file=f"run_context_{ts}.json")
 
     print(f"Wrote: {out_json}")
     print(f"Wrote: {out_md}")

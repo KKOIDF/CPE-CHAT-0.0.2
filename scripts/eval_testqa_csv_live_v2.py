@@ -1,0 +1,464 @@
+#!/usr/bin/env python3
+"""Evaluate QA dataset v2 CSV against the *running* rag-service.
+
+This is a v2 companion to scripts/eval_testqa_csv_live.py.
+
+What it adds:
+- explicit labels: expected_behavior + expect_answerable
+- computes abstention / hallucination rates for unanswerable cases
+- keeps the same lightweight heuristics (stdlib + requests)
+
+Usage:
+  python3 scripts/eval_testqa_csv_live_v2.py \
+    --input scripts/testqa_v2_template.csv \
+    --base-url http://127.0.0.1:8001
+
+CSV columns:
+  id, domain, question, expected_behavior, expect_answerable,
+  expected_answer, reference_hint, tags, notes
+"""
+
+from __future__ import annotations
+
+import argparse
+import csv
+import json
+import re
+import sys
+import time
+from dataclasses import dataclass
+from datetime import datetime
+from pathlib import Path
+from typing import Any, Dict, List, Optional
+
+import requests
+
+# Allow running from anywhere (so repo-root helpers like mlflow_utils are importable).
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+try:
+    import mlflow_utils as mlf
+except Exception:  # pragma: no cover
+    mlf = None  # type: ignore
+
+
+FALLBACK = "ไม่พบข้อมูลในเอกสาร"
+
+
+def _normalize_text(s: str) -> str:
+    s = (s or "").strip().lower()
+    s = s.replace("\r", " ").replace("\n", " ")
+    s = re.sub(r"\s+", " ", s)
+    return s
+
+
+_NUM_RE = re.compile(r"\d+(?:[\.,]\d+)?")
+_YEAR_RE = re.compile(r"\b(25\d{2})\b")
+_MONEY_RE = re.compile(r"(\d{1,3}(?:,\d{3})*|\d+)(?:\.\d+)?\s*บาท")
+
+
+def _extract_numbers(s: str) -> List[str]:
+    s = _normalize_text(s)
+    nums = _NUM_RE.findall(s)
+    return [n.replace(",", "") for n in nums]
+
+
+def _extract_years(s: str) -> List[str]:
+    return _YEAR_RE.findall(_normalize_text(s))
+
+
+def _extract_money_amounts(s: str) -> List[str]:
+    txt = _normalize_text(s)
+    out: List[str] = []
+    for m in _MONEY_RE.finditer(txt):
+        n = (m.group(1) or "").replace(",", "").strip()
+        if n:
+            out.append(n)
+    return out
+
+
+def _jaccard(a: List[str], b: List[str]) -> float:
+    sa, sb = set(a), set(b)
+    if not sa and not sb:
+        return 1.0
+    if not sa or not sb:
+        return 0.0
+    return len(sa & sb) / len(sa | sb)
+
+
+def _seq_ratio(a: str, b: str) -> float:
+    import difflib
+
+    return difflib.SequenceMatcher(None, _normalize_text(a), _normalize_text(b)).ratio()
+
+
+def _post_answer(base_url: str, question: str, domain: Optional[str], timeout_s: float) -> Dict[str, Any]:
+    url = base_url.rstrip("/") + "/rag/answer"
+    payload: Dict[str, Any] = {"question": question}
+    if domain:
+        payload["domain"] = domain
+    r = requests.post(url, json=payload, timeout=timeout_s)
+    r.raise_for_status()
+    return r.json()
+
+
+def _get_json(url: str, timeout_s: float) -> Dict[str, Any]:
+    r = requests.get(url, timeout=timeout_s)
+    r.raise_for_status()
+    return dict(r.json() or {})
+
+
+def _sources_from_contexts(contexts: List[Dict[str, Any]]) -> List[str]:
+    sources: List[str] = []
+    for c in contexts or []:
+        src = (c.get("source") or c.get("path") or "").strip()
+        if not src:
+            continue
+        src = src.replace("\\", "/").split("/")[-1]
+        sources.append(src)
+    return sources
+
+
+_ABSTAIN_RE = re.compile(r"ไม่พบข้อมูล|ไม่มีข้อมูล|ไม่ปรากฏ|เอกสารไม่ได้ระบุ|เอกสารไม่ระบุ")
+_CLARIFY_RE = re.compile(r"ช่วยระบุ|ขอรายละเอียด|หมายถึง|ต้องการ.*(ปี|ภาค|รหัส)|พิมพ์รหัสเต็ม")
+
+
+def _is_abstain(answer: str) -> bool:
+    a = (answer or "").strip()
+    if not a:
+        return True
+    if a == FALLBACK:
+        return True
+    return bool(_ABSTAIN_RE.search(a))
+
+
+def _is_clarify(answer: str) -> bool:
+    a = (answer or "").strip()
+    if not a:
+        return False
+    return bool(_CLARIFY_RE.search(a))
+
+
+@dataclass
+class CaseResult:
+    id: str
+    domain: str
+    question: str
+    expected_behavior: str
+    expect_answerable: bool
+    expected_answer: str
+    reference_hint: str
+    tags: str
+    answer: str
+    sources_top: List[str]
+    similarity: float
+    years_jaccard: float
+    money_jaccard: float
+    abstained: bool
+    clarified: bool
+    predicted_behavior: str
+    behavior_match: bool
+    hallucination: bool
+    false_negative: bool
+    error: str
+
+
+def _predicted_behavior(answer: str, *, clarified: bool, abstained: bool, error: str) -> str:
+    if (error or "").strip():
+        return "ERROR"
+    if clarified:
+        return "CLARIFY"
+    if abstained:
+        return "ABSTAIN"
+    return "ANSWER"
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--input", default="scripts/testqa_v2_template.csv")
+    ap.add_argument("--base-url", default="http://127.0.0.1:8001")
+    ap.add_argument("--timeout", type=float, default=180.0)
+    ap.add_argument("--sleep", type=float, default=0.0)
+    ap.add_argument("--limit", type=int, default=0)
+    ap.add_argument("--sim-threshold", type=float, default=0.55)
+    args = ap.parse_args()
+
+    in_path = Path(args.input)
+    if not in_path.exists():
+        raise SystemExit(f"Input not found: {in_path}")
+
+    with in_path.open("r", encoding="utf-8", newline="") as f:
+        reader = csv.DictReader(f)
+        rows = [r for r in reader]
+
+    results: List[CaseResult] = []
+    total = 0
+
+    for r in rows:
+        if args.limit and total >= int(args.limit):
+            break
+        q = (r.get("question") or "").strip()
+        if not q:
+            continue
+
+        total += 1
+
+        cid = (r.get("id") or "").strip()
+        domain = (r.get("domain") or "").strip() or None
+        expected_behavior = (r.get("expected_behavior") or "").strip().upper() or "ANSWER"
+        expect_answerable = (r.get("expect_answerable") or "").strip().lower() in {"1", "true", "yes", "y"}
+        expected_answer = (r.get("expected_answer") or "").strip()
+        reference_hint = (r.get("reference_hint") or "").strip()
+        tags = (r.get("tags") or "").strip()
+
+        answer = ""
+        contexts: List[Dict[str, Any]] = []
+        err = ""
+        try:
+            data = _post_answer(args.base_url, q, domain, timeout_s=float(args.timeout))
+            answer = str(data.get("answer") or "").strip()
+            contexts = list(data.get("contexts") or [])
+        except Exception as e:
+            err = f"{type(e).__name__}: {e}"
+
+        sources = _sources_from_contexts(contexts)
+        sources_top = sources[:8]
+
+        sim = _seq_ratio(expected_answer, answer) if (expected_answer and answer) else 0.0
+        years_j = _jaccard(_extract_years(expected_answer), _extract_years(answer)) if (expected_answer and answer) else 0.0
+        money_j = _jaccard(_extract_money_amounts(expected_answer), _extract_money_amounts(answer)) if (expected_answer and answer) else 0.0
+
+        abstained = _is_abstain(answer)
+        clarified = _is_clarify(answer)
+
+        predicted = _predicted_behavior(answer, clarified=clarified, abstained=abstained, error=err)
+        behavior_match = bool(predicted == expected_behavior)
+
+        # Hallucination heuristic: should abstain/clarify but answered.
+        should_not_answer = (expected_behavior in {"ABSTAIN", "CLARIFY"}) or (not expect_answerable)
+        hallucination = bool(
+            should_not_answer
+            and predicted == "ANSWER"
+            and (answer or "").strip()
+            and not (err or "").strip()
+        )
+
+        # False-negative: should answer but abstained/clarified.
+        should_answer = (expected_behavior == "ANSWER") and expect_answerable
+        false_negative = bool(should_answer and (predicted in {"ABSTAIN", "CLARIFY"}))
+
+        results.append(
+            CaseResult(
+                id=cid,
+                domain=str(domain or ""),
+                question=q,
+                expected_behavior=expected_behavior,
+                expect_answerable=expect_answerable,
+                expected_answer=expected_answer,
+                reference_hint=reference_hint,
+                tags=tags,
+                answer=answer,
+                sources_top=sources_top,
+                similarity=sim,
+                years_jaccard=years_j,
+                money_jaccard=money_j,
+                abstained=abstained,
+                clarified=clarified,
+                predicted_behavior=predicted,
+                behavior_match=behavior_match,
+                hallucination=hallucination,
+                false_negative=false_negative,
+                error=err,
+            )
+        )
+
+        if args.sleep and args.sleep > 0:
+            time.sleep(float(args.sleep))
+
+    # Summaries
+    n_total = len(results)
+    n_unans = sum(1 for x in results if (x.expected_behavior in {"ABSTAIN", "CLARIFY"}) or (not x.expect_answerable))
+    n_ans = sum(1 for x in results if (x.expected_behavior == "ANSWER") and x.expect_answerable)
+
+    hallucinations = sum(1 for x in results if x.hallucination)
+    false_negs = sum(1 for x in results if x.false_negative)
+
+    # Behavior accuracy (ANSWER/CLARIFY/ABSTAIN/ERROR).
+    behavior_correct = sum(1 for x in results if x.behavior_match)
+
+    # Confusion matrix: expected_behavior -> predicted_behavior counts.
+    behavior_confusion: Dict[str, Dict[str, int]] = {}
+    for x in results:
+        behavior_confusion.setdefault(x.expected_behavior, {})
+        behavior_confusion[x.expected_behavior][x.predicted_behavior] = (
+            behavior_confusion[x.expected_behavior].get(x.predicted_behavior, 0) + 1
+        )
+
+    # Heuristic "correct" for answerable: only meaningful when expected_answer is provided.
+    correct_ans = 0
+    n_ans_with_expected = 0
+    for x in results:
+        if not ((x.expected_behavior == "ANSWER") and x.expect_answerable):
+            continue
+        if not x.expected_answer:
+            continue
+        n_ans_with_expected += 1
+        ok_sim = x.similarity >= float(args.sim_threshold)
+        ok_num = True
+        if x.answer:
+            exp_nums = set(_extract_numbers(x.expected_answer))
+            ans_nums = set(_extract_numbers(x.answer))
+            # If expected includes numbers, require at least one to match.
+            if exp_nums:
+                ok_num = bool(exp_nums & ans_nums)
+        if ok_sim and ok_num:
+            correct_ans += 1
+
+    abstain_correct = sum(
+        1
+        for x in results
+        if ((x.expected_behavior in {"ABSTAIN", "CLARIFY"}) or (not x.expect_answerable))
+        and (x.abstained or x.clarified)
+    )
+
+    summary = {
+        "total": n_total,
+        "answerable_cases": n_ans,
+        "unanswerable_cases": n_unans,
+        "behavior_correct": behavior_correct,
+        "behavior_accuracy": (behavior_correct / n_total) if n_total else 0.0,
+        "hallucinations": hallucinations,
+        "hallucination_rate": (hallucinations / n_unans) if n_unans else 0.0,
+        "false_negatives": false_negs,
+        "false_negative_rate": (false_negs / n_ans) if n_ans else 0.0,
+        "answerable_correct_heur": correct_ans,
+        "answerable_accuracy_heur": (correct_ans / n_ans_with_expected) if n_ans_with_expected else 0.0,
+        "answerable_cases_with_expected": n_ans_with_expected,
+        "abstain_correct": abstain_correct,
+        "abstain_accuracy": (abstain_correct / n_unans) if n_unans else 0.0,
+        "sim_threshold": float(args.sim_threshold),
+    }
+
+    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+    out_json = Path("reports") / f"testqa_v2_live_eval_{ts}.json"
+    out_md = Path("reports") / f"testqa_v2_live_eval_{ts}.md"
+    out_json.parent.mkdir(parents=True, exist_ok=True)
+
+    payload = {
+        "summary": summary,
+        "behavior_confusion": behavior_confusion,
+        "cases": [
+            {
+                **x.__dict__,
+            }
+            for x in results
+        ],
+    }
+    out_json.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+
+    lines: List[str] = []
+    lines.append("# TestQA v2 Live Eval")
+    lines.append("")
+    lines.append(f"Generated: {ts}")
+    lines.append(f"Input: {in_path}")
+    lines.append(f"Base URL: {args.base_url}")
+    lines.append("")
+
+    lines.append("## Summary")
+    lines.append("")
+    for k, v in summary.items():
+        lines.append(f"- {k}: {v}")
+    lines.append("")
+
+    lines.append("## Behavior confusion (expected -> predicted)")
+    lines.append("")
+    for exp in sorted(behavior_confusion.keys()):
+        preds = behavior_confusion.get(exp, {})
+        rendered = ", ".join(f"{k}={preds[k]}" for k in sorted(preds.keys()))
+        lines.append(f"- {exp}: {rendered}")
+    lines.append("")
+
+    # Show top hallucination examples
+    hall = [x for x in results if x.hallucination]
+    if hall:
+        lines.append("## Hallucination examples (should abstain)")
+        lines.append("")
+        for x in hall[:8]:
+            lines.append(f"- id={x.id} domain={x.domain} tags={x.tags}")
+            lines.append(f"  Q: {x.question}")
+            lines.append(f"  A: {x.answer[:280]}")
+        lines.append("")
+
+    # Show false-negative examples
+    fn = [x for x in results if x.false_negative]
+    if fn:
+        lines.append("## False-negative examples (should answer)")
+        lines.append("")
+        for x in fn[:8]:
+            lines.append(f"- id={x.id} domain={x.domain} tags={x.tags}")
+            lines.append(f"  Q: {x.question}")
+            lines.append(f"  Expected: {x.expected_answer[:220]}")
+            lines.append(f"  A: {x.answer[:220]}")
+        lines.append("")
+
+    mismatches = [x for x in results if (not x.behavior_match) and not (x.error or "").strip()]
+    if mismatches:
+        lines.append("## Behavior mismatches")
+        lines.append("")
+        for x in mismatches[:10]:
+            lines.append(
+                f"- id={x.id} exp={x.expected_behavior} pred={x.predicted_behavior} domain={x.domain} tags={x.tags}"
+            )
+            lines.append(f"  Q: {x.question}")
+            lines.append(f"  A: {x.answer[:220]}")
+        lines.append("")
+
+    out_md.write_text("\n".join(lines), encoding="utf-8")
+
+    if mlf and getattr(mlf, "enabled", lambda: False)():
+        with mlf.start_run(
+            run_name=f"testqa_v2_live_eval_{ts}",
+            tags={"script": "scripts/eval_testqa_csv_live_v2.py"},
+        ):
+            mlf.log_params(
+                {
+                    "input": str(in_path),
+                    "base_url": str(args.base_url),
+                    "timeout_s": float(args.timeout),
+                    "sleep_s": float(args.sleep),
+                    "limit": int(args.limit),
+                    "sim_threshold": float(args.sim_threshold),
+                }
+            )
+            mlf.log_metrics(summary)
+            mlf.log_artifacts([str(out_json), str(out_md)])
+
+            # Log confusion matrix as artifact for MLflow UI browsing.
+            mlf.log_dict_artifact(behavior_confusion, artifact_file=f"behavior_confusion_{ts}.json")
+
+            ctx: Dict[str, Any] = {
+                "generated": ts,
+                "input": str(in_path),
+                "base_url": str(args.base_url),
+                "env": mlf.env_snapshot(),
+            }
+            # Best-effort: capture running service config (disabled by default in service).
+            try:
+                ctx["rag_service_health"] = _get_json(args.base_url.rstrip("/") + "/health", timeout_s=3.0)
+            except Exception as e:
+                ctx["rag_service_health_error"] = f"{type(e).__name__}: {e}"
+            try:
+                ctx["rag_service_config"] = _get_json(args.base_url.rstrip("/") + "/debug/config", timeout_s=3.0)
+            except Exception as e:
+                ctx["rag_service_config_error"] = f"{type(e).__name__}: {e}"
+
+            mlf.log_dict_artifact(ctx, artifact_file=f"run_context_{ts}.json")
+
+    print(f"Wrote: {out_json}")
+    print(f"Wrote: {out_md}")
+    print(json.dumps(summary, ensure_ascii=False, indent=2))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

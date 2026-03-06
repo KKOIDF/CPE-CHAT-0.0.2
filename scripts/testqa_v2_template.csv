@@ -1,0 +1,6 @@
+id,domain,question,expected_behavior,expect_answerable,expected_answer,reference_hint,tags,notes
+1,announcements,"(ตัวอย่าง) ขอสอบซ้อนได้ไม่เกินกี่วิชาต่อวัน?",ANSWER,true,"(ใส่คำตอบที่คาดหวัง)",,exact_fact|numeric,
+2,announcements,"(ตัวอย่าง) เอกสารประกาศสอบซ้อนมีเลขที่/ปีใด",ABSTAIN,false,,duplicate2551.txt,unanswerable_missing_detail,
+3,regulations,"(ตัวอย่าง) คำว่า DPO ย่อมาจากอะไร (ตามเอกสาร)",ABSTAIN,false,,pdpa_regulation.txt,unanswerable_term_not_in_doc,
+4,curriculum,"(ตัวอย่าง) LNGxxx มีวิชาอะไรให้เลือกบ้าง",CLARIFY,false,, ,ambiguous_missing_course_code|clarify,
+5,curriculum,"(ตัวอย่าง) สรุปเกณฑ์สำเร็จการศึกษา: หน่วยกิตรวม + เงื่อนไขเพิ่มเติม",ANSWER,true,"(ใส่คำตอบที่คาดหวัง)",,multi_hop|synthesis,

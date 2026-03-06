@@ -3,7 +3,9 @@ import re
 import logging
 import traceback
 
-from fastapi import FastAPI
+import os
+
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import re
@@ -12,7 +14,8 @@ from .rag_logic import structured_curriculum_answer
 from .llm import llm_engine
 from .sqlite_client import close_thread_connections
 from .neo4j_client import close_driver
-from .perf import request_timing, time_block, add_metric
+from .perf import request_timing, time_block, add_metric, set_observer
+from .mlflow_observability import init_mlflow_observability
 
 logger = logging.getLogger("rag-service")
 
@@ -121,6 +124,13 @@ def _sanitize_answer_citations(answer: str, prompt: str) -> str:
     return "\n".join(out_lines).strip()
 
 app = FastAPI(title="RAG Service", version="0.1.0")
+
+
+@app.on_event("startup")
+def _startup_observability() -> None:
+    obs = init_mlflow_observability()
+    if obs and getattr(obs, "enabled", lambda: False)():
+        set_observer(obs.observe)
 
 
 @app.on_event('shutdown')
@@ -636,6 +646,7 @@ def rag_answer_endpoint(req: RagAnswerRequest):
 
     with request_timing('rag_answer', endpoint='/rag/answer', domain=req.domain):
         add_metric('q_len', len((req.question or '').strip()))
+        add_metric('question', (req.question or '').strip())
         try:
             if _USE_LANGCHAIN and _LANGCHAIN_READY and _langchain_rag is not None:
                 with time_block('langchain_rag'):
@@ -645,6 +656,7 @@ def rag_answer_endpoint(req: RagAnswerRequest):
                     result = rag_query_domain(req.question, req.domain) if req.domain else rag_query(req.question)
         except Exception as e:
             logger.error("/rag/answer failed: %s\n%s", str(e), traceback.format_exc())
+            add_metric('error', 1)
             return RagAnswerResponse(
                 question=req.question,
                 prompt=f"(exception) {type(e).__name__}: {e}",
@@ -749,6 +761,7 @@ def openai_compatible_endpoint(request: dict):
         msg_n=len(messages or []),
     ):
         add_metric('q_len', len((question or '').strip()))
+        add_metric('question', (question or '').strip())
 
         # Structured curriculum shortcut for OpenWebUI (works even without retrieval)
         with time_block('structured_curriculum'):
@@ -772,6 +785,7 @@ def openai_compatible_endpoint(request: dict):
             }
 
         if not question:
+            add_metric('error', 1)
             return {
                 "error": "No user message found in request"
             }
@@ -785,6 +799,7 @@ def openai_compatible_endpoint(request: dict):
                 with time_block('rag_query'):
                     result = rag_query_domain(question, domain) if domain else rag_query(question)
         except Exception as e:
+            add_metric('error', 1)
             return {
                 "error": f"RAG query failed: {str(e)}"
             }
@@ -817,6 +832,8 @@ def openai_compatible_endpoint(request: dict):
             if not (answer or '').strip().startswith('('):
                 answer = _clean_answer_text(answer, strip_citations=True)
 
+        add_metric('answer', (answer or '').strip())
+
         # Return OpenAI-compatible response
         return {
             "id": f"chatcpe-{uuid.uuid4().hex[:12]}",
@@ -843,3 +860,107 @@ def openai_compatible_endpoint(request: dict):
 @app.get('/health')
 def health():
     return {'status': 'ok'}
+
+
+def _truthy_env(v: str) -> bool:
+    return (v or "").strip().lower() in {"1", "true", "yes", "y"}
+
+
+def _public_config() -> dict:
+    # Import locally to avoid import cycles at module import time.
+    from app import config as cfg  # type: ignore
+
+    # Explicit allow-list (anything secret-like is never included).
+    env_allow = [
+        "DATA_DIR",
+        "CHROMA_DIR",
+        "SQLITE_PATH",
+        "CPE_INDEX_ROOT",
+        "CPE_DOMAIN",
+        "EMBEDDING_MODEL",
+        "EMBED_BATCH",
+        "EMBEDDING_DIM",
+        "TOKEN_BUDGET",
+        "RRF_K",
+        "MAX_CONTEXTS",
+        "LLM_ENABLE",
+        "LLM_PROVIDER",
+        "LLM_MODEL",
+        "LLM_MAX_TOKENS",
+        "LLM_TEMPERATURE",
+        "OPENAI_BASE_URL",
+        "OPENAI_TIMEOUT_S",
+        "TYPHOON_BASE_URL",
+        "TYPHOON_TIMEOUT_S",
+        "NEO4J_URI",
+        "NEO4J_USERNAME",
+        "NEO4J_USER",
+        "NEO4J_DATABASE",
+        "RAG_USE_LANGCHAIN",
+        "RAG_LC_MULTIQUERY",
+        "RAG_LC_MULTIQUERY_N",
+        "RAG_LC_MULTIQUERY_ALL",
+        "RAG_LC_PARALLEL",
+        "RAG_LC_PARALLEL_WORKERS",
+        "RAG_LC_RERANK",
+        "RAG_LC_RERANK_TOPN",
+        "RAG_LC_RERANK_ALL",
+        "RAG_LC_COMPRESS",
+        "RAG_LC_COMPRESS_MAX_CHARS",
+        "RAG_LC_COMPRESS_ALL",
+        "RAG_LC_ROUTE_LLM",
+        "RAG_LC_STRUCTURED",
+        "RAG_LC_ENFORCE_CITATIONS",
+    ]
+
+    deny = ("KEY", "TOKEN", "SECRET", "PASSWORD")
+    env_out = {}
+    for k in env_allow:
+        if not k:
+            continue
+        if any(d in k.upper() for d in deny):
+            continue
+        if k in os.environ:
+            env_out[k] = os.environ.get(k)
+
+    # Also include resolved (post-default) values from config.py.
+    resolved = {
+        "ROOT_DIR": str(getattr(cfg, "ROOT_DIR", "")),
+        "DATA_DIR": str(getattr(cfg, "DATA_DIR", "")),
+        "CHROMA_DIR": str(getattr(cfg, "CHROMA_DIR", "")),
+        "SQLITE_PATH": str(getattr(cfg, "SQLITE_PATH", "")),
+        "EMBEDDING_MODEL": getattr(cfg, "EMBEDDING_MODEL", ""),
+        "EMBED_BATCH": getattr(cfg, "EMBED_BATCH", None),
+        "EMBEDDING_DIM": getattr(cfg, "EMBEDDING_DIM", None),
+        "TOKEN_BUDGET": getattr(cfg, "TOKEN_BUDGET", None),
+        "RRF_K": getattr(cfg, "RRF_K", None),
+        "MAX_CONTEXTS": getattr(cfg, "MAX_CONTEXTS", None),
+        "LLM_ENABLE": getattr(cfg, "LLM_ENABLE", None),
+        "LLM_PROVIDER": getattr(cfg, "LLM_PROVIDER", ""),
+        "LLM_MODEL": getattr(cfg, "LLM_MODEL", ""),
+        "LLM_MAX_TOKENS": getattr(cfg, "LLM_MAX_TOKENS", None),
+        "LLM_TEMPERATURE": getattr(cfg, "LLM_TEMPERATURE", None),
+    }
+
+    # Redact any accidental secrets.
+    def _redact_key(k: str, v):
+        if any(d in (k or "").upper() for d in deny):
+            return "***REDACTED***"
+        return v
+
+    env_out = {k: _redact_key(k, v) for k, v in env_out.items()}
+    resolved = {k: _redact_key(k, v) for k, v in resolved.items()}
+
+    return {
+        "service": {"name": "rag-service", "version": getattr(app, "version", "")},
+        "env": env_out,
+        "resolved": resolved,
+    }
+
+
+@app.get('/debug/config')
+def debug_config():
+    # Disabled by default; enable explicitly for local debugging & experiment tracking.
+    if not _truthy_env(os.getenv("RAG_EXPOSE_CONFIG", "0")):
+        raise HTTPException(status_code=404, detail="Not found")
+    return _public_config()

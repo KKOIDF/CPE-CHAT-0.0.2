@@ -12,9 +12,15 @@ import sys
 
 # Allow running from anywhere
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 
 from fastapi.testclient import TestClient
 from app.main import app
+
+try:
+    import mlflow_utils as mlf
+except Exception:  # pragma: no cover
+    mlf = None  # type: ignore
 
 
 FALLBACK = "ไม่พบข้อมูลในเอกสาร"
@@ -413,6 +419,56 @@ def main() -> None:
     print(f"✅ Wrote report: {out_md}")
     print(f"✅ Wrote data:   {out_json}")
     print(f"✅ Pass: {passed}/{total}")
+
+    if mlf and getattr(mlf, "enabled", lambda: False)():
+        with mlf.start_run(
+            run_name=f"answer_eval_{ts_slug}",
+            tags={"script": "services/rag-service/scripts/answer_eval_suite.py"},
+        ):
+            mlf.log_params(
+                {
+                    "n_per_domain": int(args.n_per_domain),
+                    "domains": str(args.domains),
+                    "citations": str(args.citations),
+                    "debug": bool(args.debug),
+                }
+            )
+            mlf.log_metrics(
+                {
+                    "total": total,
+                    "passed": passed,
+                    "pass_rate": (passed / total) if total else 0.0,
+                }
+            )
+            mlf.log_artifacts([str(out_md), str(out_json)])
+
+            try:
+                from app import config as cfg  # type: ignore
+
+                ctx = {
+                    "generated": ts_slug,
+                    "env": mlf.env_snapshot(),
+                    "resolved": {
+                        "ROOT_DIR": str(getattr(cfg, "ROOT_DIR", "")),
+                        "DATA_DIR": str(getattr(cfg, "DATA_DIR", "")),
+                        "CHROMA_DIR": str(getattr(cfg, "CHROMA_DIR", "")),
+                        "SQLITE_PATH": str(getattr(cfg, "SQLITE_PATH", "")),
+                        "EMBEDDING_MODEL": getattr(cfg, "EMBEDDING_MODEL", ""),
+                        "EMBED_BATCH": getattr(cfg, "EMBED_BATCH", None),
+                        "EMBEDDING_DIM": getattr(cfg, "EMBEDDING_DIM", None),
+                        "TOKEN_BUDGET": getattr(cfg, "TOKEN_BUDGET", None),
+                        "RRF_K": getattr(cfg, "RRF_K", None),
+                        "MAX_CONTEXTS": getattr(cfg, "MAX_CONTEXTS", None),
+                        "LLM_ENABLE": getattr(cfg, "LLM_ENABLE", None),
+                        "LLM_PROVIDER": getattr(cfg, "LLM_PROVIDER", ""),
+                        "LLM_MODEL": getattr(cfg, "LLM_MODEL", ""),
+                        "LLM_MAX_TOKENS": getattr(cfg, "LLM_MAX_TOKENS", None),
+                        "LLM_TEMPERATURE": getattr(cfg, "LLM_TEMPERATURE", None),
+                    },
+                }
+                mlf.log_dict_artifact(ctx, artifact_file=f"run_context_{ts_slug}.json")
+            except Exception:
+                pass
 
 
 if __name__ == "__main__":

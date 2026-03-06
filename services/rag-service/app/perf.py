@@ -14,6 +14,17 @@ _METRICS: contextvars.ContextVar[Optional[Dict[str, Any]]] = contextvars.Context
     "rag_metrics", default=None
 )
 
+# Optional observer hook for exporting request timings/metrics (e.g., MLflow).
+# NOTE: This must be process-global (not a ContextVar), otherwise values set at
+# startup are not visible in request handler contexts.
+_OBSERVER: Optional[Any] = None
+
+
+def set_observer(observer) -> None:
+    """Set a callable observer(timings: dict[str,float], metrics: dict[str,Any]) -> None."""
+    global _OBSERVER
+    _OBSERVER = observer
+
 
 def _enabled() -> bool:
     return (os.getenv("RAG_TIMING", "0") or "0").strip().lower() in ("1", "true", "yes", "on")
@@ -50,7 +61,10 @@ def time_block(name: str) -> Iterator[None]:
 
 @contextmanager
 def request_timing(request_name: str, **initial_metrics: Any) -> Iterator[None]:
-    if not _enabled():
+    obs = _OBSERVER
+    timing_logs_enabled = _enabled()
+    # If neither timing logs nor an observer are enabled, do nothing.
+    if not timing_logs_enabled and obs is None:
         yield
         return
 
@@ -67,7 +81,7 @@ def request_timing(request_name: str, **initial_metrics: Any) -> Iterator[None]:
         timings["total"] = total_ms
 
         min_ms = _min_ms()
-        if total_ms >= min_ms:
+        if timing_logs_enabled and total_ms >= min_ms:
             # Keep output compact: stable ordering with total first, then by duration desc.
             items = [(k, v) for k, v in timings.items()]
             items.sort(key=lambda kv: (0 if kv[0] == "total" else 1, -kv[1]))
@@ -83,3 +97,10 @@ def request_timing(request_name: str, **initial_metrics: Any) -> Iterator[None]:
             _METRICS.reset(token_m)
         except Exception:
             pass
+
+        if obs is not None:
+            try:
+                obs(request_name, dict(timings), dict(metrics))
+            except Exception:
+                # Observability must never break request handling.
+                pass
