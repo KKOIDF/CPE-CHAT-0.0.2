@@ -22,6 +22,8 @@ from .structured_curriculum import (
     Course,
     extract_courses_from_text,
     format_required_cpe_answer,
+    load_all_courses_2564,
+    load_cpe_curriculum_2564,
 )
 
 # Simple token counter heuristic (~4 chars/token Thai)
@@ -184,12 +186,78 @@ def _is_prefix_list_question(question: str) -> bool:
     ql = q.lower()
     if 'xxx' in ql:
         return True
-    return any(t in q for t in ('รหัสวิชา', 'มีวิชาอะไร', 'วิชาอะไรบ้าง', 'รายวิชา', 'ทั้งหมด', 'มีวิชาอะไรบ้าง'))
+    return any(t in q for t in ('รหัสวิชา', 'มีวิชาอะไร', 'วิชาอะไรบ้าง', 'รายวิชา', 'ทั้งหมด', 'มีกี่วิชา'))
 
 
 def structured_curriculum_answer(question: str) -> str | None:
     """Deterministic answers for curriculum domain (no top-k dependence)."""
     q = normalize_question(question)
+    q_lower = q.lower()
+
+    # 0) Exact total-program-credit lookup from the canonical 2564 curriculum source.
+    if any(t in q for t in ('รวมกี่หน่วยกิต', 'หน่วยกิตรวมของหลักสูตร', 'จำนวนหน่วยกิตรวม', 'ตลอดหลักสูตร')):
+        curriculum = load_cpe_curriculum_2564()
+        if curriculum:
+            return (
+                f"- หลักสูตรวิศวกรรมคอมพิวเตอร์ต้องศึกษารวม 130 หน่วยกิต [{curriculum.source_path.name}/1]\n"
+                f"- ข้อความอ้างอิงคือ จำนวนหน่วยกิตที่เรียนตลอดหลักสูตร 130 หน่วยกิต [{curriculum.source_path.name}/1]"
+            )
+
+    # 0.1) Exact course-code lookup from the canonical 2564 curriculum source.
+    # If the query asks about instructor/teacher, do not force a title+credit answer.
+    instructor_intent = any(t in q for t in ('ใครสอน', 'ผู้สอน', 'อาจารย์', 'คนสอน'))
+
+    # When question is composed as:
+    #   "<prev>\nคำถามต่อเนื่อง: <last>"
+    # prioritize course codes from the follow-up segment to avoid stale-code bleed.
+    def _codes_in_order(text: str) -> list[str]:
+        vals: list[str] = []
+        for m in re.finditer(r"\b([A-Za-z]{2,6})\s*[- ]?\s*(\d{3})\b", text or ''):
+            vals.append(f"{(m.group(1) or '').upper()} {(m.group(2) or '')}".strip())
+        # Backward compatibility: merge parser-based extraction too.
+        for c in list(extract_course_codes(text or '')):
+            vals.append((c or '').strip())
+        out: list[str] = []
+        seen: set[str] = set()
+        for c in vals:
+            s = (c or '').strip()
+            if not s:
+                continue
+            k = s.replace('-', '').replace(' ', '').upper()
+            if k in seen:
+                continue
+            seen.add(k)
+            out.append(s)
+        return out
+
+    followup_codes: list[str] = []
+    explicit_followup = re.search(r"ค(?:ำ|ํา)ถามต่อเนื่อง\s*:", q) is not None
+    if explicit_followup:
+        parts = re.split(r"ค(?:ำ|ํา)ถามต่อเนื่อง\s*:", q, maxsplit=1)
+        tail = (parts[1] if len(parts) > 1 else '').strip()
+        if tail:
+            followup_codes = _codes_in_order(tail)
+
+    codes = followup_codes or _codes_in_order(q)
+    if codes and not instructor_intent:
+        all_courses = load_all_courses_2564()
+        # Prefer the latest-mentioned code in the user message to avoid stale-code bleed.
+        for code in reversed(codes):
+            key = code.replace('-', '').replace(' ', '').upper()
+            course = all_courses.get(key)
+            if not course:
+                continue
+            curriculum = load_cpe_curriculum_2564()
+            source_name = curriculum.source_path.name if curriculum else 'FOE10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt'
+            credit_text = f"{course.credits} หน่วยกิต" if course.credits else 'ไม่พบจำนวนหน่วยกิตในข้อความที่ parse ได้'
+            return (
+                f"- วิชา {course.prefix} {course.number} คือ {course.title_th} [{source_name}/1]\n"
+                f"- วิชา {course.prefix} {course.number} มีจำนวน {credit_text} [{source_name}/1]"
+            )
+        # If user explicitly asked a follow-up code and that code isn't in canonical list,
+        # do not fall back to an older code from previous turns.
+        if explicit_followup and followup_codes:
+            return None
 
     # 1) Full required CPE list (curriculum 2564 study plan)
     required = format_required_cpe_answer(q)
@@ -199,6 +267,21 @@ def structured_curriculum_answer(question: str) -> str | None:
     # 2) List courses under a prefix (e.g., LNGxxx / CPE มีรหัสวิชาอะไรบ้าง)
     pref = _extract_prefix_from_question(q)
     if pref and _is_prefix_list_question(q):
+        # Prefer deterministic canonical curriculum list first.
+        all_courses = load_all_courses_2564()
+        from_canonical = [c for c in all_courses.values() if (c.prefix or '').upper() == pref.upper()]
+        if from_canonical:
+            items = sorted(from_canonical, key=lambda c: int(c.number))
+            curriculum = load_cpe_curriculum_2564()
+            source_name = curriculum.source_path.name if curriculum else 'FOE10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt'
+            lines: list[str] = []
+            lines.append(f"รหัสวิชา {pref} ที่พบในโดเมนหลักสูตร (curriculum):")
+            lines.append(f"- พบทั้งหมด {len(items)} วิชา [{source_name}/1]")
+            for c in items:
+                cred = f" ({c.credits} หน่วยกิต)" if c.credits else ""
+                lines.append(f"- {c.prefix} {c.number} {c.title_th}{cred} [{source_name}/1]")
+            return "\n".join(lines).strip()
+
         sqlite_path = domain_sqlite_path('curriculum')
         # Pull chunks that look like course descriptions first.
         ids = keyword_search(f"รายวิชา: {pref}", limit=600, sqlite_path=sqlite_path)
@@ -219,6 +302,7 @@ def structured_curriculum_answer(question: str) -> str | None:
         items = sorted(bank.values(), key=lambda c: int(c.number))
         lines: list[str] = []
         lines.append(f"รหัสวิชา {pref} ที่พบในโดเมนหลักสูตร (curriculum):")
+        lines.append(f"- พบทั้งหมด {len(items)} วิชา")
         for c in items:
             cred = f" ({c.credits} หน่วยกิต)" if c.credits else ""
             lines.append(f"- {c.prefix} {c.number} {c.title_th}{cred}")
@@ -272,6 +356,26 @@ def infer_domain(question: str) -> str | None:
         return 'announcements'
 
     return None
+
+
+def fallback_domains_for_domain(primary: str | None) -> list[str] | None:
+    """Prefer nearby domains before widening retrieval across everything."""
+    p = (primary or '').strip().lower()
+    if p == 'announcements':
+        return ['announcements', 'regulations']
+    if p == 'regulations':
+        return ['regulations', 'announcements']
+    if p == 'curriculum':
+        return ['curriculum', 'announcements']
+    return None
+
+
+def fallback_min_results() -> int:
+    """Minimum retrieval count before trying a wider domain fallback."""
+    try:
+        return max(1, int(os.getenv('RAG_DOMAIN_FALLBACK_MIN_RESULTS', '2') or '2'))
+    except Exception:
+        return 2
 
 def est_tokens(text: str) -> int:
     return max(1, int(math.ceil(len(text) / CHAR_PER_TOKEN)))
@@ -447,6 +551,48 @@ def retrieve_all_domains(
 
 
 def retrieve_by_domain(question: str, domain: str | None, k_vec: int = 20, k_kw: int = 30) -> List[Dict]:
+    def _question_terms_for_rerank(text: str) -> list[str]:
+        q = (text or '').strip()
+        if not q:
+            return []
+        stop_terms = {
+            'อะไร', 'อย่างไร', 'หรือ', 'และ', 'ของ', 'ใน', 'ที่', 'ได้', 'ไหม', 'บ้าง', 'จาก', 'ให้', 'กับ',
+            'เรื่อง', 'ข้อมูล', 'เอกสาร', 'ระบุ', 'ถาม', 'ตอบ', 'หน่อย', 'ครับ', 'ค่ะ', 'คะ', 'คือ', 'มี',
+            'เท่าไร', 'เท่าไหร่', 'เมื่อไร', 'วันที่', 'วัน', 'หลักสูตร', 'วิชา', 'รายวิชา'
+        }
+        out: list[str] = []
+        seen: set[str] = set()
+        for token in re.findall(r"[\u0E00-\u0E7F]{3,}|[A-Za-z]{2,}|\d{2,4}", q):
+            key = token.lower()
+            if key in stop_terms or key in seen:
+                continue
+            seen.add(key)
+            out.append(token)
+        return out[:8]
+
+    def _apply_lexical_rerank(items: List[Dict], original_question: str, active_domain: str) -> List[Dict]:
+        dom = (active_domain or '').strip().lower()
+        if dom not in ('announcements', 'regulations') or not items:
+            return items
+        terms = _question_terms_for_rerank(original_question)
+        if not terms:
+            return items
+        boosted: List[Dict] = []
+        for item in items:
+            text = ' '.join(
+                [
+                    str(item.get('text') or ''),
+                    str(item.get('source') or ''),
+                    str(item.get('path') or ''),
+                ]
+            ).lower()
+            matches = sum(1 for term in terms if term.lower() in text)
+            updated = dict(item)
+            updated['score_rrf'] = float(updated.get('score_rrf') or 0.0) + (matches * 0.08)
+            boosted.append(updated)
+        boosted.sort(key=lambda x: float(x.get('score_rrf') or 0.0), reverse=True)
+        return boosted
+
     def _hydrate_from_sqlite(items: List[Dict], sqlite_path: str | None) -> List[Dict]:
         """Replace item text/metadata from SQLite when doc_id is known.
 
@@ -494,6 +640,7 @@ def retrieve_by_domain(question: str, domain: str | None, k_vec: int = 20, k_kw:
         return out
 
     dom = (domain or '').strip().lower()
+    add_metric('retrieval_domain', dom or 'auto')
 
     # Use the original question to detect explicit reference hints, but use a cleaned query
     # string for retrieval so the hint doesn't pollute embedding/keyword search.
@@ -505,6 +652,8 @@ def retrieve_by_domain(question: str, domain: str | None, k_vec: int = 20, k_kw:
         '1', 'true', 'yes', 'on'
     )
     strict_ref = bool(source_allowlist) and strict_ref_hints
+    add_metric('retrieval_ref_hint_count', len(ref_allow or []))
+    add_metric('retrieval_strict_ref', int(strict_ref))
 
     # Domain 1&2: vector + keyword/FTS
     if dom in ('announcements', 'regulations'):
@@ -518,9 +667,12 @@ def retrieve_by_domain(question: str, domain: str | None, k_vec: int = 20, k_kw:
             kw_ids = keyword_search(q_search, limit=k_kw, sqlite_path=sqlite_path, source_allowlist=source_allowlist)
         with time_block('fetch_kw_docs'):
             kw_docs = fetch_docs_with_path(kw_ids, sqlite_path=sqlite_path)
+        add_metric('retrieval_sem_n', len(sem))
+        add_metric('retrieval_kw_n', len(kw_docs))
 
         # If the user explicitly referenced a source, stay within it (avoid cross-doc hallucinations).
         if (not strict_ref) and source_allowlist and (len(sem) + len(kw_docs) < 2):
+            add_metric('retrieval_source_fallback_used', 1)
             with time_block('vector_search_fallback'):
                 sem = semantic_search_domain(q_search, top_k=k_vec, domain=dom, source_allowlist=None)
             with time_block('hydrate_sqlite_fallback'):
@@ -529,6 +681,8 @@ def retrieve_by_domain(question: str, domain: str | None, k_vec: int = 20, k_kw:
                 kw_ids = keyword_search(q_search, limit=k_kw, sqlite_path=sqlite_path, source_allowlist=None)
             with time_block('fetch_kw_docs_fallback'):
                 kw_docs = fetch_docs_with_path(kw_ids, sqlite_path=sqlite_path)
+            add_metric('retrieval_sem_n', len(sem))
+            add_metric('retrieval_kw_n', len(kw_docs))
 
         bank: Dict[str, Dict] = {}
         ranks: Dict[str, float] = {}
@@ -545,6 +699,9 @@ def retrieve_by_domain(question: str, domain: str | None, k_vec: int = 20, k_kw:
 
         merged = [{**bank[k], 'score_rrf': v, 'doc_id': k} for k, v in ranks.items()]
         merged.sort(key=lambda x: x['score_rrf'], reverse=True)
+        merged = _apply_lexical_rerank(merged, question, dom)
+        add_metric('retrieval_merged_n', len(merged))
+        add_metric('retrieval_final_n', min(len(merged), MAX_CONTEXTS))
         return merged[:MAX_CONTEXTS]
 
     # Domain 3: curriculum = vector + keyword + graph expansion
@@ -559,8 +716,11 @@ def retrieve_by_domain(question: str, domain: str | None, k_vec: int = 20, k_kw:
         kw_ids = keyword_search(q_search, limit=k_kw, sqlite_path=sqlite_path, source_allowlist=source_allowlist)
     with time_block('fetch_kw_docs'):
         kw_docs = fetch_docs_with_path(kw_ids, sqlite_path=sqlite_path)
+    add_metric('retrieval_sem_n', len(sem))
+    add_metric('retrieval_kw_n', len(kw_docs))
 
     if (not strict_ref) and source_allowlist and (len(sem) + len(kw_docs) < 2):
+        add_metric('retrieval_source_fallback_used', 1)
         with time_block('vector_search_fallback'):
             sem = semantic_search_domain(q_search, top_k=k_vec, domain=dom or None, source_allowlist=None)
         with time_block('hydrate_sqlite_fallback'):
@@ -569,6 +729,8 @@ def retrieve_by_domain(question: str, domain: str | None, k_vec: int = 20, k_kw:
             kw_ids = keyword_search(q_search, limit=k_kw, sqlite_path=sqlite_path, source_allowlist=None)
         with time_block('fetch_kw_docs_fallback'):
             kw_docs = fetch_docs_with_path(kw_ids, sqlite_path=sqlite_path)
+        add_metric('retrieval_sem_n', len(sem))
+        add_metric('retrieval_kw_n', len(kw_docs))
 
     # Heuristic: users often ask "LNGxxx มีวิชาอะไรให้เลือกเรียนบ้าง" without naming languages.
     # Pull in curriculum chunks anchored by the "รายวิชา: LNG" header to increase recall.
@@ -576,12 +738,15 @@ def retrieve_by_domain(question: str, domain: str | None, k_vec: int = 20, k_kw:
     lng_diverse_docs: List[Dict] = []
     wants_lng_list = False
     q = (question or '')
+    q_lower = q.lower()
+    codes = sorted(extract_course_codes(question))
     if dom == 'curriculum':
         wants_lng_list = (
             re.search(r"LNG", q, re.IGNORECASE) is not None
             and any(t in q for t in ('เลือกเรียน', 'มีวิชา', 'วิชาอะไร', 'เลือกได้', 'ตัวเลือก'))
         )
         if wants_lng_list:
+            add_metric('retrieval_lng_query', 1)
             with time_block('lng_keyword_search'):
                 lng_ids = keyword_search('รายวิชา: LNG', limit=max(80, k_kw * 2), sqlite_path=sqlite_path)
             with time_block('lng_fetch_docs'):
@@ -644,6 +809,7 @@ def retrieve_by_domain(question: str, domain: str | None, k_vec: int = 20, k_kw:
                     picked_ids.add(did)
                 if len(lng_diverse_docs) >= 18:
                     break
+            add_metric('retrieval_lng_docs_n', len(lng_diverse_docs or lng_docs))
 
     # Default context cap; expand for list-style LNG questions.
     max_contexts = max(MAX_CONTEXTS, 20) if wants_lng_list else MAX_CONTEXTS
@@ -662,6 +828,12 @@ def retrieve_by_domain(question: str, domain: str | None, k_vec: int = 20, k_kw:
                 'pre-requisite',
                 'pre requisite',
             )
+        )
+
+    simple_curriculum_lookup = False
+    if dom == 'curriculum':
+        simple_curriculum_lookup = bool(codes) or any(
+            t in q_lower for t in ('รวมกี่หน่วยกิต', 'หน่วยกิตรวมของหลักสูตร', 'จำนวนหน่วยกิตรวม', 'ตลอดหลักสูตร')
         )
 
     # Heuristic: short course-prefix queries like "SSC" often get drowned out by generic
@@ -687,6 +859,7 @@ def retrieve_by_domain(question: str, domain: str | None, k_vec: int = 20, k_kw:
         )
 
         if wants_prefix_list:
+            add_metric('retrieval_prefix_query', 1)
             pref_ids: List[str] = []
             seen: set[str] = set()
             # Pull a wider candidate pool then let ranking/packing decide.
@@ -701,28 +874,30 @@ def retrieve_by_domain(question: str, domain: str | None, k_vec: int = 20, k_kw:
                 if len(pref_ids) >= 200:
                     break
             prefix_docs = fetch_docs_with_path(pref_ids, sqlite_path=sqlite_path)
+            add_metric('retrieval_prefix_docs_n', len(prefix_docs))
 
     # Graph expansion (best-effort; requires Neo4j + graph ingested)
-    codes = sorted(extract_course_codes(question))
     add_metric('course_codes', len(codes))
     graph_docs: List[Dict] = []
-    if dom == 'curriculum' and codes:
+    if dom == 'curriculum' and codes and not simple_curriculum_lookup:
         with time_block('neo4j_codes'):
             graph_ids = graph_doc_ids_for_codes(codes=codes, domain=dom, limit=max(30, MAX_CONTEXTS * 8))
         with time_block('neo4j_fetch_docs'):
             graph_docs = fetch_docs_with_path(graph_ids, sqlite_path=sqlite_path)
+        add_metric('retrieval_graph_docs_n', len(graph_docs))
 
     prereq_docs: List[Dict] = []
-    if dom == 'curriculum' and wants_prereq and codes:
+    if dom == 'curriculum' and wants_prereq and codes and not simple_curriculum_lookup:
         with time_block('neo4j_prereq'):
             prereq_ids = graph_doc_ids_for_requisites(codes=codes, domain=dom, kind='prereq', limit=max(60, MAX_CONTEXTS * 10))
         if prereq_ids:
             with time_block('neo4j_fetch_docs'):
                 prereq_docs = fetch_docs_with_path(prereq_ids, sqlite_path=sqlite_path)
+        add_metric('retrieval_prereq_docs_n', len(prereq_docs))
 
     # Graph neighborhood expansion from retrieved chunks (works even without course codes)
     graph_neighbor_docs: List[Dict] = []
-    if dom == 'curriculum':
+    if dom == 'curriculum' and not simple_curriculum_lookup:
         seed_ids: List[str] = []
         for d in (sem[:8] + kw_docs[:8]):
             did = d.get('doc_id')
@@ -733,6 +908,7 @@ def retrieve_by_domain(question: str, domain: str | None, k_vec: int = 20, k_kw:
                 neighbor_ids = graph_expand_from_seed_chunks(seed_ids, domain=dom, window=2, limit=max(60, MAX_CONTEXTS * 8))
             with time_block('neo4j_fetch_docs'):
                 graph_neighbor_docs = fetch_docs_with_path(neighbor_ids, sqlite_path=sqlite_path)
+        add_metric('retrieval_neighbor_docs_n', len(graph_neighbor_docs))
 
     bank: Dict[str, Dict] = {}
     ranks: Dict[str, float] = {}
@@ -817,6 +993,8 @@ def retrieve_by_domain(question: str, domain: str | None, k_vec: int = 20, k_kw:
                 seen.add(did)
                 if len(picked) >= max_contexts:
                     break
+            add_metric('retrieval_merged_n', len(merged))
+            add_metric('retrieval_final_n', len(picked))
         return picked
 
     if dom == 'curriculum' and graph_neighbor_docs:
@@ -839,8 +1017,12 @@ def retrieve_by_domain(question: str, domain: str | None, k_vec: int = 20, k_kw:
                 seen.add(did)
                 if len(picked) >= max_contexts:
                     break
+        add_metric('retrieval_merged_n', len(merged))
+        add_metric('retrieval_final_n', len(picked))
         return picked
 
+    add_metric('retrieval_merged_n', len(merged))
+    add_metric('retrieval_final_n', min(len(merged), max_contexts))
     return merged[:max_contexts]
 
 
@@ -894,10 +1076,7 @@ def build_prompt(question: str, ctx: str, cites: Dict[int, str]) -> str:
             "4) หากคำถามขอ 'สรุป' หรือ 'โครงสร้าง' ให้จัดลำดับหัวข้อก่อนรายละเอียด.\n"
             "5) หากคำถามกำกวม/สั้นมาก (เช่น พิมพ์แค่ชื่อภาษา หรือ xxx) ให้ถามกลับ 1 คำถามสั้น ๆ เพื่อขอรายละเอียดที่จำเป็นก่อน.\n"
             "6) ห้ามให้ URL/ลิงก์ภายนอก เว้นแต่ URL นั้นปรากฏอยู่ในบริบท.\n"
-            "7) ห้ามใช้วงเล็บเหลี่ยม [] สำหรับอย่างอื่นนอกจากการอ้างอิงเท่านั้น และห้ามสร้างการอ้างอิงใหม่ที่ไม่มีในรายการที่อนุญาต.\n"
-            "\nตัวอย่างรูปแบบที่ถูกต้อง:\n"
-            "- ทำคำร้องแบบ ทำ.19 และให้ผู้เกี่ยวข้องลงนาม [duplicate2551.txt/1]\n"
-            "- ยื่นคำร้องภายในกำหนดเวลาที่ระบุ [academiccalendar2025th.txt/1] [ปฏิทินการศึกษา_2568.txt/1]\n"
+            
         )
     else:
         instruction = (
@@ -936,11 +1115,13 @@ def rag_query(question: str) -> Dict:
     )
     has_ref = bool(ref_allow) and strict_ref_hints
     dom = infer_domain(q_display) or _infer_domain_from_reference(question)
+    add_metric('inferred_domain', dom or 'auto')
     if dom:
         retrieved = retrieve_by_domain(question, domain=dom)
-        # If too few results, fall back to all domains.
-        if (not has_ref) and len(retrieved) < 4:
-            retrieved = retrieve_all_domains(q_search)
+        # If too few results, widen cautiously to nearby domains first.
+        if (not has_ref) and len(retrieved) < fallback_min_results():
+            add_metric('retrieval_domain_fallback_used', 1)
+            retrieved = retrieve_all_domains(q_search, domains=fallback_domains_for_domain(dom))
     else:
         retrieved = retrieve_all_domains(q_search)
 
@@ -967,6 +1148,7 @@ def rag_query(question: str) -> Dict:
 def rag_query_domain(question: str, domain: str | None) -> Dict:
     q_display = normalize_question(question)
     q_search = search_query_from_question(question)
+    add_metric('inferred_domain', (domain or '').strip().lower() or 'auto')
     retrieved = retrieve_by_domain(question, domain=domain)
 
     strict_ref_hints = (os.getenv('STRICT_REFERENCE_HINTS', '1') or '1').strip().lower() in (

@@ -76,16 +76,16 @@ services:
       # MLflow (optional experiment tracking)
       MLFLOW_TRACKING_URI: "http://mlflow:5000"
 
-      # MLflow Observability (disabled by default)
-      MLFLOW_OBSERVABILITY_ENABLE: "${MLFLOW_OBSERVABILITY_ENABLE:-0}"
-      MLFLOW_OBSERVABILITY_EXPERIMENT: "${MLFLOW_OBSERVABILITY_EXPERIMENT:-cpe-chat-observability}"
+      # MLflow Observability (enabled by default)
+      MLFLOW_OBSERVABILITY_ENABLE: "${MLFLOW_OBSERVABILITY_ENABLE:-1}"
+      MLFLOW_OBSERVABILITY_EXPERIMENT: "${MLFLOW_OBSERVABILITY_EXPERIMENT:-cpe-chat-online-observability}"
       MLFLOW_OBS_FLUSH_S: "${MLFLOW_OBS_FLUSH_S:-10}"
       MLFLOW_OBS_WINDOW_N: "${MLFLOW_OBS_WINDOW_N:-500}"
 
-      # MLflow Tracing (disabled by default)
-      MLFLOW_TRACING_ENABLE: "${MLFLOW_TRACING_ENABLE:-0}"
-      MLFLOW_TRACE_SAMPLE_RATE: "${MLFLOW_TRACE_SAMPLE_RATE:-0.05}"
-      MLFLOW_TRACE_CONTENT: "${MLFLOW_TRACE_CONTENT:-0}"
+      # MLflow Tracing (enabled by default with sampling)
+      MLFLOW_TRACING_ENABLE: "${MLFLOW_TRACING_ENABLE:-1}"
+      MLFLOW_TRACE_SAMPLE_RATE: "${MLFLOW_TRACE_SAMPLE_RATE:-0.1}"
+      MLFLOW_TRACE_CONTENT: "${MLFLOW_TRACE_CONTENT:-1}"
       MLFLOW_TRACE_MAX_CHARS: "${MLFLOW_TRACE_MAX_CHARS:-1200}"
     
     volumes:

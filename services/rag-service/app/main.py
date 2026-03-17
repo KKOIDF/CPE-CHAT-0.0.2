@@ -123,6 +123,23 @@ def _sanitize_answer_citations(answer: str, prompt: str) -> str:
         out_lines.append(s)
     return "\n".join(out_lines).strip()
 
+
+def _context_source_names(result: dict, limit: int = 6) -> list[str]:
+    out: list[str] = []
+    seen: set[str] = set()
+    for ctx in (result.get('contexts') or []):
+        src = str((ctx or {}).get('source') or (ctx or {}).get('path') or '').strip()
+        if not src:
+            continue
+        name = src.replace('\\', '/').split('/')[-1]
+        if not name or name in seen:
+            continue
+        seen.add(name)
+        out.append(name)
+        if len(out) >= limit:
+            break
+    return out
+
 app = FastAPI(title="RAG Service", version="0.1.0")
 
 
@@ -196,6 +213,36 @@ class ChatCompletionResponse(BaseModel):
 
 
 _FALLBACK = 'ไม่พบข้อมูลในเอกสาร'
+
+_STANDALONE_CODE_RE = re.compile(r"^\s*[A-Za-z]{2,6}\s*[- ]?\s*\d{3}\s*$")
+
+_COURSE_CODE_RE = re.compile(r"\b([A-Za-z]{2,6})\s*[- ]?\s*(\d{3})\b")
+
+
+def _latest_course_code_from_messages(messages: list[dict] | None) -> str:
+    """Best-effort latest course code mentioned in recent chat (user/assistant)."""
+    if not messages:
+        return ''
+    for m in reversed(messages):
+        txt = str((m or {}).get('content') or '').strip()
+        if not txt:
+            continue
+        mm = _COURSE_CODE_RE.search(txt)
+        if not mm:
+            continue
+        return f"{(mm.group(1) or '').upper()} {(mm.group(2) or '')}".strip()
+    return ''
+
+
+def _looks_coreference_followup(text: str) -> bool:
+    t = (text or '').strip().lower()
+    if not t:
+        return False
+    coref_terms = (
+        'อันนั้น', 'ตัวนั้น', 'อันนี้', 'ตัวนี้', 'วิชานั้น', 'อันก่อนหน้า', 'เมื่อกี้', 'เพิ่มเติม',
+        'แล้ว', 'ต่อ', 'ต่อจาก', 'ใครสอน', 'มีกี่หน่วยกิต', 'เปิดสอน', 'เงื่อนไขอะไร'
+    )
+    return any(k in t for k in coref_terms)
  
 
 
@@ -223,10 +270,29 @@ def _build_effective_question(messages: list[dict] | None, default_question: str
 
     short = len(last) < 25
     looks_like_placeholder = ('xxx' in last.lower())
+    looks_like_new_code = _STANDALONE_CODE_RE.fullmatch(last) is not None
+    looks_like_greeting = any(t in last.lower() for t in ('สวัสดี', 'หวัดดี', 'hello', 'hi'))
     followup_phrases = (
         'ขอรหัส', 'มีวิชาเดียว', 'ไม่เกี่ยว', 'ขออีก', 'หมายถึง', 'อันนี้', 'แบบไหน', 'อันไหน'
     )
     is_followup = short or looks_like_placeholder or any(p in last for p in followup_phrases)
+    has_code_in_last = _COURSE_CODE_RE.search(last) is not None
+    recent_user_window = user_msgs[-3:] if len(user_msgs) >= 3 else user_msgs
+
+    # Avoid carrying previous turn when user starts a new standalone topic/code.
+    if looks_like_new_code or looks_like_greeting:
+        return last
+
+    # Coreference follow-up (e.g., "ใครสอน", "อันนั้นมีกี่หน่วยกิต"):
+    # recover the latest mentioned course code/topic from recent turns.
+    if _looks_coreference_followup(last) and not has_code_in_last:
+        code = _latest_course_code_from_messages(messages)
+        if code:
+            return f"บริบทก่อนหน้า: {code}\nคำถามต่อเนื่อง: {last}".strip()
+        if recent_user_window:
+            anchor = ' | '.join(recent_user_window[:-1]).strip(' |')
+            if anchor:
+                return f"{anchor}\nคำถามต่อเนื่อง: {last}".strip()
 
     if is_followup and prev:
         return f"{prev}\nคำถามต่อเนื่อง: {last}".strip()
@@ -346,6 +412,102 @@ def _clean_answer_text(answer: str, *, strip_citations: bool) -> str:
     return a or _FALLBACK
 
 
+_LOW_CONF_THAI_STOPWORDS = {
+    'อะไร', 'อย่างไร', 'หรือ', 'และ', 'ของ', 'ใน', 'ที่', 'ได้', 'ไหม', 'บ้าง', 'จาก', 'ให้', 'กับ',
+    'เรื่อง', 'เกี่ยวกับ', 'ข้อมูล', 'เอกสาร', 'ระบุ', 'ถาม', 'ตอบ', 'หน่อย', 'ครับ', 'ค่ะ', 'คะ',
+    'คือ', 'มี', 'ทำ', 'ยังไง', 'อย่าง', 'เช่น', 'ตรง', 'ไหน', 'เมื่อไร', 'เท่าไร', 'เท่าไหร่',
+}
+
+
+def _question_signal_terms(question: str) -> list[str]:
+    q = (question or '').strip()
+    if not q:
+        return []
+
+    terms: list[str] = []
+    seen: set[str] = set()
+
+    def _add(term: str) -> None:
+        s = (term or '').strip()
+        if not s:
+            return
+        key = s.lower()
+        if key in seen:
+            return
+        seen.add(key)
+        terms.append(s)
+
+    for m in re.finditer(r"\b([A-Za-z]{2,6})\s*[- ]?\s*(\d{3})\b", q):
+        prefix = (m.group(1) or '').upper()
+        num = m.group(2) or ''
+        _add(f"{prefix}{num}")
+        _add(f"{prefix} {num}")
+
+    for token in re.findall(r"[\u0E00-\u0E7F]{4,}|[A-Za-z]{3,}|\d{2,4}", q):
+        if re.fullmatch(r"[\u0E00-\u0E7F]{4,}", token):
+            if token in _LOW_CONF_THAI_STOPWORDS:
+                continue
+            # Thai questions commonly arrive as one long unsegmented run; using that as a
+            # mandatory lexical signal makes the guardrail abstain too aggressively.
+            if len(token) > 12:
+                continue
+        _add(token)
+
+    return terms[:12]
+
+
+def _has_date_intent(question: str) -> bool:
+    q = (question or '')
+    return any(t in q for t in ('วัน', 'วันที่', 'เมื่อไร', 'กำหนด', 'ปฏิทิน', 'ช่วงไหน', 'ภายในวัน'))
+
+
+def _has_exact_date_intent(question: str) -> bool:
+    q = (question or '')
+    return any(t in q for t in ('วันที่เท่าไร', 'วันไหน', 'วันใด', 'เมื่อไหร่', 'วันที่อะไร'))
+
+
+def _has_date_evidence(text: str) -> bool:
+    t = (text or '')
+    if _MONTH_RE.search(t) or _DOW_RE.search(t):
+        return True
+    return bool(re.search(r"\b\d{1,2}/\d{1,2}/\d{2,4}\b|\b\d{4}\b", t))
+
+
+def _has_exact_date_evidence(text: str) -> bool:
+    t = (text or '')
+    if _MONTH_RE.search(t) or _DOW_RE.search(t):
+        return True
+    return bool(re.search(r"\b\d{1,2}/\d{1,2}/\d{2,4}\b", t))
+
+
+def _low_confidence_guardrail(question: str, result: dict) -> str | None:
+    contexts = result.get('contexts') or []
+    if not contexts:
+        return None
+
+    blocks = _extract_ctx_blocks(result.get('prompt') or '')
+    if not blocks:
+        return None
+
+    joined = "\n".join([f"{cite} {text}" for cite, text in blocks]).lower()
+    signal_terms = _question_signal_terms(question)
+    matched_terms = [term for term in signal_terms if term.lower() in joined]
+
+    if signal_terms and not matched_terms:
+        add_metric('guardrail_low_confidence', 1)
+        return _clarify_when_no_context(question) or 'ไม่พบข้อความยืนยันโดยตรงในเอกสารที่ค้นได้'
+
+    if _has_exact_date_intent(question) and not _has_exact_date_evidence(joined):
+        add_metric('guardrail_missing_exact_date_evidence', 1)
+        return 'ไม่พบข้อความยืนยันวันหรือวันที่ที่ถามโดยตรงในเอกสารที่ค้นได้'
+
+    if _has_date_intent(question) and not _has_date_evidence(joined):
+        add_metric('guardrail_missing_date_evidence', 1)
+        return 'ไม่พบข้อความยืนยันวันหรือวันที่ที่ถามโดยตรงในเอกสารที่ค้นได้'
+
+    return None
+
+
 def _extract_ctx_blocks(prompt: str) -> list[tuple[str, str]]:
     """Return list of (cite, text) blocks from the packed context section in the prompt."""
     p = prompt or ''
@@ -373,12 +535,16 @@ def _extract_ctx_blocks(prompt: str) -> list[tuple[str, str]]:
     return blocks
 
 
-def _try_extract_total_credits(prompt: str) -> str | None:
+def _try_extract_total_credits(prompt: str, question: str | None = None) -> str | None:
     """Best-effort extraction of program total credits from context blocks.
 
     If we can confidently extract a single total-credit value, return a fully
     formatted bullet answer with a valid citation.
     """
+    q = (question or '').strip()
+    if q and not any(t in q for t in ('รวมกี่หน่วยกิต', 'หน่วยกิตรวมของหลักสูตร', 'จำนวนหน่วยกิตรวม', 'ตลอดหลักสูตร')):
+        return None
+
     blocks = _extract_ctx_blocks(prompt)
     if not blocks:
         return None
@@ -632,22 +798,32 @@ def rag_endpoint(req: RagRequest):
 
 @app.post('/rag/answer', response_model=RagAnswerResponse)
 def rag_answer_endpoint(req: RagAnswerRequest):
-    # Structured curriculum shortcut (deterministic, not top-k dependent)
-    if _USE_STRUCTURED_CURRICULUM and ((req.domain or '').strip().lower() == 'curriculum' or req.domain is None):
-        structured = structured_curriculum_answer(req.question)
-        if structured:
-            return RagAnswerResponse(
-                question=req.question,
-                prompt='(structured curriculum answer)',
-                answer=structured,
-                contexts=[],
-                token_est=0,
-            )
-
     with request_timing('rag_answer', endpoint='/rag/answer', domain=req.domain):
         add_metric('q_len', len((req.question or '').strip()))
         add_metric('question', (req.question or '').strip())
+        add_metric('requested_domain', (req.domain or '').strip().lower() or 'auto')
+
+        # Structured curriculum shortcut (deterministic, not top-k dependent)
+        if _USE_STRUCTURED_CURRICULUM and ((req.domain or '').strip().lower() == 'curriculum' or req.domain is None):
+            with time_block('structured_curriculum'):
+                structured = structured_curriculum_answer(req.question)
+            if structured:
+                add_metric('structured_curriculum_hit', 1)
+                add_metric('ctx_n', 0)
+                add_metric('token_est', 0)
+                add_metric('ctx_sources', '')
+                add_metric('answer', structured)
+                add_metric('answer_chars', len(structured))
+                return RagAnswerResponse(
+                    question=req.question,
+                    prompt='(structured curriculum answer)',
+                    answer=structured,
+                    contexts=[],
+                    token_est=0,
+                )
+
         try:
+            add_metric('use_langchain', int(bool(_USE_LANGCHAIN and _LANGCHAIN_READY and _langchain_rag is not None)))
             if _USE_LANGCHAIN and _LANGCHAIN_READY and _langchain_rag is not None:
                 with time_block('langchain_rag'):
                     result = _langchain_rag.rag_answer_langchain(req.question, req.domain)
@@ -667,6 +843,8 @@ def rag_answer_endpoint(req: RagAnswerRequest):
 
         add_metric('ctx_n', len(result.get('contexts') or []))
         add_metric('token_est', result.get('token_est', 0))
+        add_metric('ctx_sources', ','.join(_context_source_names(result)))
+        add_metric('prompt_chars', len(result.get('prompt') or ''))
 
         # Build chat style messages for models that support it
         system_msg = { 'role': 'system', 'content': 'คุณคือผู้ช่วยของภาควิชาวิศวกรรมคอมพิวเตอร์ ใช้เฉพาะข้อมูลในบริบทเท่านั้น ตอบโดยตรงและชัดเจน ห้ามให้ลิงก์/URL ภายนอก เว้นแต่ปรากฏอยู่ในบริบท หากคำถามกำกวมให้ถามกลับ 1 คำถามสั้น ๆ เพื่อขอรายละเอียดที่จำเป็น หากไม่พบคำตอบแบบชัดเจน ให้สรุปเท่าที่สรุปได้จากบริบท และระบุว่าเอกสารไม่ได้กล่าวตรง ๆ หรือไม่มีข้อความยืนยันโดยตรง' }
@@ -677,7 +855,7 @@ def rag_answer_endpoint(req: RagAnswerRequest):
             answer = _clarify_when_no_context(req.question) or _FALLBACK
         else:
             # If we can deterministically answer from the retrieved context, do it.
-            extracted = _try_extract_total_credits(result.get('prompt') or '')
+            extracted = _try_extract_total_credits(result.get('prompt') or '', question=req.question)
             if extracted:
                 answer = extracted
             else:
@@ -685,12 +863,17 @@ def rag_answer_endpoint(req: RagAnswerRequest):
                 if extracted_w:
                     answer = extracted_w
                 else:
-                    if _USE_LANGCHAIN:
-                        # Already generated in langchain path.
-                        answer = result.get('answer') or ''
+                    guarded = _low_confidence_guardrail(req.question, result)
+                    if guarded:
+                        add_metric('guardrail_triggered', 1)
+                        answer = guarded
                     else:
-                        with time_block('llm_generate'):
-                            answer = llm_engine.generate(result['prompt'], messages=[system_msg, user_msg])
+                        if _USE_LANGCHAIN:
+                            # Already generated in langchain path.
+                            answer = result.get('answer') or ''
+                        else:
+                            with time_block('llm_generate'):
+                                answer = llm_engine.generate(result['prompt'], messages=[system_msg, user_msg])
 
                     # Optionally enforce citations when we have context.
                     if _require_citations() and (result.get('contexts') or []) and answer and not answer.strip().startswith('('):
@@ -708,6 +891,9 @@ def rag_answer_endpoint(req: RagAnswerRequest):
                 # If model uses fallback phrase, it must be the entire answer.
                 if _FALLBACK in answer and answer != _FALLBACK:
                     answer = _FALLBACK
+
+        add_metric('answer', (answer or '').strip())
+        add_metric('answer_chars', len((answer or '').strip()))
 
         return RagAnswerResponse(
             question=req.question,
@@ -762,11 +948,19 @@ def openai_compatible_endpoint(request: dict):
     ):
         add_metric('q_len', len((question or '').strip()))
         add_metric('question', (question or '').strip())
+        add_metric('requested_domain', (domain or '').strip().lower() or 'auto')
+        add_metric('use_langchain', int(bool(_USE_LANGCHAIN and _LANGCHAIN_READY and _langchain_rag is not None)))
 
         # Structured curriculum shortcut for OpenWebUI (works even without retrieval)
         with time_block('structured_curriculum'):
             structured = structured_curriculum_answer(question)
         if structured:
+            add_metric('structured_curriculum_hit', 1)
+            add_metric('ctx_n', 0)
+            add_metric('token_est', 0)
+            add_metric('ctx_sources', '')
+            add_metric('answer', structured)
+            add_metric('answer_chars', len(structured))
             import time
             import uuid
             return {
@@ -806,6 +1000,8 @@ def openai_compatible_endpoint(request: dict):
 
         add_metric('ctx_n', len(result.get('contexts') or []))
         add_metric('token_est', result.get('token_est', 0))
+        add_metric('ctx_sources', ','.join(_context_source_names(result)))
+        add_metric('prompt_chars', len(result.get('prompt') or ''))
 
         # Build system message for RAG context (clean answers, no forced citations)
         system_msg = { 'role': 'system', 'content': 'คุณคือผู้ช่วยของภาควิชาวิศวกรรมคอมพิวเตอร์ ใช้เฉพาะข้อมูลในบริบทเท่านั้น ตอบโดยตรงและชัดเจน ห้ามคัดลอกบริบททั้งก้อน ห้ามให้ลิงก์/URL ภายนอก เว้นแต่ปรากฏอยู่ในบริบท หากคำถามกำกวมให้ถามกลับ 1 คำถามสั้น ๆ เพื่อขอรายละเอียดที่จำเป็น หากไม่พบคำตอบแบบชัดเจน ให้สรุปเท่าที่สรุปได้จากบริบท และระบุว่าเอกสารไม่ได้กล่าวตรง ๆ หรือไม่มีข้อความยืนยันโดยตรง' }
@@ -815,7 +1011,7 @@ def openai_compatible_endpoint(request: dict):
         if not (result.get('contexts') or []):
             answer = _clarify_when_no_context(question) or _FALLBACK
         else:
-            extracted = _try_extract_total_credits(result.get('prompt') or '')
+            extracted = _try_extract_total_credits(result.get('prompt') or '', question=question)
             if extracted:
                 answer = extracted
             else:
@@ -823,11 +1019,16 @@ def openai_compatible_endpoint(request: dict):
                 if extracted_w:
                     answer = extracted_w
                 else:
-                    if _USE_LANGCHAIN:
-                        answer = result.get('answer') or ''
+                    guarded = _low_confidence_guardrail(question, result)
+                    if guarded:
+                        add_metric('guardrail_triggered', 1)
+                        answer = guarded
                     else:
-                        with time_block('llm_generate'):
-                            answer = llm_engine.generate(result['prompt'], messages=[system_msg, user_msg])
+                        if _USE_LANGCHAIN:
+                            answer = result.get('answer') or ''
+                        else:
+                            with time_block('llm_generate'):
+                                answer = llm_engine.generate(result['prompt'], messages=[system_msg, user_msg])
 
             if not (answer or '').strip().startswith('('):
                 answer = _clean_answer_text(answer, strip_citations=True)

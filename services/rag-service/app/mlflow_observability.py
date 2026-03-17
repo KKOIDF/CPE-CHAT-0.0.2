@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import json
 import os
 import random
 import re
@@ -66,6 +67,8 @@ class MlflowObservability:
         self._counts: Dict[str, int] = defaultdict(int)
         self._errors: Dict[str, int] = defaultdict(int)
         self._latencies: Dict[str, Deque[float]] = defaultdict(lambda: deque(maxlen=self._cfg.window_n))
+        self._metric_sums: Dict[str, Dict[str, float]] = defaultdict(lambda: defaultdict(float))
+        self._metric_counts: Dict[str, Dict[str, int]] = defaultdict(lambda: defaultdict(int))
         self._last_flush: float = 0.0
 
     @staticmethod
@@ -177,6 +180,17 @@ class MlflowObservability:
                 self._errors[endpoint_key] += 1
             if total_ms > 0:
                 self._latencies[endpoint_key].append(total_ms)
+            for key, value in (metrics or {}).items():
+                if not key or key in {"question", "answer", "ctx_sources"}:
+                    continue
+                if isinstance(value, bool):
+                    numeric = 1.0 if value else 0.0
+                elif isinstance(value, (int, float)):
+                    numeric = float(value)
+                else:
+                    continue
+                self._metric_sums[endpoint_key][key] += numeric
+                self._metric_counts[endpoint_key][key] += 1
 
         # Optional trace.
         if self._cfg.tracing_enabled and random.random() < self._cfg.trace_sample_rate:
@@ -229,6 +243,16 @@ class MlflowObservability:
                 err_rate = (e / float(n)) if n else 0.0
                 metrics_to_log[f"error_rate__{ep}"] = float(err_rate)
 
+            metric_sums = self._metric_sums.get(ep) or {}
+            metric_counts = self._metric_counts.get(ep) or {}
+            for key, total_value in metric_sums.items():
+                count_value = int(metric_counts.get(key) or 0)
+                safe_key = _safe_name(key)
+                if key.startswith("guardrail_") or key.endswith("_hit") or key.endswith("_used") or key.endswith("_query"):
+                    metrics_to_log[f"sum__{safe_key}__{ep}"] = float(total_value)
+                if count_value > 0:
+                    metrics_to_log[f"avg__{safe_key}__{ep}"] = float(total_value / count_value)
+
         # Global rollup (all endpoints).
         total = float(sum(counts.values()))
         total_err = float(sum(errors.values()))
@@ -280,10 +304,24 @@ class MlflowObservability:
             if self._cfg.trace_content:
                 q = metrics.get("question") if isinstance(metrics.get("question"), str) else None
                 a = metrics.get("answer") if isinstance(metrics.get("answer"), str) else None
+                sources = metrics.get("ctx_sources") if isinstance(metrics.get("ctx_sources"), str) else None
                 if q is not None:
                     req_obj = {"question": _redact_text(q, self._cfg.trace_max_chars)}
+                    if sources:
+                        req_obj["context_sources"] = sources
                 if a is not None:
                     resp_obj = {"answer": _redact_text(a, self._cfg.trace_max_chars)}
+
+            for key, value in (metrics or {}).items():
+                if key in {"question", "answer"}:
+                    continue
+                if value is None:
+                    continue
+                attr_key = f"metric_{_safe_name(key)}"
+                if isinstance(value, (int, float, bool, str)):
+                    attrs[attr_key] = value
+                else:
+                    attrs[attr_key] = _redact_text(json.dumps(value, ensure_ascii=False), self._cfg.trace_max_chars)
 
             # Deprecated but currently functional; OK for minimal tracing.
             tf.log_trace(

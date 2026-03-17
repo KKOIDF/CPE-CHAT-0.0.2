@@ -1,6 +1,7 @@
 import sqlite3
 import re
 import threading
+import os
 from typing import List, Dict, Optional, Sequence
 from pathlib import Path
 
@@ -145,10 +146,14 @@ def keyword_search(
 
     like_ids: List[str] = []
 
-    # Thai/OCR text: FTS tokenization often misses matches (or returns noisy matches).
-    # For our small per-domain DBs, LIKE-based substring matching is acceptable.
-    # If query contains Thai characters, run LIKE search even if FTS returned something.
-    if (not ids) or re.search(r"[\u0E00-\u0E7F]", query):
+    # Thai/OCR text: FTS tokenization can miss substring matches, but broad LIKE fallback
+    # also increases noise substantially. Default to LIKE only when FTS returns no hits.
+    try:
+        like_fallback_min_hits = max(0, int(os.getenv('SQLITE_LIKE_FALLBACK_MIN_HITS', '0') or '0'))
+    except Exception:
+        like_fallback_min_hits = 0
+
+    if (not ids) or len(ids) <= like_fallback_min_hits:
         # Extract candidate keywords (Thai runs, ascii words, digits incl. Thai digits)
         thai_to_arabic = str.maketrans('๐๑๒๓๔๕๖๗๘๙', '0123456789')
         norm_q = query.translate(thai_to_arabic)

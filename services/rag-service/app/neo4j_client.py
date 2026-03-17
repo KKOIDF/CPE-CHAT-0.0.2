@@ -16,7 +16,7 @@ COURSE_CODE_PATTERNS = [
     re.compile(r"\b[0-9\u0E50-\u0E59]{6}\b"),
     re.compile(r"\b[0-9\u0E50-\u0E59]{3}[-–][0-9\u0E50-\u0E59]{3}\b"),
     re.compile(r"\b[0-9\u0E50-\u0E59]{3}[ .\t]+[0-9\u0E50-\u0E59]{3}\b"),
-    re.compile(r"\b[A-Z]{2,6}[-–]?[0-9]{3}\b"),
+    re.compile(r"\b[A-Z]{2,6}\s*[-–]?\s*[0-9]{3}\b"),
 ]
 
 

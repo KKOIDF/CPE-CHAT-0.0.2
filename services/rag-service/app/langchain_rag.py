@@ -13,6 +13,8 @@ from .rag_logic import (
     normalize_question,
     search_query_from_question,
     infer_domain,
+    fallback_domains_for_domain,
+    fallback_min_results,
     retrieve_by_domain,
     retrieve_all_domains,
     _reference_candidates,
@@ -497,21 +499,10 @@ def _build_rag_prompt_langchain(question: str, domain: Optional[str] = None) -> 
     retrieved_lists: List[Tuple[str, List[Dict]]] = []
 
     def _retrieve_one(q: str) -> Tuple[str, List[Dict]]:
-        def _fallback_domains(primary: str) -> List[str] | None:
-            p = (primary or '').strip().lower()
-            if p == 'announcements':
-                return ['announcements', 'regulations']
-            if p == 'regulations':
-                return ['regulations', 'announcements']
-            if p == 'curriculum':
-                # Curriculum questions sometimes need registrar schedules.
-                return ['curriculum', 'announcements', 'regulations']
-            return None
-
         if dom:
             items = retrieve_by_domain(q, domain=dom)
-            if (not has_ref) and len(items) < 4:
-                doms = _fallback_domains(dom)
+            if (not has_ref) and len(items) < fallback_min_results():
+                doms = fallback_domains_for_domain(dom)
                 items = retrieve_all_domains(q, domains=doms)
         else:
             items = retrieve_all_domains(q)

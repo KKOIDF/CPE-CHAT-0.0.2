@@ -23,6 +23,10 @@ except Exception:  # pragma: no cover
     mlf = None  # type: ignore
 
 
+if mlf and getattr(mlflow_utils := mlf, "enabled", lambda: False)():
+    os.environ.setdefault("MLFLOW_EXPERIMENT", os.getenv("MLFLOW_EVAL_EXPERIMENT", "cpe-chat-eval"))
+
+
 FALLBACK = "ไม่พบข้อมูลในเอกสาร"
 CITE_RE = re.compile(r"\[([^\]]+?/\d+)\]")
 BRACKET_RE = re.compile(r"\[[^\]]*\]")

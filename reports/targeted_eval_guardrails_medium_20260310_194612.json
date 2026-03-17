@@ -1,0 +1,576 @@
+{
+  "generated_at": "2026-03-10T19:46:12.013002",
+  "results": [
+    {
+      "case_id": "ann_exact_date_guardrail",
+      "domain": "announcements",
+      "question": "ประกาศค่าประกันภัยมีผลบังคับตั้งแต่วันที่เท่าไร",
+      "answer": "ไม่พบข้อความยืนยันวันหรือวันที่ที่ถามโดยตรงในเอกสารที่ค้นได้",
+      "latency_ms": 2223.903370089829,
+      "contexts_count": 8,
+      "token_est": 184,
+      "sources": [
+        "eng2561.txt",
+        "ประกาศ_มจธ_หลักเกณฑ์การจัดสรรผลประโยชน์_พศ2566_ฉบับเต็ม.txt",
+        "insurance_std_1.txt",
+        "insurance_std.txt"
+      ],
+      "answer_sources": [],
+      "passed": true,
+      "abstain_hit": true,
+      "source_hit": true,
+      "error": null
+    },
+    {
+      "case_id": "ann_accident_insurance_fee",
+      "domain": "announcements",
+      "question": "มหาวิทยาลัยเก็บค่าประกันภัยอุบัติเหตุคืออะไร?",
+      "answer": "- มหาวิทยาลัยเทคโนโลยีพระจอมเกล้าธนบุรีเก็บค่าประกันภัยอุบัติเหตุจากนักศึกษา年人ละ 500 บาทต่อปีการศึกษา\n- ข้อมูลนี้มาจากข้อ 4 ในเอกสาร และ ซึ่งระบุชัดเจนว่าเป็นอัตราการจัดเก็บต่อปีการศึกษาต่อคน\n- เอกสารไม่ได้กล่าวตรง ๆ เกี่ยวกับรายละเอียดเพิ่มเติม เช่น ครอบคลุมความคุ้มครองประเภทใด หรือระยะเวลาคุ้มครอง แต่ยืนยันว่ามีการเก็บค่าประกันภัยอุบัติเหตุปีละ 500 บาทต่อคน",
+      "latency_ms": 3827.840890735388,
+      "contexts_count": 8,
+      "token_est": 543,
+      "sources": [
+        "insurance_std_1.txt",
+        "131.txt",
+        "insurance_std.txt",
+        "137.txt",
+        "2018_06_08_15_13_16.txt"
+      ],
+      "answer_sources": [],
+      "passed": true,
+      "abstain_hit": true,
+      "source_hit": true,
+      "error": null
+    },
+    {
+      "case_id": "ann_insurance_fee_per_year",
+      "domain": "announcements",
+      "question": "นักศึกษาต้องจ่ายค่าประกันภัยเท่าไรต่อปี?",
+      "answer": "- นักศึกษาต้องจ่ายค่าประกันภัยอุบัติเหตุ 500 บาทต่อปีการศึกษา\n- เอกสารระบุชัดเจนว่าอัตราการจัดเก็บค่าประกันภัยอุบัติเหตุจากนักศึกษาคือ 500 บาทต่อคนต่อปีการศึกษา\n- ไม่มีข้อความยืนยันโดยตรงว่ามีการเปลี่ยนแปลงอัตราค่าประกันภัยในปีหลังจากที่ข้อมูลนี้ถูกเผยแพร่",
+      "latency_ms": 2317.848803009838,
+      "contexts_count": 8,
+      "token_est": 668,
+      "sources": [
+        "insurance_std_1.txt",
+        "131.txt",
+        "insurance_std.txt"
+      ],
+      "answer_sources": [],
+      "passed": true,
+      "abstain_hit": false,
+      "source_hit": true,
+      "error": null
+    },
+    {
+      "case_id": "reg_conflict_priority",
+      "domain": "regulations",
+      "question": "ถ้าข้อความในระเบียบอื่นขัดกับระเบียบการสอบจะให้ใช้เอกสารไหน?",
+      "answer": "- ระเบียบการสอบของนักศึกษาพ.ศ. 2560 ระบุชัดเจนว่า ข้อความในระเบียบ คำสั่ง ประกาศ หรือมติอื่นใดที่ขัดหรือแย้งกับระเบียบนี้ ให้ใช้ระเบียบนี้แทน\n- ดังนั้น หากข้อความในระเบียบอื่นขัดกับระเบียบการสอบ จะให้ใช้ \"ระเบียบมหาวิทยาลัยเทคโนโลยีพระจอมเกล้าธนบุรีว่าด้วยการสอบของนักศึกษาพ.ศ. 2560\" แทน\n- เอกสารที่ใช้เป็นหลักคือ ระเบียบการสอบ พ.ศ. 2560 ตามข้อ 4 ของระเบียบนี้",
+      "latency_ms": 3504.3860068544745,
+      "contexts_count": 8,
+      "token_est": 1006,
+      "sources": [
+        "forms.txt",
+        "129.txt",
+        "rule_exam2560.txt"
+      ],
+      "answer_sources": [],
+      "passed": true,
+      "abstain_hit": false,
+      "source_hit": true,
+      "error": null
+    },
+    {
+      "case_id": "reg_repeal_old_rule",
+      "domain": "regulations",
+      "question": "ระเบียบการสอบใหม่ยกเลิกระเบียบเก่าอะไร?",
+      "answer": "- ระเบียบการสอบใหม่ยกเลิกข้อความในข้อ 26 แห่งระเบียบมหาวิทยาลัยเทคโนโลยีพระจอมเกล้าธนบุรีว่าด้วยการศึกษาระดับปริญญาตรี พ.ศ. 2557\n- ระเบียบฉบับนี้มีผลบังคับใช้ตั้งแต่วันที่ประกาศ 12 กรกฎาคม พ.ศ. 2539\n- ข้อความที่ยกเลิกเกี่ยวข้องกับการวัดผลการศึกษาแต่ละรายวิชาหรือกลุ่มวิชา โดยเฉพาะการกำหนดระดับคะแนนตัวอักษรและนิยามของแต่ละระดับ\n- ระเบียบฉบับใหม่ให้ใช้ข้อความที่แก้ไขแล้วแทน ซึ่งระบุรายละเอียดเกี่ยวกับระดับคะแนน แต้มคะแนน และความหมายของแต่ละระดับอย่างชัดเจน\n- ระเบียบฉบับนี้ไม่ได้กล่าวตรง ๆ ว่ายกเลิกระเบียบอื่นนอกเหนือจากข้อ 26 แห่งระเบียบ พ.ศ. 2557 ที่ระบุไว้ในข้อ 6",
+      "latency_ms": 5421.05241632089,
+      "contexts_count": 8,
+      "token_est": 1144,
+      "sources": [
+        "129.txt",
+        "celemony2539.txt",
+        "rule57_2.txt",
+        "135.txt",
+        "rule_exam2560.txt"
+      ],
+      "answer_sources": [],
+      "passed": true,
+      "abstain_hit": true,
+      "source_hit": true,
+      "error": null
+    },
+    {
+      "case_id": "cur_total_credits",
+      "domain": "curriculum",
+      "question": "หลักสูตรวิศวกรรมคอมพิวเตอร์ต้องศึกษารวมกี่หน่วยกิต?",
+      "answer": "- หลักสูตรวิศวกรรมคอมพิวเตอร์ต้องศึกษารวม 130 หน่วยกิต [FOE10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt/1]\n- ข้อความอ้างอิงคือ จำนวนหน่วยกิตที่เรียนตลอดหลักสูตร 130 หน่วยกิต [FOE10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt/1]",
+      "latency_ms": 3.9058090187609196,
+      "contexts_count": 0,
+      "token_est": 0,
+      "sources": [],
+      "answer_sources": [
+        "FOE10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt"
+      ],
+      "passed": true,
+      "abstain_hit": false,
+      "source_hit": true,
+      "error": null
+    },
+    {
+      "case_id": "cur_cpe100_lookup",
+      "domain": "curriculum",
+      "question": "วิชา CPE 100 คืออะไร และมีกี่หน่วยกิต?",
+      "answer": "- วิชา CPE 100 คือ การเขียนโปรแกรมคอมพิวเตอร์สำหรับวิศวกร [FOE10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt/1]\n- วิชา CPE 100 มีจำนวน 3 หน่วยกิต [FOE10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt/1]",
+      "latency_ms": 3.4549799747765064,
+      "contexts_count": 0,
+      "token_est": 0,
+      "sources": [],
+      "answer_sources": [
+        "FOE10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt"
+      ],
+      "passed": true,
+      "abstain_hit": false,
+      "source_hit": true,
+      "error": null
+    },
+    {
+      "case_id": "cur_cpe101_lookup",
+      "domain": "curriculum",
+      "question": "วิชา CPE 101 คืออะไร และมีกี่หน่วยกิต?",
+      "answer": "- วิชา CPE 101 คือ เปิดโลกวิศวกรรมศาสตร์ [FOE10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt/1]\n- วิชา CPE 101 มีจำนวน 3 หน่วยกิต [FOE10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt/1]",
+      "latency_ms": 3.2590096816420555,
+      "contexts_count": 0,
+      "token_est": 0,
+      "sources": [],
+      "answer_sources": [
+        "FOE10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt"
+      ],
+      "passed": true,
+      "abstain_hit": false,
+      "source_hit": true,
+      "error": null
+    },
+    {
+      "case_id": "cur_cpe111_lookup",
+      "domain": "curriculum",
+      "question": "วิชา CPE 111 คืออะไร และมีกี่หน่วยกิต?",
+      "answer": "- วิชา CPE 111 คือ คณิตศาสตร์ดิสครีตสำหรับวิศวกรคอมพิวเตอร์ [FOE10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt/1]\n- วิชา CPE 111 มีจำนวน 3 หน่วยกิต [FOE10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt/1]",
+      "latency_ms": 3.3798040822148323,
+      "contexts_count": 0,
+      "token_est": 0,
+      "sources": [],
+      "answer_sources": [
+        "FOE10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt"
+      ],
+      "passed": true,
+      "abstain_hit": false,
+      "source_hit": true,
+      "error": null
+    },
+    {
+      "case_id": "cur_cpe112_lookup",
+      "domain": "curriculum",
+      "question": "วิชา CPE 112 คืออะไร และมีกี่หน่วยกิต?",
+      "answer": "- วิชา CPE 112 คือ การเขียนโปรแกรมด้วยโครงสร้างข้อมูล [FOE10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt/1]\n- วิชา CPE 112 มีจำนวน 3 หน่วยกิต [FOE10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt/1]",
+      "latency_ms": 3.711405675858259,
+      "contexts_count": 0,
+      "token_est": 0,
+      "sources": [],
+      "answer_sources": [
+        "FOE10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt"
+      ],
+      "passed": true,
+      "abstain_hit": false,
+      "source_hit": true,
+      "error": null
+    },
+    {
+      "case_id": "cur_cpe121_lookup",
+      "domain": "curriculum",
+      "question": "วิชา CPE 121 คืออะไร และมีกี่หน่วยกิต?",
+      "answer": "- วิชา CPE 121 คือ พื้นฐานวงจรไฟฟ้าและอิเล็กทรอนิกส์ [FOE10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt/1]\n- วิชา CPE 121 มีจำนวน 3 หน่วยกิต [FOE10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt/1]",
+      "latency_ms": 3.5531041212379932,
+      "contexts_count": 0,
+      "token_est": 0,
+      "sources": [],
+      "answer_sources": [
+        "FOE10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt"
+      ],
+      "passed": true,
+      "abstain_hit": false,
+      "source_hit": true,
+      "error": null
+    },
+    {
+      "case_id": "cur_mth101_lookup",
+      "domain": "curriculum",
+      "question": "วิชา MTH 101 คืออะไร และมีกี่หน่วยกิต?",
+      "answer": "- วิชา MTH 101 คือ คณิตศาสตร์ 1 [FOE10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt/1]\n- วิชา MTH 101 มีจำนวน 3 หน่วยกิต [FOE10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt/1]",
+      "latency_ms": 3.337192814797163,
+      "contexts_count": 0,
+      "token_est": 0,
+      "sources": [],
+      "answer_sources": [
+        "FOE10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt"
+      ],
+      "passed": true,
+      "abstain_hit": false,
+      "source_hit": true,
+      "error": null
+    },
+    {
+      "case_id": "cur_phy103_lookup",
+      "domain": "curriculum",
+      "question": "วิชา PHY 103 คืออะไร และมีกี่หน่วยกิต?",
+      "answer": "- วิชา PHY 103 คือ ฟิสิกส์ทั่วไปสำหรับนักศึกษาวิศวกรรมศาสตร์ 1 [FOE10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt/1]\n- วิชา PHY 103 มีจำนวน 3 หน่วยกิต [FOE10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt/1]",
+      "latency_ms": 3.5808379761874676,
+      "contexts_count": 0,
+      "token_est": 0,
+      "sources": [],
+      "answer_sources": [
+        "FOE10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt"
+      ],
+      "passed": true,
+      "abstain_hit": false,
+      "source_hit": true,
+      "error": null
+    },
+    {
+      "case_id": "ann_insurance_decider",
+      "domain": "announcements",
+      "question": "ใครมีอำนาจวินิจฉัยเมื่อเกิดปัญหากับประกาศนี้?",
+      "answer": "- อธิการบดีมีอำนาจวินิจฉัยเมื่อเกิดปัญหากับประกาศนี้\n- เอกสารระบุชัดเจนว่า ในกรณีมีข้อขัดแย้ง ข้อขัดหรือแย้ง หรือปัญหาเกี่ยวกับการดำเนินการ อธิการบดีเป็นผู้วินิจฉัยชี้ขาด\n- คำวินิจฉัยหรือคำสั่งของอธิการบดีถือเป็นที่สุด\n- ข้อความดังกล่าวปรากฏในหลายประกาศ เช่น ข้อ 5 จาก eng2561.txt/1, ข้อ 6 จาก fee2567update.txt/1 และข้อ 9 จาก 2018_06_08_15_13_16.txt/1 โดยมีความสอดคล้องกัน\n- ดังนั้น คำตอบที่สรุปได้จากบริบทคือ อธิการบดีมีอำนาจวินิจฉัยปัญหาที่เกิดขึ้นกับประกาศนี้",
+      "latency_ms": 5038.032505195588,
+      "contexts_count": 8,
+      "token_est": 933,
+      "sources": [
+        "eng2561.txt",
+        "137.txt",
+        "139.txt",
+        "fee2567update.txt",
+        "2018_06_08_15_13_16.txt"
+      ],
+      "answer_sources": [],
+      "passed": true,
+      "abstain_hit": false,
+      "source_hit": true,
+      "error": null
+    },
+    {
+      "case_id": "ann_postal_title",
+      "domain": "announcements",
+      "question": "ประกาศค่าธรรมเนียมการจัดส่งเอกสารมีชื่ออะไร?",
+      "answer": "- ประกาศค่าธรรมเนียมการจัดส่งเอกสารมีชื่อว่า “ประกาศมหาวิทยาลัยเทคโนโลยีพระจอมเกล้าธนบุรีเรื่องอัตราค่าธรรมเนียมการบริการจัดส่งเอกสารสำคัญทางการศึกษาทางไปรษณีย์พ.ศ. 2562”",
+      "latency_ms": 2120.669372845441,
+      "contexts_count": 8,
+      "token_est": 1194,
+      "sources": [
+        "t_fee.txt",
+        "fee2567update.txt",
+        "announce_financ.txt",
+        "insurance_std_1.txt",
+        "insurance_std.txt"
+      ],
+      "answer_sources": [],
+      "passed": true,
+      "abstain_hit": false,
+      "source_hit": true,
+      "error": null
+    },
+    {
+      "case_id": "ann_postal_collector",
+      "domain": "announcements",
+      "question": "ใครเป็นผู้เรียกเก็บค่าธรรมเนียมการจัดส่งเอกสาร?",
+      "answer": "- สำนักงานทะเบียนนักศึกษาเป็นผู้ดำเนินการเรียกเก็บค่าธรรมเนียมในการจัดส่งเอกสารสำคัญทางการศึกษาเป็นรายครั้ง",
+      "latency_ms": 1280.9930103830993,
+      "contexts_count": 8,
+      "token_est": 1091,
+      "sources": [
+        "t_fee.txt",
+        "announce_financ.txt"
+      ],
+      "answer_sources": [],
+      "passed": true,
+      "abstain_hit": false,
+      "source_hit": true,
+      "error": null
+    },
+    {
+      "case_id": "reg_exam_dress",
+      "domain": "regulations",
+      "question": "นักศึกษาต้องแต่งตัวแบบไหนเมื่อเข้าห้องสอบ?",
+      "answer": "- นักศึกษาต้องแต่งกายด้วยชุดนักศึกษาที่ถูกต้องตามข้อบังคับมหาวิทยาลัยเทคโนโลยีพระจอมเกล้าธนบุรีว่าด้วยเครื่องแต่งกายนักศึกษา\n- เอกสารไม่ได้กล่าวตรง ๆ ว่า \"ชุดนักศึกษา\" หมายถึงชุดแบบใดโดยเฉพาะ (เช่น ชุดนักศึกษาภาคปกติ ชุดนักศึกษาภาคพิเศษ หรือชุดเฉพาะคณะ)\n- ไม่มีข้อความยืนยันโดยตรงในบริบทเกี่ยวกับรายละเอียดของชุด เช่น สี รูปแบบ หรือประเภทเสื้อผ้าที่อนุญาต",
+      "latency_ms": 3612.5496379099786,
+      "contexts_count": 8,
+      "token_est": 935,
+      "sources": [
+        "forms.txt",
+        "rule_exam2560.txt"
+      ],
+      "answer_sources": [],
+      "passed": true,
+      "abstain_hit": true,
+      "source_hit": true,
+      "error": null
+    },
+    {
+      "case_id": "reg_exam_bring_id",
+      "domain": "regulations",
+      "question": "นักศึกษาต้องนำสิ่งของอะไรเข้าห้องสอบ?",
+      "answer": "- นักศึกษาต้องนำบัตรนักศึกษาหรือใบแทนบัตรประจำตัวนักศึกษาเข้าห้องสอบ\n- นักศึกษาอาจนำเครื่องคำนวณเข้าห้องสอบได้เฉพาะกรณีที่อาจารย์ประจำวิชาอนุญาต และต้องเป็นรุ่นที่มหาวิทยาลัยกำหนด โดยต้องผ่านการตรวจสอบและติดสติกเกอร์จากสำนักงานทะเบียนนักศึกษาแล้ว\n- นักศึกษาไม่สามารถนำเอกสาร ไม้บรรทัดที่มีสูตร หรืออุปกรณ์อิเล็กทรอนิกส์อื่นใดที่มีคุณสมบัติคล้ายเครื่องคำนวณเข้าห้องสอบ เว้นแต่ได้รับอนุญาตจากอาจารย์ผู้สอน\n- นักศึกษาไม่สามารถนำเครื่องมือสื่อสารหรืออุปกรณ์อิเล็กทรอนิกส์ทุกชนิดเข้าห้องสอบ เว้นแต่เป็นอุปกรณ์พิเศษทางการแพทย์ เช่น เครื่องช่วยฟัง\n- ระเบียบไม่ได้กล่าวตรง ๆ เกี่ยวกับการนำสิ่งของอื่น ๆ เข้าห้องสอบนอกเหนือจากที่ระบุไว้ข้างต้น",
+      "latency_ms": 5640.041814185679,
+      "contexts_count": 8,
+      "token_est": 774,
+      "sources": [
+        "rule_exam2560.txt"
+      ],
+      "answer_sources": [],
+      "passed": true,
+      "abstain_hit": true,
+      "source_hit": true,
+      "error": null
+    },
+    {
+      "case_id": "reg_exam_calculator",
+      "domain": "regulations",
+      "question": "นักศึกษาเอาเครื่องคิดเลขเข้าห้องสอบได้หรือไม่?",
+      "answer": "- นักศึกษา **ห้าม** นำเครื่องคิดเลขเข้าห้องสอบโดยทั่วไป\n- ยกเว้นกรณีที่ **อาจารย์ประจำวิชาได้อนุญาตไว้ในข้อสอบรายวิชานั้น**\n- หากได้รับอนุญาต ต้องใช้เครื่องคิดเลขรุ่นที่มหาวิทยาลัยกำหนด และต้องนำไปให้สำนักงานทะเบียนนักศึกษาตรวจสอบและติดสติกเกอร์เรียบร้อยแล้ว\n- อนุญาตให้นำเข้าได้เพียง **คนละ 1 เครื่องเท่านั้น**\nเอกสารไม่ได้กล่าวตรง ๆ ว่าสามารถนำเครื่องคิดเลขเข้าห้องสอบได้โดยไม่มีเงื่อนไข แต่ระบุเงื่อนไขเฉพาะกรณีที่อาจารย์อนุญาตไว้เท่านั้น.",
+      "latency_ms": 3797.79125796631,
+      "contexts_count": 8,
+      "token_est": 935,
+      "sources": [
+        "forms.txt",
+        "rule_exam2560.txt",
+        "handbook2562g.txt"
+      ],
+      "answer_sources": [],
+      "passed": true,
+      "abstain_hit": true,
+      "source_hit": true,
+      "error": null
+    },
+    {
+      "case_id": "cur_cpe222_lookup",
+      "domain": "curriculum",
+      "question": "วิชา CPE 222 คืออะไร และมีกี่หน่วยกิต?",
+      "answer": "- วิชา CPE 222 คือ อิเล็กทรอนิกส์ดิจิทัลและการออกแบบวงจรเชิงตรรกะ [FOE10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt/1]\n- วิชา CPE 222 มีจำนวน 3 หน่วยกิต [FOE10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt/1]",
+      "latency_ms": 2.766834106296301,
+      "contexts_count": 0,
+      "token_est": 0,
+      "sources": [],
+      "answer_sources": [
+        "FOE10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt"
+      ],
+      "passed": true,
+      "abstain_hit": false,
+      "source_hit": true,
+      "error": null
+    },
+    {
+      "case_id": "cur_cpe231_lookup",
+      "domain": "curriculum",
+      "question": "วิชา CPE 231 คืออะไร และมีกี่หน่วยกิต?",
+      "answer": "- วิชา CPE 231 คือ ขั้นตอนวิธี [FOE10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt/1]\n- วิชา CPE 231 มีจำนวน 3 หน่วยกิต [FOE10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt/1]",
+      "latency_ms": 2.491211984306574,
+      "contexts_count": 0,
+      "token_est": 0,
+      "sources": [],
+      "answer_sources": [
+        "FOE10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt"
+      ],
+      "passed": true,
+      "abstain_hit": false,
+      "source_hit": true,
+      "error": null
+    },
+    {
+      "case_id": "cur_cpe232_lookup",
+      "domain": "curriculum",
+      "question": "วิชา CPE 232 คืออะไร และมีกี่หน่วยกิต?",
+      "answer": "- วิชา CPE 232 คือ แบบจำลองข้อมูล [FOE10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt/1]\n- วิชา CPE 232 มีจำนวน 3 หน่วยกิต [FOE10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt/1]",
+      "latency_ms": 2.3537171073257923,
+      "contexts_count": 0,
+      "token_est": 0,
+      "sources": [],
+      "answer_sources": [
+        "FOE10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt"
+      ],
+      "passed": true,
+      "abstain_hit": false,
+      "source_hit": true,
+      "error": null
+    },
+    {
+      "case_id": "cur_cpe241_lookup",
+      "domain": "curriculum",
+      "question": "วิชา CPE 241 คืออะไร และมีกี่หน่วยกิต?",
+      "answer": "- วิชา CPE 241 คือ ระบบฐานข้อมูล [FOE10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt/1]\n- วิชา CPE 241 มีจำนวน 3 หน่วยกิต [FOE10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt/1]",
+      "latency_ms": 3.122155088931322,
+      "contexts_count": 0,
+      "token_est": 0,
+      "sources": [],
+      "answer_sources": [
+        "FOE10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt"
+      ],
+      "passed": true,
+      "abstain_hit": false,
+      "source_hit": true,
+      "error": null
+    },
+    {
+      "case_id": "cur_cpe333_lookup",
+      "domain": "curriculum",
+      "question": "วิชา CPE 333 คืออะไร และมีกี่หน่วยกิต?",
+      "answer": "- วิชา CPE 333 คือ ระบบปฏิบัติการ [FOE10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt/1]\n- วิชา CPE 333 มีจำนวน 3 หน่วยกิต [FOE10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt/1]",
+      "latency_ms": 2.4253390729427338,
+      "contexts_count": 0,
+      "token_est": 0,
+      "sources": [],
+      "answer_sources": [
+        "FOE10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt"
+      ],
+      "passed": true,
+      "abstain_hit": false,
+      "source_hit": true,
+      "error": null
+    },
+    {
+      "case_id": "cur_cpe334_lookup",
+      "domain": "curriculum",
+      "question": "วิชา CPE 334 คืออะไร และมีกี่หน่วยกิต?",
+      "answer": "- วิชา CPE 334 คือ วิศวกรรมซอฟต์แวร์ [FOE10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt/1]\n- วิชา CPE 334 มีจำนวน 3 หน่วยกิต [FOE10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt/1]",
+      "latency_ms": 1.6543562524020672,
+      "contexts_count": 0,
+      "token_est": 0,
+      "sources": [],
+      "answer_sources": [
+        "FOE10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt"
+      ],
+      "passed": true,
+      "abstain_hit": false,
+      "source_hit": true,
+      "error": null
+    },
+    {
+      "case_id": "cur_gen101_lookup",
+      "domain": "curriculum",
+      "question": "วิชา GEN 101 คืออะไร และมีกี่หน่วยกิต?",
+      "answer": "- วิชา GEN 101 คือ พลศึกษา [FOE10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt/1]\n- วิชา GEN 101 มีจำนวน 1 หน่วยกิต [FOE10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt/1]",
+      "latency_ms": 1.7064516432583332,
+      "contexts_count": 0,
+      "token_est": 0,
+      "sources": [],
+      "answer_sources": [
+        "FOE10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt"
+      ],
+      "passed": true,
+      "abstain_hit": false,
+      "source_hit": true,
+      "error": null
+    },
+    {
+      "case_id": "cur_gen111_lookup",
+      "domain": "curriculum",
+      "question": "วิชา GEN 111 คืออะไร และมีกี่หน่วยกิต?",
+      "answer": "- วิชา GEN 111 คือ มนุษย์กับหลักจริยศาสตร์เพื่อการดำเนินชีวิต [FOE10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt/1]\n- วิชา GEN 111 มีจำนวน 3 หน่วยกิต [FOE10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt/1]",
+      "latency_ms": 1.6369237564504147,
+      "contexts_count": 0,
+      "token_est": 0,
+      "sources": [],
+      "answer_sources": [
+        "FOE10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt"
+      ],
+      "passed": true,
+      "abstain_hit": false,
+      "source_hit": true,
+      "error": null
+    },
+    {
+      "case_id": "cur_gen231_lookup",
+      "domain": "curriculum",
+      "question": "วิชา GEN 231 คืออะไร และมีกี่หน่วยกิต?",
+      "answer": "- วิชา GEN 231 คือ มหัศจรรย์แห่งความคิด [FOE10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt/1]\n- วิชา GEN 231 มีจำนวน 3 หน่วยกิต [FOE10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt/1]",
+      "latency_ms": 1.6532819718122482,
+      "contexts_count": 0,
+      "token_est": 0,
+      "sources": [],
+      "answer_sources": [
+        "FOE10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt"
+      ],
+      "passed": true,
+      "abstain_hit": false,
+      "source_hit": true,
+      "error": null
+    },
+    {
+      "case_id": "cur_lng223_lookup",
+      "domain": "curriculum",
+      "question": "วิชา LNG 223 คืออะไร และมีกี่หน่วยกิต?",
+      "answer": "- วิชา LNG 223 คือ ภาษาอังกฤษเพื่อการสื่อสารในที่ทำงาน [FOE10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt/1]\n- วิชา LNG 223 มีจำนวน 3 หน่วยกิต [FOE10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt/1]",
+      "latency_ms": 1.6211047768592834,
+      "contexts_count": 0,
+      "token_est": 0,
+      "sources": [],
+      "answer_sources": [
+        "FOE10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt"
+      ],
+      "passed": true,
+      "abstain_hit": false,
+      "source_hit": true,
+      "error": null
+    },
+    {
+      "case_id": "cur_mth234_lookup",
+      "domain": "curriculum",
+      "question": "วิชา MTH 234 คืออะไร และมีกี่หน่วยกิต?",
+      "answer": "- วิชา MTH 234 คือ พีชคณิตเชิงเส้น [FOE10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt/1]\n- วิชา MTH 234 มีจำนวน 3 หน่วยกิต [FOE10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt/1]",
+      "latency_ms": 1.552848145365715,
+      "contexts_count": 0,
+      "token_est": 0,
+      "sources": [],
+      "answer_sources": [
+        "FOE10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt"
+      ],
+      "passed": true,
+      "abstain_hit": false,
+      "source_hit": true,
+      "error": null
+    },
+    {
+      "case_id": "cur_chm103_lookup",
+      "domain": "curriculum",
+      "question": "วิชา CHM 103 คืออะไร และมีกี่หน่วยกิต?",
+      "answer": "- วิชา CHM 103 คือ เคมีพื้นฐาน [FOE10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt/1]\n- วิชา CHM 103 มีจำนวน 3 หน่วยกิต [FOE10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt/1]",
+      "latency_ms": 1.6708089970052242,
+      "contexts_count": 0,
+      "token_est": 0,
+      "sources": [],
+      "answer_sources": [
+        "FOE10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt"
+      ],
+      "passed": true,
+      "abstain_hit": false,
+      "source_hit": true,
+      "error": null
+    },
+    {
+      "case_id": "cur_sta302_lookup",
+      "domain": "curriculum",
+      "question": "วิชา STA 302 คืออะไร และมีกี่หน่วยกิต?",
+      "answer": "- วิชา STA 302 คือ สถิติสำหรับวิศวกร [FOE10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt/1]\n- วิชา STA 302 มีจำนวน 3 หน่วยกิต [FOE10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt/1]",
+      "latency_ms": 1.6912249848246574,
+      "contexts_count": 0,
+      "token_est": 0,
+      "sources": [],
+      "answer_sources": [
+        "FOE10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt"
+      ],
+      "passed": true,
+      "abstain_hit": false,
+      "source_hit": true,
+      "error": null
+    }
+  ]
+}

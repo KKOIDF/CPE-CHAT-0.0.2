@@ -20,6 +20,10 @@ except Exception:  # pragma: no cover
     mlf = None  # type: ignore
 
 
+if mlf and getattr(mlf, "enabled", lambda: False)():
+    os.environ.setdefault("MLFLOW_EXPERIMENT", os.getenv("MLFLOW_RETRIEVAL_EXPERIMENT", "cpe-chat-retrieval-regression"))
+
+
 @dataclass
 class EvalQuery:
     domain: str

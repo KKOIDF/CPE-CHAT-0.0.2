@@ -23,9 +23,10 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import os
 import re
-import sys
 import time
+import sys
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -40,6 +41,17 @@ try:
     import mlflow_utils as mlf
 except Exception:  # pragma: no cover
     mlf = None  # type: ignore
+
+try:
+    import mlflow
+    import mlflow.tracing.fluent as mlflow_tracing
+except Exception:  # pragma: no cover
+    mlflow = None  # type: ignore
+    mlflow_tracing = None  # type: ignore
+
+
+if mlf and getattr(mlf, "enabled", lambda: False)():
+    os.environ.setdefault("MLFLOW_EXPERIMENT", os.getenv("MLFLOW_EVAL_EXPERIMENT", "cpe-chat-eval"))
 
 
 FALLBACK = "ไม่พบข้อมูลในเอกสาร"
@@ -102,6 +114,15 @@ def _post_answer(base_url: str, question: str, domain: Optional[str], timeout_s:
     return r.json()
 
 
+def _percentile(values: List[float], p: float) -> float:
+    if not values:
+        return 0.0
+    ordered = sorted(values)
+    idx = int(round((p / 100.0) * (len(ordered) - 1)))
+    idx = max(0, min(len(ordered) - 1, idx))
+    return float(ordered[idx])
+
+
 def _get_json(url: str, timeout_s: float) -> Dict[str, Any]:
     r = requests.get(url, timeout=timeout_s)
     r.raise_for_status()
@@ -151,6 +172,8 @@ class CaseResult:
     tags: str
     answer: str
     sources_top: List[str]
+    contexts_count: int
+    latency_ms: float
     similarity: float
     years_jaccard: float
     money_jaccard: float
@@ -161,6 +184,7 @@ class CaseResult:
     hallucination: bool
     false_negative: bool
     error: str
+    trace_id: str
 
 
 def _predicted_behavior(answer: str, *, clarified: bool, abstained: bool, error: str) -> str:
@@ -214,11 +238,15 @@ def main() -> int:
         answer = ""
         contexts: List[Dict[str, Any]] = []
         err = ""
+        latency_ms = 0.0
         try:
+            started = time.perf_counter()
             data = _post_answer(args.base_url, q, domain, timeout_s=float(args.timeout))
+            latency_ms = (time.perf_counter() - started) * 1000.0
             answer = str(data.get("answer") or "").strip()
             contexts = list(data.get("contexts") or [])
         except Exception as e:
+            latency_ms = (time.perf_counter() - started) * 1000.0 if 'started' in locals() else 0.0
             err = f"{type(e).__name__}: {e}"
 
         sources = _sources_from_contexts(contexts)
@@ -259,6 +287,8 @@ def main() -> int:
                 tags=tags,
                 answer=answer,
                 sources_top=sources_top,
+                contexts_count=len(contexts),
+                latency_ms=latency_ms,
                 similarity=sim,
                 years_jaccard=years_j,
                 money_jaccard=money_j,
@@ -269,6 +299,7 @@ def main() -> int:
                 hallucination=hallucination,
                 false_negative=false_negative,
                 error=err,
+                trace_id="",
             )
         )
 
@@ -321,6 +352,13 @@ def main() -> int:
         and (x.abstained or x.clarified)
     )
 
+    latency_values = [x.latency_ms for x in results if x.latency_ms > 0]
+    latency_by_domain: Dict[str, List[float]] = {}
+    for x in results:
+        if x.latency_ms <= 0:
+            continue
+        latency_by_domain.setdefault(x.domain or "unknown", []).append(x.latency_ms)
+
     summary = {
         "total": n_total,
         "answerable_cases": n_ans,
@@ -336,12 +374,20 @@ def main() -> int:
         "answerable_cases_with_expected": n_ans_with_expected,
         "abstain_correct": abstain_correct,
         "abstain_accuracy": (abstain_correct / n_unans) if n_unans else 0.0,
+        "latency_ms_avg": (sum(latency_values) / len(latency_values)) if latency_values else 0.0,
+        "latency_ms_p50": _percentile(latency_values, 50),
+        "latency_ms_p90": _percentile(latency_values, 90),
+        "latency_ms_p95": _percentile(latency_values, 95),
+        "latency_ms_p99": _percentile(latency_values, 99),
+        "latency_ms_max": max(latency_values) if latency_values else 0.0,
+        "contexts_count_avg": (sum(x.contexts_count for x in results) / n_total) if n_total else 0.0,
         "sim_threshold": float(args.sim_threshold),
     }
 
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
     out_json = Path("reports") / f"testqa_v2_live_eval_{ts}.json"
     out_md = Path("reports") / f"testqa_v2_live_eval_{ts}.md"
+    out_latency_csv = Path("reports") / f"testqa_v2_live_eval_latency_{ts}.csv"
     out_json.parent.mkdir(parents=True, exist_ok=True)
 
     payload = {
@@ -356,6 +402,38 @@ def main() -> int:
     }
     out_json.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
 
+    with out_latency_csv.open("w", encoding="utf-8", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerow(
+            [
+                "id",
+                "domain",
+                "expected_behavior",
+                "predicted_behavior",
+                "latency_ms",
+                "contexts_count",
+                "behavior_match",
+                "hallucination",
+                "false_negative",
+                "trace_id",
+            ]
+        )
+        for x in results:
+            writer.writerow(
+                [
+                    x.id,
+                    x.domain,
+                    x.expected_behavior,
+                    x.predicted_behavior,
+                    f"{x.latency_ms:.3f}",
+                    x.contexts_count,
+                    int(x.behavior_match),
+                    int(x.hallucination),
+                    int(x.false_negative),
+                    x.trace_id,
+                ]
+            )
+
     lines: List[str] = []
     lines.append("# TestQA v2 Live Eval")
     lines.append("")
@@ -368,6 +446,16 @@ def main() -> int:
     lines.append("")
     for k, v in summary.items():
         lines.append(f"- {k}: {v}")
+    lines.append("")
+
+    lines.append("## Latency By Domain")
+    lines.append("")
+    for domain_key in sorted(latency_by_domain.keys()):
+        domain_values = latency_by_domain[domain_key]
+        lines.append(
+            f"- {domain_key}: avg={sum(domain_values) / len(domain_values):.2f} ms, "
+            f"p90={_percentile(domain_values, 90):.2f} ms, max={max(domain_values):.2f} ms"
+        )
     lines.append("")
 
     lines.append("## Behavior confusion (expected -> predicted)")
@@ -413,13 +501,107 @@ def main() -> int:
             lines.append(f"  A: {x.answer[:220]}")
         lines.append("")
 
-    out_md.write_text("\n".join(lines), encoding="utf-8")
-
     if mlf and getattr(mlf, "enabled", lambda: False)():
         with mlf.start_run(
             run_name=f"testqa_v2_live_eval_{ts}",
             tags={"script": "scripts/eval_testqa_csv_live_v2.py"},
         ):
+            trace_manifest: List[Dict[str, Any]] = []
+            if mlflow and mlflow_tracing:
+                try:
+                    mlflow.set_tracking_uri(os.getenv("MLFLOW_TRACKING_URI", "http://localhost:5000"))
+                    mlflow.set_experiment(os.getenv("MLFLOW_EXPERIMENT", os.getenv("MLFLOW_EVAL_EXPERIMENT", "cpe-chat-eval")))
+                    for x in results:
+                        trace_id = mlflow_tracing.log_trace(
+                            name="eval_case",
+                            request={
+                                "case_id": x.id,
+                                "domain": x.domain,
+                                "question": x.question,
+                                "expected_behavior": x.expected_behavior,
+                            },
+                            response={
+                                "answer": x.answer,
+                                "predicted_behavior": x.predicted_behavior,
+                                "error": x.error,
+                            },
+                            attributes={
+                                "case_id": x.id,
+                                "domain": x.domain,
+                                "expected_behavior": x.expected_behavior,
+                                "predicted_behavior": x.predicted_behavior,
+                                "expect_answerable": x.expect_answerable,
+                                "behavior_match": x.behavior_match,
+                                "hallucination": x.hallucination,
+                                "false_negative": x.false_negative,
+                                "latency_ms": x.latency_ms,
+                                "contexts_count": x.contexts_count,
+                                "trace_kind": "evaluation",
+                                "trace_script": "eval_testqa_csv_live_v2.py",
+                                "reference_hint": x.reference_hint,
+                                "tags": x.tags,
+                                "sources_top": "|".join(x.sources_top[:8]),
+                            },
+                            execution_time_ms=int(round(x.latency_ms)),
+                        )
+                        x.trace_id = str(trace_id or "")
+                        trace_manifest.append(
+                            {
+                                "case_id": x.id,
+                                "domain": x.domain,
+                                "trace_id": x.trace_id,
+                                "latency_ms": x.latency_ms,
+                            }
+                        )
+                except Exception:
+                    trace_manifest = []
+
+            payload = {
+                "summary": summary,
+                "behavior_confusion": behavior_confusion,
+                "cases": [
+                    {
+                        **x.__dict__,
+                    }
+                    for x in results
+                ],
+            }
+            out_json.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+
+            with out_latency_csv.open("w", encoding="utf-8", newline="") as f:
+                writer = csv.writer(f)
+                writer.writerow(
+                    [
+                        "id",
+                        "domain",
+                        "expected_behavior",
+                        "predicted_behavior",
+                        "latency_ms",
+                        "contexts_count",
+                        "behavior_match",
+                        "hallucination",
+                        "false_negative",
+                        "trace_id",
+                    ]
+                )
+                for x in results:
+                    writer.writerow(
+                        [
+                            x.id,
+                            x.domain,
+                            x.expected_behavior,
+                            x.predicted_behavior,
+                            f"{x.latency_ms:.3f}",
+                            x.contexts_count,
+                            int(x.behavior_match),
+                            int(x.hallucination),
+                            int(x.false_negative),
+                            x.trace_id,
+                        ]
+                    )
+
+            out_md.write_text("\n".join(lines), encoding="utf-8")
+
             mlf.log_params(
                 {
                     "input": str(in_path),
@@ -431,10 +613,22 @@ def main() -> int:
                 }
             )
             mlf.log_metrics(summary)
-            mlf.log_artifacts([str(out_json), str(out_md)])
+            for domain_key in sorted(latency_by_domain.keys()):
+                domain_values = latency_by_domain[domain_key]
+                mlf.log_metrics(
+                    {
+                        f"latency_ms_avg__{domain_key}": sum(domain_values) / len(domain_values),
+                        f"latency_ms_p90__{domain_key}": _percentile(domain_values, 90),
+                        f"latency_ms_max__{domain_key}": max(domain_values),
+                    }
+                )
+            mlf.log_metrics({"trace_count": float(len(trace_manifest))})
+            mlf.log_artifacts([str(out_json), str(out_md), str(out_latency_csv)])
 
             # Log confusion matrix as artifact for MLflow UI browsing.
             mlf.log_dict_artifact(behavior_confusion, artifact_file=f"behavior_confusion_{ts}.json")
+            if trace_manifest:
+                mlf.log_dict_artifact({"traces": trace_manifest}, artifact_file=f"trace_manifest_{ts}.json")
 
             ctx: Dict[str, Any] = {
                 "generated": ts,
@@ -454,8 +648,12 @@ def main() -> int:
 
             mlf.log_dict_artifact(ctx, artifact_file=f"run_context_{ts}.json")
 
+    else:
+        out_md.write_text("\n".join(lines), encoding="utf-8")
+
     print(f"Wrote: {out_json}")
     print(f"Wrote: {out_md}")
+    print(f"Wrote: {out_latency_csv}")
     print(json.dumps(summary, ensure_ascii=False, indent=2))
     return 0
 

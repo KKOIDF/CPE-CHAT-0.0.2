@@ -32,6 +32,7 @@ class CurriculumCPE2564:
 
 # Cache the parsed curriculum to avoid re-parsing per request.
 _CACHED_2564: Optional[CurriculumCPE2564] = None
+_CACHED_ALL_COURSES_2564: Optional[dict[str, Course]] = None
 
 
 _COURSE_LINE_RE = re.compile(
@@ -263,6 +264,30 @@ def load_cpe_curriculum_2564() -> Optional[CurriculumCPE2564]:
         required_cpe_wil_only=_sorted(wil_only),
     )
     return _CACHED_2564
+
+
+def load_all_courses_2564() -> dict[str, Course]:
+    global _CACHED_ALL_COURSES_2564
+    if _CACHED_ALL_COURSES_2564 is not None:
+        return _CACHED_ALL_COURSES_2564
+
+    src = _find_cpe_2564_source()
+    if not src:
+        _CACHED_ALL_COURSES_2564 = {}
+        return _CACHED_ALL_COURSES_2564
+
+    try:
+        text = src.read_text(encoding='utf-8', errors='ignore')
+    except Exception:
+        _CACHED_ALL_COURSES_2564 = {}
+        return _CACHED_ALL_COURSES_2564
+
+    bank: dict[str, Course] = {}
+    for course in extract_courses_from_text(text):
+        bank.setdefault(course.code.upper(), course)
+
+    _CACHED_ALL_COURSES_2564 = bank
+    return _CACHED_ALL_COURSES_2564
 
 
 def is_required_cpe_question(question: str) -> bool:
