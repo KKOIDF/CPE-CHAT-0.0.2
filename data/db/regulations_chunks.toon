@@ -14,7 +14,7 @@ chunks[298]:
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "ระเบียบสถาบันเทคโนโลยีพระจอมเกล้าธนบุรีว่าด้วยการกำหนดอัตราค่าบำรุงและค่าธรรมเนียมการศึกษาพ.ศ. 2540
 โดยที่เป็นการสมควรกำหนดอัตราค่าบำรุงและค่าธรรมเนียมการศึกษาสำหรับนักศึกษาทุกหลักสูตรการศึกษาที่เริ่มเข้าศึกษาตั้งแต่ปีการศึกษา 2540 เป็นต้นไป
 อาศัยอำนาจตามความในมาตรา 15 (12) แห่งพระราชบัญญัติสถาบันเทคโนโลยีพระจอมเกล้าเจ้าคุณทหารลาดกระบังสถาบันเทคโนโลยีพระจอมเกล้าธนบุรีและสถาบันเทคโนโลยีพระจอมเกลาพระนครเหนือพ.ศ. 2528 ประกอบกับมติสภาสถาบันเทคโนโลยีพระจอมเกลาธนบุรีในการประชุมครั้งที่ 2/2540 เมื่อวันที่ 27 มีนาคม 2540 สภาสถาบันฯจึงมีมติให้วางระเบียบไว้ดังต่อไปนี้
@@ -47,7 +47,7 @@ chunks[298]:
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: ข้อ 1 ระเบียบนี้เรียกว่า "ระเบียบสถาบันเทคโนโลยีพระจอมเกล้าธนบุรีว่าด้วยการกำหนดอัตราค่าบำรุงและค่าธรรมเนียมการศึกษาพ.ศ. 2540"
   tokens_est: 32
   section: clause
@@ -75,7 +75,7 @@ chunks[298]:
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: ข้อ 2 ระเบียนี้ให้ใช้บังคับสำหรับนักศึกษาทุกหลักสูตรการศึกษาที่เริ่มเข้าศึกษาตั้งแต่ภาคการศึกษาที่ 1 ปีการศึกษา 2540 รวมทั้งนักศึกษาที่โอนมาจากสถาบันอุดมศึกษาอื่นตั้งแต่ปีการศึกษา 2540 เป็นต้นไป
   tokens_est: 49
   section: clause
@@ -103,7 +103,7 @@ chunks[298]:
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: ข้อ 3 บรรดาระเบียบคำสั่งประกาศหรือมติอื่นใดในส่วนที่กำหนดไว้แล้วในระเบียบนี้หรือซึ่งขัดหรือแย้งกับระเบียบนี้ให้ใช้ระเบียบนี้แทน
   tokens_est: 32
   section: clause
@@ -131,7 +131,7 @@ chunks[298]:
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "ข้อ 4 ในระเบียบนี้
 * **หมายถึง** สถาบันเทคโนโลยีพระจอมเกล้าธนบุรี
 * **สถาบัน** มหาวิทยาลัยราชภัฏมหาสารคาม
@@ -166,7 +166,7 @@ chunks[298]:
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "ข้อ 5 ให้สถาบันเรียกเก็บค่าบำรุงและค่าธรรมเนียมการศึกษาจากนักศึกษาตามอัตราที่สภาสถาบันกำหนดโดยแบ่งเป็นเงินประจำรายเดือนไปตามรหัสที่เข้าศึกษาและระดับการศึกษาภายใต้ประเภทที่กำกับไว้ดังนี้
 * ก. ค่าบำรุงและการศึกษาที่เรียกเก็บเป็นรายภาคการศึกษาคือภาคการศึกษาปกติและภาคการศึกษาฤดูร้อนได้แก่
 * (1) ค่าบำรุงการศึกษา
@@ -228,7 +228,7 @@ chunks[298]:
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "ข้อ 3 ให้ยกเลิกระเบียบสถาบันเทคโนโลยีพระจอมเกล้าธนบุรีว่าด้วยการกำหนดอัตราค่าบำรุงการศึกษาและค่าธรรมเนียมการศึกษาสำหรับนักศึกษาระดับปริญญาตรีคณะสถาปัตยกรรมศาสตร์ (ฉบับที่ 2) พ.ศ. 2538
 บรรดาระเบียบคำสั่งประกาศหรือมติอื่นใดในส่วนที่กำหนดไว้แล้วในระเบียบนี้หรือซึ่งขัดหรือแย้งกับระเบียบนี้ให้ใช้ระเบียบนี้แทน
 ข้อ 4 ในระเบียบนี้
@@ -286,7 +286,7 @@ chunks[298]:
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "**ข้อ 3** ให้ยกเลิกระเบียบสถาบันเทคโนโลยีพระจอมเกล้าธนบุรีว่าด้วยการกำหนดอัตราค่าธรรมเนียมขึ้นปริญญาประกาศนียบัตรบัณฑิตอนุปริญญาและประกาศนียบัตรวิชาชีพชั้นสูงพ.ศ. 2531
 บรรดาระเบียบคำสั่งประกาศหรือมติอื่นใดในส่วนที่กำหนดไว้แล้วในระเบียบนี้หรือซึ่งขัดหรือแย้งกับระเบียบนี้ให้ใช้ระเบียบนี้แทน
 **ข้อ 4 ในระเบียบนี้**
@@ -331,7 +331,7 @@ chunks[298]:
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "ระเบียบมหาวิทยาลัยเทคโนโลยีพระจอมเกล้าธนบุรีว่าด้วยการศึกษาระดับปริญญาตรี (ฉบับที่ 3)
 พ.ศ. 2561
 เพื่อส่งเสริมนักศึกษาที่มีประสบการณ์หรือความสามารถทางวิชาการสูงได้พัฒนาตนเองตามศักยภาพจึงสมควรปรับปรุงระเบียบมหาวิทยาลัยเทคโนโลยีพระจอมเกล้าธนบุรีว่าด้วยการศึกษาระดับปริญญาตรีพ.ศ. 2557 ให้เหมาะสมยิ่งขึ้น
@@ -382,7 +382,7 @@ chunks[298]:
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "**ข้อ 3** ให้ยกเลิกระเบียบสถาบันเทคโนโลยีพระจอมเกล้าธนบุรีว่าด้วยการรับบุคคลภายนอกเข้าศึกษาเพื่อเพิ่มพูนความรู้พ.ศ. 2537
 **ข้อ 4 ในระเบียบนี้**
 * **มหาวิทยาลัย:** หมายความว่ามหาวิทยาลัยเทคโนโลยีพระจอมเกล้าธนบุรี
@@ -442,7 +442,7 @@ chunks[298]:
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "**ข้อ 3** ให้ยกเลิกระเบียบสถาบันเทคโนโลยีพระจอมเกล้าธนบุรีว่าด้วยการกำหนดอัตราค่าธรรมเนียมขึ้นปริญญาประกาศนียบัตรบัณฑิตธนบุรีและประกาศนียบัตรวิชาชีพชั้นสูงพ.ศ. 2531
 บรรดาระเบียบคำสั่งประกาศหรือมติอื่นใดในส่วนที่กำหนดไว้แล้วในระเบียบนี้หรือซึ่งขัดหรือแย้งกับระเบียบนี้ให้ใช้ระเบียบนี้แทน
 **ข้อ 4 ในระเบียบนี้**
@@ -486,7 +486,7 @@ chunks[298]:
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "SOURCE: kmutt_all_boards
 TYPE: contact
 ชื่อ: ดร. กฤษณพงศ์กีรติกร
@@ -544,7 +544,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: siam.cha@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -580,7 +580,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: prasert.kan@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -616,7 +616,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: kanyawim.kir@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -652,7 +652,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: annop.nop@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -688,7 +688,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: thanitsorn.chi@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -724,7 +724,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: kongkarn.vac@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -760,7 +760,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: panuthat.boo@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -796,7 +796,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: chaowalit.lim@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -832,7 +832,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: santi.cha@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -868,7 +868,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: marong.pha@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -904,7 +904,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: montira.nop@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -940,7 +940,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: nakorn.sri@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -976,7 +976,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: chawin.cha@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -1047,7 +1047,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "โทร: -
 อีเมล: -
 ========================================
@@ -1119,7 +1119,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "โทร: -
 อีเมล: -
 ========================================
@@ -1192,7 +1192,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: tawich.pul@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -1228,7 +1228,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: chaiya.dum@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -1264,7 +1264,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: surawut.chu@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -1300,7 +1300,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: pornkasem.jon@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -1336,7 +1336,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: chaiwat.ekk@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -1372,7 +1372,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: asawin.mee@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -1408,7 +1408,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: pijarn.jor@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -1444,7 +1444,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: pinet.sri@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -1480,7 +1480,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: supreeya.orn@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -1516,7 +1516,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: santitham.pro@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -1552,7 +1552,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: songkeart.pha@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -1588,7 +1588,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: poj.tan@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -1624,7 +1624,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: panchan.sri@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -1660,7 +1660,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: atikorn.won@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -1696,7 +1696,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: dilok.sri@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -1732,7 +1732,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: sumate.nae@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -1768,7 +1768,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: julapot.chi@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -1804,7 +1804,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: suwit.sir@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -1840,7 +1840,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: apichai.bha@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -1876,7 +1876,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: somporn.pea@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -1912,7 +1912,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: tula.jut@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -1948,7 +1948,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: parinya.san@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -1984,7 +1984,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: anawat.pin@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -2020,7 +2020,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: triwit.rat@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -2056,7 +2056,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: nakarin.pat@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -2092,7 +2092,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: virathip.phe@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -2128,7 +2128,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: teerapol.sal@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -2164,7 +2164,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: aimorn.sak@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -2200,7 +2200,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: niyom.kam@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -2236,7 +2236,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: wandee.onr@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -2272,7 +2272,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: kornvalai.pan@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -2308,7 +2308,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: thanes.tha@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -2344,7 +2344,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: komkrit.cho@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -2380,7 +2380,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: suchapa.net@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -2416,7 +2416,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: narong.mun@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -2452,7 +2452,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: sompob.pun@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -2488,7 +2488,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: kuntida.tha@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -2524,7 +2524,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: sakesun.yam@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -2560,7 +2560,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: phichito.kaj@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -2596,7 +2596,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: supapit.cho@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -2632,7 +2632,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: narongrit.war@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -2668,7 +2668,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: vajirasak.van@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -2704,7 +2704,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: umaporn.sup@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -2740,7 +2740,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: worarat.kra@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -2776,7 +2776,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: chonlameth.arp@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -2812,7 +2812,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: siam.yam@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -2848,7 +2848,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: thirada.yuk@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -2884,7 +2884,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: waraluk.pan@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -2920,7 +2920,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: teera.dha@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -2956,7 +2956,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: kanjanee.bud@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -2992,7 +2992,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: valairatn.gas@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -3028,7 +3028,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: charupan.rod@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -3064,7 +3064,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: kuskana.kub@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -3100,7 +3100,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: nuchthana.poo@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -3136,7 +3136,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: roongrojana.son@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -3172,7 +3172,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: pattana.rak@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -3208,7 +3208,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: adisak.nat@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -3244,7 +3244,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: kittima.rad@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -3280,7 +3280,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: varit.sri@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -3316,7 +3316,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: sudarut.tri@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -3352,7 +3352,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: kornkanok.ary@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -3388,7 +3388,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: pawinee.cha@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -3424,7 +3424,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: kanokwan.poo@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -3460,7 +3460,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: natjiree.jat@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -3496,7 +3496,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: saowaluck.tep@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -3532,7 +3532,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: sompatu.vun@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -3568,7 +3568,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: richard.tod@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -3604,7 +3604,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: panalert.sir@mail.kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -3640,7 +3640,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: supaporn.cha@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -3682,7 +3682,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: thananchanok.som@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -3718,7 +3718,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: supachai.von@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -3754,7 +3754,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: wuttichai.vis@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -3790,7 +3790,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: anusara.mee@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -3826,7 +3826,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: bawornsak.sak@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -3862,7 +3862,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: kanjana.jan@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -3898,7 +3898,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: krittika.tan@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -3934,7 +3934,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: bank.nga@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -3970,7 +3970,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: bunyaphat.sup@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -4006,7 +4006,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: pichai.kos@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -4042,7 +4042,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: sutat.lee@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -4078,7 +4078,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: suthathip.man@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -4114,7 +4114,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: sopida.boo@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -4150,7 +4150,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: navadol.lao@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -4192,7 +4192,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: prapannan.sir@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -4228,7 +4228,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: pinyo.yin@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -4264,7 +4264,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: sansanalak.rac@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -4306,7 +4306,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: wiwat.rue@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -4360,7 +4360,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: sasima.juw@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -4396,7 +4396,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: panalee.tan@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -4432,7 +4432,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: kunyakamol.dua@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -4468,7 +4468,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: samruay.the@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -4504,7 +4504,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: sumana.tao@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -4540,7 +4540,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: kittikun.arn@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -4576,7 +4576,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: darisa.sir@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -4612,7 +4612,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: jitra.wong@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -4648,7 +4648,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: panadda.won@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -4684,7 +4684,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: ariya.bra@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -4720,7 +4720,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: ampika.kea@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -4756,7 +4756,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: rathsta.dam@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -4792,7 +4792,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: supreeya.orn@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -4828,7 +4828,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: papapit.ing@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -4864,7 +4864,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: chatchai.moo@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -4900,7 +4900,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: kittinut.kae@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -4936,7 +4936,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: sutipa.sae@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -4972,7 +4972,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: sirinath.lue@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -5008,7 +5008,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: surat.chu@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -5044,7 +5044,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: kamonthon.jar@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -5080,7 +5080,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: panadda.pua@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -5116,7 +5116,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: santitham.pro@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -5152,7 +5152,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: prapong.pre@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -5188,7 +5188,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: rajchawit.sar@mail.kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -5224,7 +5224,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: sanan.sra@mail.kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -5260,7 +5260,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: naruemon.wat@mail.kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -5296,7 +5296,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: peerapon.sir@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -5332,7 +5332,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: natasha.dej@mail.kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -5368,7 +5368,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: jumpol.ineng@mail.kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -5404,7 +5404,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: taweechai.nunta@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -5440,7 +5440,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: boon@cpe.kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -5476,7 +5476,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: bundit@cpe.kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -5512,7 +5512,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: thumrongrat.amo@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -5548,7 +5548,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: nuttanart.mua@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -5584,7 +5584,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: marong.pha@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -5620,7 +5620,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: suthathip.man@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -5656,7 +5656,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: kittipong.piya@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -5692,7 +5692,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: kharittha.jan@mail.kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -5728,7 +5728,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: jaturon.har@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -5764,7 +5764,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: priyakorn.pus@mail.kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -5800,7 +5800,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: piyanit.wep@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -5836,7 +5836,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: sansiri.tarn@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -5872,7 +5872,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: boonyarit.chang@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -5908,7 +5908,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: aye.hnin@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -5944,7 +5944,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: aung.myo1@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -5980,7 +5980,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: naveed.sult@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -6016,7 +6016,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: varissara.ean@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -6052,7 +6052,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: rudee.chu@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -6088,7 +6088,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: Nongyao.jam@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -6124,7 +6124,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: nittaya.nak@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -6160,7 +6160,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: paitoon.soj@kmutt.ac.th
 ========================================
 SOURCE: kmutt_all_boards
@@ -6196,7 +6196,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อีเมล: phattharnit.piti@kmutt.ac.th
 ========================================"
   tokens_est: 19
@@ -6228,7 +6228,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "ระเบียบมหาวิทยาลัยเทคโนโลยีพระจอมเกล้าธนบุรีว่าด้วยการศึกษาภายใต้มาตรการและการเฝ้าระวังการระบาดของโรคติดเชื้อไวรัสโคโรนา 2019 (COVID-19)
 พ.ศ. 2563
 สืบเนื่องจากการเกิดภาวะวิกฤตของการแพร่ระบาดของโรคติดเชื้อไวรัสโคโรนาสายพันธุ์ใหม่ 2019 (COVID-19) โดยคณะรัฐมนตรีกระทรวงการอุดมศึกษาวิทยาศาสตร์วิจัยและนวัตกรรมและมหาวิทยาลัยฯได้มีการออกประกาศมาตราสารและการเฝ้าระวังต่างๆและให้มีการปิดมหาวิทยาลัยเป็นการชั่วคราวซึ่งส่งผลกระทบต่อรูปแบบของการจัดการเรียนการสอนการสอบและการประเมินผลลัพธ์การเรียนรู้ดังนั้นเพื่อเป็นประโยชน์ต่อนักศึกษาที่ได้รับผลกระทบจากเหตุการณ์ดังกล่าว
@@ -6270,7 +6270,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "2562 ข้อ 4 การลงทะเบียนเรียนและการชำระค่าบำรุงและค่าธรรมเนียมการศึกษา 4.1 ในการลงทะเบียนภาคการศึกษาพิเศษ/2562 และภาคการศึกษาที่ 1/2563 ระบบจะยกเว้นการตรวจสอบรายวิชาบังคับก่อน (Pre-requisite) ที่นักศึกษาอาจได้ลงทะเบียนในภาคการศึกษาที่ 2/2562 และภาคการศึกษาพิเศษ/2562 ไปแล้วเพื่อให้นักศึกษาลงทะเบียนรายวิชาต่อเนื่องได้ในภาคการศึกษาพิเศษ/2562 และภาคการศึกษาที่ 1/2563 แม้ยังไม่ทราบผลสอบของวิชาบังคับก่อนโดยมหาวิทยาลัยจะดำเนินการตรวจสอบในภายหลังเมื่อมีการประกาศผลการเรียนของภาคการศึกษาที่ 2/2562 และภาคการศึกษาพิเศษ/2562 กรณีพบว่านักศึกษาไม่มีสิทธิลงทะเบียนในรายวิชาต่อเนื่องมหาวิทยาลัยจะทำการยกเลิกและคืนเงินค่าลงทะเบียนในรายวิชานั้นเต็มจำนวนที่นักศึกษาได้ลงทะเบียนไปในภาคการศึกษาพิเศษ/2562 และภาคการศึกษาที่ 1/2563 แล้วแต่กรณี (ลายเซ็น) <page_number>๓</page_number> 4.2 ให้ขยายวันชำระเงินในภาคการศึกษาพิเศษ/2562 และในภาคการศึกษาที่ 1/2563 เป็นกรณีพิเศษเพื่อบรรเทาภาระค่าใช้จ่ายของผู้ปกครองและนักศึกษาโดยกำหนดไว้ในปฏิทินการศึกษาที่เปลี่ยนแปลง 4.3 รายวิชาที่เปิดให้ลงทะเบียนเรียนในภาคการศึกษาพิเศษสำหรับผู้ที่จะลงทะเบียนเรียนเพื่อสำเร็จการศึกษาอาจเหลื่อมเวลาการเรียนการสอนกับการทำวิชาโครงงานของภาคการศึกษาที่ 2/2562 ได้ ข้อ 5 การฝึกงานของนักศึกษาระดับปริญญาตรี
 5.1 ให้งดการออกฝึกงานซึ่งหมายรวมถึงการฝึกสหกิจศึกษาและการเรียนรู้ร่วมกับการทำงาน (Work-integrated Learning: WIL) ในภาคการศึกษาพิเศษ/2562 (มิถุนายน-กรกฎาคม 2563) โดยให้เลื่อนการฝึกงานออกไปในช่วงเวลาอื่นตามที่ภาควิชาและคณะเห็นสมควรซึ่งอาจจะคาบเกี่ยววกับการเรียนการสอนในภาคการศึกษาที่ 1/2563 ทั้งนี้ให้คณะและภาควิชาที่เกี่ยวข้องดำเนินการปรับเปลี่ยนรูปแบบช่วงเวลาหรือระยะเวลาในการสอนเพื่อให้สามารถจัดการเรียนการสอนได้อย่างเหมาะสมเพื่อให้สอดคล้องกับผลลัพธ์การเรียนรู้ที่กำหนดไว้ในหลักสูตร"
   tokens_est: 410
@@ -6300,7 +6300,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "5.2 กรณีที่การฝึกงานสามารถทำในลักษณะปฏิบัติงานจากที่บ้าน (Work from Home) ที่สามารถจัดได้ในช่วงเวลาตามปฏิทินเดิมให้ภาควิชาและคณะกรรมการพิจารณาให้ดำเนินการได้
 5.3 กรณีที่นักศึกษาประสงค์จะขอเลื่อนการฝึกงานที่ลงทะเบียนแล้วไปในภาคการศึกษาอื่นให้สำนักงานทะเบียนนักศึกษาดำเนินการปรับเปลี่ยนภาคการศึกษาลงทะเบียนให้กับนักศึกษาโดยไม่มีการให้ผลการศึกษา | ทั้งนี้นักศึกษาไม่ต้องทำการลงทะเบียนในรายวิชาฝึกงานใหม่
 5.4 นักศึกษาอาจเลื่อนออกไปฝึกงานในภาคการศึกษาในปีการศึกษา 2563 ทั้งนี้การอนุมัติการสำเร็จการศึกษายังอยู่ในรุ่นปีการศึกษา 2563
@@ -6345,7 +6345,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "2562 **ข้อ 7 การขยายระยะเวลาของนักศึกษา** 7.1 นักศึกษาระดับบัณฑิตศึกษาทั้งปริญญาโทและปริญญาเอกที่จะครบกำหนดระยะเวลาการศึกษาในภาคการศึกษาที่ 2/2562 ที่ไม่สามารถทำวิทยานิพนธ์การฝึกปฏิบัติการทำวิจัยระยะสั้นในต่างประเทศการนำเสนอผลงานวิชาการในที่ประชุมวิชาการการตีพิมพ์ผลงานวิชาการเนื่องจากสถานการณ์การระบาดของโรคติดเชื้อไวรัสโคโรนาให้คณะเสนอต่อสภามหาวิทยาลัยเพื่อขยายระยะเวลาศึกษาออกไปคราวละไม่เกิน 1 ภาคการศึกษาทั้งนี้ต้องไม่เกิน 1 ปีการศึกษา 7.2 นักศึกษาระดับปริญญาตรีที่จะครบกำหนดระยะเวลาการศึกษาในปีการศึกษา 2562 ที่ไม่สามารถทำการทดสอบภาษาอังกฤษอันเกิดจากการยกเลิกการจัดสอบโดยหน่วยงานภายนอกเนื่องจากสถานการณ์การระบาดของโรคติดเชื้อไวรัสโคโรนาให้คณะเสนอต่อสภามหาวิทยาลัยเพื่อขยายระยะเวลาศึกษาออกไปคราวละไม่เกิน 1 ภาคการศึกษาทั้งนี้ต้องไม่เกิน 1 ปีการศึกษา **ข้อ 8 การสอบวัดคุณสมบัติ (Qualifying Examination)** ของนักศึกษาระดับปริญญาเอกให้ขยายระยะเวลาในการศึกษาที่ 2/2562 ไปจนถึงวันสุดท้ายของการศึกษาที่กำหนดไว้ในปฏิทินการศึกษาที่เปลี่ยนแปลง **ข้อ 9 การนำเสนอผลงานวิชาการของนักศึกษาระดับบัณฑิตศึกษา** 9.1 ให้นักศึกษาสามารถนำเสนอผลงานวิชาการผ่านระบบออนไลน์ได้
 9.2 ในกรณีที่การประชุมวิชาการระดับชาติและนานาชาติได้มีการเปลี่ยนแปลงเงื่อนไขหรือยกเลิกการนำเสนอผลงานของนักศึกษานักศึกษาจะต้องมีหลักฐานการแสดงประกอบด้วยจึงจะสามารถไม่ต้องนำเสนอผลงานและสำเร็จการศึกษาได้ทั้งนี้ให้คณะพิจารณาแนวทางการประเมินผลลัพธ์การเรียนรู้ของการนำเสนอผลงานวิชาการของนักศึกษาในรูปแบบใดๆที่ไม่ได้ส่งผลให้คุณภาพของบัณฑิตลดลง"
   tokens_est: 348
@@ -6375,7 +6375,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "**ข้อ 10 ให้อธิการบดีเป็นผู้รักษาการให้เป็นไปตามระเบียบนี้**
 ในกรณีที่มีปัญหาในทางปฏิบัติตามระเบียบนี้ให้อธิการบดีมีอำนาจตีความหรือวินิจฉัยซ้ำขาดโดยคำวินิจฉัยหรือคำสั่งของอธิการบดีถือเป็นที่สุดรวมทั้งให้อธิการบดีมีอำนาจออกประกาศของมหาวิทยาลัยเพื่อปฏิบัติตามระเบียบนี้ได้
 ประกาศณ วันที่ 8 พฤษภาคมพ.ศ. 2563
@@ -6409,7 +6409,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "ข้อบังคับมหาวิทยาลัยเทคโนโลยีพระจอมเกล้าธนบุรี
 ว่าด้วยวินัยนักศึกษาและผู้เรียนรู้
 พ.ศ. 2566
@@ -6481,7 +6481,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "ของมหาวิทยาลัยเพื่อความรู้ทักษะและประสบการณ์โดยยังไม่ประสงค์ที่จะขอรับปริญญา “หัวหน้าหน่วยงาน” หมายความว่าคณบดีผู้อำนวยการสำนักสถาบันหรือที่เรียกชื่ออย่างอื่นที่มีฐานะเทียบเท่าคณะ “อาจารย์” หมายความว่าผู้ปฏิบัติหน้าที่สอนและให้คำปรึกษาหรือวิทยากรพิเศษ “เจ้าหน้าที่” หมายความว่าข้าราชการพนักงานลูกจ้างผู้ปฏิบัติงานให้กับมหาวิทยาลัย ข้อ 5 ให้อธิการบดีรักษาการตามข้อบังคับนี้และให้มีอำนาจตีความวินิจฉัยปัญหาเกี่ยวกับการปฏิบัติตาม ข้อบังคับนี้คำวินิจฉัยของอธิการบดีให้เป็นที่สุด หมวด 1 วินัยและการรักษาวินัย ข้อ 6 นักศึกษาและผู้เรียนรู้ต้องปฏิบัติตามข้อบังคับระเบียบคำสั่งประกาศของมหาวิทยาลัยทุกประการ และต้องยึดถือหลักเกียรติและศักดิ์ (Code of Honor) ผู้ใดฝ่าฝืนหรือไม่ปฏิบัติตามให้ถือว่าผู้นั้นกระทำผิดจักต้องได้รับ โทษตามที่กำหนดไว้ในข้อบังคับนี้หรือข้อบังคับอื่นของมหาวิทยาลัย ข้อ 7 นักศึกษาและผู้เรียนรู้ต้องปฏิบัติตามข้อกำหนดด้านคุณธรรมจริยธรรมและจรรยาบรรณไม่ทุจริตทาง วิชาการไม่แสวงหาผลประโยชน์อันไม่ชอบธรรมด้านวิชาการโดยเคร่งครัด ข้อ 8 นักศึกษาและผู้เรียนรู้ต้องปฏิบัติตามศีลธรรมวัฒนธรรมอันดีงามของสังคมไทยไม่นำขนบธรรมเนียม หรือวิธีการอันไม่เหมาะสมมาปฏิบัติและต้องประพฤติตนเป็นสุภาพชนรักษาวินัยของตนเองรักษาชื่อเสียงเกียรติคุณ และประโยชน์ของมหาวิทยาลัยไม่ประพฤติในสิ่งที่อาจนำมาซึ่งความเสื่อมเสียแก่มหาวิทยาลัยตนเองและผู้อื่นไม่ว่า ภายในหรือภายนอกมหาวิทยาลัย ข้อ 9 นักศึกษาและผู้เรียนรู้ต้องรักษาไว้ซึ่งความสงบเรียบร้อยและเกียรติของมหาวิทยาลัยไม่เป็นตัวการยุยง หรือเป็นผู้ก่อเหตุความไม่สงบไม่รบกวนความสงบเรียบร้อยปกติสุขของผู้อื่นไม่ก่อเหตุทะเลาะวิวาททั้งภายในและ ภายนอกมหาวิทยาลัย ข้อ 10 นักศึกษาและผู้เรียนรู้ต้องปฏิบัติตนเป็นแบบอย่างที่ดีของสังคมทั้งภายในและภายนอกมหาวิทยาลัย โดยประพฤติปฏิบัติเป็นแบบอย่างที่ดีมีความรับผิดชอบต่อสังคมส่วนรวมไม่สร้างความเดือดร้อนรำคาญให้แก่ผู้อื่น ข้อ 11 นักศึกษาและผู้เรียนรู้ต้องไม่กระทำความผิดตามประมวลกฎหมายอาญากฎหมายแพ่งกฎหมายอื่นที่
 รัฐกำหนดไว้หรือกระทำการทุจริตใดๆ อันเป็นการเสื่อมเสียแก่มหาวิทยาลัย
 ข้อ 12 นักศึกษาและผู้เรียนรู้ต้องประพฤติปฏิบัติตนต่ออาจารย์เจ้าหน้าที่ผู้ปฏิบัติหน้าที่โดยชอบด้วยความเป็น
@@ -6551,7 +6551,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "จนเป็นเหตุให้เสื่อมเสียแก่ ตนเองผู้อื่นและมหาวิทยาลัย ข้อ 22 นักศึกษาและผู้เรียนรู้ต้องไม่กระทำตนให้เป็นผู้มีหนี้สินล้นพ้นตัวจนเกิดความเสียหายแก่ผู้อื่นหรือ มหาวิทยาลัย ข้อ 23 นักศึกษาและผู้เรียนรู้ผู้ใดเป็นผู้ก่อหรือมีส่วนเกี่ยวข้องเป็นคดีถึงเจ้าพนักงานฝ่ายปกครองหรือตำรวจ ต้องรีบแจ้งต่ออาจารย์ที่ปรึกษาหรือสำนักงานกิจการนักศึกษาของมหาวิทยาลัยให้ทราบทันที ข้อ 24 นักศึกษาและผู้เรียนรู้ที่ได้กระทำการดังต่อไปนี้ถือว่ากระทำผิดวินัยอย่างร้ายแรง 24.1 กระทำการใดๆ โดยจงใจหรือเจตนาทำให้ทรัพย์สินมหาวิทยาลัยหรือของผู้อื่นเสียหาย 24.2 กระทำการใดๆ ที่เป็นการกระทำความผิดเกี่ยวกับทรัพย์ที่มีโทษทางอาญา 24.3 ครอบครองหรือนำอาวุธปืนวัตถุระเบิดสิ่งที่ใช้เป็นอาวุธหรือใช้แทนอาวุธหรือสิ่งอันตราย ร้ายแรงเข้ามาบริเวณภายในมหาวิทยาลัยซึ่งอาจเป็นเหตุให้เกิดอันตรายแก่ชีวิตและทรัพย์สินของผู้อื่น 24.4 กระทำการลามกอนาจารพฤติกรรมแอบถ่ายภาพหรือกระทำความผิดเกี่ยวกับเพศหรือ ประพฤติผิดศีลธรรมอันดีอันเป็นเหตุให้เสื่อมเสียแก่มหาวิทยาลัยอย่างร้ายแรง 24.5 ทำร้ายร่างกายผู้อื่นเป็นเหตุให้ได้รับอันตรายบาดเจ็บสาหัสหรือถึงแก่ความตายหรือเป็นเหตุ ให้เสื่อมเสียแก่มหาวิทยาลัย
 24.6 กระทำความผิดอาญาจนได้รับโทษจำคุกหรือโทษที่หนักกว่าโทษจำคุกโดยมีคำพิพากษาถึง
 ที่สุดให้จำคุกโดยไม่คำนึงถึงว่าจะมีการรอลงโทษหรือรอกำหนดโทษเว้นแต่เป็นโทษที่กระทำโดยประมาท
@@ -6629,7 +6629,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "ที่นำมาซึ่งความเสื่อมเสียแก่เกียรติศักดิ์ความเป็นนักศึกษาและผู้เรียนรู้ของ มหาวิทยาลัยและเป็นเหตุให้เสื่อมเสียแก่มหาวิทยาลัยอย่างร้ายแรง หมวด 2 คณะกรรมการวินัยนักศึกษาและผู้เรียนรู้ ข้อ 25 ให้มีคณะกรรมการวินัยนักศึกษาและผู้เรียนรู้ระดับมหาวิทยาลัยซึ่งแต่งตั้งโดยอธิการบดีประกอบด้วย 25.1 รองอธิการบดีฝ่ายพัฒนานักศึกษาและผู้เรียนรู้เป็นประธานกรรมการ 25.2 รองคณบดีที่รับผิดชอบด้านพัฒนานักศึกษาหรือผู้แทนคณะที่รับผิดชอบด้านพัฒนานักศึกษา และผู้เรียนรู้ซึ่งเลือกกันเองจำนวน 5 คนเป็นกรรมการ 25.3 ผู้อำนวยการสำนักงานทะเบียนนักศึกษาเป็นกรรมการ 25.4 นายกองค์การนักศึกษาหรือผู้แทนเป็นกรรมการ 25.5 ประธานสภานักศึกษาหรือผู้แทนเป็นกรรมการ 25.6 ผู้อำนวยการสำนักงานกิจการนักศึกษาเป็นกรรมการและเลขานุการ 25.7 หัวหน้ากลุ่มงานพัฒนาคุณภาพชีวิตและสร้างการมีส่วนร่วมเป็นผู้ช่วยเลขานุการ 25.8 เจ้าหน้าที่สำนักงานกิจการนักศึกษาที่ได้รับมอบหมายจากผู้อำนวยการสำนักงานกิจการนักศึกษา เป็นผู้ช่วยเลขานุการ
 ข้อ 26 คณะกรรมการวินัยนักศึกษาและผู้เรียนรู้ระดับมหาวิทยาลัยมีอำนาจหน้าที่ดังนี้
 26.1 ดูแลส่งเสริมสนับสนุนให้นักศึกษาและผู้เรียนรู้เป็นผู้มีคุณธรรมจริยธรรมรักษาเกียรติ
@@ -6706,7 +6706,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "อันเกี่ยวข้องกับการกระทำความผิดมา ตรวจสอบ 28.3 เรียกผู้ถูกกล่าวหาหรือผู้มีส่วนเกี่ยวข้องกับการกระทำผิดมาชี้แจงหรือให้ถ้อยคำหรือเรียก ให้ส่งเอกสารหลักฐานที่เกี่ยวข้อง 28.4 แจ้งข้อกล่าวหาและสรุปพยานหลักฐานที่สนับสนุนข้อกล่าวหาให้ผู้ถูกกล่าวหาทราบรวมทั้ง แจ้งสิทธิของผู้ถูกกล่าวหาโดยละเอียด 28.5 จัดทำรายงานผลการสอบสวนพร้อมความเห็น (ก) กรณีพิจารณาแล้วเห็นควรให้ลงโทษวินัยไม่ร้ายแรงให้เสนอรายงานต่อหน่วยงานเพื่อ พิจารณาสั่งลงโทษและหากเป็นโทษตัดคะแนนความประพฤติครั้งเดียวหรือหลายครั้งรวมกัน ไม่เกิน 20 คะแนนให้หน่วยงานสำเนาคำสั่งลงโทษดังกล่าวให้กับสำนักงานกิจการนักศึกษา เพื่อบันทึกลงฐานข้อมูลวินัยนักศึกษา (ข) กรณีพิจารณาแล้วเห็นควรให้ลงโทษวินัยร้ายแรงให้เสนอรายงานต่อหัวหน้าหน่วยงาน เพื่อพิจารณาเสนอรายงานต่อคณะกรรมการวินัยนักศึกษาและผู้เรียนรู้ระดับมหาวิทยาลัย ดำเนินการต่อไป หมวด 3 การดำเนินการทางวินัย ข้อ 29 การดำเนินการทางวินัยซึ่งมีกรณีอันมีมูลที่ควรกล่าวหาว่ากระทำผิดให้ดำเนินการสอบสวนเพื่อให้ได้ข้อเท็จจริงเป็นที่ยุติและเป็นไปด้วยความเป็นธรรมโดยไม่ชักช้า ข้อ 30 ให้คณะกรรมการวินัยนักศึกษาและผู้เรียนรู้ระดับมหาวิทยาลัยดำเนินการสอบสวนและพิจารณาลงโทษให้แล้วเสร็จภายใน 30 วันนับตั้งแต่วันที่ได้รับเรื่องหรือได้รับรายงานสอบสวนจากคณะกรรมการวินัยนักศึกษาและผู้เรียนรู้ระดับหน่วยงานแล้วแต่กรณี ในกรณีที่ไม่อาจดำเนินการให้แล้วเสร็จภายในกำหนดระยะเวลาตามวรรคหนึ่งให้ประธานกรรมการรายงานเหตุผลความจำเป็นต่ออธิการบดีเพื่อขอขยายระยะเวลาการสอบสวนออกไปได้ตามความจำเป็นครั้งละไม่เกิน 30 วันทั้งนี้ให้ยื่นขอขยายระยะเวลาก่อนสิ้นสุดระยะเวลาตามวรรคหนึ่ง
 ให้คณะกรรมการวินัยนักศึกษาและผู้เรียนรู้ระดับหน่วยงานดำเนินการสอบสวนและพิจารณาลงโทษให้แล้วเสร็จภายใน 30 วันนับตั้งแต่วันที่ประธานกรรมการรับทราบคำสั่ง
 ในกรณีที่ไม่อาจดำเนินการให้แล้วเสร็จภายในกำหนดระยะเวลาตามวรรคสามให้ประธานกรรมการรายงานเหตุผลความจำเป็นต่อหัวหน้าหน่วยงานเพื่อขอขยายระยะเวลาการสอบสวนออกไปได้ตามความจำเป็นครั้งละไม่เกิน 30 วันทั้งนี้ให้ยื่นขอขยายระยะเวลาก่อนสิ้นสุดระยะเวลาตามวรรคสาม
@@ -6765,7 +6765,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "ข้อ 39 ในกรณีที่คณะกรรมการวินัยนักศึกษาและผู้เรียนรู้ระดับมหาวิทยาลัยเห็นว่านักศึกษาและผู้เรียนรู้ผู้นั้นกระทำผิดวินัยอย่างร้ายแรงแต่เมื่อคำนึงถึงประวัติความประพฤติภาวะแห่งจิตใจและสภาพแวดล้อมของผู้นั้นหรือสภาพความผิดหรือเหตุอื่นอันควรปรานีแล้วอาจพิจารณาลดหย่อนโทษได้ดังนี้
 39.1 กรณีลงโทษตัดสิทธิเข้าสอบอาจลดหย่อนโทษได้ไม่ต่ำกว่าภาคทัณฑ์ตลอดการเป็นสภาพนักศึกษาและให้ทำกิจกรรมที่เป็นประโยชน์ต่อมหาวิทยาลัยหรือสังคมส่วนรวม
 39.2 กรณีลงโทษพักการศึกษาหรือยับยั้งการอนุมัติให้ปริญญาอาจลดหย่อนโทษได้ไม่ต่ำกว่าตัดคะแนนความประพฤติและให้ทำกิจกรรมที่เป็นประโยชน์ต่อมหาวิทยาลัยหรือสังคมส่วนรวม
@@ -6817,7 +6817,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "46.4 เมื่อพิจารณาวินิจฉัยแล้วให้มีมติดังนี้
 (ก) ถ้าเห็นว่าอุทธรณ์ฟังขึ้นให้มีมติเพิกถอนคำสั่งหรือเปลี่ยนแปลงคำสั่ง
 (ข) ถ้าเห็นว่าอุทธรณ์ฟังไม่ขึ้นให้มีมติยกคำอุทธรณ์ทั้งนี้ไม่สามารถเพิ่มโทษให้หนักขึ้นได้
@@ -6860,7 +6860,7 @@ TYPE: contact
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "SOURCE: kmutt_forms
 TYPE: document
 ชื่อเอกสาร: คำร้องทั่วไปGeneral Request Form
@@ -6895,7 +6895,7 @@ TYPE: document
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "========================================
 SOURCE: kmutt_forms
 TYPE: document
@@ -6931,7 +6931,7 @@ TYPE: document
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "========================================
 SOURCE: kmutt_forms
 TYPE: document
@@ -6967,7 +6967,7 @@ TYPE: document
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "========================================
 SOURCE: kmutt_forms
 TYPE: document
@@ -7003,7 +7003,7 @@ TYPE: document
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "========================================
 SOURCE: kmutt_forms
 TYPE: document
@@ -7039,7 +7039,7 @@ TYPE: document
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "========================================
 SOURCE: kmutt_forms
 TYPE: document
@@ -7075,7 +7075,7 @@ TYPE: document
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "========================================
 SOURCE: kmutt_forms
 TYPE: document
@@ -7111,7 +7111,7 @@ TYPE: document
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "========================================
 SOURCE: kmutt_forms
 TYPE: document
@@ -7147,7 +7147,7 @@ TYPE: document
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "========================================
 SOURCE: kmutt_forms
 TYPE: document
@@ -7183,7 +7183,7 @@ TYPE: document
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "========================================
 SOURCE: kmutt_forms
 TYPE: document
@@ -7219,7 +7219,7 @@ TYPE: document
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "========================================
 SOURCE: kmutt_forms
 TYPE: document
@@ -7255,7 +7255,7 @@ TYPE: document
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "========================================
 SOURCE: kmutt_forms
 TYPE: document
@@ -7291,7 +7291,7 @@ TYPE: document
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "========================================
 SOURCE: kmutt_forms
 TYPE: document
@@ -7327,7 +7327,7 @@ TYPE: document
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "========================================
 SOURCE: kmutt_forms
 TYPE: document
@@ -7363,7 +7363,7 @@ TYPE: document
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "========================================
 SOURCE: kmutt_forms
 TYPE: document
@@ -7399,7 +7399,7 @@ TYPE: document
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "========================================
 SOURCE: kmutt_forms
 TYPE: document
@@ -7435,7 +7435,7 @@ TYPE: document
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "========================================
 SOURCE: kmutt_forms
 TYPE: document
@@ -7471,7 +7471,7 @@ TYPE: document
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "========================================
 SOURCE: kmutt_forms
 TYPE: document
@@ -7507,7 +7507,7 @@ TYPE: document
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "========================================
 SOURCE: kmutt_forms
 TYPE: document
@@ -7543,7 +7543,7 @@ TYPE: document
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "========================================
 SOURCE: kmutt_forms
 TYPE: document
@@ -7579,7 +7579,7 @@ TYPE: document
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "========================================
 SOURCE: kmutt_forms
 TYPE: document
@@ -7615,7 +7615,7 @@ TYPE: document
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: ========================================
   tokens_est: 10
   section: form
@@ -7646,7 +7646,7 @@ TYPE: document
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "ระเบียบมหาวิทยาลัยเทคโนโลยีพระจอมเกล้าธนบุรีว่าด้วยการศึกษาระดับบัณฑิตศึกษาพ.ศ. 2562
 โดยเป็นการสมควรที่จะปรับปรุงระเบียบมหาวิทยาลัยเทคโนโลยีพระจอมเกล้าธนบุรีว่าด้วยการศึกษาระดับบัณฑิตศึกษาพ.ศ. 2547 ให้สอดคล้องกับการจัดการศึกษาแบบเน้นผลลัพธ์การเรียนรู้และเกณฑ์มาตรฐานหลักสูตรระดับบัณฑิตศึกษาพ.ศ. 2558 ของสำนักงานคณะกรรมการการอุดมศึกษา
 อาศัยอำนาจตามความในมาตรา 18 (2) แห่งพระราชบัญญัติมหาวิทยาลัยเทคโนโลยีพระจอมเกล้าธนบุรีพ.ศ. 2541 ประกอบกับมติที่ประชุมสภามหาวิทยาลัยเทคโนโลยีพระจอมเกล้าธนบุรีในคราวประชุมครั้งที่ 234 เมื่อวันที่ 6 กุมภาพันธ์ 2562 จึงออกระเบียบไว้ดังต่อไปนี้
@@ -7704,7 +7704,7 @@ TYPE: document
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "2549 บรรดาระเบียบคำสั่งประกาศหรือมติอื่นใดที่กำหนดไว้แล้วหรือขัดแย้งกับระเบียบนี้ให้ใช้ระเบียบนี้แทน ข้อ 4 ในระเบียบนี้ "มหาวิทยาลัย" หมายความว่ามหาวิทยาลัยเทคโนโลยีพระจอมเกล้าธนบุรี "สภามหาวิทยาลัย" หมายความว่าสภามหาวิทยาลัยเทคโนโลยีพระจอมเกล้าธนบุรี "สภาวิชาการ" หมายความว่าสภาวิชาการมหาวิทยาลัยเทคโนโลยีพระจอมเกล้าธนบุรี "นายกสภามหาวิทยาลัย" หมายความว่านายกสภามหาวิทยาลัยเทคโนโลยีพระจอมเกล้าธนบุรี "อธิการบดี" หมายความว่าอธิการบดีมหาวิทยาลัยเทคโนโลยีพระจอมเกล้าธนบุรี "บัณฑิตศึกษา" หมายความว่าการจัดการศึกษาในระดับประกาศนียบัตรบัณฑิตบริญญาโทประกาศนียบัตรบัณฑิตชั้นสูงและปริญญาเอกของมหาวิทยาลัยเทคโนโลยีพระจอมเกล้าธนบุรี "คณะ" หมายความว่าคณะสถาบันสำนักหรือหน่วยงานที่เรียกชื่ออย่างอื่นที่มีฐานะเทียบเท่าคณะที่เปิดสอนหลักสูตรระดับบัณฑิตศึกษาในสังกัดมหาวิทยาลัยเทคโนโลยีพระจอมเกล้าธนบุรี "คณะกรรมการประจำคณะ" หมายความว่าคณะกรรมการประจำคณะสถาบันสำนักหรือส่วนงานที่เรียกชื่ออย่างอื่นที่มีฐานะเทียบเท่าคณะ "ภาควิชา" หมายความว่าภาควิชาหรือส่วนงานที่เรียกชื่ออย่างอื่นที่มีฐานะเทียบเท่าภาควิชาที่เปิดสอนหลักสูตรระดับบัณฑิตศึกษาในสังกัดมหาวิทยาลัยเทคโนโลยีพระจอมเกล้าธนบุรี "หลักสูตร" หมายความว่าหลักสูตรที่เปิดสอนในระดับบัณฑิตศึกษาที่ได้รับอนุมัติจากสภามหาวิทยาลัยเทคโนโลยีพระจอมเกล้าธนบุรี "คณบดี" หมายความว่าคณบดีของคณะหรือหน่วยงานที่เรียกชื่ออย่างอื่นที่มีฐานะเทียบเท่าคณะที่เปิดสอนหลักสูตรระดับบัณฑิตศึกษาในสังกัดมหาวิทยาลัยเทคโนโลยีพระจอมเกล้าธนบุรี "ผู้อำนวยการ" หมายความว่าผู้อำนวยการของสถาบันหรือหน่วยงานที่เรียกชื่ออย่างอื่นที่มีฐานะเทียบเท่าคณะที่เปิดสอนหลักสูตรระดับบัณฑิตศึกษาในสังกัดมหาวิทยาลัยเทคโนโลยีพระจอมเกล้าธนบุรี
 "หน่วยกิต" หมายความว่าหน่วยที่ใช้แสดงปริมาณการศึกษา
 "อาจารย์ผู้รับผิดชอบหลักสูตร" หมายความว่าอาจารย์ประจำหลักสูตรที่มีภาระหน้าที่ในการบริหารและพัฒนาหลักสูตรและการเรียนการสอนตั้งแต่การวางแผนการควบคุมคุณภาพการติดตามประเมินผลและการพัฒนาหลักสูตรอาจารย์ผู้รับผิดชอบหลักสูตรต้องอยู่ประจำหลักสูตรนั้นตลอดระยะเวลาที่จัดการศึกษาโดยจะเป็นอาจารย์ผู้รับผิดชอบหลักสูตรเกินกว่า 1 หลักสูตรในเวลาเดียวกันไม่ได้ยกเว้นพฤติกรรมทางวิชาการหรือสหวิทยาการและหลักสูตรปริญญาโทและหลักสูตรปริญญาเอกที่เรียนต่อเนื่องกันให้เป็นอาจารย์ผู้รับผิดชอบหลักสูตรสามรถซ้ำได้ไม่เกิน 2 คน
@@ -7755,7 +7755,7 @@ TYPE: document
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: ""อาจารย์ผู้รับผิดชอบรายวิชา” หมายความว่าอาจารย์ประจำหลักสูตรที่ทำหน้าที่สอนวางแผนการจัดการเรียนการสอนควบคุมคุณภาพและจัดการประเมินผลรายวิชาที่รับผิดชอบ “คณะกรรมการเทียบโอนความรู้” หมายความว่าคณะกรรมการการเทียบโอนความรู้ทักษะและประสบการณ์และการให้หน่วยกิตจากการศึกษานอกระบบและการศึกษาตามอัธยาศัย ข้อ 5 ให้อธิการบดีเป็นผู้รักษาการให้เป็นไปตามระเบียบนี้ในกรณีที่มีปัญหาเกี่ยวกับการปฏิบัติให้อธิการบดีเป็นผู้วินิจฉัยชี้ขาดโดยคำวินิจฉัยหรือคำสั่งของอธิการบดีถือเป็นที่สุด หมวด 2 ระบบการจัดการศึกษา ข้อ 6 การจัดการศึกษา ใช้ระบบทวิภาคโดยหนึ่งปีการศึกษาแบ่งออกเป็นสองภาคการศึกษาปกติหนึ่งภาคการศึกษาปกติมีระยะเวลาศึกษาไม่น้อยกว่า 15 สัปดาห์ส่วนภาคการศึกษาพิเศษอาจจัดได้ตามความจำเป็นของแต่ละคณะและให้กำหนดระยะเวลาและจำนวนหน่วยกิตโดยมีสัดส่วนเทียบเคียงกันได้กับการศึกษาภาคปกติ ข้อ 7 การคิดหน่วยกิต การกำหนดหน่วยกิตสำหรับแต่ละรายวิชามีหลักเกณฑ์ดังนี้ 7.1 รายวิชาภาคทฤษฎีที่ใช้เวลาบรรยายหรืออภิปรายปัญหาหรือกิจกรรมอื่นๆ ที่ส่งเสริมความเข้าใจหลักสูตรไม่น้อยกว่า 15 ชั่วโมงต่อภาคการศึกษาปกติให้มีค่าเท่ากับ 1 หน่วยกิต 7.2 รายวิชาภาคปฏิบัติที่ใช้เวลาฝึกหรือทดลองไม่น้อยกว่า 30 ชั่วโมงต่อภาคการศึกษาปกติให้มีค่าเท่ากับ 1 หน่วยกิต 7.3 รายวิชาการฝึกงานหรือการฝึกภาคสนามที่ใช้เวลาฝึกไม่น้อยกว่า 45 ชั่วโมงต่อภาคการศึกษาปกติให้มีค่าเท่ากับ 1 หน่วยกิต 7.4 การทำโครงงานหรือกิจกรรมการเรียนอื่นใดตามที่ได้รับมอบหมายที่ใช้เวลาทำโครงงานหรือกิจกรรมนั้นไม่น้อยกว่า 45 ชั่วโมงต่อภาคการศึกษาปกติให้มีค่าเท่ากับ 1 หน่วยกิต
 7.5 รายวิชาวิทยานิพนธ์หรือการศึกษาค้นคว้าอิสระที่ใช้เวลาศึกษาค้นคว้าไม่น้อยกว่า 45 ชั่วโมงต่อภาคการศึกษาปกติให้มีค่าเท่ากับ 1 หน่วยกิต
 ข้อ 8 โครงสร้างหลักสูตร
@@ -7813,7 +7813,7 @@ TYPE: document
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "8.4 ปริญญาเอกแบ่งการศึกษาเป็น 2 แบบโดยเน้นการวิจัยเพื่อพัฒนานักวิชาการและนักวิชาชีพชั้นสูงดังนี้ 8.4.1 แบบ 1 เป็นแผนการศึกษาที่เน้นการวิจัยโดยมีการทำวิทยานิพนธ์ที่ก่อให้เกิดความรู้ใหม่หลักสูตรอาจกำหนดให้เรียนรายวิชาเพิ่มเติมหรือทำกิจกรรมทางวิชาการอื่นเพิ่มขึ้นก็ได้โดยไม่นับหน่วยกิตแต่จะต้องมีผลสัมฤทธิ์ตามที่หลักสูตรกำหนดดังนี้ (1) แบบ 1.1 ผู้เข้าศึกษาที่สำเร็จปริญญาโทจะต้องทำวิทยานิพนธ์ไม่น้อยกว่า 48 หน่วยกิต (2) แบบ 1.2 ผู้เข้าศึกษาที่สำเร็จปริญญาตรีจะต้องทำวิทยานิพนธ์ไม่น้อยกว่า 72 หน่วยกิต ทั้งนี้ผู้เข้าศึกษาตามข้อ 8.4.1(1) และข้อ 8.4.1(2) ต้องสำเร็จการศึกษาด้วยคุณภาพและมาตรฐานเดียวกัน 8.4.2 แบบ 2 เป็นแผนการศึกษาที่เน้นการวิจัยโดยมีการทำวิทยานิพนธ์ที่มีคุณภาพสูงและก่อให้เกิดความก้าวหน้าทางวิชาการและวิชาชีพและศึกษารายวิชาเพิ่มเติมดังนี้ (1) แบบ 2.1 ผู้เข้าศึกษาที่สำเร็จปริญญาโทจะต้องทำวิทยานิพนธ์ไม่น้อยกว่า 36 หน่วยกิตและศึกษารายวิชาอีกไม่น้อยกว่า 12 หน่วยกิต (2) แบบ 2.2 ผู้เข้าศึกษาที่สำเร็จปริญญาตรีจะต้องทำวิทยานิพนธ์ไม่น้อยกว่า 48 หน่วยกิตและศึกษารายวิชาอีกไม่น้อยกว่า 24 หน่วยกิต ทั้งนี้ผู้เข้าศึกษาตามข้อ 8.4.2(1) และข้อ 8.4.2(2) ต้องสำเร็จการศึกษาด้วยคุณภาพและมาตรฐานเดียวกัน ข้อ 9 การเปิดสอนหลักสูตรระดับบัณฑิตศึกษา ต้องมีจำนวนและคุณสมบัติของอาจารย์ผู้รับผิดชอบหลักสูตรและอาจารย์ประจำหลักสูตรให้เป็นไปตามหลักเกณฑ์ที่มหาวิทยาลัยกำหนด หมวด 3 อาจารย์ ข้อ 10 จำนวนคุณวุฒิและคุณสมบัติของอาจารย์ 10.1 ประกาศนียบัตรวิชาชีพ 10.1.1 อาจารย์ประจำหลักสูตรมีคุณวุฒิขั้นต่ำปริญญาโทหรือเทียบเท่าและมีผลงานทางวิชาการที่ไม่ใช่ส่วนหนึ่งของการศึกษาเพื่อรับปริญญาและเป็นผลงานทางวิชาการที่ได้รับการเผยแพร่ตามหลักเกณฑ์ที่กำหนดในการพิจารณาแต่งตั้งให้บุคคลดำรงตำแหน่งทางวิชาการอย่างน้อย 3 รายการในรอบ 5 ปีย้อนหลังโดยอย่างน้อย 1 รายการต้องเป็นผลงานวิจัย สำหรับหลักสูตรประกาศนียบัตรวิชาชีพอาจารย์ประจำหลักสูตรต้องมีคุณสมบัติเป็นไปตามมาตรฐานวิชาชีพนั้น 10.1.2 อาจารย์ผู้รับผิดชอบหลักสูตร
 จำนวนอย่างน้อย 5 คนมีคุณวุฒิปริญญาเอกหรือเทียบเท่าหรือขึ้นต่ำปริญญาโทหรือเทียบเท่าที่มีตำแหน่งรองศาสตราจารย์และมีผลงานทางวิชาการที่ไม่ใช่ส่วนหนึ่งของการศึกษาเพื่อรับปริญญาและเป็นผลงานทางวิชาการที่ได้รับการเผยแพร่ตามหลักเกณฑ์ที่กำหนดในการพิจารณาแต่งตั้งให้บุคคลดำรงตำแหน่งทางวิชาการอย่างน้อย 3 รายการในรอบ 5 ปีย้อนหลังโดยอย่างน้อย 1 รายการต้องเป็นผลงานวิจัย
 กรณีที่มีความจำเป็นอย่างยิ่งสำหรับสาขาวิชาที่ไม่สามารถสรรหาอาจารย์ผู้รับผิดชอบหลักสูตรครบตามจำนวนหรือมีจำนวนนักศึกษาน้อยกว่า 10 คนให้คณะเสนอจำนวนและคุณวุฒิของอาจารย์ผู้รับผิดชอบหลักสูตรที่มีนั้นให้สภาพหาวิทยาลัยพิจารณาความเหมาะสมและส่งให้คณะกรรมการการอุดมศึกษาพิจารณาเป็นรายกรณี
@@ -7859,7 +7859,7 @@ TYPE: document
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "10.2.2 อาจารย์ผู้รับผิดชอบหลักสูตรจำนวนอย่างน้อย 5 คนมีคุณวุฒิปริญญาเอกหรือเทียบเท่าหรือขึ้นต่ำปริญญาโทหรือเทียบเท่าที่มีตำแหน่งศาสตราจารย์และมีผลงานทางวิชาการที่ไม่ใช่ส่วนหนึ่งของการศึกษาเพื่อรับปริญญาและเป็นผลงานทางวิชาการอย่างน้อย 3 รายการในรอบ 5 ปีย้อนหลังโดยอย่างน้อย 1 รายการต้องเป็นผลงานวิจัย กรณีที่มีความจำเป็นอย่างยิ่งสำหรับสาขาวิชาที่ไม่สามารถสรรหาอาจารย์ผู้รับผิดชอบหลักสูตรครบตามจำนวนหรือมีจำนวนนักศึกษาน้อยกว่า 10 คนให้คณะเสนอจำนวนและคุณวุฒิของอาจารย์ผู้รับผิดชอบหลักสูตรที่มีนั้นให้สภาพภาวิทยาลัยพิจารณาความเหมาะสมและส่งให้คณะกรรมการการอุดมศึกษาพิจารณาเป็นรายกรณี 10.2.3 อาจารย์ผู้สอนต้องเป็นอาจารย์ประจำหรืออาจารย์พิเศษที่มีคุณวุฒิปริญญาเอกหรือเทียบเท่าหรือขึ้นต่ำปริญญาโทหรือเทียบเท่าที่มีตำแหน่งรองศาสตราจารย์ในสาขาวิชานั้นหรือสาขาวิชาที่สัมพันธ์กันหรือในสาขาวิชาของรายวิชาที่สอนและต้องมีประสบการณ์ด้านการสอนและมีผลงานทางวิชาการที่ไม่ใช่ส่วนหนึ่งของการศึกษาเพื่อรับปริญญาและเป็นผลงานทางวิชาการที่ได้รับการเผยแพร่ตามหลักเกณฑ์ที่กำหนดในการพิจารณาแต่งตั้งให้บุคคลดำรงตำแหน่งทางวิชาการอย่างน้อย 1 รายการในรอบ 5 ปีย้อนหลัง ในกรณีของอาจารย์พิเศษอาจได้รับการยกเว้นคุณวุฒิปริญญาเอกแต่ทั้งนี้ต้องมีคุณวุฒิขั้นต่ำปริญญาโทหรือเทียบเท่าและมีประสบการณ์การทำงานที่เกี่ยวข้องกับวิชาที่สอนมาแล้วไม่น้อยกว่า 4 ปีทั้งนี้อาจารย์พิเศษต้องมีชั่วโมงสอนไม่เกินร้อยละ 50 ของรายวิชา สำหรับหลักสูตรประกาศนียบัตรวิชาชีพอาจารย์ผู้สอนต้องมีคุณสมบัติเป็นไปตามมาตรฐานวิชาชีพนั้นๆ 10.3 ปริญญาโท
 10.3.1 อาจารย์ประจำหลักสูตรมีคุณวุฒิขั้นต่ำปริญญาโทหรือเทียบเท่าและมีผลงานทางวิชาการที่ไม่ใช่ส่วนหนึ่งของการศึกษาเพื่อรับปริญญาและเป็นผลงานทางวิชาการที่ได้รับการเผยแพร่ตามหลักเกณฑ์ที่กำหนดในการพิจารณาแต่งตั้งให้บุคคลดำรงตำแหน่งทางวิชาการอย่างน้อย 3 รายการในรอบ 5 ปีย้อนหลังโดยอย่างน้อย 1 รายการต้องเป็นผลงานวิจัย
 7/32
@@ -7911,7 +7911,7 @@ TYPE: document
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "10.3 ปริญญาโท 10.3.1 อาจารย์ประจำหลักสูตรมีคุณวุฒิขั้นต่ำปริญญาโทหรือเทียบเท่าและมีผลงานทางวิชาการที่ไม่ใช่ส่วนหนึ่งของการศึกษาเพื่อรับปริญญาและเป็นผลงานทางวิชาการที่ได้รับการเผยแพร่ตามหลักเกณฑ์ที่กำหนดในการพิจารณาแต่งตั้งให้บุคคลดำรงตำแหน่งทางวิชาการอย่างน้อย 3 รายการในรอบ 5 ปีย้อนหลังโดยอย่างน้อย 1 รายการต้องเป็นผลงานวิจัย 7/32 10.3.2 อาจารย์ผู้รับผิดชอบหลักสูตรจำนวนอย่างน้อย 3 คนมีคุณวุฒิปริญญาเอกหรือเทียบเท่าหรือขึ้นต่ำปริญญาโทหรือเทียบเท่าที่มีตำแหน่งรองศาสตราจารย์และมีผลงานทางวิชาการที่ไม่ใช่อ่านหนังของการศึกษาเพื่อรับปริญญาและเป็นผลงานทางวิชาการที่ได้รับการเผยแพร่ตามหลักเกณฑ์ที่กำหนดในการพิจารณาแต่งตั้งให้บุคคลดำรงตำแหน่งทางวิชาการอย่างน้อย 3 รายการในรอบ 5 ปีย้อนหลังโดยอย่างน้อย 1 รายการต้องเป็นผลงานวิจัย กรณีที่มีความจำเป็นอย่างยิ่งสำหรับสาขาวิชาที่ไม่สามารถสรรหาอาจารย์ผู้รับผิดชอบหลักสูตรครบตามจำนวนหรือมีจำนวนนักศึกษาน้อยกว่า 10 คนให้คณะเสนอจำนวนและคุณวุฒิของอาจารย์ผู้รับผิดชอบหลักสูตรที่มีนั้นให้สภาพมหาวิทยาลัยพิจารณาความเหมาะสมและส่งให้คณะกรรมการอุดมศึกษาพิจารณาเป็นรายกรณี 10.3.3 อาจารย์ที่ปรึกษาวิทยานิพนธ์และการค้นคว้าอิสระแบ่งออกเป็น 2 ประเภทคือ 1) อาจารย์ที่ปรึกษาวิทยานิพนธ์หลักและการค้นคว้าอิสระต้องเป็นอาจารย์ประจำหลักสูตรมีคุณวุฒิปริญญาเอกหรือเทียบเท่าหรือขึ้นต่ำปริญญาโทหรือเทียบเท่าที่มีตำแหน่งรองศาสตราจารย์และมีผลงานทางวิชาการที่ไม่ใช่อ่านหนังของการศึกษาเพื่อรับปริญญาและเป็นผลงานทางวิชาการที่ได้รับการเผยแพร่ตามหลักเกณฑ์ที่กำหนดในการพิจารณาแต่งตั้งให้บุคคลดำรงตำแหน่งทางวิชาการอย่างน้อย 3 รายการในรอบ 5 ปีย้อนหลังโดยอย่างน้อย 1 รายการต้องเป็นผลงานวิจัย 2) อาจารย์ที่ปรึกษาวิทยานิพนธ์ร่วม (ถ้ามี) ต้องมีคุณวุฒิและคุณสมบัติดังนี้ อาจารย์ที่ปรึกษาวิทยานิพนธ์หลัก สำหรับอาจารย์ที่ปรึกษาวิทยานิพนธ์ร่วมที่เป็นผู้ทรงคุณวุฒิภายนอกมหาวิทยาลัยต้องมีคุณวุฒิปริญญาเอกหรือเทียบเท่าและมีผลงานทางวิชาการที่ได้รับการตีพิมพ์เผยแพร่ในวารสารที่มีชื่ออยู่ในฐานข้อมูลที่เป็นที่ยอมรับในระดับชาติซึ่งตรงหรือสัมพันธ์กับหัวข้อวิทยานิพนธ์หรือการค้นคว้าอิสระไม่น้อยกว่า 10 เรื่องหรือมีผลงานทางวิชาการที่ได้รับการตีพิมพ์เผยแพร่ในวารสารที่มีชื่ออยู่ในฐานะข้อมูลที่เป็นที่ยอมรับในระดับนานาชาติซึ่งตรงหรือสัมพันธ์กับหัวข้อวิทยานิพนธ์ไม่น้อยกว่า 5 เรื่อง กรณีผู้ทรงคุณวุฒิที่ไม่มีคุณวุฒิและผลงานทางวิชาการตามที่กำหนดข้างต้นผู้ทรงคุณวุฒิจะต้องเป็นผู้มีความรู้ความเชี่ยวชาญและประสบการณ์สูงเป็นที่ยอมรับซึ่งตรงหรือสัมพันธ์กับหัวข้อวิทยานิพนธ์หรือการค้นคว้าอิสระโดยผ่านความเห็นชอบจากสภามหาวิทยาลัยและแจ้งคณะกรรมการอุดมศึกษารับทราบ 10.3.4 คณะกรรมการวิทยานิพนธ์หรือคณะกรรมการค้นคว้าอิสระมีหน้าที่ให้คำปรึกษาประเมินความก้าวหน้าวิทยานิพนธ์หรือการค้นคว้าอิสระประกอบด้วย 1) อาจารย์ที่ปรึกษาวิทยานิพนธ์หลัก 2) อาจารย์ที่ปรึกษาวิทยานิพนธ์ร่วม (ถ้ามี) 3) อาจารย์ประจำหลักสูตร 4) ผู้ทรงคุณวุฒิภายนอกมหาวิทยาลัย (ถ้ามี) จำนวนคณะกรรมการในข้อ 3) และข้อ 4) รวมแล้วต้องไม่น้อยกว่าจำนวนอาจารย์ที่ปรึกษาวิทยานิพนธ์ 10.3.5 อาจารย์ผู้สอบวิทยานิพนธ์หรือคณะกรรมการสอบการค้นคว้าอิสระมีหน้าที่พิจารณาความสามารถของนักศึกษาในการทำวิจัยความรอบรู้ในเนื้อหาเกี่ยวกับเรื่องที่ทำวิจัยความสามารถในการนำเสนอผลงานทั้งด้านการพูดและการเขียนตลอดจนปฏิภาณไหวพริบในการตอบคำถามประกอบด้วย 1) อาจารย์ที่ปรึกษาวิทยานิพนธ์หลัก 2) อาจารย์ที่ปรึกษาวิทยานิพนธ์ร่วมที่เป็นอาจารย์ประจำหลักสูตร (ถ้ามี) 3) อาจารย์ประจำหลักสูตร 4) ผู้ทรงคุณวุฒิภายนอกมหาวิทยาลัย
 จำนวนอาจารย์ผู้สอบวิทยานิพนธ์ในข้อ 3) และข้อ 4) รวมกันแล้วต้องไม่น้อยกว่าจำนวนอาจารย์ที่ปรึกษาวิทยานิพนธ์และจำนวนอาจารย์ผู้สอบวิทยานิพนธ์ทั้งหมดรวมกันแล้วต้องไม่น้อยกว่า 3 คนทั้งนี้ประธานกรรมการสอบต้องไม่เป็นอาจารย์ที่ปรึกษาวิทยานิพนธ์หลักหรืออาจารย์ที่ปรึกษาวิทยานิพนธ์ร่วมอาจารย์ผู้สอบวิทยานิพนธ์ต้องได้รับการแต่งตั้งจากคณะกรรมการประจำคณะโดยต้องมีคุณวุฒิคุณสมบัติและผลงานทางวิชาการดังนี้
 กรณีอาจารย์ประจำหลักสูตรต้องมีคุณวุฒิปริญญาเอกหรือเทียบเท่าหรือขึ้นต่ำปริญญาโทหรือเทียบเท่าที่มีตำแหน่งรองศาสตราจารย์และมีผลงานทางวิชาการที่ไม่ใช่ส่วนหนึ่งของการศึกษาเพื่อรับปริญญาและเป็นผลงานทางวิชาการที่ได้รับการเผยแพร่ตามหลักเกณฑ์ที่กำหนดในการพิจารณาแต่งตั้งให้บุคคลดำรงตำแหน่งทางวิชาการอย่างน้อย 3 รายการในรอบ 5 ปีย้อนหลังโดยอย่างน้อย 1 รายการต้องเป็นผลงานวิจัย
@@ -7960,7 +7960,7 @@ TYPE: document
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "10.4.1 อาจารย์ประจำหลักสูตรมีคุณวุฒิปริญญาเอกหรือเทียบเท่าหรือขั้นต่ำปริญญาโทหรือเทียบเท่าที่มีตำแหน่งรองศาสตราจารย์และมีผลงานทางวิชาการที่ไม่ใช่ส่วนหนึ่งของการศึกษาเพื่อรับปริญญาและเป็นผลงานทางวิชาการอย่างน้อย 3 รายการในรอบ 5 ปีย้อนหลังโดยอย่างน้อย 1 รายการต้องเป็นผลงานวิจัย
 10.4.2 อาจารย์ผู้รับผิดชอบหลักสูตรจำนวนอย่างน้อย 3 คนมีคุณวุฒิปริญญาเอกหรือเทียบเท่าหรือขั้นต่ำปริญญาโทหรือเทียบเท่าที่มีตำแหน่งศาสตราจารย์และมีผลงานทางวิชาการที่ไม่ใช่ส่วนหนึ่งของการศึกษาเพื่อรับปริญญาและเป็นผลงานทางวิชาการอย่างน้อย 3 รายการในรอบ 5 ปีย้อนหลังโดยอย่างน้อย 1 รายการต้องเป็นผลงานวิจัย
 กรณีที่มีความจำเป็นอย่างยิ่งสำหรับสาขาวิชาที่ไม่สามารถสรรหาอาจารย์ผู้รับผิดชอบหลักสูตรครบตามจำนวนหรือมีจำนวนนักศึกษาน้อยกว่า 10 คนให้คณะกรรมอนำเสนอแนะคุณวุฒิของอาจารย์ผู้รับผิดชอบหลักสูตรที่มีนั้นให้สภาพมหาวิทยาลัยพิจารณาความเหมาะสมและส่งให้คณะกรรมการอุดมศึกษาพิจารณาเป็นรายกรณี
@@ -8010,7 +8010,7 @@ TYPE: document
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "จำนวนอาจารย์ผู้สอบวิทยานิพนธ์ในข้อ 3) และข้อ 4) รวมแล้วต้องมากกว่าจำนวนอาจารย์ที่ปรึกษาวิทยานิพนธ์และจำนวนอาจารย์ผู้สอบวิทยานิพนธ์ทั้งหมดรวมแล้วต้องไม่น้อยกว่า 5 คนทั้งนี้ประธานกรรมการสอบต้องเป็นผู้ทรงคุณวุฒิภายนอกและต้องไม่ใช่ออาจารย์ที่ปรึกษาวิทยานิพนธ์หลักหรืออาจารย์ที่ปรึกษาวิทยานิพนธ์ร่วมทั้งนี้อาจารย์ผู้สอบวิทยานิพนธ์ต้องได้รับการแต่งตั้งจากคณะกรรมการประจำคณะโดยอาจารย์ผู้สอบวิทยานิพนธ์ต้องมีคุณวุฒิคุณสมบัติและผลงานทางวิชาการดังนี้
 กรณีอาจารย์ผู้สอบวิทยานิพนธ์เป็นอาจารย์ประจำหลักสูตรต้องมีคุณวุฒิปริญญาเอกหรือเทียบเท่าหรือขึ้นต่ำปริญญาโทหรือเทียบเท่าที่มีตำแหน่งรองศาสตราจารย์และมีผลงานทางวิชาการที่ไม่ใช่ส่วนหนึ่งของการศึกษาเพื่อรับปริญญาและเป็นผลงานทางวิชาการที่ได้รับการเผยแพร่ตามหลักเกณฑ์ที่กำหนดในการพิจารณาแต่งตั้งให้บุคคลดำรงตำแหน่งทางวิชาการอย่างน้อย 3 รายการในรอบ 5 ปีย้อนหลังโดยอย่างน้อย 1 รายการต้องเป็นผลงานวิจัย
 กรณีอาจารย์ผู้สอบวิทยานิพนธ์เป็นผู้ทรงคุณวุฒิภายนอกมหาวิทยาลัยต้องมีคุณวุฒิปริญญาเอกหรือเทียบเท่าและมีผลงานทางวิชาการที่ได้รับการตีพิมพ์เผยแพร่ในวารสารที่มีชื่ออยู่ในฐานข้อมูลที่เป็นที่ยอมรับในระดับนานาชาติซึ่งตรงหรือสัมพันธ์กับหัวข้อวิทยานิพนธ์ไม่น้อยกว่า 5 เรื่อง
@@ -8053,7 +8053,7 @@ TYPE: document
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "กรณีอาจารย์ประจำหลักสูตรมีคุณวุฒิปริญญาเอกหรือเทียบเท่าและดำรงตำแหน่งศาสตราจารย์มีความจำเป็นต้องดูแลนักศึกษาเกินกว่าจำนวนที่กำหนดให้เสนอต่อสภามหาวิทยาลัยพิจารณาแต่ทั้งนี้ต้องไม่เกิน 15 คนต่อภาคการศึกษาหากมีความจำเป็นต้องดูแลนักศึกษามากกว่า 15 คนให้ขอความเห็นชอบจากคณะกรรมการการอุดมศึกษาเป็นรายกรณี
 หมวด 4 การรับเข้าศึกษา
 ข้อ 12 คุณสมบัติของผู้สมัคร
@@ -8102,7 +8102,7 @@ TYPE: document
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "เพิ่มเติมตามที่หลักสูตรกำหนดทั้งนี้มหาวิทยาลัยอาจจัดให้มีการสอบคัดเลือกผู้สมัครเข้าศึกษาดังกล่าวก่อนการรับเข้าศึกษาเพื่อทดสอบมาตรฐานวิชาการตามที่มหาวิทยาลัยต้องการ ข้อ 13 การรับเข้าศึกษา 13.1 มหาวิทยาลัยจะพิจารณาความเหมาะสมของผู้สมัครโดยการสอบข้อเขียนหรือสอบสัมภาษณ์หรือวิธีการอื่นใดที่ผู้รับผิดชอบหลักสูตรอนุมัติและแจ้งไปยังคณะรับทราบ 13.2 ในกรณีที่ผู้สมัครกำลังรอผลการศึกษาระดับปริญญาโทหรือปริญญาตรีการรับเข้าศึกษาจะมีผลสมบูรณ์เมื่อผู้สมัครได้ส่งหลักฐานการสำเร็จการศึกษาตามที่ระบุไว้ในคุณสมบัติของผู้สมัครให้แก่มหาวิทยาลัยภายในระยะเวลาที่กำหนด 13.3 สำหรับผู้เข้าศึกษาแบบเดิมเวลาในกรณีที่ผู้สมัครเป็นข้าราชการพนักงานราชการพนักงานองค์กรของรัฐหรือพนักงานรัฐวิสาหกิจการรับเข้าศึกษาจะมีผลสมบูรณ์เมื่อผู้สมัครได้รับอนุมัติให้ลาศึกษาจากต้นสังกัด 13.4 ผู้เข้าศึกษาระดับบัณฑิตศึกษาจะเป็นนักศึกษาของมหาวิทยาลัยได้ไม่เกิน 2 หลักสูตรในเวลาเดียวกันทั้งนี้ต้องแจ้งให้อาจารย์ผู้รับผิดชอบหลักสูตรทั้ง 2 หลักสูตรทราบ 13.4.1 ต้องเป็นหลักสูตรที่มหาวิทยาลัยเปิดสอนแยกเป็นสองหลักสูตร 13.4.2 ต้องกำหนดวิชาเฉพาะและวิชาแกนที่จะใช้ร่วมกันระหว่างสองหลักสูตรให้ชัดเจนทั้งจำนวนวิชาและจำนวนหน่วยกิต 13.4.3 นักศึกษาต้องลงทะเบียนเรียนตามแผนการศึกษาที่กำหนดไว้ในแต่ละหลักสูตร 13.4.4 นักศึกษาต้องลงทะเบียนเรียนรายวิชาให้ครบถ้วนตามที่กำหนดไว้ในหลักสูตรทั้งสองกรณีที่มีรายวิชาใช้ร่วมกันให้ลงทะเบียนเรียนวิชาเหล่านั้นจากหลักสูตรใดหลักสูตรหนึ่ง 13.4.5 ในกรณีที่ผู้ศึกษาลงทะเบียนเรียนในแผนการศึกษาพร้อมกันทั้งสองหลักสูตรอาจารย์ผู้รับผิดชอบหลักสูตรและอาจารย์ที่ปรึกษาต้องกำหนดให้ซัดเจนว่าวิทยานิพนธ์หรือการค้นคว้าอิสระจะเป็นฉบับเดียวกันหรือเป็นสองฉบับหากกำหนดให้วิทยานิพนธ์หรือการค้นคว้าอิสระเป็นฉบับเดียวกันวิทยานิพนธ์หรือการค้นคว้าอิสระนั้นจะต้องครอบคลุมหรือบูรณาการเนื้อหาวิชาทั้งสองหลักสูตรและจะต้องมีอาจารย์ที่ปรึกษาวิทยานิพนธ์หลักจากทั้งสองหลักสูตร
 13.5 หากผู้เข้าศึกษาระดับปริญญาเอกต้องการเปลี่ยนแผนการเรียนระหว่างแบบไม่เต็มเวลาและแบบเต็มเวลาต้องแสดงความจำนองการขอเปลี่ยนแปลงล่วงหน้าก่อนเริ่มภาคการศึกษาอย่างน้อย 30 วันโดยได้รับความเห็นชอบจากอาจารย์ที่ปรึกษาและอาจารย์ผู้รับผิดชอบหลักสูตร
 ข้อ 14 สถานภาพนักศึกษา
@@ -8155,7 +8155,7 @@ TYPE: document
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "กรณีนักศึกษาปริญญาเอกแผนการศึกษาแบบ 1 ที่ยังสอบวัดคุณสมบัติไม่ผ่านให้ชำระค่าบำรุงการศึกษาเต็มจำนวนโดยยังไม่ต้องลงทะเบียนวิทยานิพนธ์
 17.1.4 หากไม่เป็นไปตามข้อ 17.1.3 จะกระทำได้ต่อเมื่อได้รับความเห็นชอบจากอาจารย์ที่ปรึกษาและอนุมัติจากอาจารย์ผู้รับผิดชอบหลักสูตร
 17.1.5 นักศึกษาสามัญที่กลับเข้าศึกษาใหม่สามารถเทียบโอนผลการเรียนได้ตามข้อ 28.2.4.1 - ข้อ 28.2.4.2 หรือต้องลงทะเบียนรายวิชาในระดับบัณฑิตศึกษาหรือวิทยานิพนธ์ตามความเห็นชอบของอาจารย์ที่ปรึกษาวิทยานิพนธ์และอนุมัติโดยคณะกรรมการประจำคณะให้แต่งตั้งกรรมการวิทยานิพนธ์ใหม่อายุจะเป็นชุดเดิมได้โดยไม่ต้องสอบวัดคุณสมบัติและไม่ต้องสอบโครงร่างวิทยานิพนธ์ (Proposal) ใหม่ทั้งนี้หากมีการเปลี่ยนหัวข้อวิทยานิพนธ์ใหม่ให้ปฏิบัติตามข้อ 28.2.4.3
@@ -8200,7 +8200,7 @@ TYPE: document
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "17.2.3 ภาษาที่ใช้ในการเรียนการสอนมีหลักเกณฑ์ดังนี้
 17.2.3.1 นักศึกษาหลักสูตรภาษาไทยสามารถลงทะเบียนเรียนหลักสูตรภาษาอังกฤษหรือหลักสูตรนานาชาติหรือหลักสูตรวิภาสได้
 17.2.3.2 นักศึกษาหลักสูตรภาษาอังกฤษหรือหลักสูตรนานาชาติต้องลงทะเบียนเรียนในหลักสูตรภาษาอังกฤษหรือหลักสูตรนานาชาติในรายวิชาที่สอนเป็นภาษาต่างประเทศกรณีที่นักศึกษามีความจำเป็นที่จะต้องลงทะเบียนเรียนในหลักสูตรภาษาไทยสามารถทำเรื่องขออนุมัติเป็นกรณีพิเศษโดยผ่านความเห็นชอบจากอาจารย์ที่ปรึกษาและอาจารย์ผู้รับผิดชอบหลักสูตร
@@ -8251,7 +8251,7 @@ TYPE: document
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "20.1.1 ถูกเกณฑ์เข้ารับราชการทหารกองประจำการหรือเข้ารับการระดมพลเข้ารับการฝึกวิชาทหารหรือเข้ารับการทดลองความพรั่งพร้อม
 20.1.2 มีเหตุสุดวิสัย
 20.1.3 กรณีที่นักศึกษาระดับปริญญาเอกเรียนครบ 6 ปีและสอบวิทยานิพนธ์แล้วอยู่ระหว่างการรอตีพิมพ์ผลงานชิ้นสุดท้ายตามเงื่อนไขสำเร็จการศึกษาโดยส่งต้นฉบับเพื่อขอรับการตีพิมพ์แล้วสามารถลาพักการศึกษาโดยไม่นับเวลาเรียนได้ไม่เกิน 1 ปีการศึกษา
@@ -8306,7 +8306,7 @@ TYPE: document
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "นักศึกษาสามัญระดับปริญญาโทและนักศึกษาระดับประกาศนียบัตรวิชาชีพบัณฑิตซึ่งมีแต้มรวมด้านคะแนนเฉลี่ยสะสมน้อยกว่า 3.25 ให้อยู่ในสภาพวิทยาทัณฑ์และระหว่างที่อยู่ในสภาพวิทยาทัณฑ์ถ้าแต้มรวมด้านคะแนนเฉลี่ยประจำภาคน้อยกว่า 3.00 ให้พ้นสภาพการเป็นนักศึกษา สำหรับนักศึกษาสามัญระดับปริญญาโทและระดับประกาศนียบัตรวิชาชีพบัณฑิตซึ่งมีแต้มรวมด้านคะแนนเฉลี่ยประจำภาคน้อยกว่า 3.00 ให้พ้นสภาพการเป็นนักศึกษา
 ทั้งนี้ยกเว้นแผนกศึกษาที่เน้นการทำวิจัยที่เน้นการทำงานเชิงกลยุทธ์ที่มีรายละเอียดเพิ่มเติมในข้อ 21.6.3
 21.6.3 นักศึกษาทดลองศึกษาตามข้อ 14.2 - ข้อ 14.3 ที่ไม่สามารถเปลี่ยนแปลงสถานภาพเป็นนักศึกษาสามัญได้หรือไม่เป็นไปตามเงื่อนไขการรับเข้าศึกษาให้พ้นสภาพการเป็นนักศึกษา
@@ -8377,7 +8377,7 @@ Aud. - การเรียนแบบไม่คิดเกรด (Audit)
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "- การเรียนแบบไม่คิดเกรด (Audit) 23.2 รายวิชาที่ศึกษาจะต้องได้ผลการศึกษาไม่ต่ำกว่า C หรือ S ถ้าได้ผลการศึกษาต่ำกว่าที่ระบุไว้ต้องลงทะเบียนเรียนซ้ำโดยในหมวดวิชาบังคับต้องลงทะเบียนเรียนซ้ำรายวิชาเดิมส่วนในหมวดวิชาเลือกอาจลงทะเบียนรายวิชาอื่นแทนได้ 23.3 การให้ F Fe และ Fa กระทำได้ในกรณีดังต่อไปนี้ 23.3.1 นักศึกษาไม่บรรลุผลสัทธ์การเรียนรู้ตามที่กำหนดไว้ในหลักสูตรหรือรายวิชา (F) 23.3.2 นักศึกษาทำผิดข้อกำหนดในการสอบของแต่ละรายวิชาได้รับการตัดสินให้ตก (F) 23.3.3 นักศึกษาขาดสอบโดยไม่ได้รับอนุญาตจากอาจารย์ผู้สอนผู้รับผิดชอบหลักสูตรและคณะกรรมการประจำคณะ (Fe) 23.3.4 นักศึกษาไม่ได้รับอนุญาตให้เข้าสอบถามข้อ 19 (Fa) 23.4 การให้ S หรือ U กระทำได้ในกรณีดังต่อไปนี้ รายวิชาปรับพื้นฐานหรือรายวิชาเรียนซึ่งหลักสูตรกำหนดหรืออาจารย์ผู้รับผิดชอบหลักสูตรเห็นสมควรให้มีการวัดผลการศึกษาแบบ S หรือ U และวิชาวิทยานิพนธ์หรือการศึกษาค้นคว้าอิสระโดยจะให้ S เมื่อผลการศึกษาหรือวิจัยเป็นที่น่าพอใจและต้องมีเวลาเรียนหรือปฏิบัติการไม่น้อยกว่าร้อยละ 80 23.5 การให้ I กระทำได้ในกรณีดังต่อไปนี้ 23.5.1 นักศึกษาไม่ได้สอบหรือไม่ได้ส่งผลงานเพราะป่วยโดยมีใบรับรองแพทย์และนักศึกษาต้องมีเวลาเรียนอย่างน้อยร้อยละ 80 23.5.2 นักศึกษาไม่ได้สอบหรือไม่ได้ส่งผลงานด้วยเหตุสุดวิสัยให้อยู่ในดุลพินิจของอาจารย์ผู้สอนและอาจารย์ผู้รับผิดชอบหลักสูตร 23.5.3 อาจารย์ผู้สอนและอาจารย์ผู้รับผิดชอบหลักสูตรเห็นสมควรให้รอการประเมิน 23.6 การเปลี่ยนผลการศึกษา | ต้องดำเนินการดังนี้
 23.6.1 สอบใหม่หรือส่งผลงานเพิ่มเติมภายใน 1 เดือนนับจากวันที่มหาวิทยาลัยประกาศผลการศึกษาทั้งนี้ไม่ต้องแสดงผลการศึกษา | ในใบรายงานผลการศึกษา
 23.6.2 ปฏิบัติงานเพิ่มเติมและประเมินผลใหม่ภายในภาคการศึกษาถัดไปโดยนักศึกษาต้องลงทะเบียนวิชาที่ได้รับผลการศึกษา | แต่ไม่ต้องชำระค่าหน่วยกิตของการลงทะเบียนในรายวิชานั้นมิฉะนั้นจะได้รับผลการศึกษา F หรือ U ทั้งนี้ต้องแสดงผลการศึกษา | ในใบรายงานผลการศึกษา
@@ -8430,7 +8430,7 @@ Aud. - การเรียนแบบไม่คิดเกรด (Audit)
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "ทั้งนี้ให้มีทศนิยมสองตำแหน่งโดยปัดเศษจากตำแหน่งที่สาม 25.1.2 แต้มระดับคะแนนเฉลี่ยสะสมให้คำนวณจากผลการศึกษาของนักศึกษาตั้งแต่เริ่มเข้าศึกษาในมหาวิทยาลัยจนถึงการประเมินผลครั้งสุดท้ายโดยเอาผลรวมของผลคูณของหน่วยกิตกับแต้มของผลการศึกษาแต่ละรายวิชาเป็นตัวตั้งหารด้วยจำนวนหน่วยกิตรวมของรายวิชาทั้งหมดที่ศึกษาและมีผลการศึกษาเป็นแต้มตามข้อ 23.1 ทั้งนี้ให้มีทศนิยมสองตำแหน่งโดยปัดเศษจากตำแหน่งที่สาม 25.2 ให้ผู้รับผิดชอบหลักสูตรและคณะกรรมการประจำคณะพิจารณาการวัดผลและประเมินผลการศึกษาในกรณีที่มีปัญหาให้คณะกรรมการประจำคณะมีอำนาจวินิจฉัยชี้ขาดและให้คณบดีหรือผู้อำนวยการเป็นผู้อนุมัติผลการศึกษาทุกภาคการศึกษา ข้อ 26 การย้ายหลักสูตร 26.1 การขอย้ายหลักสูตรจะกระทำได้ในกรณีมีเหตุผลอันสมควรและนักศึกษาได้เข้าศึกษาในหลักสูตรเดิมมาแล้วไม่น้อยกว่า 1 ภาคการศึกษา 26.2 นักศึกษาสามารถย้ายหลักสูตรในคณะเดียวกันโดยได้รับความเห็นชอบจากอาจารย์ผู้รับผิดชอบหลักสูตรของทั้ง 2 หลักสูตรและได้รับอนุมัติจากคณะกรรมการประจำคณะ 26.3 นักศึกษาสามัญอาจขอย้ายหลักสูตรซึ่งอยู่ต่างคณะหรือต่างสถาบันโดยได้รับความเห็นชอบจากอาจารย์ผู้รับผิดชอบหลักสูตรทั้ง 2 หลักสูตรและได้รับอนุมัติจากคณะกรรมการประจำคณะโดยแจ้งคณะของหน่วยงานที่เข้าศึกษาเดิมกับหน่วยงานใหม่ที่จะย้ายไปรับทราบ 26.4 การเทียบโอนรายวิชาในหลักสูตรที่ย้ายไปให้เป็นไปตามข้อ 27
 ข้อ 27 การเปลี่ยนระดับการศึกษา
 27.1 การเปลี่ยนระดับการศึกษาอาจเป็นการเปลี่ยนไปสู่ระดับที่สูงขึ้นกว่าเดิมหรือกลับกันได้ในสาขาวิชาเดียวกันโดยได้รับความเห็นชอบจากอาจารย์ที่ปรึกษาอาจารย์ผู้รับผิดชอบหลักสูตรและได้รับอนุมัติจากคณะกรรมการประจำคณะ
@@ -8481,7 +8481,7 @@ Aud. - การเรียนแบบไม่คิดเกรด (Audit)
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "ทั้งนี้จะไม่นำหน่วยกิตที่โอนมาคำนวณแต้มระดับคะแนนเฉลี่ยแต่สามารถนับหน่วยกิตที่เทียบโอนมาเพื่อสำเร็จการศึกษา 28.2.4 นักศึกษาที่พ้นสภาพการเป็นนักศึกษาและกลับเข้ามาศึกษาใหม่โดยผ่านกระบวนการคัดเลือกและสรรหาในหลักสูตรเดิมหรือหลักสูตรใหม่สามารถโอนรายวิชาต่างๆได้โดยผ่านความเห็นชอบของอาจารย์ผู้รับผิดชอบหลักสูตรและได้รับอนุมัติจากคณะกรรมการประจำคณะและมีหลักเกณฑ์ดังต่อไปนี้ 28.2.4.1 สามารถนำรายวิชามาเทียบได้ไม่จำกัดหน่วยกิตที่โอนหรือขอเทียบโอนโดยให้บันทึกผลการศึกษารหัสวิชาและชื่อวิชาตามหลักสูตรที่ใช้กับรุ่นที่เข้าศึกษาโดยต้องมีผลการศึกษาในระดับคะแนนไม่ต่ำกว่า B หรือแต้มระดับคะแนนเฉลี่ย 3.00 หรือเทียบเท่าหรือได้ระดับ S หรือได้รับการประเมินแล้วว่ามีผลลัพธ์การเรียนรู้และศักยภาพเพียงพอที่จะผ่านรายวิชาที่จะขอเทียบทั้งนี้รายวิชาที่เทียบโอนจะไม่นำหน่วยกิตมาคำนวณแต่มีระดับคะแนนเฉลี่ยแต่ให้นับหน่วยกิตเพื่อการสำเร็จการศึกษาและในกรณีที่มีรายวิชาใหม่ซึ่งเป็นวิชาบังคับนักศึกษาต้องลงทะเบียนเรียนเพิ่มเติม
 28.2.4.2 การเทียบโอนหน่วยกิตรวิชาวิทยานิพนธ์หรือการค้นคว้าอิสระหากไม่มีการเปลี่ยนแปลงหัวข้อวิทยานิพนธ์สามารถนำหน่วยกิตวิทยานิพนธ์ที่ประเมินว่าผ่านแล้วโอนมาเป็นรายวิชาและหน่วยกิตในหลักสูตรได้โดยไม่ต้องสอบวัดคุณสมบัติ (Qualifying Examination) และไม่ต้องสอบโครงร่างวิทยานิพนธ์ (Proposal) ใหม่ทั้งนี้นักศึกษาสามารถเทียบโอนได้ไม่เกินร้อยละ 90 ของหน่วยกิตที่ได้รับการประเมินผ่านแล้วโดยต้องได้รับอนุมัติจากคณะกรรมการประจำคณะตามความเห็นชอบของอาจารย์ผู้รับผิดชอบหลักสูตร
 สามารถโอนผลงานทางวิชาการที่เคยได้รับการตีพิมพ์หรือนำเสนอในการประชุมวิชาการโดยผ่านความเห็นชอบจากอาจารย์ที่ปรึกษาอาจารย์ผู้รับผิดชอบหลักสูตรและได้รับการอนุมัติจากคณะกรรมการประจำคณะ
@@ -8528,7 +8528,7 @@ Aud. - การเรียนแบบไม่คิดเกรด (Audit)
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "ไป 28.5 นักศึกษาที่ประสงค์จะขอเทียบโอนรายวิชาต้องยื่นคำร้องพร้อมใบรายงานผลการศึกษาและคำอธิบายรายวิชาที่ขอเทียบโอนต่อผู้รับผิดชอบหลักสูตรภายใน 1 เดือนนับจากวันเปิดภาคการศึกษาตามประกาศของมหาวิทยาลัยทั้งนี้ต้องได้รับความเห็นชอบจากอาจารย์ผู้รับผิดชอบหลักสูตรและได้รับอนุมัติจากคณะกรรมการประจำคณะ ข้อ 29 การเทียบโอนความรู้ทักษะและประสบการณ์และการให้หน่วยกิตจากการศึกษานอกระบบและการศึกษาตามอัธยาศัย 29.1 คณะกรรมการการเทียบโอนความรู้ทักษะและประสบการณ์และการให้หน่วยกิตจากการศึกษานอกระบบและการศึกษาตามอัธยาศัย ให้มีคณะกรรมการเทียบโอนความรู้ซึ่งได้รับการแต่งตั้งจากที่ประชุมคณะกรรมการประจำคณะของรายวิชาหรือกลุ่มวิชาที่เทียบโอนความรู้ทักษะและประสบการณ์อย่างน้อย 3 คนประกอบด้วยอาจารย์ผู้รับผิดชอบรายวิชาและกรรมการอื่นที่คณะที่รับผิดชอบรายวิชาแต่งตั้ง ให้คณะกรรมการเทียบโอนความรู้มีอำนาจและหน้าที่ดังนี้ (1) กำหนดเกณฑ์การประเมินความรู้ทักษะและประสบการณ์และการให้หน่วยกิตจากการศึกษานอกระบบหรือการศึกษาตามอัธยาศัยของแต่ละรายวิชาหรือกลุ่มรายวิชาด้วยวิธีการที่หลากหลายเพื่อให้สอดคล้องกับผลลัพธ์การเรียนรู้ของรายวิชาที่เทียบโอน
 (2) ดำเนินการประเมินความรู้ทักษะและประสบการณ์และการให้หน่วยกิตจากการศึกษานอกระบบและการศึกษาตามอัธยาศัยของแต่ละรายวิชาหรือกลุ่มรายวิชา
 (3) แจ้งผลการประเมินไปยังนักศึกษาสำนักงานทะเบียนนักศึกษาอาจารย์ผู้รับผิดชอบหลักสูตรของนักศึกษาคณะกรรมการประจำคณะที่นักศึกษาสังกัดและหน่วยงานอื่นที่เกี่ยวข้อง
@@ -8581,7 +8581,7 @@ Aud. - การเรียนแบบไม่คิดเกรด (Audit)
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "31.1 นักศึกษาจะลงทะเบียนเพื่อทำวิทยานิพนธ์ได้ต้องได้รับความเห็นชอบจากอาจารย์ที่ปรึกษาทั้งนี้
 31.1.1 นักศึกษาระดับปริญญาโทแผนก 2 จะลงทะเบียนวิทยานิพนธ์ได้เมื่อเป็นนักศึกษาสามัญแล้วอย่างน้อย 1 ภาคการศึกษาได้ลงทะเบียนรายวิชาและสอบผ่านแล้วไม่น้อยกว่า 6 หน่วยกิตและมีแต้มระดับคะแนนเฉลี่ยสะสมไม่น้อยกว่า 3.00 ยกเว้นผู้ที่พ้นสภาพและสมัครกลับมาศึกษาใหม่ตามข้อ 28.2.4 สามารถลงทะเบียนวิทยานิพนธ์ได้ในภาคการศึกษาที่กลับเข้าศึกษาใหม่
 31.1.2 นักศึกษาระดับปริญญาเอกต้องสอบผ่านการสอบวัดคุณสมบัติก่อนลงทะเบียนเพื่อทำวิทยานิพนธ์โดยนักศึกษาระดับปริญญาเอกแผนการศึกษาแบบ 2 จะลงทะเบียนวิทยานิพนธ์ได้เมื่อเป็นนักศึกษาสามัญแล้วอย่างน้อย 1 ภาคการศึกษาได้ลงทะเบียนรายวิชาและสอบผ่านแล้วไม่น้อยกว่า 6 หน่วยกิตและมีแต้มระดับคะแนนเฉลี่ยสะสมไม่น้อยกว่า 3.25 ยกเว้นผู้ที่พ้นสภาพและสมัครกลับมาศึกษาใหม่ตามข้อ 28.2.4 สามารถลงทะเบียนวิทยานิพนธ์ได้ในภาคการศึกษาที่กลับเข้าศึกษาใหม่
@@ -8627,7 +8627,7 @@ Aud. - การเรียนแบบไม่คิดเกรด (Audit)
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "32.1 นักศึกษามีสิทธิ์ขอสอบวิทยานิพนธ์ได้เมื่อคณะกรรมการวิทยานิพนธ์เห็นชอบให้นักศึกษาสอบวิทยานิพนธ์โดยเสนอรายชื่อคณะกรรมการสอบวิทยานิพนธ์พร้อมกำหนดวันสอบไปยังอาจารย์ผู้รับผิดชอบหลักสูตรเพื่อให้ความเห็นชอบและคณะกรรมการประจำคณะเพื่อพิจารณาอนุมัติและแต่งตั้งคณะกรรมการสอบวิทยานิพนธ์
 32.2 นักศึกษาจะต้องส่งร่างวิทยานิพนธ์ให้คณะกรรมการสอบวิทยานิพนธ์พิจารณาล่วงหน้าอย่างน้อย 2 สัปดาห์ก่อนวันสอบวิทยานิพนธ์มิฉะนั้นคณะกรรมการสอบวิทยานิพนธ์อาจจะเลื่อนวันสอบออกไปโดยให้นับตั้งแต่วันที่ได้รับร่างวิทยานิพนธ์ไม่ต่ำกว่าสองสัปดาห์แต่ไม่เกินหนึ่งเดือน
 32.3 คณะกรรมการสอบวิทยานิพนธ์เป็นผู้รับผิดชอบในการสอบกรณีที่ผลสอบเป็นที่พอใจให้ผลการศึกษาผ่าน (S) และกรณีที่ผลสอบไม่เป็นที่พอใจให้ทำการสอบแก้ตัวภายในระยะเวลาที่คณะกรรมการสอบวิทยานิพนธ์กำหนด
@@ -8679,7 +8679,7 @@ Aud. - การเรียนแบบไม่คิดเกรด (Audit)
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "(ข) เสนอวิทยานิพนธ์และสอบผ่านการสอบปากเปล่าขั้นสุดท้ายและผลงานวิทยานิพนธ์หรือส่วนหนึ่งของวิทยานิพนธ์ต้องได้รับการตีพิมพ์หรืออย่างน้อยได้รับการยอมรับให้ตีพิมพ์ในวารสารระดับชาติหรือระดับนานาชาติหรือนำเสนอต่อที่ประชุมวิชาการโดยบทความที่นำเสนอต้องมีการตีพิมพ์บทความฉบับสมบูรณ์ (Full Paper) ในรายงานสืบเนื่องจากการประชุมวิชาการ (Proceeding) ที่มีผู้ทรงคุณวุฒิพิจารณาผลงาน
 34.3.3 นักศึกษาแผนข
 (ก) ต้องศึกษาได้ครบทุกวิชาตามโครงสร้างหลักสูตรมีแต้มระดับคะแนนเฉลี่ยไม่ต่ำกว่า 3.00 และ
@@ -8733,7 +8733,7 @@ Aud. - การเรียนแบบไม่คิดเกรด (Audit)
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "ข้อ 36 ในการพิจารณาให้นักศึกษาได้รับปริญญานอกจากคณะกรรมการประจำคณะจะพิจารณาจากผลการศึกษาของนักศึกษาแล้วให้นำพฤติการณ์ของนักศึกษาในด้านความประพฤติคุณธรรมและจริยธรรมอันเป็นเกียรติและศักดิ์ของนักศึกษาตามที่มหาวิทยาลัยกำหนดตลอดเวลาที่ศึกษาอยู่ในมหาวิทยาลัยจนถึงวันที่จะนำเสนอสาขาวิทยาลัยพิจารณาอนุมัติให้ปริญญามาเป็นเกณฑ์ประกอบการพิจารณาด้วย
 หมวด 9 การอุทธรณ์
 ข้อ 37 การอุทธรณ์
@@ -8780,7 +8780,7 @@ Aud. - การเรียนแบบไม่คิดเกรด (Audit)
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "ข้อ 3 ให้ยกเลิกระเบียบสถาบันเทคโนโลยีพระจอมเกล้าธนบุรีว่าด้วยการบริหารผลประโยชน์อันเกิดจากทรัพย์สินทางปัญญาพ.ศ. 2538
 ข้อ 4 ในระเบียบนี้
 "**มหาวิทยาลัย**” หมายความว่ามหาวิทยาลัยเทคโนโลยีพระจอมเกล้าธนบุรี
@@ -8845,7 +8845,7 @@ Aud. - การเรียนแบบไม่คิดเกรด (Audit)
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "## หมวด 1 คณะอนุกรรมการบริหารจัดการทรัพย์สินทางปัญญาผลงานวิจัยและนวัตกรรม
 **ข้อ 6** ให้มีคณะอนุกรรมการคณะหนึ่งซึ่งแต่งตั้งโดยอธิการบดีประกอบด้วย
 (1) อธิการบดีหรือรองอธิการบดีอาวุโสที่อธิการบดีมอบหมายเป็นประธานอนุกรรมการ
@@ -8898,7 +8898,7 @@ Aud. - การเรียนแบบไม่คิดเกรด (Audit)
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "(10) พิจารณาเสนอความเห็นต่ออธิการบดีในกรณีที่มีปัญหาเกี่ยวกับการดำเนินการซึ่งมิได้กำหนดไว้ตามระเบียบนี้รวมทั้งรายงานผลการดำเนินงานของคณะกรรมการต่อคณะกรรมการที่เกี่ยวข้อง
 (12) ปฏิบัติหน้าที่อื่นๆที่เกี่ยวข้องกับการจัดการทรัพย์สินทางปัญญาผลงานวิจัยและนวัตกรรมตามที่อธิการบดีมอบหมาย
 หมวด 2 การดำเนินงาน
@@ -8948,7 +8948,7 @@ Aud. - การเรียนแบบไม่คิดเกรด (Audit)
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "ตามที่อธิการบดีมอบหมาย **ข้อ 10** ภายใต้บังคับข้อ 27 ให้มหาวิทยาลัยเป็นผู้รับผิดชอบค่าใช้จ่ายในการดำเนินการเพื่อการคุ้มครองทรัพย์สินทางปัญญารวมถึงค่าธรรมเนียมในการรักษาสิทธิและค่าใช้จ่ายในการดำเนินการเพื่อการนำผลงานไปใช้ประโยชน์ตามข้อ 27 เว้นแต่กรณีที่ทรัพย์สินทางปัญญาผลงานวิจัยหรือนวัตกรรมเป็นสิทธิร่วมกันระหว่างมหาวิทยาลัยกับหน่วยงานภายนอกให้เป็นไปตามสัญญาหรือข้อตกลงนั้น ## หมวด 3 ความเป็นเจ้าของทรัพย์สินทางปัญญาผลงานวิจัยและนวัตกรรมส่วนที่ 1 งานที่สร้างสรรค์โดยผู้ปฏิบัติงานในมหาวิทยาลัย **ข้อ 11** การประดิษฐ์โปรแกรมคอมพิวเตอร์ผลงานวิจัยนวัตกรรมหรือทรัพย์สินทางปัญญาอื่นที่ไม่ใช่งานอันมีลิขสิทธิ์ตามข้อ 12 ที่เกิดขึ้นโดยผู้ปฏิบัติงานในมหาวิทยาลัยซึ่งปฏิบัติงานตามหน้าที่หรือตามที่ได้รับมอบหมายจากมหาวิทยาลัยหรือเป็นการปฏิบัติงานที่เป็นภาระงานตามปกติหรือใช้ทรัพยากรเครื่องมือและอุปกรณ์ที่เป็นของมหาวิทยาลัยไม่ว่าทั้งหมดหรือบางส่วนให้การประดิษฐ์โปรแกรมคอมพิวเตอร์ผลงานวิจัยนวัตกรรมหรือทรัพย์สินทางปัญญาอื่นที่ไม่ใช่งานอันมีลิขสิทธิ์ตามข้อ 12 นั้นเป็นของมหาวิทยาลัย **ข้อ 12** งานอันมีลิขสิทธิ์ที่สร้างสรรค์โดยผู้ปฏิบัติงานในมหาวิทยาลัยให้ตกเป็นของผู้สร้างผลงานเว้นแต่กรณีต่อไปนี้ให้ลิขสิทธิ์เป็นของมหาวิทยาลัย (1) งานที่สร้างสรรค์ขึ้นโดยได้รับทุนสนับสนุนจากมหาวิทยาลัยและมีวัตถุประสงค์เฉพาะสำหรับการสร้างงานนั้นหรือ (2) งานที่สร้างสรรค์ขึ้นโดยการจ้างหรือตามคำสั่งหรืออยู่ภายใต้การควบคุมหรือสั่งการของมหาวิทยาลัย
 **ข้อ 13** กรณีผู้ปฏิบัติงานในมหาวิทยาลัยลาศึกษาฝึกอบรมหรือปฏิบัติงานวิจัยให้ความเป็นเจ้าของทรัพย์สินทางปัญญาผลงานวิจัยหรือนวัตกรรมเป็นไปตามหลักสูตรกฎระเบียบสัญญาหรือข้อตกลงระหว่างผู้ลำกกับสถาบันการศึกษาส่วนราชการหน่วยงานของรัฐหรือหน่วยงานภาคเอกชนอื่นหรือสถาบันต่างประเทศหรือระหว่างประเทศนั้น
 ในกรณีที่ผู้ปฏิบัติงานในมหาวิทยาลัยตามวรรคหนึ่งมีความประสงค์จะนำทรัพย์สินทางปัญญาผลงานวิจัยหรือนวัตกรรมของมหาวิทยาลัยไปใช้ประกอบการลาศึกษาฝึกอบรมหรือปฏิบัติงานวิจัยต้องได้รับการอนุญาตเป็นลายลักษณ์อักษรจากมหาวิทยาลัยทั้งนี้ผู้ปฏิบัติงานวิจัยดังกล่าวมีหน้าที่ให้การสนับสนุนข้อมูล
@@ -8993,7 +8993,7 @@ Aud. - การเรียนแบบไม่คิดเกรด (Audit)
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "<page_number>6/9</page_number>
 ลายเซ็น
 หมวด 4 การคุ้มครองและการนำทรัพย์สินทางปัญญาผลงานวิจัยและนวัตกรรมไปใช้ประโยชน์ส่วนที่ 1 หน้าที่ของผู้สร้างผลงาน
@@ -9043,7 +9043,7 @@ Aud. - การเรียนแบบไม่คิดเกรด (Audit)
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "**ข้อ 26** ในกรณีที่ผู้สร้างผลงานมีความประสงค์จะใช้ชื่อและตราพระราชลัญจกรของมหาวิทยาลัยในการเผยแพร่ผลงานทรัพย์สินทางปัญญาผลงานวิจัยหรือนวัตกรรมให้เป็นไปตามข้อกำหนดข้อบังคับระเบียบหรือประกาศมหาวิทยาลัยเกี่ยวกับการใช้ชื่อและตราสัญลักษณ์ของมหาวิทยาลัย
 ในกรณีที่ผู้สร้างผลงานมีความประสงค์จะใช้ชื่อหรือตราสัญลักษณ์อื่นๆของมหาวิทยาลัยนอกจากวรรคหนึ่งเพื่อใช้ประกอบผลิตภัณฑ์หรือการเผยแพร่ผลงานทรัพย์สินทางปัญญาผลงานวิจัยหรือนวัตกรรมให้แจ้งความประสงค์ต่อสำนักงานเพื่อนำเสนอต่อคณะกรรมการพิจารณาให้ความเห็นก่อนเสนออธิการบดีพิจารณาอนุมัติต่อไป
 **ข้อ 27** สำนักงานอาจพิจารณาหักค่าใช้จ่ายก่อนการจัดสรรผลประโยชน์ที่เกิดจากทรัพย์สินทางปัญญาผลงานวิจัยหรือนวัตกรรมดังนี้
@@ -9094,7 +9094,7 @@ Aud. - การเรียนแบบไม่คิดเกรด (Audit)
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "เพื่อให้ได้มาซึ่งผลประโยชน์ตอบแทนจากการใช้ทรัพย์สินทางปัญญาผลงานวิจัยหรือนวัตกรรม (3) ค่าใช้จ่ายที่เกิดขึ้นจากการผลิตผลิตภัณฑ์หรือสินค้าที่ใช้ทรัพย์สินทางปัญญาผลงานวิจัยหรือนวัตกรรม หลักเกณฑ์และวิธีการในการหักค่าใช้จ่ายก่อนการจัดสรรผลประโยชน์ตามวรรคหนึ่งให้เป็นไปตามประกาศมหาวิทยาลัยตามที่คณะอนุกรรมการเสนอ **ข้อ 28** เพื่อส่งเสริมการสร้างทรัพย์สินทางปัญญาผลงานวิจัยหรือนวัตกรรมเมื่อมหาวิทยาลัยได้รับค่าตอบแทนหรือผลประโยชน์อันเนื่องจากการนำผลงานดังกล่าวไปใช้ประโยชน์ให้สำนักงานจัดสรรผลประโยชน์ให้แก่ผู้เกี่ยวข้องหลังจากดำเนินการตามข้อ 27 แล้วดังนี้ (1) ผู้สร้างผลงาน (2) ภาควิชาหรือส่วนงานที่เรียกชื่ออย่างอื่นที่มีฐานะเทียบเท่าภาควิชาตามประกาศมหาวิทยาลัย (3) คณะสถาบันสำนักหรือส่วนงานที่เรียกชื่ออย่างอื่นที่มีฐานะเทียบเท่าคณะ (4) มหาวิทยาลัย [Handwritten signature] <page_number>8/9</page_number> ข้อ 29 หลักเกณฑ์และวิธีการจัดสรรผลประโยชน์ให้แก่ผู้ที่เกี่ยวข้องตามข้อ 28 และอัตราการจัดสรรผลประโยชน์ให้เป็นไปตามประกาศมหาวิทยาลัยตามที่คณะอนุกรรมการเสนอและให้จัดสรรผลประโยชน์ให้แล้วเสร็จภายในหกสิบวันนับแต่วันที่ได้รับผลประโยชน์ดังกล่าว **หมวด 5 การก่อตั้งธุรกิจจากทรัพย์สินทางปัญญาผลงานวิจัยหรือนวัตกรรมของมหาวิทยาลัย** ข้อ 30 สำนักงานมีหน้าที่ส่งเสริมสนับสนุนและให้คำปรึกษาแก่ผู้ปฏิบัติงานในมหาวิทยาลัยหรือนักศึกษาของมหาวิทยาลัยสามารถก่อตั้งธุรกิจหรือกิจการเพื่อสังคมโดยใช้ประโยชน์จากทรัพย์สินทางปัญญาผลงานวิจัยหรือนวัตกรรมที่เป็นของมหาวิทยาลัยในรูปแบบของนิติบุคคลแบบหนึ่งแบบใด ข้อ 31 ผู้สร้างผลงานที่มหาวิทยาลัยเป็นเจ้าของและยังคงเป็นผู้ปฏิบัติงานในมหาวิทยาลัยหรือนักศึกษาของมหาวิทยาลัยอาจพิจารณาก่อตั้งธุรกิจหรือกิจการเพื่อสังคมจากทรัพย์สินทางปัญญาผลงานวิจัยหรือนวัตกรรมนั้นแต่ทั้งนี้จะต้องไม่กระทบต่อภารกิจของตนที่มีต่อมหาวิทยาลัยและต้องเป็นไปตามประกาศมหาวิทยาลัยที่เกี่ยวข้อง กรณีผู้ปฏิบัติงานในมหาวิทยาลัยที่ไม่ใช่ผู้สร้างผลงานและมีความประสงค์ในการก่อตั้งธุรกิจหรือกิจการเพื่อสังคมจากทรัพย์สินทางปัญญาผลงานวิจัยหรือนวัตกรรมที่เป็นของมหาวิทยาลัยนั้นให้นำความในวรรคหนึ่งมาบังคับใช้โดยอนุโลม ข้อ 32 หลักเกณฑ์และวิธีการการก่อตั้งธุรกิจจากทรัพย์สินทางปัญญาผลงานวิจัยหรือนวัตกรรมตามข้อ 30 และ 31 ให้เป็นไปตามระเบียบหรือประกาศของมหาวิทยาลัยที่เกี่ยวข้อง **บทเฉพาะกาล**
 ข้อ 33 ให้คณะกรรมการบริหารผลประโยชน์อันเกิดจากทรัพย์สินทางปัญญาที่มหาวิทยาลัยแต่งตั้งขึ้นเพื่อปฏิบัติหน้าที่ด้านทรัพย์สินทางปัญญาตามระเบียบสถาบันเทคโนโลยีพระจอมเกล้าธนบุรีว่าด้วยการบริหารผลประโยชน์อันเกิดจากทรัพย์สินทางปัญญาพ.ศ. 2538 ยังคงปฏิบัติหน้าที่ต่อไปจนกว่าจะได้มีการแต่งตั้งคณะอนุกรรมการตามระเบียบนี้
 ข้อ 34 สัญญาอนุญาตให้ใช้สิทธิในทรัพย์สินทางปัญญาที่มีการลงนามก่อนวันที่ระเบียบนี้ใช้บังคับให้ดำเนินการต่อไปตามระเบียบสถาบันเทคโนโลยีพระจอมเกล้าธนบุรีว่าด้วยการบริหารผลประโยชน์อันเกิดจากทรัพย์สินทางปัญญาพ.ศ. 2538
@@ -9132,7 +9132,7 @@ Aud. - การเรียนแบบไม่คิดเกรด (Audit)
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "ระเบียบมหาวิทยาลัยเทคโนโลยีพระจอมเกล้าธนบุรีว่าด้วยแนวปฏิบัติสำหรับนักศึกษาที่ลงทะเบียนเรียนในรายวิชาที่จัดการเรียนการสอนที่มุ่งเน้นผลลัพธ์การเรียนรู้ (Outcome - Based Education Module, OBM)
 พ.ศ. 2565
 ตามที่มหาวิทยาลัยเทคโนโลยีพระจอมเกล้าธนบุรีได้ส่งเสริมและสนับสนุนการศึกษาทุกระดับการศึกษาให้มีการจัดการเรียนการสอนที่มุ่งเน้นผลลัพธ์การเรียนรู้โดยออกแบบเนื้อหาวิชาเป็นหน่วยของการเรียนรู้ (Module) ซึ่งเรียกว่า Outcome - Based Education Module (OBEM)
@@ -9190,7 +9190,7 @@ I (In Progress) ยังไม่สามารถประเมินคะ�
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "2565” ข้อ 2 ระเบียบนี้ให้มีผลบังคับใช้ตั้งแต่ปีการศึกษา 2565 จนถึงสิ้นสุดปีการศึกษา 2566 ข้อ 3 ในระเบียบนี้ * "**มหาวิทยาลัย**" หมายความว่า **มหาวิทยาลัยเทคโนโลยีพระจอมเกล้าธนบุรี** * "**นักศึกษา**” หมายความว่า **นักศึกษาของมหาวิทยาลัยเทคโนโลยีพระจอมเกล้าธนบุรี** * "**รายวิชา**” หมายความว่า **รายวิชาที่จัดการเรียนการสอนในมหาวิทยาลัยเทคโนโลยีพระจอมเกล้าธนบุรี** * "**โมดูล**” หมายความว่า **หน่วยการเรียนรู้ที่มีผลลัพธ์การเรียนรู้ปลายสุดที่ควรได้รับ (Ultimate Learning Outcome) 1 ข้อภายใต้การจัดการเรียนการสอนที่มุ่งเน้นผลลัพธ์การเรียนรู้ (Outcome - Based Education Module, OBM)**" * "**รายวิชาแบบ OBEM**” * หมายความว่า **รายวิชาที่มีการออกแบบเนื้อหาวิชาเป็นโมดูลประกอบกันตั้งแต่ 1 โมดูลขึ้นไป** * "**ห้องเรียนบัฟเฟอร์**” หมายความว่า **ห้องเรียนสำหรับรองรับนักศึกษาที่ยังไม่บรรลุผลลัพธ์การเรียนรู้ที่กำหนดในแต่ละโมดูลของรายวิชาแบบ OBM (Buffer Class)** (Signature mark) "การประเมินผลลัพธ์การเรียนรู้ซ้ำ" หมายความว่าการประเมินผลลัพธ์การเรียนรู้ซ้ำในรายโมดูลที่ยังไม่บรรลุผลลัพธ์การเรียนรู้ (Reassessment) ข้อ 4 ให้รองอธิการบดีอาวุโสฝ่ายวิชาการเป็นผู้รักษาการตามระเบียบนี้กรณีมีข้อขัดหรือแย้งหรือมิได้กำหนดไว้ในระเบียบนี้หรือมีปัญหาในทางปฏิบัติให้รองอธิการบดีอาวุโสฝ่ายวิชาการเป็นผู้สั่งหรือวินิจฉัยชี้ขาดคำสั่งหรือคำวินิจฉัยชี้ขาดของรองอธิการบดีอาวุโสฝ่ายวิชาการให้ถือเป็นที่สุด ข้อ 5 ผลลัพธ์การเรียนรู้ของแต่ละโมดูลของรายวิชาแบบ OBM ประกอบด้วยระดับสมรรถนะ (Performance) ของผลลัพธ์การเรียนรู้ (Rubric) สามารถวัดและประเมินผลดังนี้ 5.1 ระดับปริญญาตรีบันทึกค่าระดับคะแนนเป็น A, B และ C หรือ S/U 5.2 ระดับบัณฑิตศึกษาบันทึกค่าระดับคะแนนเป็น A และ B หรือ S/U ข้อ 6 การบันทึกผลการเรียนในรายวิชาแบบ OBM ให้อาจารย์ผู้รับผิดชอบรายวิชานั้นกำหนดน้ำหนักผลลัพธ์การเรียนรู้ของแต่ละโมดูลและประเมินผลการเรียนจากระดับผลลัพธ์การเรียนรู้ที่นักศึกษาทำได้ของแต่ละโมดูลโดยการเฉลี่ยแบบถ่วงน้ำหนักทั้งนี้ผลการเรียนในรายวิชาแบบ OBM แสดงตามช่วงคะแนนเฉลี่ยที่คำนวณได้ดังนี้ A (ดีเยี่ยม) มีค่าคะแนนเฉลี่ยในช่วง 3.75 - 4.00 B+ (ดีมาก) มีค่าคะแนนเฉลี่ยในช่วง 3.25 - 3.74 B (ดี) มีค่าคะแนนเฉลี่ยในช่วง 2.75 - 3.24 C+ (พอใช้) มีค่าคะแนนเฉลี่ยในช่วง 2.25 - 2.74 C (พอใช้) มีค่าคะแนนเฉลี่ยในช่วง 2.00 - 2.24 I (In Progress) ยังไม่สามารถประเมินคะแนนเฉลี่ยได้เนื่องจากยังไม่บรรลุผลลัพธ์การเรียนรู้บางโมดูล
 ข้อ 7 ห้องเรียนบัฟเฟอร์มีวัตถุประสงค์เพื่อให้การสนับสนุนการเรียนรู้ของนักศึกษาที่ยังไม่บรรลุผลลัพธ์การเรียนรู้ในรายวิชาแบบ OBM ให้สามารถบรรลุผลลัพธ์การเรียนรู้เมื่อจบภาคการศึกษาแล้วในระหว่างรอกำหนดการประเมินผลลัพธ์การเรียนรู้ซ้ำนักศึกษาที่ยังไม่บรรลุผลลัพธ์การเรียนรู้จะถูกโอนมายังห้องเรียนบัฟเฟอร์เพื่อฝึกฝนตนเองเพิ่มเติมและให้อาจารย์และผู้ช่วยสนับสนุนการเรียนรู้ให้คำปรึกษา
 ข้อ 8 นักศึกษาที่อยู่ในห้องเรียนบัฟเฟอร์สามารถยื่นความจำนงขอประเมินผลลัพธ์การเรียนรู้ซ้ำในแต่ละโมดูลโดยไม่เสียค่าใช้จ่ายภายใน 2 ภาคการศึกษาปกติและภาคการศึกษาพิเศษนับจากวันสิ้นสุดภาคการศึกษาที่ลงทะเบียนรายวิชาแบบ OBM นั้นหลังจากนี้นักศึกษาจะต้องชำระค่าธรรมเนียมการสอบตามที่มหาวิทยาลัยกำหนด
@@ -9235,7 +9235,7 @@ I (In Progress) ยังไม่สามารถประเมินคะ�
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "ข้อ 3 ให้ยกเลิกระเบียบมหาวิทยาลัยเทคโนโลยีพระจอมเกล้าธนบุรีว่าด้วยแนวปฏิบัติสำหรับนักศึกษาที่ลงทะเบียนเรียนในรายวิชาที่จัดการเรียนการสอนที่มุ่งเน้นผลลัพธ์การเรียนรู้ (Outcome - Based Education Module, OBEM) พ.ศ. 2565
 ข้อ 4 ในระเบียบนี้
 “มหาวิทยาลัย” หมายความว่ามหาวิทยาลัยเทคโนโลยีพระจอมเกล้าธนบุรี
@@ -9281,7 +9281,7 @@ I (In Progress) ยังไม่สามารถประเมินคะ�
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "2562 สำหรับนักศึกษาระดับบัณฑิตศึกษาทั้งนี้อาจารย์ผู้รับผิดชอบรายวิชามีหน้าที่กำหนดเกณฑ์ระดับสมรรถนะของผลลัพธ์การเรียนรู้ (Rubric) และเกณฑ์การบรรลุผลลัพธ์การเรียนรู้ ข้อ 7 เมื่อสิ้นสุดการเรียนการสอนและประเมินผลลัพธ์การเรียนรู้แต่ละโมดูลแล้วอาจารย์ผู้จัดการเรียนการสอนอาจมอบหมายให้นักศึกษาฝึกฝนตนเองเพิ่มเติมโดยการศึกษาค้นคว้าด้วยตนเองหรือผู้ช่วยสนับสนุนการเรียนรู้ให้คำปรึกษาหรือจัดกิจกรรมการเรียนรู้เพิ่มเติมแก่นักศึกษาหรือจัดสอบเพื่อประเมินผลลัพธ์การเรียนรู้ใหม่ (Re-assessment) ทั้งนี้ขึ้นอยู่กับดุลพินิจของอาจารย์ผู้จัดการเรียนการสอนโดยให้ดำเนินการเสร็จสิ้นก่อนประกาศผลการเรียน ข้อ 8 ภายหลังการประกาศผลการเรียนหากนักศึกษาประสงค์ที่จะเข้ารับการประเมินผลลัพธ์การเรียนรู้ใหม่ของโมดูลนั้นๆ นักศึกษาต้องลงทะเบียนเรียนและชำระค่าลงทะเบียนตามรอบปฏิทินการศึกษา ข้อ 9 การดำเนินการที่มีอยู่ก่อนระเบียบฉบับนี้มีผลบังคับใช้และยังไม่แล้วเสร็จขอให้ดำเนินการต่อไปดังนี้
 9.1 นักศึกษาที่เข้ารับการศึกษาก่อนปีการศึกษา 2564 สามารถเลือกขอรับการประเมินผลการเรียนแบบปกติตามเกณฑ์ที่รายวิชากำหนดไว้แทนได้
 9.2 นักศึกษาที่ลงทะเบียนเรียนรายวิชาแบบ OBEM ตั้งแต่ภาคการศึกษาที่ 1/2564 - 2/2565 ที่ยังไม่บรรลุผลลัพธ์การเรียนรู้ให้อาจารย์ผู้จัดการเรียนการสอนดำเนินการประเมินผลลัพธ์การเรียนรู้ใหม่ (Re-assessment) ในห้องเรียนบัฟเฟอร์ (Buffer Class) ของแต่ละโมดูลให้กับนักศึกษาจนกว่าจะบรรลุผลลัพธ์การเรียนรู้โดยไม่เสียค่าใช้จ่าย
@@ -9319,7 +9319,7 @@ I (In Progress) ยังไม่สามารถประเมินคะ�
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "<figure>
 ภาพตราสัญลักษณ์ของมหาวิทยาลัยเทคโนโลยีพระจอมเกล้าธนบุรีเป็นวงกลมภายในมีรูปครุฑและพานรองรับอยู่ด้านบนมีข้อความ "UNIVERSITY OF TECHNOLOGY THONBURI" และ "มหาวิทยาลัยเทคโนโลยีพระจอมเกล้าธนบุรี" ล้อมรอบเป็นภาษาอังกฤษและไทยตามลำดับ
 </figure>
@@ -9367,7 +9367,7 @@ I (In Progress) ยังไม่สามารถประเมินคะ�
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "2563" **ข้อ 2** ข้อบังคับนี้ให้ใช้บังคับตั้งแต่วันถัดจากวันประกาศเป็นต้นไป **ข้อ 3** บรรดาข้อบังคับระเบียบประกาศอื่นใดในส่วนที่มีบัญญัติไว้แล้วในข้อบังคับนี้ที่ขัดหรือแย้งต่อข้อบังคับนี้ให้ใช้ข้อบังคับนี้แทน **ข้อ 4 ในข้อบังคับนี้** * **“มหาวิทยาลัย”** หมายความว่ามหาวิทยาลัยเทคโนโลยีพระจอมเกล้าธนบุรี * **“สภามหาวิทยาลัย”** หมายความว่าสภามหาวิทยาลัยเทคโนโลยีพระจอมเกล้าธนบุรี * **“คณะ”** หมายความว่าคณะสถาบันสำนักและส่วนงานที่เรียกชื่ออย่างอื่นที่มีฐานะเทียบเท่าคณะ * **“ส่วนงาน”** หมายความว่าสำนักงานอธิการบดีคณะสถาบันสำนักหรือส่วนงานที่เรียกชื่ออย่างอื่นที่สภาพมหาวิทยาลัยจัดตั้งขึ้นและให้หมายความรวมถึงหน่วยงานในกำกับของมหาวิทยาลัยเทคโนโลยีพระจอมเกล้าธนบุรี [ลายเซ็น] <table><tr><td>"คณบดี"</td><td>หมายความว่าคณบดีผู้อำนวยการสถาบันผู้อำนวยการสำนักและหัวหน้าส่วนงานที่เรียกชื่ออย่างอื่นที่มีฐานะเทียบเท่าคณะ</td></tr><tr><td>"ข้อมูลส่วนบุคคล"</td><td>หมายความว่าข้อมูลส่วนบุคคลเกี่ยวกับบุคคลซึ่งทำให้สามารถระบุตัวบุคคลนั้นได้ไม่ว่าทางตรงหรือทางอ้อมแต่ไม่รวมถึงข้อมูลของผู้ถึงแก่กรรมโดยเฉพาะ</td></tr><tr><td>"การประมวลผลข้อมูลส่วนบุคคล"</td><td>หมายความว่าการเก็บรวบรวมใช้หรือเปิดเผยข้อมูลส่วนบุคคล</td></tr><tr><td>"เจ้าหน้าที่คุ้มครองข้อมูลส่วนบุคคล"</td><td>หมายความว่าเจ้าหน้าที่คุ้มครองข้อมูลส่วนบุคคลตามกฎหมาย</td></tr><tr><td>"บุคลากร"</td><td>หมายความว่าข้าราชการพนักงานมหาวิทยาลัยลูกจ้างมหาวิทยาลัยลูกจ้างประจำรวมทั้งบุคลากรของหน่วยงานในกำกับและโครงการวิจัยของมหาวิทยาลัยเทคโนโลยีพระจอมเกล้าธนบุรี</td></tr><tr><td>"นักศึกษา"</td><td>หมายความว่านักศึกษามหาวิทยาลัยเทคโนโลยีพระจอมเกล้าธนบุรีและให้หมายความรวมถึงนักเรียนโรงเรียนดรุณสิกขาลัยและนักเรียนโรงเรียนดรุณสิกขาลัยห้องเรียนวิศว์-วิทย์</td></tr></table> **ข้อ 5** ให้อธิการบดีเป็นผู้รักษาการตามข้อบังคับนี้
 ให้อธิการบดีมีอำนาจออกระเบียบประกาศนโยบายและคำสั่งมหาวิทยาลัยเพื่อดำเนินการหรือเพื่อวางแนวปฏิบัติในการดำเนินการตามข้อบังคับนี้กรณีมีปัญหาจากการปฏิบัติตามข้อบังคับฉบับนี้ให้อธิการบดีเป็นผู้มีอำนาจสั่งและวินิจฉัยชี้ขาดคำสั่งหรือคำวินิจฉัยชี้ขาดขออธิการบดีถือเป็นที่สุด
 ## หมวด 1 ขอบเขตและวัตถุประสงค์
@@ -9419,7 +9419,7 @@ I (In Progress) ยังไม่สามารถประเมินคะ�
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "* **9.5 จัดให้มีกระบวนการติดตามตรวจสอบการไม่ปฏิบัติตามกฎหมายคุ้มครองข้อมูลส่วนบุคคลและแจ้งเหตุการละเมิดข้อมูลส่วนบุคคลไปยังสำนักงานคณะกรรมการคุ้มครองข้อมูลส่วนบุคคลตามที่กฎหมายกำหนดรวมถึงการทบทวนและปรับปรุงมาตรการภายในที่เกี่ยวข้องจากเหตุการละเมิดดังกล่าวเพื่อลดความเสี่ยงที่จะมีเหตุการละเมิดเกิดขึ้นอีก**
 <page_number>3/7</page_number>
 (Signature mark)
@@ -9476,7 +9476,7 @@ I (In Progress) ยังไม่สามารถประเมินคะ�
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "ทำหน้าที่และรับผิดชอบในการประมวลผลข้อมูลส่วนบุคคลของคณะและส่วนงานของตนตามกฎหมายคุ้มครองข้อมูลส่วนบุคคลตามข้อบังคับนี้โดยทำหน้าที่ 12.1 จัดอบรมหรือให้ความรู้แก่บุคลากรนักศึกษาและบุคคลอื่นที่เกี่ยวข้องกับการประมวลผลข้อมูลส่วนบุคคลให้ทราบในหน้าที่และความรับผิดชอบในการคุ้มครองข้อมูลส่วนบุคคลตามข้อบังคับนี้ 12.2 จัดเก็บบันทึกรายการเกี่ยวกับข้อมูลส่วนบุคคลเพื่อให้สำนักงานคณะกรรมการคุ้มครองข้อมูลส่วนบุคคลสามารถตรวจสอบได้ 12.3 กำหนดให้มีมาตรการคุ้มครองข้อมูลส่วนบุคคลเป็นส่วนหนึ่งของการบริหารภายในหน่วยงานของตนเองเพื่อป้องกันการละเมิดข้อมูลส่วนบุคคลโดยไม่มีการระบุเหตุผลว่าทำไมจึงจำเป็นต้องใช้ข้อมูลส่วนบุคคลนั้นๆในกรณีที่มีรายละเอียดเพียงพอแล้วจะแจ้งให้เจ้าของข้อมูลทราบเมื่อมีการเก็บรวบรวมข้อมูลส่วนบุคคลตามข้อบังคับนี้
 12.4 กำหนดให้มีนโยบายการคุ้มครองข้อมูลส่วนบุคคลเฉพาะของหน่วยงานของตนในกรณีที่มีรายละเอียดเพียงพอแล้วจะแจ้งให้เจ้าของข้อมูลทราบเมื่อมีการเก็บรวบรวมข้อมูลส่วนบุคคลตามข้อบังคับนี้
 12.5 ใช้ข้อมูลส่วนบุคคลร่วมกันกับคณะและส่วนงานต่างๆ หรือใช้ข้อมูลส่วนบุคคลร่วมกันกับหน่วยงานภายนอกหรือให้บุคคลหรือนิติบุคคลภายนอกประมวลผลข้อมูลส่วนบุคคลให้เป็นไปตามแนวปฏิบัติที่มหาวิทยาลัยกำหนด
@@ -9531,7 +9531,7 @@ I (In Progress) ยังไม่สามารถประเมินคะ�
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "ที่จะได้มีขึ้นตามข้อบังคับนี้โดยบุคคลดังกล่าวจะต้อง 13.1 ใช้ข้อมูลส่วนบุคคลในทางที่บุคคลทั่วไปจะสามารถคาดหมายได้ตามขอบเขตและวัตถุประสงค์ของการประมวลผลข้อมูลนั้น 13.2 ใช้ข้อมูลส่วนบุคคลเท่าที่จำเป็นให้น้อยที่สุดและจัดเก็บข้อมูลนั้นเท่านั้น 13.3 ดูแลข้อมูลส่วนบุคคลให้เป็นปัจจุบัน 13.4 ดูแลรักษาระบบข้อมูลส่วนบุคคลให้มั่นคงปลอดภัยตามนโยบายความมั่นคงปลอดภัยทางสารสนเทศของมหาวิทยาลัย 13.5 ไม่เปิดเผยข้อมูลส่วนบุคคลแก่ผู้ที่ไม่ได้รับอนุญาตทั้งภายในและภายนอกมหาวิทยาลัย 13.6 ผ่านการอบรมตามที่มหาวิทยาลัยคณะหรือส่วนงานกำหนด <page_number>5/7</page_number> ลายเซ็น 13.7 แจ้งเหตุการณ์ละเมิดข้อมูลส่วนบุคคลโดยไม่ชักช้าและปฏิบัติตามขั้นตอนที่มหาวิทยาลัยคณะหรือส่วนงานกำหนด 13.8 ปรึกษาหารือกับเจ้าหน้าที่คุ้มครองข้อมูลส่วนบุคคลในกรณีที่มีข้อสงสัยเกี่ยวกับการดำเนินการตามข้อบังคับนี้ 13.9 ให้ความร่วมมือตามที่เจ้าหน้าที่คุ้มครองข้อมูลส่วนบุคคลร้องขอเกี่ยวกับการปฏิบัติตามข้อบังคับนี้ ## หมวด 4 การละเมิดข้อมูลส่วนบุคคล **ข้อ 14** เหตุการณ์ละเมิดข้อมูลส่วนบุคคลอาจเกิดขึ้นในกรณีที่ข้อมูลส่วนบุคคลถูกเปิดเผยหรือถูกเข้าถึงได้โดยบุคคลที่ไม่ได้รับอนุญาตหรือกรณีที่ข้อมูลส่วนบุคคลถูกใช้ในลักษณะที่เจ้าของข้อมูลส่วนบุคคลไม่อาจคาดหมายได้โดยชอบตามกฎหมาย **ข้อ 15** มหาวิทยาลัยจะดำเนินการตรวจสอบเหตุการณ์ทั้งหลายที่เกี่ยวข้องกับการละเมิดการคุ้มครองข้อมูลส่วนบุคคลตามกฎหมายเพื่อดำเนินการมาตรการที่เหมาะสมเพื่อบรรเทาผลกระทบและป้องกันเหตุการณ์ละเมิดข้อมูลส่วนบุคคลที่จะเกิดขึ้นในอนาคต ในกรณีที่สมควรตามสภาพและความร้ายแรงของเหตุการณ์ที่เกิดขึ้นมหาวิทยาลัยจะดำเนินการแจ้งเหตุการณ์ละเมิดข้อมูลส่วนบุคคลไปยังเจ้าของข้อมูลส่วนบุคคลและสำนักงานคณะกรรมการคุ้มครองข้อมูลส่วนบุคคลตามที่กฎหมายกำหนด **ข้อ 16** กรณีที่ระบบเทคโนโลยีสารสนเทศหรือกระบวนงานที่เกี่ยวข้องไม่สามารถทำงานได้ให้คณะหรือส่วนงานที่พบเหตุแจ้งไปยังสำนักคอมพิวเตอร์ภายใน 4 ชั่วโมงนับจากเมื่อทราบเหตุนั้นและให้สำนักคอมพิวเตอร์ประสานงานกับเจ้าหน้าที่คุ้มครองข้อมูลส่วนบุคคลเพื่อดำเนินการตามที่เหมาะสม กรณีเหตุการณ์อื่นๆ ที่เกี่ยวข้องกับการละเมิดข้อมูลส่วนบุคคลให้คณะหรือส่วนงานที่พบเหตุแจ้งโดยตรงไปยังเจ้าหน้าที่คุ้มครองข้อมูลส่วนบุคคลโดยเร็วที่สุดเพื่อดำเนินการตามที่เหมาะสม ## หมวด 5 การปฏิบัติตามข้อบังคับ **ข้อ 17** การละเมิดไม่ปฏิบัติตามข้อบังคับนี้นโยบายคุ้มครองข้อมูลส่วนบุคคลที่เกี่ยวข้องนโยบายหรือมาตรการที่เกี่ยวข้องหรือแนวปฏิบัติและการอบรมต่างๆที่เกี่ยวข้องที่มหาวิทยาลัยจัดให้มีขึ้นตามข้อบังคับนี้ถือเป็นกรณีผิดวินัยร้ายแรงซึ่งต้องถูกดำเนินการทางวินัยที่เกี่ยวข้องต่อไป
 บุคลากรนักศึกษาหรือบุคคลอื่นที่เกี่ยวข้องกับการประมวลผลข้อมูลส่วนบุคคลตามขอบเขตและวัตถุประสงค์ของมหาวิทยาลัยอาจต้องมีความรับผิดเป็นการส่วนตัวตามกฎหมายจากการกระทำของตนตามสภาพและความร้ายแรงของเหตุการณ์ที่เกิดขึ้น
 (Handwritten signature mark)
@@ -9574,7 +9574,7 @@ I (In Progress) ยังไม่สามารถประเมินคะ�
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "ระเบียบมหาวิทยาลัยเทคโนโลยีพระจอมเกล้าธนบุรีว่าด้วยการศึกษาระดับบัณฑิตศึกษา (ฉบับที่ 2)
 พ.ศ. 2563
 เพื่อส่งเสริมการศึกษาในรูปแบบต่างๆรวมถึงการเรียนรู้ตลอดชีวิตและครอบคลุมนักศึกษาระดับประกาศนียบัตร (Non-Degree) ระดับปริญญาตรีและระดับบัณฑิตศึกษา (Degree) จึงสมควรปรับปรุงระเบียบมหาวิทยาลัยเทคโนโลยีพระจอมเกล้าธนบุรีว่าด้วยการศึกษาระดับบัณฑิตศึกษาพ.ศ. 2562 ให้เหมาะสมยิ่งขึ้น
@@ -9616,7 +9616,7 @@ I (In Progress) ยังไม่สามารถประเมินคะ�
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "ระเบียบมหาวิทยาลัยเทคโนโลยีพระจอมเกล้าธนบุรีว่าด้วยการศึกษาระดับปริญญาตรี (ฉบับที่ 4)
 พ.ศ. 2563
 เพื่อเอื้อต่อการส่งเสริมการศึกษาในรูปแบบต่างๆรวมถึงการเรียนรู้ตลอดชีวิตและเพื่อส่งเสริมนักศึกษาให้มีโอกาสทำงานเพื่อให้ได้ผลลัพธ์การเรียนรู้และได้ประสบการณ์ผ่านการทำงานร่วมกับภาคอุตสาหกรรมภาคธุรกิจและหน่วยงานภายนอกอื่นๆให้มีความยึดหยุ่นเพิ่มมากขึ้นจึงสมควรปรับปรุงระเบียบมหาวิทยาลัยเทคโนโลยีพระจอมเกล้าธนบุรีว่าด้วยการศึกษาระดับปริญญาตรีพ.ศ. 2557 และระเบียบมหาวิทยาลัยเทคโนโลยีพระจอมเกล้าธนบุรีว่าด้วยการศึกษาระดับปริญญาตรี (ฉบับที่ 2) พ.ศ. 2560 ให้เหมาะสมยิ่งขึ้น
@@ -9667,7 +9667,7 @@ I (In Progress) ยังไม่สามารถประเมินคะ�
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "ระเบียบมหาวิทยาลัยเทคโนโลยีพระจอมเกล้าธนบุรีว่าด้วยการศึกษาระดับปริญญาตรีพ.ศ. 2557
 โดยที่เป็นการสมควรปรับปรุงระเบียบมหาวิทยาลัยเทคโนโลยีพระจอมเกล้าธนบุรีว่าด้วยการศึกษาระดับปริญญาตรีให้เหมาะสมยิ่งขึ้น
 อาศัยอำนาจตามความในมาตรา 18 (2) แห่งพระราชบัญญัติมหาวิทยาลัยเทคโนโลยีพระจอมเกล้าธนบุรีพ.ศ. 2541 และสภามหาวิทยาลัยเทคโนโลยีพระจอมเกล้าธนบุรีในการประชุมครั้งที่ 180 วันที่ 18 กรกฎาคม 2557 จึงให้ออกระเบียบไว้ดังต่อไปนี้
@@ -9740,7 +9740,7 @@ I (In Progress) ยังไม่สามารถประเมินคะ�
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "2550 บรรดาระเบียบคำสั่งประกาศหรือมติอื่นใดที่ขัดแย้งกับระเบียบนี้ให้ใช้ระเบียบนี้แทน ข้อ 4 ในระบีบนี้ "มหาวิทยาลัย” หมายความว่ามหาวิทยาลัยเทคโนโลยีพระจอมเกล้าธนบุรี “สภามหาวิทยาลัย” หมายความว่าสภากสภามหาวิทยาลัยเทคโนโลยีพระจอมเกล้าธนบุรี "อธิการบดี" หมายความว่าอธิการบดีมหาวิทยาลัยเทคโนโลยีพระจอมเกล้าธนบุรี "คณะ" หมายความว่าคณะ/สำนัก/สถาบันที่เปิดสอนระดับปริญญาตรีในมหาวิทยาลัยเทคโนโลยีพระจอมเกล้าธนบุรี (ลายเซ็น) <page_number>1</page_number> "คณบดี" หมายความว่าคณบดีคณะต่างๆที่เปิดสอนหลักสูตรระดับปริญญาตรีในมหาวิทยาลัยเทคโนโลยีพระจอมเกล้าธนบุรี "คณะกรรมการประจำคณะ" หมายความว่าคณะกรรมการประจำคณะตามข้อบังคับของมหาวิทยาลัยเทคโนโลยีพระจอมเกล้าธนบุรีว่าด้วยคณะกรรมการประจำคณะ "หัวหน้าภาควิชา" หมายความว่าหัวหน้าภาควิชาประธานสายวิชาประธานหลักสูตรหรือตำแหน่งที่เรียกชื่ออย่างอื่น "อาจารย์ที่ปรึกษา" หมายความว่าอาจารย์ที่ได้รับแต่งตั้งให้เป็นที่ปรึกษาของนักศึกษาเกี่ยวกับเรื่องการศึกษา "นักศึกษา" ผู้เข้ารับการศึกษาหลักสูตรระดับปริญญาตรีในมหาวิทยาลัยเทคโนโลยีพระจอมเกล้าธนบุรี "นักศึกษาปีสุดท้ายของหลักสูตร" หมายความว่านักศึกษาที่มีจำนวนหน่วยกิตไม่เกิน 40 หน่วยกิตก่อนที่จะสำเร็จการศึกษา "กิจกรรมเสริมหลักสูตร" หมายความว่ากิจกรรมที่มหาวิทยาลัยกำหนดให้นักศึกษาจะต้องเข้าร่วม "สถาบันอุดมศึกษา" หมายความว่าสถาบันอุดมศึกษาไทยที่กระทรวงศึกษาธิการกำกับดูแลหรือหน่วยงานอื่นของรัฐหรือสถาบันการศึกษาต่างประเทศที่กระทรวงศึกษารับรองวิทยฐานะ "การโอนผลการเรียน" หมายความว่าการขอโอนรายวิชาผลการเรียนและหน่วยกิตของรายวิชาในระดับเดียวกันที่ได้เคยศึกษามาแล้วจากมหาวิทยาลัยเทคโนโลยีพระจอมเกล้าธนบุรีเพื่อใช้นับเป็นส่วนหนึ่งของการศึกษาในมหาวิทยาลัยเทคโนโลยีพระจอมเกล้าธนบุรี "การเทียบโอนผลการเรียน" หมายความว่าการขอเทียบโอนรายวิชาผลการเรียนและหน่วยกิตของรายวิชาในระดับเดียวกันที่ได้เคยศึกษามาแล้วจากสถาบันอุดมศึกษาอื่นเพื่อใช้นับเป็นส่วนหนึ่งของการศึกษาในมหาวิทยาลัยเทคโนโลยีพระจอมเกล้าธนบุรี "การเทียบโอนความรู้ทักษะและประสบการณ์" หมายความว่าการขอเทียบโอนความรู้ทักษะและประสบการณ์จากการศึกษานอกระบบและ/หรือการศึกษาตามอัธยาศัยของนักศึกษาเพื่อนับเป็นรายวิชาและหน่วยกิตเทียบเท่ารายวิชาตามหลักสูตรการศึกษาในมหาวิทยาลัยเทคโนโลยีพระจอมเกล้าธนบุรี "หลักสูตรควบปริญญาตรี 2 ปริญญา" หมายความว่าหลักสูตรระดับปริญญาตรีสองหลักสูตรที่ให้ผู้เรียนศึกษาพร้อมกันโดยเปิดสอนแยกกันเป็นสองหลักสูตรผู้สำเร็จการศึกษาจะได้รับปริญญาทั้งสอง "หลักสูตรระดับปริญญาตรีควบปริญญาโท"
 หมายความว่าหลักสูตรระดับปริญญาตรีที่ให้ผู้เรียนสามารถศึกษารายวิชาระดับปริญญาโทล่วงหน้าได้โดยสามารถสำเร็จการศึกษาได้ปริญญาตรีและปริญญาโทอย่างต่อเนื่อง
 ข้อ 5 ให้อธิการบดีเป็นผู้รักษาการให้เป็นไปตามระเบียบนี้ในกรณีที่มีข้อขัดหรือแย้งให้อธิการบดีเป็นผู้วินิจฉัยชี้ขาดโดยคำวินิจฉัยหรือคำสั่งของอธิการบดีถือเป็นที่สุด
@@ -9800,7 +9800,7 @@ C+, C-, D+, D, F, Fa และ Fe ยกเว้นรายวิชาที�
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "**ข้อ 8** นักศึกษาทุกคนต้องลงทะเบียนเรียนและชำระเงินค่าบำรุงการศึกษาและค่าธรรมเนียมการศึกษาในแต่ละภาคการศึกษาตามอัตราวันเวลาและสถานที่ที่มหาวิทยาลัยกำหนดจึงจะถือว่าการลงทะเบียนนั้นสมบูรณ์
 กรณีที่นักศึกษาลงทะเบียนเรียนแต่ยังไม่ได้ชำระเงินค่าบำรุงการศึกษาและค่าธรรมเนียมการศึกษาครบตามอัตราและวันเวลาที่มหาวิทยาลัยกำหนดให้ถือว่าการลงทะเบียนนั้นเป็นโมฆะ
 (ลายเซ็น)
@@ -9848,7 +9848,7 @@ C+, C-, D+, D, F, Fa และ Fe ยกเว้นรายวิชาที�
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "กรณีที่มีเหตุจำเป็นที่ต้องลงทะเบียนเรียนต่ำหรือมากกว่าในวรรคแรกต้องได้รับความเห็นชอบจากหัวหน้าภาควิชาและได้รับการอนุมัติจากคณะกรรมการประจำคณะ
 15.3 การนับจำนวนหน่วยกิตในข้อ 15.1 นี้ไม่นับหน่วยกิตของวิชาฝึกงานหรือวิชาที่ได้รับผลการศึกษา | ไว้
 15.4 นักศึกษาที่ลงทะเบียนเรียนรายวิชาจะต้องไม่มีชั่วโมงเรียนซ้อนกันและชั่วโมงสอบซ้อนกันยกเว้น
@@ -9901,7 +9901,7 @@ C+, C-, D+, D, F, Fa และ Fe ยกเว้นรายวิชาที�
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "**ข้อ 22 เมื่อทำการเพิ่มลดรายวิชาแล้วจำนวนหน่วยกิตจะต้องไม่ขัดหรือแย้งกับข้อ 15 แห่งระเบียบนี้**
 **ข้อ 23 การลงทะเบียนเรียนรายวิชานอกหลักสูตร**
 รายวิชานอกหลักสูตรเป็นรายวิชาที่ภาควิชาหรือคณะไม่ได้กำหนดให้เรียนตามหลักสูตรนักศึกษาจะลงทะเบียนเรียนรายวิชานอกหลักสูตรเพื่อเพิ่มพูนความรู้ได้โดยเลือกลงทะเบียนได้ดังนี้
@@ -9959,7 +9959,7 @@ C+, C-, D+, D, F, Fa และ Fe ยกเว้นรายวิชาที�
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "ถ้าอาจารย์ผู้สอนเห็นว่ามีเวลาเรียนเพียงพอและวินิจฉัยแล้วว่าได้ศึกษาด้วยความตั้งใจ 24.6 นักศึกษาไม่ต้องเข้าสอบหรือทำงานใดๆในวิชาที่ลงทะเบียนรายวิชาแบบ Audit โดยจะต้องมีเวลาเข้าร่วมกิจกรรมการเรียนไม่น้อยกว่าร้อยละ 80 ของเวลาเรียนทั้งหมด 24.7 นักศึกษาที่ลงทะเบียนเรียนรายวิชาแบบ Audit แล้วมีเวลาเรียนน้อยกว่าร้อยละ 80 ของเวลาเรียนทั้งหมดหรืออาจารย์ผู้สอนวินิจฉัยแล้วว่าไม่ได้เรียนด้วยความตั้งใจจะได้ผลการศึกษาเป็น W สำหรับวิชานั้นและจะบันทึกในใบรายงานผลการศึกษา ข้อ 25 นักศึกษาที่ขอสอบวิชาใดวิชาหนึ่งโดยไม่ต้องเข้าเรียนจะต้องเป็นนักศึกษาชั้นปีสุดท้ายของหลักสูตรและสามารถสำเร็จการศึกษาได้ภายในภาคการศึกษานั้นหรือภาคการศึกษาถัดไปและจะต้องอยู่ในหลักเกณฑ์ต่อไปนี้ 25.1 วิชาที่ขอสอบจะต้องเป็นวิชาที่นักศึกษาได้เคยเรียนมาแล้วโดยมีผลการเรียนต่ำกว่า C หรือมีเวลาเรียนไม่ต่ำกว่าร้อยละ 80 และขาดสอบด้วยเหตุสุดวิสัยเช่นเจ็บป่วยจนไม่สามารถเข้าสอบปลายภาคได้ 25.2 นักศึกษาต้องลงทะเบียนวิชาที่ขอสอบในภาคเรียนนั้นด้วย 25.3 นักศึกษาจะต้องผ่านความเห็นชอบของอาจารย์ที่ปรึกษาและได้รับอนุญาตจากอาจารย์ผู้สอน หมวด 4 การวัดผลการศึกษา ข้อ 26 การวัดผลการศึกษา 26.1 การวัดผลการศึกษาแต่ละรายวิชาให้กำหนดผลการศึกษาเป็นระดับคะแนนตัวอักษรตามลำดับขั้นซึ่งมีความหมายและแต้มระดับคะแนนของแต่ละขั้นดังต่อไปนี้ <table><tr><td>A</td><td>4</td><td>ดีเยี่ยม (Excellent)</td></tr><tr><td>B+</td><td>3.5</td><td>ดีมาก (Very Good)</td></tr><tr><td>B</td><td>3</td><td>ดี (Good)</td></tr></table> 4 - 9 <page_number>8</page_number>
 <table><tr><td>C+</td><td>2.5</td><td>ค่อนข้างดี (Fairly Good)</td></tr><tr><td>C</td><td>2</td><td>พอใช้ (Fair)</td></tr><tr><td>D+</td><td>1.5</td><td>ค่อนข้างอ่อน (Fairly Poor)</td></tr><tr><td>D</td><td>1</td><td>อ่อน (Poor)</td></tr><tr><td>Fa</td><td>0</td><td>ตกเนื่องจากเวลาเรียนไม่พอใจสิทธิสอบ (Failure due to insufficience attendance)</td></tr><tr><td>Fe</td><td>0</td><td>ตกเนื่องจากขาดสอบ (Failure due to absent from examination)</td></tr><tr><td>W</td><td>-</td><td>ขอถอนรายวิชาเรียน (Withdrawal)</td></tr><tr><td>I</td><td>-</td><td>ไม่สมบูรณ์ (Incomplete)</td></tr><tr><td>S</td><td>-</td><td>พอใจเทียบเท่าผลการศึกษาไม่ต่ำกว่า C<br/>(Satisfactory - equivalent to grade not lower than C)</td></tr><tr><td>U</td><td>-</td><td>ไม่พอใจ (Unsatisfactory)</td></tr><tr><td>Aud.</td><td>-</td><td>ลงทะเบียนเรียนแบบไม่นับหน่วยกิตและมีเวลาเรียนไม่น้อยกว่าร้อยละ 80 (Audit)</td></tr></table>
 26.2 นักศึกษาที่มีเวลาเรียนรายวิชาใดต่ำกว่าร้อยละ 80 ถือว่าไม่มีสิทธิสอบและให้ตก (Fa) ในรายวิชานั้นในการคำนวณแต้มระดับคะแนนเฉลี่ยประจำภาคการศึกษาและคะแนนเฉลี่ยสะสมให้นำหน่วยกิตของรายวิชานั้นไปคำนวณด้วยยกเว้นการคำนวณคะแนนเฉลี่ยสะสมที่มีการเรียนซ้ำรายวิชาตามข้อ 28.3
@@ -10010,7 +10010,7 @@ C+, C-, D+, D, F, Fa และ Fe ยกเว้นรายวิชาที�
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "26.6.2.2 นักศึกษาที่ไม่ส่งรายงานการฝึกงานภายในกำหนด 15 วันหลังจากวันเปิดภาคการศึกษาถัดไปจะได้ผลการศึกษาไม่พอใจ (U)
 26.6.2.3 นักศึกษาจะต้องปฏิบัติตามประกาศมหาวิทยาลัยเรื่องข้อปฏิบัติการฝึกงานภาคการศึกษาพิเศษหรือนโยบายปฏิบัติของหลักสูตรการจัดการเรียนการสอนแบบบูรณาการร่วมกับการทำงานมิฉะนั้นจะได้ผลการศึกษาไม่พอใจ (U)
 **ข้อ 27 การวัดผลการศึกษาการประเมินการศึกษาและการคำนวณแต้มระดับคะแนนเฉลี่ย**
@@ -10071,7 +10071,7 @@ C+, C-, D+, D, F, Fa และ Fe ยกเว้นรายวิชาที�
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "**ข้อ 31** ให้คณะกรรมการประจำคณะเป็นผู้พิจารณาเสนอชื่อนักศึกษาที่มีคุณสมบัติครบตามที่ระบุในข้อ 30 และหมวดที่ 9 แห่งระเบียบนี้ผ่านสำนักงานทะเบียนนักศึกษาเพื่อเสนอสภาวิชาการในการขออนุมัติปริญญาต่อสภามหาวิทยาลัย
 หมวด 6 การให้ปริญญาเกียรตินิยม
 **ข้อ 32** นักศึกษาผู้ที่ได้รับปริญญาเกียรตินิยมต้องเรียนครบจำนวนหน่วยกิตตามหลักสูตรและต้องอยู่ในเกณฑ์ดังต่อไปนี้
@@ -10132,7 +10132,7 @@ C+, C-, D+, D, F, Fa และ Fe ยกเว้นรายวิชาที�
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "32.6 ไม่เป็นผู้ที่ขอเทียบโอนรายวิชามากกว่าหนึ่งในสี่ของจำนวนหน่วยกิตตามหลักสูตรยกเว้นการย้ายสาขาวิชาตามข้อ 33 (ลายเซ็น) <page_number>12</page_number> # หมวด 7 การโอนและการเทียบโอนผลการเรียน ## ข้อ 33 การย้ายสาขาวิชา ### 33.1 การย้ายสาขาวิชาภายในคณะให้ปฏิบัติตามประกาศของแต่ละคณะ ### 33.2 การย้ายสาขาวิชาไปคณะอื่นให้เป็นไปตามเงื่อนไขต่อไปนี้ #### 33.2.1 นักศึกษาจะขอย้ายสาขาวิชาไปคณะอื่นได้ต่อเมื่อได้รับความเห็นชอบจากอาจารย์ที่ปรึกษาหัวหน้าภาควิชาและคณบดีในคณะเดิมและได้เรียนตามแผนการศึกษาในสาขาวิชาเดิมมาแล้วไม่น้อยกว่าสองภาคการศึกษาปกติทั้งนี้ไม่นับภาคการศึกษาที่ลาพักหรือถูกสั่งพักการศึกษา #### 33.2.2 การย้ายสาขาวิชาไปคณะอื่นจะต้องปฏิบัติตามเงื่อนไขของสาขาวิชาและคณะนั้นซึ่งอยู่ในดุลยพินิจของคณะกรรมการประจำคณะและได้รับอนุมัติโดยคณบดี #### 33.3 เมื่อนักศึกษาได้ย้ายสาขาวิชาแล้วรายวิชาที่เคยเรียนมาทั้งหมดจะถูกโอนนำมาคิดแต้มระดับคะแนนเฉลี่ยสะสมในสาขาวิชาใหม่ทั้งหมด #### 33.4 รายวิชาผลการเรียนและหน่วยกิตที่ได้ศึกษามาแล้วให้โอนและ/หรือเทียบโอนมาเป็นรายวิชาและหน่วยกิตในหลักสูตรใหม่ได้โดยต้องได้รับอนุมัติจากคณบดีตามความเห็นชอบของคณะกรรมการประจำคณะทั้งนี้นักศึกษาไม่ต้องชำระค่าธรรมเนียมการย้ายสาขาวิชาและได้รับการเปลี่ยนรหัสประจำตัวนักศึกษาใหม่แล้ว **ข้อ 34 การรับโอนมาศึกษาจากสถาบันอุดมศึกษาอื่น** #### 34.1 มหาวิทยาลัยอาจรับโอนนักศึกษาจากสถาบันอุดมศึกษาอื่นในประเทศหรือต่างประเทศที่มีวิทยฐานะเทียบเท่าการรับโอนนักศึกษาจะทำได้ก็ต่อเมื่อสาขาวิชา/คณะที่ขอเข้าศึกษาสามารถรับได้โดยต้องได้รับการอนุมัติจากคณบดีตามความเห็นชอบของคณะกรรมการประจำคณะ #### 34.2 นักศึกษาที่จะได้รับการพิจารณารับโอนเข้าศึกษาต้องมีคุณสมบัติตามระเบียบหรือประกาศของมหาวิทยาลัยว่าด้วยการรับนักศึกษา #### 34.3 เงื่อนไขการรับโอนเข้าศึกษามีดังนี้ ##### 34.3.1 นักศึกษาจะต้องโอนมาศึกษาในสาขาวิชาเดียวกับสาขาวิชาที่กำลังศึกษาอยู่ในสถาบันอุดมศึกษาเดิมหรือเทียบเท่าหรือได้รับอนุมัติจากคณะกรรมการประจำคณะ ##### 34.3.2 นักศึกษาต้องกำลังศึกษาอยู่ในสถาบันเดิมและได้ศึกษามาแล้วไม่น้อยกว่า 2 ภาคการศึกษาปกติโดยไม่นับภาคการศึกษาที่ลาพัก ##### 34.3.3 รายวิชาเติมที่จะนำมายังสถาบันฯจะต้องมีผลการศึกษาในระดับคะแนนไม่ต่ำกว่า C หรือแต้มระดับคะแนนไม่ต่ำกว่า 2.00 หรือเทียบเท่า ##### 34.3.4 จำนวนหน่วยกิตที่เทียบโอนรวมแล้วต้องไม่เกินกึ่งหนึ่งของหลักสูตร 45 <page_number>13</page_number> 34.3.5 ได้แต้มระดับคะแนนเฉลี่ยสะสมถึงภาคการศึกษาสุดท้ายก่อนการขอโอนไม่ต่ำกว่า 2.25
 34.4 การบันทึกรายวิชาและการวัดผลการศึกษา
 34.4.1 รายวิชาและผลการศึกษาก่อนที่จะได้รับโอนให้บันทึกตามภาคและปีการศึกษาที่นักศึกษาลงทะเบียนเรียนตั้งแต่แรกเข้าในสถาบันอุดมศึกษาเดิมแต่ไม่นำมาคำนวณ
@@ -10187,7 +10187,7 @@ Handwritten signature
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "36.3.1 รายวิชาเดิมที่นำมาเทียบโอนให้บันทึกผลการศึกษารหัสวิชาและชื่อวิชาตามหลักสูตรของมหาวิทยาลัยเทคโนโลยีพระจอมเกล้าธนบุรีที่ใช้กับรุ่นที่เข้าศึกษาโดยต้องมีผลการศึกษาในระดับคะแนนไม่ต่ำกว่า C และจะนับเฉพาะจำนวนหน่วยกิตแต่ไม่นำมาคำนวณ
 36.3.2 จำนวนหน่วยกิตที่เทียบโอนรวมแล้วต้องไม่เกินกึ่งหนึ่งของหลักสูตร
 36.3.3 ระยะเวลาในการศึกษารวมแล้วต้องไม่เกินจำนวนปีที่กำหนดไว้ในหลักสูตรและจะต้องศึกษาในมหาวิทยาลัยไม่น้อยกว่า 4 ภาคการศึกษาปกติ
@@ -10241,7 +10241,7 @@ Handwritten signature
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "# หมวด 8 การพ้นสภาพนักศึกษา
 ข้อ 40 ให้นักศึกษาพ้นสภาพนักศึกษาในกรณีใดกรณีหนึ่งดังต่อไปนี้
 40.1 นักศึกษาที่มีแต้มคะแนนเฉลี่ยสะสมต่ำกว่า 1.50 เมื่อสิ้นภาคการศึกษาแรก
@@ -10300,7 +10300,7 @@ Handwritten signature
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "ข้อ 46 กรณีที่คณะกรรมการประจำคณะพิจารณาดำเนินการกับนักศึกษาตามข้อ 44 ให้คณะกรรมการประจำคณะเรียกนักศึกษาผู้นั้นมาให้ถ้อยคำเพื่อประโยชน์ในการพิจารณาทั้งนี้ต้องแจ้งรายละเอียดแห่งพฤติกรรมที่นำไปสู่การดำเนินการดังกล่าวให้ทราบล่วงหน้าไม่น้อยกว่า 5 วันและหากปรากฏว่ามีนักศึกษาของคณะอื่นมีส่วนร่วมในพฤติกรรมที่ทำให้ขาดคุณสมบัติตามความในข้อ 43 ให้ประธานคณะกรรมการประจำคณะที่ทำการพิจารณาทำบันทึกแจ้งไปยังคณบดีในคณะของนักศึกษาซึ่งร่วมในพฤติกรรมดังกล่าวโดยด่วนเพื่อให้คณะนั้นๆพิจารณาต่อไป
 ข้อ 47 นักศึกษาผู้ที่ถูกคณะกรรมการประจำคณะพิจารณาเห็นสมควรไม่เสนอชื่อให้ได้รับปริญญาเพราะขาดความสมบูรณ์ในเกียรติและศักดิ์ตามระเบียบนี้
 ถ้านักศึกษาเห็นว่าไม่ได้รับความเป็นธรรมให้มีสิทธิ์อุทธรณ์โดยทำเป็นหนังสือลงลายมือชื่อของผู้อุทธรณ์ยื่นผ่านคณบดีคณะซึ่งตนสังกัดนั้นภายใน 15 วันนับแต่วันที่ทราบว่าตนเป็นผู้ไม่สมควรได้รับปริญญาให้คณบดีเสนอหนังสืออุทธรณ์ต่อคณะกรรมการที่มหาวิทยาลัยแต่งตั้งภายใน 7 วันนับแต่วันได้รับหนังสืออุทธรณ์
@@ -10357,7 +10357,7 @@ Handwritten signature
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "50.2.3 การลาป่วยระหว่างสอบต้องมีใบรับรองแพทย์ที่ออกให้โดยสถานพยาบาลจากรางราชการหรือสถานพยาบาลเอกชนที่กระทรวงสาธารณสุขรับรองพร้อมใบเสร็จรับเงินในการรักษาหรือใบรับรองแพทย์จากมหาวิทยาลัย 50.2.4 การลากิจหรือลาป่วยระหว่างสอบนักศึกษาต้องยื่นใบลาผ่านความเห็นชอบจากอาจารย์ที่ปรึกษาและได้รับการอนุมัติจากคณะกรรมการประจำคณะให้สอบใหม่หรือให้ถอน <page_number>19</page_number> ลายเซ็น รายวิชาเป็นกรณีพิเศษหรือให้เป็นไปตามแนวปฏิบัติของคณะเจ้าของวิชาโดยนักศึกษาต้องยื่นใบลาภายใน 1 สัปดาห์นับตั้งแต่วันสิ้นสุดของการสอบในครั้งนั้น
 50.3 อาจารย์ที่ปรึกษามีอำนาจอนุญาตให้นักศึกษาลาได้ครั้งละไม่เกิน 3 วันและให้ลาติดต่อกันไม่เกิน 15 วันหัวหน้าภาควิชาที่นักศึกษาสังกัดมีอำนาจอนุญาตให้นักศึกษาลาได้ครั้งละไม่เกิน 7 วันและให้ลาติดต่อกันไม่เกิน 30 วันนอกจากนี้จากนั้นเป็นอำนาจของคณบดีเจ้าสังกัด
 ข้อ 51 การลาพักการศึกษา
@@ -10414,7 +10414,7 @@ Handwritten signature
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "ข้อ 56 สำหรับหลักสูตรการศึกษาที่มีการจัดการเรียนการสอนที่มีลักษณะเฉพาะให้จัดทำเป็นระเบียบข้อปฏิบัติหรือประกาศของมหาวิทยาลัย
 ประกาศณ วันที่ 18 สิงหาคมพ.ศ. 2557
 (ดร.ทองฉัตรหงศ์ลดารมภ์)
@@ -10450,7 +10450,7 @@ Handwritten signature"
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "**ข้อ 4 ให้ยกเลิกข้อความในข้อ 15 แห่งระเบียบมหาวิทยาลัยเทคโนโลยีพระจอมเกล้าธนบุรีว่าด้วยการศึกษาระดับปริญญาตรีพ.ศ. 2557 และให้ใช้ข้อความต่อไปนี้**
 "ข้อ 15 การกำหนดจำนวนหน่วยกิตต่อภาคการศึกษาในการลงทะเบียนเรียน
 15.1 นักศึกษาจะต้องลงทะเบียนในแต่ละภาคการศึกษาปกติไม่ต่ำกว่า 12 หน่วยกิตและไม่เกิน 19 หน่วยกิต
@@ -10495,7 +10495,7 @@ Handwritten signature"
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "**ข้อ 5 ให้ยกเลิกข้อความในข้อ 22 แห่งระเบียบมหาวิทยาลัยเทคโนโลยีพระจอมเกล้าธนบุรีว่าด้วยการศึกษาระดับปริญญาตรีพ.ศ. 2557 และให้ใช้ข้อความต่อไปนี้**
 “ข้อ 22 เมื่อทำการเพิ่มลดถอนรายวิชาหรือกลุ่มวิชาแล้วจำนวนหน่วยกิตจะต้องไม่ขัดหรือแย้งกับข้อ 15 แห่งระเบียบนี้”
 ลายเซ็น
@@ -10529,7 +10529,7 @@ Handwritten signature"
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "ข้อ 6 ให้ยกเลิกข้อความในข้อ 26 แห่งระเบียบมหาวิทยาลัยเทคโนโลยีพระจอมเกล้าธนบุรีว่าด้วยการศึกษาระดับปริญญาตรีพ.ศ. 2557 และให้ใช้ข้อความต่อไปนี้
 "ข้อ 26 การวัดผลการศึกษา
 26.1 การวัดผลการศึกษาแต่ละรายวิชาหรือกลุ่มวิชาให้กำหนดผลการศึกษาเป็นระดับคะแนนตัวอักษรตามลำดับชั้นซึ่งมีความหมายและแต้มระดับคะแนนของแต่ละขั้นดังต่อไปนี้
@@ -10590,7 +10590,7 @@ Handwritten signature"
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "ลงทะเบียนเรียนแบบไม่นับหน่วยกิตและมีเวลาเรียนไม่น้อยกว่าร้อยละ 80 (Audit) 26.2 นักศึกษาที่มีเวลาเรียนรายวิชาหรือกลุ่มวิชาใดต่ำกว่าร้อยละ 80 ถือว่าไม่มีสิทธิสอบและให้ตก (Fa) ในรายวิชาหรือกลุ่มวิชานั้นในการคำนวณแต้มระดับคะแนนเฉลี่ยประจำภาคการศึกษาและคะแนนเฉลี่ยสะสมให้นำหน่วยวิเคราะห์ของรายวิชาหรือกลุ่มวิชานั้นไปคำนวณด้วยยกเว้นการคำนวณคะแนนเฉลี่ยสะสมที่มีการเรียนซ้ำรายวิชาตามข้อ 28.3 26.3 นักศึกษาซึ่งขาดสอบรายวิชาหรือกลุ่มวิชาใดโดยไม่มีเหตุผลสมควรให้ถือว่าตก (Fe) ในรายวิชาหรือกลุ่มวิชานั้นในการคำนวณแต้มระดับคะแนนเฉลี่ยประจำภาคการศึกษาและคะแนนเฉลี่ยสะสมให้นำหน่วยวิเคราะห์ของรายวิชาหรือกลุ่มวิชานั้นไปคำนวณด้วยยกเว้นการคำนวณคะแนนเฉลี่ยสะสมที่มีการเรียนซ้ำรายวิชาตามข้อ 28.3 นักศึกษาที่ขาดสอบโดยเหตุตามข้อ 50.2 การพิจารณาใดๆให้อยู่ในดุลพินิจของคณะกรรมการประจำคณะ 26.4 นักศึกษาที่ได้รับอนุมัติให้ถอนรายวิชาเรียนจะได้ผลการศึกษาเป็น W สำหรับรายวิชาหรือกลุ่มวิชานั้น 26.5 การให้ผลการศึกษา | กระทำได้ในกรณีต่อไปนี้ 26.5.1 นักศึกษาที่ยังทำงานหรือส่วนประกอบการศึกษาของรายวิชาทฤษฎีปฏิบัติหรือโครงงานนั้นยังไม่สมบูรณ์และอาจารย์ผู้สอนเห็นสมควรให้รอผลการศึกษา 26.5.2 ในการคำนวณแต้มระดับคะแนนเฉลี่ยจะไม่นำหน่วยวิเคราะห์ของรายวิชานั้นไปคำนวณด้วย 26.5.3 การเปลี่ยนผลการศึกษา | ของรายวิชาทฤษฎีและปฏิบัติให้กระทำภายใน 2 สัปดาห์แรกของภาคการศึกษาถัดไปหากพ้นกำหนดดังกล่าวมหาวิทยาลัยจะเปลี่ยน I เป็น F โดยอัตโนมัติกรณีนี้นักศึกษาไม่ต้องลงทะเบียนเรียนรายวิชานั้นในภาคการศึกษาถัดไป (ลายเซ็น) <page_number>3/6</page_number> 26.5.4 กรณีรายวิชาโครงงานหากนักศึกษาไม่สามารถดำเนินการสอบหรือไม่สามารถทำโครงงานให้เสร็จสมบูรณ์ภายในภาคการศึกษานั้นได้อาจารย์ผู้สอนจะให้ผลการศึกษาเป็น I การเปลี่ยนผลการศึกษา | ในรายวิชาโครงงานให้กระทำได้เมื่อนักศึกษาทำการสอบและทำโครงงานให้เสร็จสมบูรณ์ภายในภาคการศึกษาปกติดัดไปหรือภาคการศึกษาปกติกับภาคการศึกษาพิเศษถัดไป
 กรณีที่นักศึกษาจะต้องออกไปฝึกประสบการณ์วิชาชีพและไม่สามารถลงทะเบียนรายวิชาหรือกลุ่มวิชาอื่นๆในภาคการศึกษาถัดไปได้ให้นักศึกษาทำการสอบและทำโครงงานให้เสร็จสมบูรณ์ภายในภาคการศึกษาปกติดัดไปหรือภาคการศึกษาปกติกับภาคการศึกษาพิเศษถัดไปจากภาคการศึกษาที่ออกใบฝึกประสบการณ์วิชาชีพหากพ้นกำหนดดังกล่าวมหาวิทยาลัยจะเปลี่ยน I เป็น F โดยอัตโนมัติ
 กรณีนี้นักศึกษาจะต้องลงทะเบียนเรียนโดยไม่ต้องชำระค่าลงทะเบียนรายวิชาโครงงานทั้งนี้จะต้องชำระค่าบำรุงการศึกษาด้วย I เป็น F ตามข้อ 26.5.3 และ 26.5.4 นักศึกษาจะต้องลงทะเบียนใหม่และต้องชำระค่าลงทะเบียนรายวิชาด้วย
@@ -10628,7 +10628,7 @@ Handwritten signature"
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "**ข้อ 7 ให้ยกเลิกข้อความในข้อ 27 แห่งระเบียบมหาวิทยาลัยเทคโนโลยีพระจอมเกล้าธนบุรีว่าด้วยการศึกษาระดับปริญญาตรีพ.ศ. 2557 และให้ใช้ข้อความต่อไปนี้**
 "ข้อ 27 การวัดผลการศึกษาการประเมินการศึกษาและการคำนวณแต้มระดับคะแนนเฉลี่ย
 27.1 ให้มีการวัดผลการศึกษาในแต่ละรายวิชาหรือกลุ่มรายวิชาอย่างน้อยภาคการศึกษาละ 1 ครั้ง
@@ -10676,7 +10676,7 @@ Handwritten signature"
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "**ข้อ 8 ให้ยกเลิกข้อความในข้อ 30 แห่งระเบียบมหาวิทยาลัยเทคโนโลยีพระจอมเกล้าธนบุรีว่าด้วยการศึกษาระดับปริญญาตรีพ.ศ. 2557 และให้ใช้ข้อความต่อไปนี้**
 "ข้อ 30 การสำเร็จการศึกษา
 30.1 นักศึกษาที่จะสำเร็จการศึกษาได้ต้องมีคุณสมบัติครบถ้วนดังต่อไปนี้
@@ -10718,7 +10718,7 @@ Handwritten signature"
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "**ข้อ 9 ให้ยกเลิกข้อความในข้อ 32 แห่งระเบียบมหาวิทยาลัยเทคโนโลยีพระจอมเกล้าธนบุรีว่าด้วยการศึกษาระดับปริญญาตรีพ.ศ. 2557 และให้ใช้ข้อความต่อไปนี้**
 "ข้อ 32 นักศึกษาผู้ที่ได้รับปริญญาเกียรตินิยมต้องเรียนครบจำนวนหน่วยกิตตามหลักสูตรและต้องอยู่ในเกณฑ์ดังต่อไปนี้
 32.1 นักศึกษาที่สำเร็จการศึกษาและผลการศึกษามีแต้มระดับคะแนนเฉลี่ยสะสมไม่ต่ำกว่า 3.60 จะได้เกียรตินิยมอันดับ 1
@@ -10759,7 +10759,7 @@ Handwritten signature"
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "ข้อ 10 ให้ยกเลิกข้อความในข้อ 51 แห่งระเบียบมหาวิทยาลัยเทคโนโลยีพระจอมเกล้าธนบุรีว่าด้วยการศึกษาระดับปริญญาตรีพ.ศ. 2557 และให้ใช้ข้อความต่อไปนี้
 "ข้อ 51 การลาพักการศึกษา
 51.1 ให้นักศึกษาลาพักการศึกษาได้ในกรณีต่อไปนี้
@@ -10810,7 +10810,7 @@ Handwritten signature"
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "ระเบียบมหาวิทยาลัยเทคโนโลยีพระจอมเกล้าธนบุรีว่าด้วยการศึกษาภายใต้มาตรการและการเฝ้าระวังการระบาดของโรคติดเชื้อไวรัสโคโรนาสายพันธุ์ใหม่ 2019 (COVID-19)
 พ.ศ. 2564
 สืบเนื่องจากการเกิดภาวะวิกฤตของการแพร่ระบาดของโรคติดเชื้อไวรัสโคโรนาสายพันธุ์ใหม่ 2019 (COVID-19) โดยคณะรัฐมนตรีกระทรวงการอุดมศึกษาวิทยาศาสตร์วิจัยและนวัตกรรมและมหาวิทยาลัยได้มีการออกประกาศมาตรการและการเฝ้าระวังต่างๆและให้มีการปิดมหาวิทยาลัยเป็นการชั่วคราวซึ่งส่งผลกระทบต่อรูปแบบของการจัดการเรียนการสอนการสอบและการประเมินผลลัพธ์การเรียนรู้จึงเห็นสมควรปรับระเบียบที่เกี่ยวข้องกับการศึกษาภายใต้มาตรการและการเฝ้าระวังการระบาดของโรคติดเชื้อไวรัสโคโรนา 2019 (COVID-19) เพื่อเป็นประโยชน์ต่อนักศึกษาที่ได้รับผลกระทบจากภาวะวิกฤตดังกล่าว
@@ -10852,7 +10852,7 @@ Handwritten signature"
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "2562 **ข้อ 4** การลงทะเบียนเรียนและการทำรายละเอียดการศึกษา/2563 และภาคการศึกษาที่ 1/2564 ระบบจะยกเว้นการตรวจสอบรายวิชาบังคับก่อน (Pre-requisite) ที่นักศึกษาอาจได้ลงทะเบียนในภาคการศึกษาที่ 2/2563 และภาคการศึกษา/2563 ไปแล้วเพื่อให้นักศึกษาลงทะเบียนรายวิชาต่อเนื่องได้ในภาคการศึกษา/2563 และภาคการศึกษาที่ 1/2564 แม้ยังไม่ทราบผลสอบของวิชาบังคับก่อนโดยมหาวิทยาลัยจะดำเนินการตรวจสอบภายในภายหลัง เมื่อมีการประกาศผลการเรียนของภาคการศึกษาที่ 2/2563 และภาคการศึกษาพิเศษ/2563 กรณีพบว่านักศึกษาไม่มีสิทธิลงทะเบียนในรายวิชาต่อเนื่องมหาวิทยาลัยจะทำการยกเลิกและคืนเงินค่าลงทะเบียนในรายวิชานั้นเต็มจำนวนที่นักศึกษาได้ลงทะเบียนไปในภาคการศึกษาพิเศษ/2563 และภาคการศึกษาที่ 1/2564 แล้วแต่กรณี 4.2 กำหนดการชำระเงินค่าบำรุงและค่าธรรมเนียมการศึกษาให้เป็นไปตามประกาศมหาวิทยาลัย 4.3 รายวิชาที่เปิดให้ลงทะเบียนเรียนในภาคการศึกษาพิเศษ/2563 สำหรับผู้ที่จะลงทะเบียนเรียนเพื่อสำเร็จการศึกษาอาจเหลื่อมเวลาการเรียนกับการทำวิชาโครงงานของภาคการศึกษาที่ 2/2563 ได้ **ข้อ 5 การฝึกงานของนักศึกษาระดับปริญญาตรี** ให้ดำเนินการตามประกาศมหาวิทยาลัยเทคโนโลยีพระจอมเกล้าธนบุรีเรื่องแนวปฏิบัติเกี่ยวกับการฝึกงานภาคอุตสาหกรรมรายวิชาสหกิจศึกษาหรือการบูรณาการการเรียนรู้ร่วมกับการทำงาน (WIL) ในช่วงการระบาดของโรคติดเชื้อไวรัสโคโรนาสายพันธุ์ใหม่ 2019 (COVID-19) **ข้อ 6 การประเมินผลการเรียนและสภาพนักศึกษา** 6.1 รายวิชาใดๆรวมถึงรายวิชาโครงงานที่ทำการประเมินผลแล้วเสร็จให้คณะพิจารณาประกาศผลได้นับตั้งแต่วันที่ที่กำหนดไว้ในปฏิทินการศึกษาเดิมเป็นต้นไปแต่ไม่ซ้ำกว่ากำหนดการตามปฏิทินการศึกษาที่ปรับใหม่
 6.2 รายวิชาใดๆรวมถึงรายวิชาโครงงานที่ไม่สามารถประเมินผลให้แล้วเสร็จภายในระยะเวลาที่กำหนดไว้ในปฏิทินการศึกษาของภาคการศึกษาที่ 2/2563 และภาคการศึกษาที่ 1/2564 โดยมีผลกระทบมาจากสถานการณ์การระบาดของเชื้อไวรัสโคโรนาให้คณะพิจารณาอนุมัติให้ผลการศึกษาเป็น I ไปก่อนและให้ประเมินผลอย่างช้าที่สุดภายในภาคการศึกษาถัดไปโดยที่นักศึกษาไม่ต้องลงทะเบียนใหม่"
   tokens_est: 448
@@ -10882,7 +10882,7 @@ Handwritten signature"
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "6.3 ให้ยกเว้นการนำแต้มคะแนนเฉลี่ยสะสมในภาคการศึกษาที่ 2/2563 และภาคการศึกษาที่ 1/2564 มาพิจารณาให้นักศึกษาพ้นสภาพตามข้อ 6.3.2 และพิจารณาให้นักศึกษาพ้นสภาพตามข้อ 40.2 และข้อ 40.3 ของระเบียบมหาวิทยาลัยเทคโนโลยีพระจอมเกล้าธนบุรีว่าด้วยการศึกษาระดับปริญญาตรีพ.ศ. 2557 รวมถึงไม่นำมาพิจารณาใช้เป็นเงื่อนไขในการพิจารณาให้ทุนการศึกษาต่อเนื่อง
 6.4 ให้ยกเว้นการนำแต้มคะแนนเฉลี่ยสะสมในภาคการศึกษาที่ 2/2563 และภาคการศึกษาที่ 1/2564 มาพิจารณาสภาพนักศึกษาตามข้อ 21.6.1 ข้อ 21.6.2 และข้อ 21.6.3 ของระเบียบมหาวิทยาลัยเทคโนโลยีพระจอมเกล้าธนบุรีว่าด้วยการศึกษาระดับบัณฑิตศึกษาพ.ศ. 2562
 **ข้อ 7 การขยายระยะเวลาของนักศึกษา**
@@ -10923,7 +10923,7 @@ Handwritten signature"
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "ระเบียบมหาวิทยาลัยเทคโนโลยีพระจอมเกล้าธนบุรีว่าด้วยการสอบของนักศึกษาพ.ศ. 2560
 เพื่อให้การสอบวัดผลการศึกษาเป็นไปด้วยความเรียบร้อยมีวิธีปฏิบัติเกี่ยวกับการสอบของคณะต่างๆเป็นไปในทิศทางเดียวกันเกิดความเป็นธรรมในการดำเนินการสอบและเพื่อให้การพิจารณาเกี่ยวกับการทุจริตในการสอบของนักศึกษาเป็นไปอย่างถูกต้องและเป็นธรรมอาศัยอำนาจตามความในมาตรา 18 (2) แห่งพระราชบัญญัติมหาวิทยาลัยเทคโนโลยีพระจอมเกล้าธนบุรีพ.ศ. 2541 ประกอบกับมติสภามหาวิทยาลัยเทคโนโลยีพระจอมเกล้าธนบุรีในการประชุมครั้งที่ 213 วันที่ 3 พฤษภาคม 2560 จึงเห็นควรให้ออกระเบียบไว้ดังต่อไปนี้
 หมวดที่ 1
@@ -10977,7 +10977,7 @@ Handwritten signature"
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "2560" ข้อ 2 ระเบียนี้ให้ใช้บังคับตั้งแต่วันถัดจากวันประกาศเป็นต้นไป ข้อ 3 ให้ยกเลิกข้อบังคับระเบียบหรือประกาศว่าด้วยการสอบของมหาวิทยาลัยเทคโนโลยีพระจอมเกล้าธนบุรีและของคณะทุกฉบับซึ่งใช้บังคับอยู่ก่อนการประกาศใช้ระเบียบนี้และให้ใช้ระเบียบนี้แทน ข้อ 4 ข้อความในระเบียบมติประกาศหรือคำสั่งอื่นใดซึ่งขัดหรือแย้งกับระเบียบนี้ให้ใช้ระเบียบนี้แทน ข้อ 5 ในระเบียบนี้ "มหาวิทยาลัย” หมายความว่ามหาวิทยาลัยเทคโนโลยีพระจอมเกล้าธนบุรี “อธิการบดี” หมายความว่าอธิการบดีมหาวิทยาลัยเทคโนโลยีพระจอมเกล้าธนบุรี “นักศึกษา” หมายความว่านักศึกษามหาวิทยาลัยเทคโนโลยีพระจอมเกล้าธนบุรีรวมถึงนักศึกษาที่เรียนข้ามมหาวิทยาลัย “กรรมการคุมสอบ” หมายความว่าบุคลากรของมหาวิทยาลัยที่ได้รับแต่งตั้งให้ทำหน้าที่กรรมการคุมสอบ “คณะกรรมการกลาง” หมายความว่าคณะกรรมการกลางพิจารณาลงโทษนักศึกษาที่ทำการทุจริตในการสอบ ข้อ 6 ให้อธิการบดีเป็นผู้รักษาการให้เป็นไปตามระเบียบนี้และให้มีอำนาจออกประกาศข้อกำหนดหรือหลักเกณฑ์เพื่อปฏิบัติให้เป็นไปตามระเบียบนี้ในกรณีที่มีข้อขัดหรือแย้งหรือกรณีที่มิได้กำหนดไว้ในระเบียบนี้ให้อธิการบดีเป็นผู้มีอำนาจสั่งและเป็นผู้วินิจฉัยชี้ขาดคำสั่งหรือคำวินิจฉัยของอธิการบดีถือเป็นที่สุด หมวดที่ 2 ข้อปฏิบัติสำหรับนักศึกษาผู้เข้าสอบ ข้อ 7 นักศึกษาต้องแต่งกายด้วยชุดนักศึกษาที่ถูกต้องตามข้อบังคับมหาวิทยาลัยเทคโนโลยีพระจอมเกล้าธนบุรีว่าด้วยเครื่องแต่งกายนักศึกษา ข้อ 8 นักศึกษาต้องนำบัตรนักศึกษาหรือใบแทนบัตรประจำตัวนักศึกษาวางไว้บนโต๊ะที่นั่งสอบหรือแสดงต่อกรรมการคุมสอบหากไม่มีบัตรนักศึกษาหรือใบทแทนบัตรประจำตัวนักศึกษาจะไม่ได้รับอนุญาตให้เข้าห้องสอบ ข้อ 9 ห้ามนักศึกษาเปิดเครื่องมือสื่อสารและอุปกรณ์อิเล็กทรอนิกส์ทุกชนิดในห้องสอบยกเว้นอุปกรณ์พิเศษทางการแพทย์เพื่อช่วยในการดำรงชีวิตเช่นเครื่องช่วยฟัง ข้อ 10 ห้ามนักศึกษานำเอกสารไม้บรรทัดที่มีสูตรอุปกรณ์หรือสิ่งอื่นใดที่มีสูตรการคำนวณเข้าห้องสอบเว้นแต่อาจารย์ผู้สอนได้อนุญาตไว้ในข้อสอบของรายวิชานั้น ข้อ 11 ห้ามนักศึกษารนำเครื่องคำนวณหรืออุปกรณ์อิเล็กทรอนิกส์อื่นใดที่มีคุณสมบัติคล้ายคลึงกันเข้าห้องสอบเว้นแต่อาจารย์ประจำวิชาได้อนุญาตไว้ในข้อสอบรายวิชานั้นให้นำเข้าห้องสอบได้เฉพาะรุ่นที่มหาวิทยาลัยกำหนดโดยนักศึกษาต้องนำเครื่องคำนวณไปให้สำนักงานทะเบียนนักศึกษาตรวจสอบและติดสติกเกอร์ให้เรียบร้อยทั้งนี้อนุญาตให้นักศึกษานำเครื่องคำนวณเข้าห้องสอบได้เพียงคนละ 1 เครื่องเท่านั้น ข้อ 12 นักศึกษาต้องเข้าห้องสอบถามเวลาและสถานที่ที่มหาวิทยาลัยกำหนดกรณีที่นักศึกษามาถึงห้องสอบสายเกินกว่าสิบห้านาทีแต่ไม่เกินหกสิบนาทีให้นักศึกษายื่นคำร้องขอเข้าห้องสอบต่อประธานกรรมการจัดการสอบหรือผู้ที่ประธานกรรมการมอบหมายเพื่อพิจารณาอนุญาตก่อนเข้าห้องสอบหากเกินกว่าหกสิบนาทีให้ถือว่าหมดสิทธิ์เข้าห้องสอบ ข้อ 13
 13.1 ก่อนทำข้อสอบให้นักศึกษาเขียนชื่อนามสกุลเลขรหัสประจำตัวนักศึกษาและข้อความอื่นที่กำหนดลงบนกระดาษคำตอบหรือสมุดคำตอบให้ครบถ้วนและชัดเจนก่อนเริ่มทำข้อสอบ
 13.2 นักศึกษาต้องปฏิบัติตามข้อความที่แจ้งไว้ในข้อสอบแต่ละวิชาอย่างเคร่งครัด
@@ -11038,7 +11038,7 @@ Handwritten signature"
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "ข้อ 14 ไมออนุญาตให้นักศึกษายืมหรือแลกเปลี่ยนสิ่งของอุปกรณ์และเอกสารใดๆในระหว่างการสอบ ข้อ 15 นักศึกษาจะออกหากห้องสอบได้ต่อเมื่อการสอบผ่านไปแล้วหกสิบนาทีนับตั้งแต่กรรมการเริ่มให้ทำข้อสอบ ข้อ 16 การออกจากห้องสอบชั่วคราวจะต้องได้รับอนุญาตจากกรรมการคุมสอบโดยนักศึกษาจะต้องไม่นำเครื่องมือสื่อสารติดตัวไปด้วยและให้อยู่ในความดูแลของกรรมการคุมสอบ ข้อ 17 17.1 กรณีทำข้อสอบเสร็จก่อนหมดเวลาสอบที่กำหนดไว้ให้ยกมือขึ้นเพื่อขออนุญาตออกนอกห้องสอบรอจนกว่ากรรมการคุมสอบมาเก็บข้อสอบกระดาษคำตอบหรือสมุดคำตอบเรียบร้อยก่อนหรือได้รับอนุญาตให้ออกจากห้องสอบได้ 17.2 กรณีหมดเวลาสอบห้ามนักศึกษาทำข้อสอบต่อไปอีกให้วางข้อสอบกระดาษคำตอบหรือสมุดคำตอบไว้บนโต๊ะและรอจนกว่ากรรมการคุมสอบจะมาเก็บข้อสอบกระดาษคำตอบหรือสมุดคำตอบเรียบร้อยก่อนหรือได้รับอนุญาตให้ออกจากห้องสอบได้ ข้อ 18 เมื่อนักศึกษาออกจากห้องสอบแล้วให้นักศึกษาออกจากระบบริเวณห้องสอบทันทีและไม่ทำการใดๆอันเป็นการรบกวนผู้เข้าสอบคนอื่นที่กำลังสอบอยู่ หมวดที่ 3 คณะกรรมการกลางพิจารณาลงโทษนักศึกษาที่ทำการทุจริตในการสอบ ข้อ 19 ให้คณะกรรมการกลางมีวาระการดำรงตำแหน่งสี่ปีประกอบด้วย 19.1 รองอธิการบดีฝ่ายพัฒนานักศึกษาเป็นประธานกรรมการ 19.2 ผู้ช่วยอธิการบดีฝ่ายพัฒนานักศึกษาเป็นรองประธานกรรมการ 19.3 รองคณบดีที่รับผิดชอบด้านนักศึกษาทุกคณะหรือผู้แทนเป็นกรรมการ 19.4 ผู้อำนวยการสำนักงานกิจการนักศึกษาหรือผู้แทนเป็นกรรมการ 19.5 ประธานกรรมการจัดตารางสอน-ตารางสอบเป็นกรรมการและเลขานุการ 19.6 ผู้อำนวยการสำนักงานทะเบียนนักศึกษาเป็นผู้ช่วยเลขานุการ 19.7 ผู้แทนสำนักงานทะเบียนนักศึกษาเป็นผู้ช่วยเลขานุการ ข้อ 20 ให้คณะกรรมการกลางมีอำนาจหน้าที่ดังต่อไปนี้ 20.1 ไต่สวนและแสวงหาข้อเท็จจริงรวมทั้งวินิจฉัยกรณีนักศึกษากระทำการทุจริตหรือส่อไยในทางทุจริตในการสอบ 20.2 เชิญอาจารย์ผู้สอนหรือเจ้าของรายวิชาอาจารย์ที่ปรึกษากรรมการคุมสอบและนักศึกษาที่ทุจริตหรือส่อไปในทางทุจริตในการสอบหรือบุคคลใดที่เกี่ยวข้องกับการกระทำความผิดเข้าชี้แจงข้อเท็จจริงเพื่อประกอบการพิจารณาของคณะกรรมการกลาง 20.3 เรียกตรวจและรวบรวมพยานหลักฐานต่างๆที่เกี่ยวข้องกับการกระทำผิดเรียกเอกสารหรือหลักฐานที่เกี่ยวข้องจากบุคคลใดเพื่อประโยชน์แห่งการแสดงว่ามีข้อสอบรายวิชาใดส่วงรู้ไปยังผู้เข้าสอบไม่ว่าจะด้วยวิธีใดๆก่อนเข้าสอบหรือหลังสอบรายวิชานั้นๆและให้อธิการบดีมีอำนาจสั่งยกเลิกการสอบรายวิชาดังกล่าวและจัดให้มีการสอบขึ้นใหม่ 20.4 รายงานต่ออธิการบดีในกรณีที่มีหลักฐานแสดงว่ามีข้อสอบรายวิชาใดส่วงรู้ไปยังผู้เข้าสอบไม่ว่าจะด้วยวิธีใดๆก่อนเข้าสอบหรือหลังสอบรายวิชานั้นๆและให้อธิการบดีมีอำนาจสั่งยกเลิกการสอบรายวิชาดังกล่าวและจัดให้มีการสอบขึ้นใหม่ 20.5 ปฏิบัติหน้าที่อื่นๆตามที่อธิการบดีมอบหมาย หมวดที่ 4 บทลงโทษ ข้อ 21 นักศึกษากระทำการในกรณีต่อไปนี้ให้ถือเป็นการกระทำโดยมีเจตนาทุจริตการสอบ 21.1 จุดข้อความสัญลักษณ์ในกระดาษวัตถุอื่นใดหรือส่วนต่างๆของร่างกายตลอดจนบันทึกด้วยวิธีการใดๆในเครื่องมือสื่อสารหรือเครื่องมืออิเล็กทรอนิกส์ที่สามารถบันทึกข้อมูลต่างๆได้เช่นเครื่องคำนวณรุ่นที่มหาวิทยาลัยไม่อนุญาตโทรศัพท์มือถือที่เปิดเครื่องเครื่องมือสื่อสารใดๆพจนานุกรมอิเล็กทรอนิกส์อุปกรณ์อิเล็กทรอนิกส์อื่นใด
 21.2 รับ-ส่งกระดาษหรือสิ่งอื่นใดหรือติดต่อสื่อสารผ่านอุปกรณ์ใดให้นักศึกษาผู้เข้าสอบอื่นไม่ว่าจะอยู่ภายในหรือภายนอกห้องสอบ
 21.3 ส่งเสียงแสดงสัญญาณภายในหรือภายนอกห้องสอบ
@@ -11104,7 +11104,7 @@ Handwritten signature"
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "ข้อ 26 นักศึกษาผู้ถูกสั่งลงโทษตามระเบียบนี้ผู้นั้นมีสิทธิอุทธรณ์ได้ตามหลักเกณฑ์และวิธีการที่กำหนดไว้ในระเบียบนี้
 ข้อ 27 การอุทธรณ์ต้องทำเป็นหนังสือแสดงข้อเท็จจริงและเหตุผลในการอุทธรณ์ให้เห็นว่าตนเองถูกลงโทษโดยไม่ถูกต้องไม่เหมาะสมหรือไม่เป็นธรรมอย่างใดพร้อมลงลายมือชื่อของผู้อุทธรณ์
 ข้อ 28 นักศึกษาที่ถูกสั่งลงโทษตามระเบียนนี้อาจอุทธรณ์ได้ตามหลักเกณฑ์ดังนี้ 28.1 ให้ยื่นอุทธรณ์ต่ออธิการบดีภายในสิบห้าวันนับแต่วันได้รับแจ้งคำสั่งลงโทษ 28.2 การอุทธรณ์คำสั่งลงโทษให้อุทธรณ์ได้สำหรับตนเองเท่านั้นจะอุทธรณ์แทนคนอื่นหรือมอบหมายให้คนอื่นอุทธรณ์แทนไม่ได้
@@ -11141,7 +11141,7 @@ Handwritten signature"
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "ระเบียบมหาวิทยาลัยเทคโนโลยีพระจอมเกล้าธนบุรีว่าด้วยการศึกษาระดับบัณฑิตศึกษาพ.ศ. 2568
 โดยเป็นการสมควรที่จะปรับปรุงระเบียบมหาวิทยาลัยเทคโนโลยีพระจอมเกล้าธนบุรีว่าด้วยการศึกษาระดับบัณฑิตศึกษาพ.ศ. 2562 ให้สอดคล้องกับประกาศคณะกรรมการมาตรฐานการอุดมศึกษาเรื่องเกณฑ์มาตรฐานหลักสูตรระดับบัณฑิตศึกษาพ.ศ. 2565
 อาศัยอำนาจตามความในมาตรา 18 (2) แห่งพระราชบัญญัติมหาวิทยาลัยเทคโนโลยีพระจอมเกล้าธนบุรีพ.ศ. 2541 ประกอบกับมติที่ประชุมสภามหาวิทยาลัยเทคโนโลยีพระจอมเกล้าธนบุรีในการประชุมครั้งที่ 312 วันที่ 6 สิงหาคม 2568 จึงออกระเบียบไว้ดังต่อไปนี้
@@ -11191,7 +11191,7 @@ Handwritten signature"
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "2563 บรรดาระเบียบคำสั่งประกาศหรือมติอื่นใดของมหาวิทยาลัยที่ขัดหรือแย้งกับระเบียบนี้ให้ใช้ระเบียบนี้แทน ข้อ 4 ในระเบียบนี้ * "มหาวิทยาลัย" หมายความว่ามหาวิทยาลัยเทคโนโลยีพระจอมเกล้าธนบุรี * "สภาวิชาการ” หมายความว่าสภาวิชาการมหาวิทยาลัยเทคโนโลยีพระจอมเกล้าธนบุรี * "นายกสภามหาวิทยาลัย" หมายความว่านายกสภามหาวิทยาลัยเทคโนโลยีพระจอมเกล้าธนบุรี * "อธิการบดี" หมายความว่าอธิการบดีมหาวิทยาลัยเทคโนโลยีพระจอมเกล้าธนบุรี [Handwritten signature] <table><tr><td>"บัณฑิตศึกษา"</td><td>หมายความว่าการศึกษาในระดับประกาศนียบัตรบัณฑิตปริญญาโทประกาศนียบัตรบัณฑิตชั้นสูงและปริญญาเอกของมหาวิทยาลัยเทคโนโลยีพระจอมเกล้าธนบุรี</td></tr><tr><td>"คณะ"</td><td>หมายความว่าคณะสถาบันสำนักหรือหน่วยงานที่เรียกชื่ออย่างอื่นที่มีฐานะเทียบเท่าคณะที่เปิดสอนหลักสูตรระดับบัณฑิตศึกษาในสังกัดมหาวิทยาลัยเทคโนโลยีพระจอมเกล้าธนบุรี</td></tr><tr><td>"คณะกรรมการ"</td><td>หมายความว่าคณะกรรมการมาตรฐานการอุดมศึกษา</td></tr><tr><td>"คณะกรรมการประจำคณะ"</td><td>หมายความว่าคณะกรรมการประจำคณะหรือสถาบันหรือส่วนงานที่เรียกชื่ออย่างอื่นที่มีฐานะเทียบเท่าคณะ</td></tr><tr><td>"หลักสูตร"</td><td>หมายความว่าหลักสูตรที่เปิดสอนในระดับบัณฑิตศึกษาที่ได้รับอนุมัติจากสภามหาวิทยาลัยเทคโนโลยีพระจอมเกล้าธนบุรี</td></tr><tr><td>"คณบดี"</td><td>หมายความว่าคณบดีของคณะหรือหน่วยงานที่เรียกชื่ออย่างอื่นที่มีฐานะเทียบเท่าคณะที่เปิดสอนหลักสูตรระดับบัณฑิตศึกษาในสังกัดมหาวิทยาลัยเทคโนโลยีพระจอมเกล้าธนบุรี</td></tr><tr><td>"ผู้อำนวยการ"</td><td>หมายความว่าผู้อำนวยการของสถาบันหรือหน่วยงานที่เรียกชื่ออย่างอื่นที่มีฐานะเทียบเท่าคณะที่เปิดสอนหลักสูตรระดับบัณฑิตศึกษาในสังกัดมหาวิทยาลัยเทคโนโลยีพระจอมเกล้าธนบุรี</td></tr><tr><td>"หน่วยกิต"</td><td>หมายความว่าหน่วยที่ใช้แสดงปริมาณการศึกษา</td></tr><tr><td>"อาจารย์ประจำ"</td><td>หมายความว่าบุคคลที่มีคุณสมบัติดังนี้ <ol><li>พนักงานกลุ่มวิชาการ (ว) ที่ดำรงตำแหน่งทางวิชาการอาจารย์ศาสตราจารย์หรือ</li><li>นักวิจัยที่ได้รับการรับรองสมรรถนะด้านการสอนตามกรอบมาตรฐานวิชาชีพอารย์ (Professional Standards Framework) ที่สภาวิชาวิทยาลัยรับรองและมีสมรรถนะในระดับที่คาดหวัง (ดังเอกสารแนบท้ายระเบียบ) หรือ</li><li>บุคคลจากองค์กรภายนอกที่มีการตกลงร่วมผลิตที่ได้รับมอบหมายให้ปฏิบัติหน้าที่รับผิดชอบตามพันธกิจของการอุดมศึกษามีความเข้าใจเกี่ยวกับเกณฑ์มาตรฐานคุณวุฒิ</li></ol></td></tr></table> 2/30 [Handwritten signature]
 ระดับอุดมศึกษาสำหรับอาจารย์ประจำที่มหาวิทยาลัยรับเข้าใหม่ตั้งแต่ระเบียบนี้เริ่มใช้บังคับต้องมีคะแนนทดสอบความสามารถภาษาอังกฤษตามเกณฑ์ที่สภามหาวิทยาลัยกำหนดยกเว้นบุคลจากองค์กรภายนอกที่มีการตกลงร่วมผลิต
 "อาจารย์ประจำหลักสูตร"
@@ -11251,7 +11251,7 @@ Handwritten signature"
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: ""องค์กรภายนอก" หมายความว่าสถาบันอุดมศึกษาในหรือต่างประเทศที่ได้รับการรับรองจากหน่วยงานที่รับผิดชอบการศึกษาของประเทศไทยเทียบเท่าหรือหน่วยงานรัฐวิสาหกิจหรือองค์การมหาชนหรือสมาคมวิชาชีพหรือบริษัทเอกชนที่จดทะเบียนในตลาดหลักทรัพย์แห่งประเทศไทยหรือนิติบัญญัติไทยถึงจะเป็นบริษัทเอกชนที่ไม่ได้จดทะเบียนในตลาดหลักทรัพย์แห่งประเทศไทยก็ตามแต่อยู่ในดุลยภาพและความพร้อมในการร่วมผลิตบัณฑิตของบริษัทดังกล่าวและต้องให้ได้คุณภาพตามมาตรฐานการอุดมศึกษา "รายวิชา" หมายความว่ารายวิชาใดๆ ที่จัดการเรียนการสอนของมหาวิทยาลัยเทคโนโลยีพระจอมเกล้าธนบุรี <page_number>4/30</page_number> ลายเซ็น ข้อ 5 ให้อธิการบดีเป็นผู้รักษาการให้เป็นไปตามระเบียบนี้ในกรณีที่มีปัญหาเกี่ยวกับการปฏิบัติให้อธิการบดีเป็นผู้วินิจฉัยชี้ขาดโดยคำวินิจฉัยหรือคำสั่งของอธิการบดีถือเป็นที่สุด หมวด 2 ระบบการจัดการศึกษา
 ข้อ 6 การจัดการศึกษา
 มหาวิทยาลัยได้กำหนดระบบการจัดการศึกษาดังนี้
@@ -11305,7 +11305,7 @@ Handwritten signature"
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "ทั้งรายวิชาทฤษฎีรายวิชาภาคปฏิบัติรายวิชาการฝึกงานหรือการฝึกภาคสนามรายวิชาวิทยานิพนธ์หรือการศึกษาค้นคว้าอิสระรวมถึงกิจกรรมการเรียนอื่นใดที่สร้างการเรียนรู้นอกเหนือจากรูปแบบที่กำหนดข้างต้นให้กำหนดจำนวนหน่วยกิตตามปริมาณการศึกษาและการออกแบบผลลัพธ์การเรียนรู้ให้เป็นไปตามที่สภามหาวิทยาลัยกำหนด ข้อ 8 โครงสร้างหลักสูตร 8.1 ระดับประกาศนียบัตรวิบัติและประกาศนียบัตรบัณฑิตชั้นสูงให้มีจำนวนหน่วยกิตรวมตลอดหลักสูตรไม่น้อยกว่า 24 หน่วยกิต 8.2 ระดับปริญญาโทให้มีจำนวนหน่วยกิตรวมตลอดหลักสูตรไม่น้อยกว่า 36 หน่วยกิตโดยแบ่งการศึกษาเป็น 2 แผนคือ <page_number>5/30</page_number> ลายเซ็น 8.2.1 แผน 1 แบบวิชาการเน้นการเรียนรู้การทำวิจัยโดยการทำวิทยานิพนธ์สร้างองค์ความรู้ใหม่ในศาสตร์สาขาวิชานั้นทั้งนี้สัดส่วนหน่วยกิตวิทยานิพนธ์และหน่วยกิตของการศึกษารายวิชาให้เป็นไปตามแต่ละหลักสูตรกำหนดดังนี้ (1) แผน 1.1 แบบวิชาการที่ทำเฉพาะวิทยานิพนธ์ซึ่งมีค่าเทียบได้ไม่น้อยกว่า 36 หน่วยกิตและอาจกำหนดให้เรียนรายวิชาเพิ่มเติมหรือทำกิจกรรมวิชาการอื่นเพิ่มขึ้นได้โดยไม่นับหน่วยกิตแต่จะต้องมีผลสัมฤทธิ์ตามที่หลักสูตรกำหนด (2) แผน 1.2 แบบวิชาการที่มีทั้งการศึกษารายวิชาและทำวิทยานิพนธ์ซึ่งต้องทำวิทยานิพนธ์อย่างน้อย 12 หน่วยกิตโดยไม่อาจศึกษารายวิชาและการค้นคว้าอิสระเชิงประยุกต์ใช้ความรู้ในวิชาชีพโดยไม่ต้องทำวิทยานิพนธ์ทั้งนี้ให้มีการศึกษาค้นคว้าอิสระหรือเทียบเท่าจำนวนไม่น้อยกว่า 3 หน่วยกิตและไม่เกิน 6 หน่วยกิต
 การเลือกศึกษาในแผน 1 หรือแผน 2 ขึ้นอยู่กับการตัดสินใจของนักศึกษาและอยู่ในดุลพินิจของอาจารย์ผู้รับผิดชอบหลักสูตรและแจ้งคณะให้รับทราบและจำนวนหน่วยกิตในข้อ 8.2.1 และข้อ 8.2.2 ไม่รวมหน่วยกิตของวิชาภาษาอังกฤษปรับพื้นฐานและวิชาปรับพื้นฐานอื่นๆ
 8.3 ปริญญาเอกแบ่งการศึกษาเป็น 2 แบบโดยเน้นการวิจัยเพื่อพัฒนานักวิชาการและนักวิชาชีพชั้นสูงดังนี้
@@ -11357,7 +11357,7 @@ Handwritten signature"
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "2565 ## หมวด 3 อาจารย์ **ข้อ 10 จำนวนคุณวุฒิและคุณสมบัติของอาจารย์** **10.1 ประกาศนียบัตรวุฒิ** <page_number>6/30</page_number> ลายเซ็น 10.1.1 อาจารย์ประจำหลักสูตรมีคุณวุฒิขั้นต่ำปริญญาโทหรือเทียบเท่าและมีผลงานทางวิชาการที่ไม่ใช่วส่วนหนึ่งของการศึกษาเพื่อรับปริญญาของตนเองและเป็นผลงานทางวิชาการที่ได้รับการเผยแพร่ตามหลักเกณฑ์ที่กำหนดในการพิจารณาแต่งตั้งให้บุคคลดำรงตำแหน่งทางวิชาการอย่างน้อย 3 เรื่องในรอบ 5 ปีย้อนหลังโดยอย่างน้อย 1 เรื่องต้องเป็นผลงานวิจัย 10.1.2 อาจารย์ผู้รับผิดชอบหลักสูตรจำนวนอย่างน้อย 3 คนมีคุณวุฒิปริญญาเอกหรือเทียบเท่าหรือชั้นต่ำปริญญาโทหรือเทียบเท่าที่มีตำแหน่งรองศาสตราจารย์หรือเทียบเท่าและมีผลงานทางวิชาการที่ไม่ใช่วส่วนหนึ่งของการศึกษาเพื่อรับปริญญาของตนเองและเป็นผลงานทางวิชาการที่ได้รับการเผยแพร่ตามหลักเกณฑ์ที่กำหนดในการพิจารณาแต่งตั้งให้บุคคลดำรงตำแหน่งทางวิชาการอย่างน้อย 3 เรื่องในรอบ 5 ปีย้อนหลังโดยอย่างน้อย 1 เรื่องต้องเป็นผลงานวิจัย กรณีมีการตกลงร่วมผลิตกับองค์กรภายนอกต้องมีอาจารย์ประจำหลักสูตรจากมหาวิทยาลัยเป็นอาจารย์ผู้รับผิดชอบอย่างน้อย 2 คน กรณีที่มีความจำเป็นอย่างยิ่งสำหรับสาขาวิชาที่ไม่สามารถสรรหาอาจารย์ผู้รับผิดชอบหลักสูตรครบตามจำนวนให้คณะเสนอจำนวนและคุณวุฒิของอาจารย์ผู้รับผิดชอบหลักสูตรที่มีนั้นให้สภาพมหาวิทยาลัยพิจารณาความเหมาะสมและส่งให้คณะกรรมการมาตรฐานการอุดมพิจารณาเป็นรายกรณี 10.1.3 อาจารย์ผู้สอนต้องเป็นอาจารย์ประจำหรืออาจหรือพิเศษที่มีคุณวุฒิขั้นต่ำปริญญาโทหรือเทียบเท่าในสาขาวิชานั้นหรือสาขาวิชาที่สัมพันธ์กันหรือในสาขาวิชาของรายวิชาที่สอนและต้องมีประสบการณ์ด้านการสอนและมีผลงานทางวิชาการที่ไม่ใช่วส่วนหนึ่งของการศึกษาเพื่อรับปริญญาของตนเองและเป็นผลงานทางวิชาการที่ได้รับการเผยแพร่ตามหลักเกณฑ์ที่กำหนดในการพิจารณาแต่งตั้งให้บุคคลดำรงตำแหน่งทางวิชาการอย่างน้อย 1 เรื่องในรอบ 5 ปีย้อนหลัง
 กรณีอาจารย์พิเศษที่ไม่มีคุณวุฒิตามที่กำหนดข้างต้นต้องเป็นผู้ทรงคุณวุฒิที่มีความรู้และประสบการณ์เป็นที่ยอมรับซึ่งตรงหรือสัมพันธ์กับรายวิชาที่สอนโดยผ่านความเห็นชอบจากสภาวิทยาลัยทั้งนี้หากรายวิชาใดมีความจำเป็นต้องใช้อาจารย์พิเศษต้องมีอาจารย์ประจำร่วมรับผิดชอบกระบวนการเรียนการสอนและพัฒนานักศึกษาตลอดระยะเวลาของการเรียนการสอนรายวิชานั้นๆ ด้วย
 10.1.4 อาจารย์ใหม่ที่มีคุณวุฒิระดับปริญญาเอกแม้ยังไม่มีผลงานทางวิชาการหลังสำเร็จการศึกษาอนุโลมให้เป็นอาจารย์ผู้สอนในระดับประกาศนียบัตรวิบัณฑิตได้แต่ทั้งนี้หากจะทำหน้าที่เป็นอาจารย์ประจำหลักสูตรและอาจารย์ผู้รับผิดชอบหลักสูตรต้องมีผลงานทางวิชาการภายหลังสำเร็จการศึกษาอย่างน้อย 1 เรื่องภายใน 2 ปีหรือ 2 เรื่องภายใน 4 ปีหรือ 3 เรื่องภายใน 5 ปี
@@ -11401,7 +11401,7 @@ Handwritten signature"
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "ด้วย 10.1.4 อาจารย์ใหม่ที่มีคุณวุฒิระดับปริญญาเอกแม้ยังไม่มีผลงานทางวิชาการหลังสำเร็จการศึกษาอนุโลมให้เป็นอาจารย์ผู้สอนในระดับประกาศนียบัตรวิบัณฑิตได้แต่ทั้งนี้หากจะทำหน้าที่เป็นอาจารย์ประจำหลักสูตรและอาจารย์ผู้รับผิดชอบหลักสูตรต้องมีผลงานทางวิชาการภายหลังสำเร็จการศึกษาอย่างน้อย 1 เรื่องภายใน 2 ปีหรือ 2 เรื่องภายใน 4 ปีหรือ 3 เรื่องภายใน 5 ปี 10.2 ประกาศนียบัตรวิบัณฑิตชั้นสูง 10.2.1 อาจารย์ประจำหลักสูตรมีคุณวุฒิปริญญาเอกหรือเทียบเท่าหรือชั้นต่ำปริญญาโทหรือเทียบเท่าที่มีตำแหน่งรองศาสตราจารย์หรือเทียบเท่าและมีผลงานทางวิชาการที่ไม่ใช่วส่วนหนึ่งของการศึกษาเพื่อรับปริญญาของตนเองและเป็นผลงานทางวิชาการที่ได้รับการเผยแพร่ตามหลักเกณฑ์ที่กำหนดในการพิจารณาแต่งตั้งให้บุคคลดำรงตำแหน่งทางวิชาการอย่างน้อย 3 เรื่องในรอบ 5 ปีย้อนหลังโดยอย่างน้อย 1 เรื่องต้องเป็นผลงานวิจัย 10.2.2 อาจารย์ผู้รับผิดชอบหลักสูตรจำนวนอย่างน้อย 3 คนมีคุณวุฒิปริญญาเอกหรือเทียบเท่าหรือชั้นต่ำปริญญาโทหรือเทียบเท่าที่มีตำแหน่งรองศาสตราจารย์หรือเทียบเท่าและมีผลงานทางวิชาการที่ไม่ใช่วส่วนหนึ่งของการศึกษาเพื่อรับปริญญาของตนเองและเป็นผลงานทางวิชาการที่ได้รับการเผยแพร่ตามหลักเกณฑ์ที่กำหนดในการพิจารณาแต่งตั้งให้บุคคลดำรงตำแหน่งทางวิชาการอย่างน้อย 3 เรื่องในรอบ 5 ปีย้อนหลังโดยอย่างน้อย 1 เรื่องต้องเป็นผลงานวิจัย (ลายเซ็น) 7/30 กรณีมีการตกลงร่วมผลิตกับองค์กรภายนอกต้องมีอาจารย์ประจำหลักสูตรจากมหาวิทยาลัยเป็นอาจารย์ผู้รับผิดชอบอย่างน้อย 2 คน กรณีที่มีความจำเป็นอย่างยิ่งสำหรับสาขาวิชาที่ไม่สามารถสรรหาอาจารย์ผู้รับผิดชอบหลักสูตรครบตามจำนวนให้คณะเสนอจำนวนและคุณวุฒิของอาจารย์ผู้รับผิดชอบหลักสูตรที่มีนั้นให้สภาพมหาวิทยาลัยพิจารณาความเหมาะสมและส่งให้คณะกรรมการมาตรฐานการอุดมพิจารณาเป็นรายกรณี 10.2.3 อาจารย์ผู้สอนต้องเป็นอาจารย์ประจำหรืออาจารย์พิเศษที่มีคุณวุฒิปริญญาเอกหรือเทียบเท่าหรือขึ้นต่ำปริญญาโทหรือเทียบเท่าที่มีตำแหน่งรองศาสตราจารย์หรือเทียบเท่าในสาขาวิชานั้นหรือสาขาวิชาที่สัมพันธ์กันหรือในสาขาวิชาของรายวิชาที่สอนและต้องมีประสบการณ์ด้านการสอนและมีผลงานทางวิชาการที่ไม่ใช่ส่วนหนึ่งของการศึกษาเพื่อรับปริญญาของตนเองและเป็นผลงานทางวิชาการที่ได้รับการเผยแพร่ตามหลักเกณฑ์ที่กำหนดในการพิจารณาแต่งตั้งให้บุคคลดำรงตำแหน่งทางวิชาการอย่างน้อย 1 เรื่องในรอบ 5 ปีย้อนหลัง กรณีอาจารย์พิเศษที่ไม่มีคุณวุฒิตามที่กำหนดข้างต้นต้องเป็นผู้ทรงคุณวุฒิที่มีความรู้และประสบการณ์เป็นที่ยอมรับซึ่งตรงหรือสัมพันธ์กับรายวิชาที่สอนโดยผ่านความเห็นชอบจากสภามหาวิทยาลัยทั้งนี้หากรายวิชาใดมีความจำเป็นต้องใช้อาจารย์พิเศษต้องมีอาจารย์ประจำร่วมรับผิดชอบกระบวนการเรียนการสอนและพัฒนานักศึกษาตลอดระยะเวลาของการเรียนการสอนรายวิชานั้นๆ ด้วย 10.2.4 อาจารย์ใหม่ที่มีคุณวุฒิระดับปริญญาเอกแม้ยังไม่มีผลงานทางวิชาการหลังสำเร็จการศึกษาอนุโลมให้เป็นอาจารย์ผู้สอนในระดับประกาศนียบัตรวิบัติได้แต่ทั้งนี้หากจะทำหน้าที่เป็นอาจารย์ประจำหลักสูตรและอาจารย์ผู้รับผิดชอบหลักสูตรต้องมีผลงานทางวิชาการภายหลังสำเร็จการศึกษาอย่างน้อย 1 เรื่องภายใน 2 ปีหรือ 2 เรื่องภายใน 4 ปีหรือ 3 เรื่องภายใน 5 ปี 10.3 ปริญญาโท
 10.3.1 อาจารย์ประจำหลักสูตรมีคุณวุฒิขั้นต่ำปริญญาโทหรือเทียบเท่าและมีผลงานทางวิชาการที่ไม่ใช่ส่วนหนึ่งของการศึกษาเพื่อรับปริญญาของตนเองโดยเป็นผลงานทางวิชาการที่ได้รับการเผยแพร่ตามหลักเกณฑ์ที่กำหนดในการพิจารณาแต่งตั้งให้บุคคลดำรงตำแหน่งทางวิชาการอย่างน้อย 3 เรื่องในรอบ 5 ปีย้อนหลังโดยอย่างน้อย 1 เรื่องต้องเป็นผลงานวิจัย
 10.3.2 อาจารย์ผู้รับผิดชอบหลักสูตรจำนวนอย่างน้อย 3 คนมีคุณวุฒิปริญญาเอกหรือเทียบเท่าหรือขึ้นต่ำปริญญาโทหรือเทียบเท่าที่มีตำแหน่งรองศาสตราจารย์หรือเทียบเท่าและมีผลงานทางวิชาการที่ไม่ใช่ส่วนหนึ่งของการศึกษาเพื่อรับปริญญาของตนเองโดยเป็นผลงานทางวิชาการที่ได้รับการเผยแพร่ตามหลักเกณฑ์ที่กำหนดในการพิจารณาแต่งตั้งให้บุคคลดำรงตำแหน่งทางวิชาการอย่างน้อย 3 เรื่องในรอบ 5 ปีย้อนหลังโดยอย่างน้อย 1 เรื่องต้องเป็นผลงานวิจัย
@@ -11451,7 +11451,7 @@ Handwritten signature"
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "ด้วย 10.2.4 อาจารย์ใหม่ที่มีคุณวุฒิระดับปริญญาเอกแม้ยังไม่มีผลงานทางวิชาการหลังสำเร็จการศึกษาอนุโลมให้เป็นอาจารย์ผู้สอนในระดับประกาศนียบัตรวิบัติได้แต่ทั้งนี้หากจะทำหน้าที่เป็นอาจารย์ประจำหลักสูตรและอาจารย์ผู้รับผิดชอบหลักสูตรต้องมีผลงานทางวิชาการภายหลังสำเร็จการศึกษาอย่างน้อย 1 เรื่องภายใน 2 ปีหรือ 2 เรื่องภายใน 4 ปีหรือ 3 เรื่องภายใน 5 ปี 10.3 ปริญญาโท 10.3.1 อาจารย์ประจำหลักสูตรมีคุณวุฒิขั้นต่ำปริญญาโทหรือเทียบเท่าและมีผลงานทางวิชาการที่ไม่ใช่ส่วนหนึ่งของการศึกษาเพื่อรับปริญญาของตนเองโดยเป็นผลงานทางวิชาการที่ได้รับการเผยแพร่ตามหลักเกณฑ์ที่กำหนดในการพิจารณาแต่งตั้งให้บุคคลดำรงตำแหน่งทางวิชาการอย่างน้อย 3 เรื่องในรอบ 5 ปีย้อนหลังโดยอย่างน้อย 1 เรื่องต้องเป็นผลงานวิจัย 10.3.2 อาจารย์ผู้รับผิดชอบหลักสูตรจำนวนอย่างน้อย 3 คนมีคุณวุฒิปริญญาเอกหรือเทียบเท่าหรือขึ้นต่ำปริญญาโทหรือเทียบเท่าที่มีตำแหน่งรองศาสตราจารย์หรือเทียบเท่าและมีผลงานทางวิชาการที่ไม่ใช่ส่วนหนึ่งของการศึกษาเพื่อรับปริญญาของตนเองโดยเป็นผลงานทางวิชาการที่ได้รับการเผยแพร่ตามหลักเกณฑ์ที่กำหนดในการพิจารณาแต่งตั้งให้บุคคลดำรงตำแหน่งทางวิชาการอย่างน้อย 3 เรื่องในรอบ 5 ปีย้อนหลังโดยอย่างน้อย 1 เรื่องต้องเป็นผลงานวิจัย กรณีมีการตกลงร่วมผลิตกับองค์กรภายนอกต้องมีอาจารย์ประจำหลักสูตรจากมหาวิทยาลัยเป็นอาจารย์ผู้รับผิดชอบอย่างน้อย 2 คน กรณีที่มีความจำเป็นอย่างยิ่งสำหรับสาขาวิชาที่ไม่สามารถสรรหาอาจารย์ผู้รับผิดชอบหลักสูตรครบตามจำนวนให้คณะเสนอจำนวนและคุณวุฒิของอาจารย์ผู้รับผิดชอบหลักสูตรที่มีนั้นให้สภาพมหาวิทยาลัยพิจารณาความเหมาะสมและส่งให้คณะกรรมการการอุดมศึกษาพิจารณาเป็นรายกรณี 10.3.3 อาจารย์ที่ปรึกษาวิทยานิพนธ์และอาจารย์ที่ปรึกษาการค้นคว้าอิสระแบ่งออกเป็น 2 ประเภทคือ (ลายเซ็น) 8/30 1) อาจารย์ที่ปรึกษาหลักต้องเป็นอาจารย์ประจำหลักสูตรมีคุณวุฒิปริญญาเอกหรือเทียบเท่าหรือขั้นต่ำปริญญาโทหรือเทียบเท่าที่มีตำแหน่งรองศาสตราจารย์หรือเทียบเท่าและมีผลงานทางวิชาการที่ไม่ใช่อ่านหนึ่งของการศึกษาเพื่อรับปริญญาขอตนเองโดยเป็นผลงานทางวิชาการที่ได้รับการเผยแพร่ตามหลักเกณฑ์ที่กำหนดในการพิจารณาแต่งตั้งให้บุคคลดำรงตำแหน่งทางวิชาการอย่างน้อย 3 เรื่องในรอบ 5 ปีย้อนหลังโดยอย่างน้อย 1 เรื่องต้องเป็นผลงานวิจัย 2) อาจารย์ที่ปรึกษาร่วม (ถ้ามี) ต้องมีคุณวุฒิและคุณสมบัติดังนี้ * อาจารย์ที่ปรึกษาร่วมที่เป็นอาจารย์ประจำหลักสูตรหรืออาจารย์ประจำหรือนักวิจัยประจำต้องมีคุณวุฒิและผลงานทางวิชาการเช่นเดียวกับอาจารย์ที่ปรึกษาหลัก * สำหรับอาจารย์ที่ปรึกษาร่วมที่เป็นผู้ทรงคุณวุฒิภายนอกมหาวิทยาลัยต้องมีคุณวุฒิปริญญาเอกหรือเทียบเท่าและมีผลงานทางวิชาการที่ได้รับการตีพิมพ์เผยแพร่ในวารสารที่มีชื่ออยู่ในฐานะข้อมูลที่เป็นที่ยอมรับซึ่งตรงหรือสัมพันธ์กับหัวข้อวิทยานิพนธ์ไม่น้อยกว่า 5 เรื่อง * กรณีผู้ทรงคุณวุฒิภายนอกที่ไม่มีคุณวุฒิและผลงานทางวิชาการตามที่กำหนดข้างต้นผู้ทรงคุณวุฒิภายนอกจะต้องเป็นผู้มีความรู้ความสามารถเชี่ยวชาญและประสบการณ์สูงเป็นที่ยอมรับซึ่งตรงหรือสัมพันธ์กับหัวข้อวิทยานิพนธ์หรือการค้นคว้าอิสระโดยผ่านความเห็นชอบจากสาขาวิทยาลัย * การทำหน้าที่ของอาจารย์ที่ปรึกษาวิทยานิพนธ์อาจารย์ที่ปรึกษาการค้นคว้าอิสระหลักและร่วมให้ปฏิบัติตามคู่มือแนวปฏิบัติการกำกับดูแลนักศึกษาอย่างรับผิดชอบ 10.3.4 คณะกรรมการวิทยานิพนธ์และการค้นคว้าอิสระมีหน้าที่ให้คำปรึกษาประเมินความก้าวหน้าวิทยานิพนธ์และการค้นคว้าอิสระของนักศึกษาทั้งนี้คณะกรรมการวิทยานิพนธ์และความกรรมการการค้นคว้าอิสระต้องได้รับการแต่งตั้งจากคณะกรรมการประจำคณะประกอบด้วย 1) อาจารย์ที่ปรึกษาหลัก 2) อาจารย์ที่ปรึกษาร่วม (ถ้ามี) 3) อาจารย์ประจำหรือนักวิจัยประจำที่มีความเชี่ยวชาญสัมพันธ์กับหัวข้องานวิจัยของนักศึกษา 4) ผู้ทรงคุณวุฒิภายนอกมหาวิทยาลัย (ถ้ามี) ทั้งนี้จำนวนคณะกรรมการในข้อ 3) และข้อ 4) รวมแล้วต้องไม่น้อยกว่าจำนวนอาจารย์ที่ปรึกษาหลักและอาจารย์ที่ปรึกษาร่วมและสำหรับคณะกรรมการตามข้อ 3) เมื่อต้องทำหน้าที่เป็นอาจารย์ผู้สอบวิทยานิพนธ์หรืออาจารย์ผู้สอบการค้นคว้าอิสระต้องมีคุณวุฒิและผลงานทางวิชาการตามข้อ 10.3.5
 คณะกรรมการวิทยานิพนธ์และการค้นคว้าอิสระตามข้อ 1) - 2) ต้องผ่านการอบรมจริยธรรมการวิจัยตามประกาศมหาวิทยาลัยฯเรื่องนโยบายจริยธรรมการวิจัย (Research Integrity) การผ่านการอบรมดังกล่าวต้องมีผลสมบูรณ์ตามหลักเกณฑ์และระยะเวลาที่มหาวิทยาลัยกำหนด
 10.3.5 อาจารย์ผู้สอบวิทยานิพนธ์และอาจารย์ผู้สอบการค้นคว้าอิสระมีหน้าที่พิจารณาความสามารถของนักศึกษาในการทำวิจัยความรอบรู้ในเนื้อหาเกี่ยวกับเรื่องที่ทำวิจัยความสามารถในการนำเสนอผลงานทั้งด้านการพูดและการเขียนตลอดจนปฏิภาณไหวพริบในการตอบคำถามประกอบด้วยอาจารย์ประจำหลักสูตรและผู้ทรงคุณวุฒิภายนอกมหาวิทยาลัยโดยอาจมีอาจารย์ประจำหรือนักวิจัยประจำเป็นผู้สอบด้วยรวมไม่น้อยกว่า 3 คนทั้งนี้ประธานกรรมการสอบต้องไม่เป็นอาจารย์ที่ปรึกษาวิทยานิพนธ์หรืออาจารย์ที่ปรึกษาการค้นคว้าอิสระหรืออาจารย์ที่ปรึกษาวิทยานิพนธ์ร่วมหรืออาจารย์ที่ปรึกษาการค้นคว้าอิสระร่วมทั้งนี้อาจารย์ผู้สอบวิทยานิพนธ์และอาจารย์ผู้สอบการค้นคว้าอิสระต้องได้รับการแต่งตั้งจากคณะกรรมการประจำคณะโดยต้องมีคุณวุฒิคุณสมบัติและผลงานทางวิชาการดังนี้
@@ -11500,7 +11500,7 @@ Handwritten signature"
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "กรณีอาจารย์พิเศษที่ไม่มีคุณวุฒิตามที่กำหนดข้างต้นต้องเป็นผู้ทรงคุณวุฒิที่มีความรู้และประสบการณ์เป็นที่ยอมรับซึ่งตรงหรือสัมพันธ์กับรายวิชาที่สอนโดยผ่านความเห็นชอบจากสภามหาวิทยาลัยทั้งนี้หากรายวิชาใดมีความจำเป็นต้องใช้อาจารย์พิเศษต้องมีอาจารย์ประจำร่วมรับผิดชอบกระบวนการเรียนการสอนและพัฒนานักศึกษาตลอดระยะเวลาของการเรียนการสอนรายวิชานั้นๆ ด้วย
 10/30
 Scribbled signature
@@ -11544,7 +11544,7 @@ Scribbled signature
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "11/30
 # 10.4.4 คณะกรรมการวิทยานิพนธ์มีหน้าที่ให้คำปรึกษาประเมินความก้าวหน้าวิทยานิพนธ์
 ## ประกอบด้วย
@@ -11616,7 +11616,7 @@ Scribbled signature
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "10.4.7 อาจารย์ใหม่ที่มีคุณวุฒิระดับปริญญาเอกแม้ยังไม่มีผลงานทางวิชาการหลังสำเร็จการศึกษาอนุโลมให้เป็นอาจารย์ผู้สอนในระดับปริญญาเอกได้แต่ทั้งนี้หากจะทำหน้าที่เป็นอาจารย์ประจำหลักสูตรและอาจารย์ผู้รับผิดชอบหลักสูตรต้องมีผลงานทางวิชาการภายหลังสำเร็จการศึกษาอย่างน้อย 1 เรื่องภายใน 2 ปีหรือ 2 เรื่องภายใน 4 ปีหรือ 3 เรื่องภายใน 5 ปี
 ข้อ 11 ภาระงานที่ปรึกษาวิทยานิพนธ์และการค้นคว้าอิสระ
 11.1 อาจารย์ประจำหลักสูตร 1 คนให้เป็นอาจารย์ที่ปรึกษาวิทยานิพนธ์หลักของนักศึกษาระดับปริญญาโทและปริญญาเอกตามหลักเกณฑ์ดังนี้
@@ -11662,7 +11662,7 @@ Scribbled signature
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "12.4 หลักสูตรปริญญาเอกผู้สมัครต้องเป็นผู้สำเร็จการศึกษาระดับปริญญาตรีหรือเทียบเท่าที่อย่างน้อยได้รับเกียรตินิยมอันดับสองหรือมีผลการเรียนดีมากโดยมีระดับคะแนนเฉลี่ยสะสมไม่น้อยกว่า 3.25 หรือเทียบเท่าหรือเป็นผู้สำเร็จการศึกษาระดับปริญญาโทหรือเทียบเท่าในสถาบันอุดมศึกษาที่สำนักงานคณะกรรมการข้าราชการพลเรือน (ก.พ.) รับรองโดยผู้สมัครหลักสูตรปริญญาเอกต้องมีผลสอบภาษาอังกฤษตามเกณฑ์ที่มหาวิทยาลัยกำหนดและอาจมีคุณสมบัติอื่นๆ เพิ่มเติมตามที่หลักสูตรกำหนด
 **ข้อ 13 การรับเข้าศึกษา**
 13.1 คณะพิจารณาความเหมาะสมของผู้สมัครโดยการสอบข้อเขียนหรือสอบสัมภาษณ์หรือวิธีการอื่นใดที่ผู้รับผิดชอบหลักสูตรอนุมัติและแจ้งไปยังคณะและมหาวิทยาลัยรับทราบ
@@ -11713,7 +11713,7 @@ Scribbled signature
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "15.3 ปริญญาเอกให้ใช้เวลาในการศึกษาไม่เกิน 8 ปีการศึกษาสำหรับผู้สำเร็จการศึกษาระดับปริญญาตรีแล้วเข้าศึกษาต่อปริญญาเอกและไม่เกิน 6 ปีการศึกษาสำหรับผู้ที่สำเร็จการศึกษาระดับปริญญาโทแล้วเข้าศึกษาต่อปริญญาเอก
 15.4 กรณีนักศึกษาใช้เวลาในการศึกษาเกินระยะเวลาที่กำหนดให้นักศึกษายื่นเรื่องขอขยายระยะเวลาการศึกษาอย่างน้อย 2 เดือนก่อนเปิดภาคการศึกษาเพื่อให้คณะกรรมการประจำคณะพิจารณาเป็นรายกรณีคราวละ 1 ภาคการศึกษาหลังจากนั้นให้คณะเสนอรายชื่อนักศึกษาที่ขอขยายระยะเวลาการศึกษาเพื่อขอความเห็นชอบจากสภาวิชาการและขออนุมัติการขยายระยะเวลาการศึกษาจากสภาพมหาวิทยาลัย
 หมวด 5 การขึ้นทะเบียนเป็นนักศึกษาและลงทะเบียนเรียน
@@ -11760,7 +11760,7 @@ Scribbled signature
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "17.2.5 กรณีที่มีความจำเป็นนักศึกษาที่ไม่สามารถชำระค่าบำรุงการศึกษาและค่าธรรมเนียมการศึกษาได้ทั้งหมดหรือบางส่วนให้ดำเนินการยื่นคำร้องขอผ่อนผันการชำระค่าบำรุงการศึกษาและค่าธรรมเนียมการศึกษาผ่านกลุ่มงานช่วยเหลือทางการเงินแก่นักศึกษาและอนุมัติโดยอธิการบดีก่อนสิ้นระยะเวลาที่มหาวิทยาลัยกำหนด
 สำหรับนักศึกษาที่อยู่ระหว่างรอรับเงินทุนทั้งภายในและภายนอกมหาวิทยาลัยให้ยื่นคำร้องขอผ่อนผันค่าบำรุงการศึกษาและค่าธรรมเนียมการศึกษาได้จนกว่าจะได้รับเงินทุนโดยนักศึกษาจะต้องยื่นเอกสารหลักฐานที่เกี่ยวข้องกับการได้รับทุนเพื่อประกอบในการขอผ่อนผัน
 ในกรณีที่นักศึกษาไม่ได้รับทุนหรือได้รับทุนไม่ครบถ้วนเพียงพอต่อค่าบำรุงการศึกษาและค่าธรรมเนียมการศึกษาทุกประเภทนักศึกษาต้องยื่นคำร้องขอผ่อนผันโดยจะต้องชำระให้ครบถ้วนก่อนวันที่ประกาศผลสอบหรือผลลัพธ์การเรียนรู้ในแต่ละรายวิชาหากมีกรณีจำเป็นยังไม่สามารถชำระได้ครบถ้วนตามกำหนดเวลาดังกล่าวให้นักศึกษายื่นเรื่องเพื่อทำสัญญาผ่อนผันกับมหาวิทยาลัยทั้งนี้การทำสัญญาผ่อนผันดังกล่าวต้องให้ชำระครบถ้วนก่อนนักศึกษาจะสำเร็จการศึกษา
@@ -11807,7 +11807,7 @@ Scribbled signature
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "ที่ได้รับความเห็นชอบจากอาจารย์ที่ปรึกษาและอาจารย์ผู้รับผิดชอบหลักสูตร 17.3.2.2 รายวิชาที่สถาบันอื่นเปิดสอนต้องมีเนื้อหาหรือผลลัพธ์การเรียนรู้ที่เทียบเคียงกันได้ไม่น้อยกว่า 3 ใน 4 กับรายวิชาในหลักสูตรโดยได้รับความเห็นชอบจากอาจารย์ที่ปรึกษาและอาจารย์ผู้รับผิดชอบหลักสูตร 17.3.3 ภาษาที่ใช้ในการเรียนการสอนมีหลักเกณฑ์ดังนี้ 17.3.3.1 นักศึกษาหลักสูตรภาษาไทยสามารถลงทะเบียนเรียนหลักสูตรภาษาอังกฤษหรือหลักสูตรนานาชาติหรือหลักสูตรวิภาชาได้ 17.3.3.2 นักศึกษาหลักสูตรภาษาอังกฤษหรือหลักสูตรนานาชาติต้องลงทะเบียนเรียนในหลักสูตรภาษาอังกฤษหรือหลักสูตรนานาชาติหรือหลักสูตรทวิภาษาเฉพาะในรายวิชาที่สอนเป็นภาษาต่างประเทศกรณีที่นักศึกษามีความจำเป็นที่จะต้องลงทะเบียนเรียนในหลักสูตรภาษาไทยสามารถทำเรื่องขออนุมัติเป็นกรณีพิเศษโดยผ่านความเห็นชอบจากอาจารย์ที่ปรึกษาและอาจารย์ผู้รับผิดชอบหลักสูตร 17.3.3.3 นักศึกษาหลักสูตรวิภาษาสามารถลงทะเบียนเรียนหลักสูตรภาษาอังกฤษหรือหลักสูตรนานาชาติหรือหลักสูตรภาษาไทยได้ 17.3.4 ให้นำหน่วยกิตและผลการศึกษาของรายวิชาที่นักศึกษาลงทะเบียนเรียนข้ามสถาบันไปเป็นส่วนหนึ่งของการประมวลผลการศึกษาตามหลักสูตรที่นักศึกษาศึกษาอยู่โดยต้องได้รับอนุมัติให้เทียบโอนรายวิชาจากคณะกรรมการประจำคณะ
 **ข้อ 18 การลงทะเบียนเรียนล่าช้าการขอเพิ่มขอลดและขอถอนรายวิชา**
 18.1 การลงทะเบียนค่าปรับลงทะเบียนล่าช้าตามอัตราที่มหาวิทยาลัยกำหนด
@@ -11870,7 +11870,7 @@ Scribbled signature
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "กรณีตามวรรคหนึ่งเมื่ออธิการบดีอนุมัติให้นักศึกษากลับคืนสภาพการเป็นนักศึกษาให้นักศึกษาใช้รหัสนักศึกษาเดิมและให้ถือว่าวะหว่างตั้งแต่พ้นสภาพการเป็นนักศึกษาจนถึงวันที่ได้รับอนุมัติให้กลับเข้าเป็นนักศึกษาเป็นระยะเวลาการศึกษาและให้นับเวลาที่ลาพักการศึกษาอยู่ในระยะเวลาการศึกษาด้วยเว้นแต่จะได้รับการพิจารณาอนุญาตเป็นรายกรณีโดยสภามหาวิทยาลัยทั้งนี้ระยะเวลาในการศึกษารวมต้องไม่เกินที่กำหนดไว้ในข้อ 15
 หลักเกณฑ์และวิธีการดำเนินการเกี่ยวกับการกลับคืนสภาพการเป็นนักศึกษาให้เป็นไปตามที่มหาวิทยาลัยกำหนด
 <page_number>18/30</page_number>
@@ -11923,7 +11923,7 @@ Scribbled signature
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "กระทำได้ในกรณีดังต่อไปนี้ * 23.5.1 รายวิชาที่นักศึกษาขอเข้าร่วมศึกษาโดยไม่นับหน่วยกิต * 23.5.2 นักศึกษาที่ได้รับผลการศึกษา Audit (Aud.) ในรายวิชาใดจะขอเปลี่ยนผลการศึกษาเป็นเกรดไม่ได้และจะนำรายวิชานั้นเป็นวิชาบังคับก่อน (Prerequisite) ของรายวิชาต่อเนื่องไม่ได้ 23.6 การให้ W กระทำได้ในกรณีดังต่อไปนี้ * 23.6.1 รายวิชาที่นักศึกษาได้รับอนุญาตให้ถอนการศึกษาตามข้อ 18.4 * 23.6.2 นักศึกษาได้รับอนุญาตให้ลาพักการศึกษา * 23.6.3 นักศึกษาถูกสั่งพักการศึกษา <page_number>19/30</page_number> ลายเซ็น 23.7 ให้นักศึกษาประเมินการสอนของอาจารย์ผู้สอนตามช่วงเวลาที่มหาวิทยาลัยกำหนดอย่างครบถ้วนทุกรายวิชาและทุกอาจารย์ผู้สอนเพื่อรักษาสิทธิ์ในการเข้าถึงผลการเรียน **ข้อ 24 การนับจำนวนหน่วยกิต**
 การนับจำนวนหน่วยกิตสะสมของนักศึกษาเพื่อให้ครบตามที่หลักสูตรกำหนดให้นับเฉพาะจำนวนหน่วยกิตที่กำหนดในหลักสูตรที่มีผลการเรียน S หรือมีผลการเรียน B ขึ้นไปในกรณีที่นักศึกษาลงทะเบียนเรียนรายวิชาใดมากกว่าหนึ่งครั้งให้นับเฉพาะจำนวนหน่วยกิตครั้งที่ดีที่สุดที่ประเมินผลว่าสอบได้และนำไปคิดเป็นหน่วยกิตสะสมเพียงครั้งเดียวทั้งนี้ให้บันทึกผลคะแนนเต็มลงในใบรายงานผลการศึกษาในภาคการศึกษาที่ได้ลงทะเบียนนั้นด้วย
 **ข้อ 25 การคำนวณแต้มระดับคะแนนเฉลี่ยและการอนุมัติผลการศึกษา**
@@ -11974,7 +11974,7 @@ Scribbled signature
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "ทั้งนี้ให้มีทศนิยมสองตำแหน่งโดยปัดเศษจากตำแหน่งที่สาม **25.1.2 แต้มระดับคะแนนเฉลี่ยสะสม** ให้คำนวณจากผลการศึกษาของนักศึกษาตั้งแต่เริ่มเข้าศึกษาในมหาวิทยาลัยจนถึงการประเมินผลครั้งสุดท้ายโดยนำผลรวมของผลคูณของหน่วยกิตกับแต้มของผลการศึกษาแต่ละรายวิชาเป็นตัวตั้งหารด้วยจำนวนหน่วยกิตรวมของรายวิชาทั้งหมดที่ศึกษาและมีผลการศึกษาเป็นแต้มตามข้อ 23.1 ทั้งนี้ให้มีทศนิยมสองตำแหน่งโดยปัดเศษจากตำแหน่งที่สามในกรณีที่นักศึกษาลงทะเบียนเรียนรายวิชาใดมากกว่าหนึ่งครั้งการคำนวณแต้มระดับคะแนนเฉลี่ยสะสมให้นำผลการเรียนและหน่วยกิตของครั้งที่ดีที่สุดเพียงครั้งเดียวมาใช้ในการคำนวณ **25.2 ให้ผู้รับผิดชอบหลักสูตรและคณะกรรมการประจำคณะพิจารณาการวัดผลและประเมินผลการศึกษา** ในกรณีที่มีปัญหาให้คณะกรรมการประจำคณะมีอำนาจวินิจฉัยชี้ขาดและให้คณบดีหรือผู้อำนวยการเป็นผู้อนุมัติผลการศึกษาทุกภาคการศึกษา **ข้อ 26 การย้ายหลักสูตร** **26.1 การขอย้ายหลักสูตร** จะกระทำได้ในกรณีมีเหตุผลอันสมควรและนักศึกษาได้เข้าศึกษาในหลักสูตรเดิมมาแล้วไม่น้อยกว่า 1 ภาคการศึกษา **26.2 นักศึกษาสามัญอาจขอย้ายหลักสูตร** ในขณะเดียวกันโดยได้รับความเห็นชอบจากอาจารย์ผู้รับผิดชอบหลักสูตรของทั้ง 2 หลักสูตรและได้รับอนุมัติจากคณะกรรมการประจำคณะ **26.3 นักศึกษาสามัญอาจขอย้ายหลักสูตรซึ่งอยู่ต่างคณะหรือต่างภาควิชา** โดยได้รับความเห็นชอบจากอาจารย์ผู้รับผิดชอบหลักสูตรทั้ง 2 หลักสูตรและได้รับอนุมัติจากคณะกรรมการประจำคณะโดยแจ้งคณะของหน่วยงานที่เข้าศึกษาเดิมกับหน่วยงานใหม่ที่จะย้ายไปรับทราบ **26.4 การเทียบโอนรายวิชาในหลักสูตรที่ย้ายไปให้เป็นไปตามข้อ 27** **ข้อ 27 การเปลี่ยนระดับการศึกษา** **27.1 การเปลี่ยนระดับการศึกษา** เป็นการเปลี่ยนไปสู่ระดับที่สูงขึ้นกว่าเดิมหรือกลับกันได้ในสาขาวิชาเดียวกันโดยได้รับความเห็นชอบจากอาจารย์ที่ปรึกษาอาจารย์ผู้รับผิดชอบหลักสูตรและได้รับอนุมัติจากคณะกรรมการประจำคณะ **27.2 การเทียบโอนรายวิชาในหลักสูตรของระดับการศึกษาใหม่** ให้เป็นไปตามข้อ 28 <page_number>20/30</page_number> ลายเซ็น ข้อ 28 การเทียบโอนรายวิชา **28.1 สำหรับนักศึกษาที่เคยศึกษารายวิชาหรือกลุ่มวิชาในสถาบันอื่นในประเทศหรือต่างประเทศ** * **28.1.1 เป็นรายวิชาหรือกลุ่มวิชาในหลักสูตรระดับบัณฑิตศึกษาหรือเทียบเท่าที่สำนักงานปลัดกระทรวงการอุดมศึกษาวิทยาศาสตร์วิจัยและนวัตกรรม (สป.อว.) หรือหน่วยงานของรัฐที่มีอำนาจตามกฎหมายรับรองหรือสถาบันในต่างประเทศที่ได้รับอนุญาตจากคณะกรรมการประจำคณะโดยความเห็นชอบของอาจารย์ผู้รับผิดชอบหลักสูตร** * **28.1.2 เป็นรายวิชาหรือกลุ่มวิชาที่มีเนื้อหาสาระครอบคลุมไม่น้อยกว่าสามในสี่ของรายวิชาหรือกลุ่มรายวิชาที่ขอเทียบโอน**
 * **28.1.3 เป็นรายวิชาหรือกลุ่มวิชาที่มีผลการศึกษาไม่ต่ำกว่า B หรือแต้มระดับคะแนน 3.00 หรือเทียบเท่าหรือได้ระดับ S**
 * **28.1.4 นักศึกษาไม่สามารถเทียบโอนหน่วยกิตวิทยานิพนธ์หรือการค้นคว้าอิสระได้โดยนักศึกษาต้องลงทะเบียนใหม่ตามหลักสูตร**
@@ -12021,7 +12021,7 @@ Scribbled signature
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "ได้โดยผ่านความเห็นชอบของอาจารย์ผู้รับผิดชอบหลักสูตรและได้รับอนุมัติจากคณะกรรมการประจำคณะและมีหลักเกณฑ์ดังต่อไปนี้** * **28.2.4.1 สามารถนำรายวิชามาเทียบได้ไม่จำกัดหน่วยกิตที่โอนหรือขอเทียบโอนโดยให้บันทึกผลการศึกษารหัสวิชาและชื่อวิชาตามหลักสูตรที่ใช้กับรุ่นที่เข้าศึกษาโดยต้องมีผลการศึกษาในระดับคะแนนไม่ต่ำกว่า B หรือแต้มระดับคะแนนเฉลี่ย 3.00 หรือเทียบเท่าหรือได้ระดับ S หรือได้รับการประเมินแล้วว่ามีผลลัพธ์การเรียนรู้และศักยภาพเพียงพอที่จะผ่านรายวิชาที่จะขอเทียบทั้งนี้รายวิชาที่เทียบโอนจะไม่นำหน่วยกิตมาคำนวณแต้มระดับคะแนนเฉลี่ยแต่ให้นับหน่วยกิตเพื่อการสำเร็จการศึกษาและในกรณีที่มีรายวิชาใหม่ซึ่งเป็นวิชาบังคับนักศึกษาต้องลงทะเบียนเรียนเพิ่มเติม** <page_number>21/30</page_number> ลายเซ็น 28.2.4.2 การเทียบโอนหน่วยกิตรายวิชาวิทยานิพนธ์หรือการค้นคว้าอิสระหากไม่มีการเปลี่ยนแปลงหัวข้อวิทยานิพนธ์สามารถนำหน่วยกิตวิทยานิพนธ์ที่ประเมินว่าผ่านแล้วโอนมาเป็นรายวิชาและหน่วยกิตในหลักสูตรได้โดยไม่ต้องสอบวัดคุณสมบัติ (Qualifying Examination) และไม่ต้องสอบโครงร่างวิทยานิพนธ์ (Proposal) ใหม่ทั้งนี้นักศึกษาสามารถเทียบโอนได้ไม่เกินร้อยละ 90 ของหน่วยกิตที่ได้รับการประเมินผ่านแล้วโดยต้องได้รับอนุมัติจากคณะกรรมการประจำคณะตามความเห็นชอบของอาจารย์ผู้รับผิดชอบหลักสูตร สามารถโอนผลงานทางวิชาการที่เคยได้รับการตีพิมพ์หรือนำเสนอในการประชุมวิชาการโดยผ่านความเห็นชอบจากอาจารย์ที่ปรึกษาอาจารย์ผู้รับผิดชอบหลักสูตรและได้รับการอนุมัติจากคณะกรรมการประจำคณะ
 28.2.4.3 หากมีการเปลี่ยนแปลงหัวข้อวิทยานิพนธ์นักศึกษาไม่สามารถนำหน่วยกิตวิทยานิพนธ์มาเทียบโอนได้ต้องสอบโครงร่างวิทยานิพนธ์ใหม่แต่ไม่ต้องสอบวัดคุณสมบัติ (Qualifying Examination) โดยได้รับการพิจารณาเห็นชอบจากอาจารย์ผู้รับผิดชอบหลักสูตรและได้รับการอนุมัติจากคณะกรรมการประจำคณะ
 28.3 สำหรับนักศึกษาที่เคยศึกษาแบบบุคคลภายนอกของมหาวิทยาลัย
@@ -12074,7 +12074,7 @@ Scribbled signature
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "ไป 28.5 นักศึกษาที่ประสงค์จะขอเทียบโอนรายวิชาต้องยื่นคำร้องพร้อมใบรายงานผลการศึกษาและคำอธิบายรายวิชาที่ขอเทียบโอนต่อผู้รับผิดชอบหลักสูตรภายใน 1 เดือนนับจากวันเปิดภาคการศึกษาตามประกาศของมหาวิทยาลัยทั้งนี้ต้องได้รับความเห็นชอบจากอาจารย์ผู้รับผิดชอบหลักสูตรและได้รับอนุมัติจากคณะกรรมการประจำคณะ **ข้อ 29 การเทียบโอนความรู้ทักษะและประสบการณ์และการให้หน่วยกิตจากการศึกษานอกระบบและการศึกษานอกระบบ** 29.1 คณะกรรมการการเทียบโอนความรู้ทักษะและประสบการณ์และการให้หน่วยกิตจากการศึกษานอกระบบและการศึกษาตามอัธยาศัย ให้มีคณะกรรมการเทียบโอนความรู้ทักษะและประสบการณ์อย่างน้อย 3 คนแต่ไม่เกิน 5 คนซึ่งประกอบด้วยอาจารย์ผู้รับผิดชอบรายวิชาที่ขอเทียบโอนและกรรมการท่านอื่นซึ่งเป็นผู้มีความรู้ความเชี่ยวชาญในสาขาที่เกี่ยวข้องที่ได้รับการแต่งตั้งจากคณะกรรมการประจำคณะของรายวิชาหรือกลุ่มวิชาที่รับเทียบโอนความรู้ทักษะและประสบการณ์ (ลายเซ็น) <page_number>22/30</page_number> ให้คณะกรรมการเทียบโอนความรู้มีอำนาจและหน้าที่ดังนี้ (1) กำหนดเกณฑ์การประเมินความรู้ทักษะและประสบการณ์และการให้หน่วยกิตจากการศึกษานอกระบบหรือการศึกษาตามอัธยาศัยของแต่ละรายวิชาหรือกลุ่มรายวิชาด้วยวิธีการที่หลากหลายเพื่อให้สอดคล้องกับผลลัพธ์การเรียนรู้ของรายวิชาที่เทียบโอน (2) ดำเนินการประเมินความรู้ทักษะและประสบการณ์และการให้หน่วยกิตจากการศึกษานอกระบบและการศึกษาตามอัธยาศัยของแต่ละรายวิชาหรือกลุ่มรายวิชา (3) แจ้งผลการประเมินไปยังนักศึกษาสำนักงานทะเบียนนักศึกษาอาจารย์ผู้รับผิดชอบหลักสูตรของนักศึกษาคณะกรรมการประจำคณะที่นักศึกษาสังกัดและหน่วยงานอื่นที่เกี่ยวข้อง 29.2 คุณสมบัติของผู้มีสิทธิ์ขอเทียบโอนความรู้ทักษะและประสบการณ์ต้องมีคุณสมบัติดังนี้ 29.2.1 ผู้ขอเทียบโอนความรู้ทักษะและประสบการณ์ต้องเป็นนักศึกษาของมหาวิทยาลัย 29.2.2 การเทียบโอนความรู้ทักษะและประสบการณ์ให้เป็นไปตามที่มหาวิทยาลัยประกาศแนวปฏิบัติและปฏิทินการดำเนินการในแต่ละปีการศึกษา 29.3 หลักเกณฑ์การเทียบโอนความรู้ทักษะและประสบการณ์การวัดผลและการประเมินผล (1) การเทียบความรู้จะเทียบเป็นรายวิชาหรือกลุ่มรายวิชาตามหลักสูตรและระดับการศึกษาที่เปิดสอนในมหาวิทยาลัย
 (2) วิธีการประเมินเพื่อการเทียบความรู้ในแต่ละรายวิชาหรือกลุ่มรายวิชาและเกณฑ์การตัดสินของการประเมินในแต่ละวิธีให้เป็นไปตามที่คณะกรรมการเทียบโอนความรู้กำหนด
 (3) นักศึกษาจะต้องผ่านการประเมินและผลการประเมินจะต้องแสดงให้เห็นว่ามีผลลัพธ์การเรียนรู้และศักยภาพเพียงพอที่จะผ่านรายวิชาที่ขอเทียบสามารถศึกษารายวิชาชั้นสูงต่อไปจึงจะได้จำนวนหน่วยกิตของรายวิชาหรือกลุ่มรายวิชานั้นโดยคิดคะแนนเป็น S/U และไม่นำมาคำนวณผลการเรียนหรือแต้มระดับคะแนนเฉลี่ยสะสม
@@ -12123,7 +12123,7 @@ Scribbled signature
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "31.1.3 นักศึกษาสามารถแบ่งจำนวนหน่วยกิตในการลงทะเบียนทำวิทยานิพนธ์และการค้นคว้าอิสระได้ตามความเห็นชอบของอาจารย์ที่ปรึกษาวิทยานิพนธ์และอาจารย์ที่ปรึกษาการค้นคว้าอิสระ
 31.2 การเสนอโครงร่างวิทยานิพนธ์และโครงร่างการค้นคว้าอิสระ
 31.2.1 เมื่อนักศึกษาลงทะเบียนทำวิทยานิพนธ์หรือการค้นคว้าอิสระแล้วนักศึกษาต้องจัดทำโครงร่างวิทยานิพนธ์หรือโครงร่างการค้นคว้าอิสระแก่ใบแจ้งนำเสนอด้านอาจารย์ผู้รับผิดชอบหลักสูตรเพื่อขอความเห็นชอบ
@@ -12168,7 +12168,7 @@ Scribbled signature
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "32.1 นักศึกษามีสิทธิ์ขอสอบวิทยานิพนธ์และสอบการค้นคว่าวิจัยได้เมื่อคณะกรรมการวิทยานิพนธ์หรือคณะกรรมการการค้นคว่าวิจัยมอบหมายโดยเสนอรายชื่อคณะกรรมการสอบวิทยานิพนธ์หรือคณะกรรมการการค้นคว่าวิจัยพร้อมกำหนดวันสอบไปยังอาจารย์ผู้รับผิดชอบหลักสูตรเพื่อให้ความเห็นชอบและคณะกรรมการประจำคณะเพื่อพิจารณาอนุมัติและแต่งตั้ง
 32.2 นักศึกษาจะต้องส่งร่างวิทยานิพนธ์หรือร่างการค้นคว่าวิจัยให้คณะกรรมการสอบวิทยานิพนธ์หรือคณะกรรมการสอบการค้นคว่าวิจัยทราบไว้ภายในวันสอบหากพบว่าเอกสารไม่ครบถ้วนคณะกรรมการสอบวิทยานิพนธ์หรือคณะกรรมการสอบการค้นคว่าวิจัยจะแจ้งให้แก่นักศึกษาทราบภายใน 5 วันนับแต่วันที่ได้รับร่างวิทยานิพนธ์หรือร่างการค้นคว่าวิจัยส่วนการค้นคว่าวิจัยที่ไม่ได้ดำเนินการแล้วนักศึกษาสามารถยกเว้นการสอบได้หากได้รับอนุมัติจากประธานาธิบดีมหาวิทยาลัย
 32.3 คณะกรรมการสอบวิทยานิพนธ์และคณะกรรมการสอบการค้นคว่าวิจัยจะเป็นผู้รับผิดชอบในการสอบกรณีที่ผลสอบเป็นที่พอใจให้ผลการศึกษาผ่าน (S) และกรณีที่ผลสอบไม่เป็นที่พอใจให้ทำการสอบเก็บตัวอย่างสารสนเทศเพื่อดำเนินการตรวจสอบ
@@ -12216,7 +12216,7 @@ Scribbled signature
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "(ค) ผลงานวิทยานิพนธ์หรือส่วนหนึ่งของวิทยานิพนธ์ต้องได้รับการตีพิมพ์เผยแพร่หรืออย่างน้อยได้รับการยอมรับให้ตีพิมพ์ในรูปแบบบทความหรือนวัตกรรมหรือสิ่งประดิษฐ์หรือผลงานทางวิชาการอื่นซึ่งสามารถสืบค้นได้ตามที่มหาวิทยาลัยกำหนดจำนวน 1 เรื่องหรือผลงานวิทยานิพนธ์หรือส่วนหนึ่งของวิทยานิพนธ์ได้รับการเผยแพร่ตามเกณฑ์สำเร็จการศึกษาที่หลักสูตรกำหนด
 (ง) สอบผ่านภาษาอังกฤษตามที่แต่ละหลักสูตรกำหนด (ถ้ามี)
 (2) แผน 1.2 แนววิชาการที่มีทั้งการศึกษารายวิชาและทำวิทยานิพนธ์
@@ -12266,7 +12266,7 @@ Scribbled signature
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "กรณีผลงานนวัตกรรมหรือผลงานสร้างสรรค์วิทยานิพนธ์ต้องได้รับการประเมินจากคณะกรรมการผู้ทรงคุณวุฒิภายนอกในสาขาเดียวกันหรือเกี่ยวข้องอย่างน้อย 3 คนที่เป็นผู้มีความรู้และความเชี่ยวชาญและประสบการณ์สูงเป็นที่ยอมรับโดยได้รับความเห็นชอบจากสภาวิทยาลัย
 สำหรับนักศึกษาระดับปริญญาเอกกลุ่มสาขาวิชาสังคมศาสตร์และมนุษยศาสตร์อาจเผยแพร่ในเวารสารระดับชาติที่มีคุณภาพตามที่คณะกรรมการกำหนด
 <page_number>27/30</page_number>
@@ -12320,7 +12320,7 @@ Scribbled signature
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "ในการแต่งตั้งคณะกรรมการพิจารณาอุทธรณ์ของนักศึกษานั้นให้นักศึกษามีสิทธิคัดค้านกรรมการคนใดคนหนึ่งหรือหลายคนด้วย
 ข้อ 39 ให้คณะกรรมการพิจารณาอุทธรณ์ของนักศึกษาพิจารณาอุทธรณ์ให้แล้วเสร็จภายใน 60 วันนับแต่วันที่ได้รับอุทธรณ์จากคณะกรรมการประจำคณะและให้ขยายระยะเวลาพิจารณาอุทธรณ์ได้อีก 2 ครั้งครั้งละไม่เกิน 30 วันนับแต่วันที่ครบกำหนดเวลาดังกล่าวให้บันทึกเหตุขัดข้องไว้ให้ปรากฏด้วย
 เมื่อคณะกรรมการพิจารณาอุทธรณ์ของนักศึกษาได้พิจารณาวินิจฉัยอุทธรณ์แล้วเสร็จให้พิจารณามีมติดังนี้
@@ -12378,7 +12378,7 @@ Scribbled signature
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "กรอบมาตรฐานวิชาชีพของมหาวิทยาลัยเทคโนโลยีพระจอมเกล้าธนบุรีด้านการเรียนการสอนและสนับสนุนการเรียนรู้ (KMUTT Professional Standards Framework for Teaching and Supporting Learning) หรือ KMUTT PSF ระดับที่คาดหวังคือระดับ 2 ขึ้นไปจากทั้งหมด 4 ระดับดังนี้ 1.1 ระดับ 1 Beginner 1.2 ระดับ 2 Competent 1.3 ระดับ 3 Proficient 1.4 ระดับ 4 Mastery 2. กรอบมาตรฐานสมรรถนะอาจารย์ของสหราชอาณาจักร (UK Professional Standards Framework) หรือ UK PSF ระดับที่คาดหวังคือระดับ 2 ขึ้นไปจากทั้งหมด 4 ระดับดังนี้ 2.1 ระดับ 1 Associate Fellow (AFHEA) 2.2 ระดับ 2 Fellow (FHEA) 2.3 ระดับ 3 Senior Fellow (SFHEA) 2.4 ระดับ 4 Principal Fellow (PFHEA)
 3. กรอบมาตรฐานวิชาชีพอาจารย์ตามแนวทางการพัฒนาการเรียนรู้ตามมาตรฐานคุณวุฒิระดับอุดมศึกษา (Thailand Professional Standards Framework) หรือ Thailand PSF ระดับที่คาดหวังคือระดับ 2 ขึ้นไปจากทั้งหมด 4 ระดับดังนี้
 3.1 ระดับ 1 ครูที่มีคุณภาพ (Fellow Teacher, FT-THPSF)
@@ -12416,7 +12416,7 @@ Scribbled signature
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "ระเบียบมหาวิทยาลัยเทคโนโลยีพระจอมเกล้าธนบุรีว่าด้วยการโอนผลการเรียนของนักศึกษาแบบบุคคลภายนอกระดับบัณฑิตศึกษาเข้าสู่การศึกษาในระบบพ.ศ. 2557
 โดยที่พระราชบัญญัติการศึกษาแห่งชาติพ.ศ. 2542 กำหนดให้การศึกษาตลอดชีวิตเป็นการศึกษาที่เกิดจากการผสมผสานระหว่างการศึกษาในระบบการศึกษานอกระบบและการศึกษาตามอัธยาศัยเพื่อให้สามารถพัฒนาคุณภาพชีวิตได้อย่างต่อเนื่องตลอดชีวิตและเพื่อเป็นการเปิดโอกาสและสร้างความเท่าเทียมทางการศึกษารวมทั้งตอบสนองความต้องการการเรียนรู้ตามความสนใจและศักยภาพของแต่ละบุคคลดังนั้นจึงเห็นสมควรกำหนดหลักเกณฑ์การโอนผลการเรียนของนักศึกษาแบบบุคคลภายนอกระดับบัณฑิตศึกษาเข้าสู่การศึกษาในระบบของมหาวิทยาลัย
 อาศัยอำนาจตามความในมาตรา 18 (2) แห่งพระราชบัญญัติมหาวิทยาลัยเทคโนโลยีพระจอมเกล้าธนบุรีพ.ศ. 2541 ประกอบกับมติสภามหาวิทยาลัยในคราวประชุมครั้งที่ 180 วันที่ 18 กรกฎาคม 2557 จึงให้ออกระเบียบไว้ดังต่อไปนี้
@@ -12468,7 +12468,7 @@ Scribbled signature
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "ของมหาวิทยาลัยและมีผลการเรียนรายวิชาตามหลักสูตร 4.2 ต้องเป็นนักศึกษาระดับบัณฑิตศึกษาของมหาวิทยาลัยในวันที่โอนผลการเรียน **ข้อ 5 การโอนผลการเรียนและการให้หน่วยกิตจากการศึกษาแบบบุคคลภายนอกหรือจากการศึกษานอกระบบจะกระทำได้ต่อเมื่อได้รับความเห็นชอบจากคณะกรรมการประจำคณะโดยมีหลักเกณฑ์ดังต่อไปนี้** 5.1 การโอนผลการเรียนให้กระทำได้ทุกรายวิชาที่ได้ศึกษาในหลักสูตรของมหาวิทยาลัยโดยไม่จำกัดจำนวนรายวิชาและจำนวนหน่วยกิตที่ขอโอนผลการเรียน
 5.2 เป็นรายวิชาหรือกลุ่มรายวิชาที่มีผลการเรียนไม่ต่ำกว่าระดับคะแนน B หรือแต้มระดับคะแนน 3.00 หรือเทียบเท่าหรือระดับคะแนนตัวอักษร S อนึ่งหากเป็นรายวิชาที่มีการเปลี่ยนแปลงทางวิชาการอย่างรวดเร็วนักศึกษาต้องลงทะเบียนเรียนในวิชนั้นใหม่ซึ่งคณะกรรมการประจำคณะจะเป็นผู้พิจารณาเป็นกรณีๆ ไป
 <page_number>3</page_number>
@@ -12501,7 +12501,7 @@ Scribbled signature
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: ข้อ 6 ค่าธรรมเนียมการโอนผลการเรียนระดับบัณฑิตศึกษาเข้าสู่การศึกษาในระบบให้เป็นไปตามประกาศของมหาวิทยาลัยทั้งนี้ค่าใช้จ่ายรวมตลอดการศึกษานอกรวมกับค่าเล่าเรียนที่เหลือในหลักสูตรต้องไม่ต่ำกว่าค่าใช้จ่ายของหลักสูตรที่เข้าศึกษาณ ปัจจุบัน
   tokens_est: 58
   section: clause
@@ -12529,7 +12529,7 @@ Scribbled signature
   page_end: 1
   owner: "owner:unknown"
   sensitivity: internal
-  updated_at: 1771411310
+  updated_at: 1773843306
   text: "ข้อ 7 ให้อธิการบดีเป็นผู้รักษาการให้เป็นไปตามระเบียบนี้ในกรณีที่มีปัญหาเกี่ยวกับการปฏิบัติให้อธิการบดีเป็นผู้วินิจฉัยชี้ขาดโดยคำวินิจฉัยหรือคำสั่งของอธิการบดีถือว่าเป็นที่สุด
 (ลายเซ็น)
 ประกาศณ วันที่ 21 กรกฎาคมพ.ศ. 2557
