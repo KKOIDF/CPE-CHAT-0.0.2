@@ -110,6 +110,74 @@ def _extract_learning_outcomes(lines: List[str], lo_start_idx: int) -> List[str]
         uniq.append(x)
     return uniq
 
+
+def _extract_faculty_teaching_entries(sec_block: List[str]) -> Dict[str, List[Dict[str, str]]]:
+    current_entries: List[Dict[str, str]] = []
+    program_entries: List[Dict[str, str]] = []
+    mode = ''
+    lines = [((ln or '').strip()) for ln in (sec_block or []) if (ln or '').strip()]
+    i = 0
+
+    while i < len(lines):
+        line = lines[i]
+
+        if _FACULTY_TEACH_CURRENT_RE.search(line):
+            mode = 'current'
+            i += 1
+            continue
+        if _FACULTY_TEACH_PROGRAM_RE.search(line):
+            mode = 'program'
+            i += 1
+            continue
+
+        match = _COURSE_CODE_ANYWHERE_RE.search(line)
+        if not match or not mode:
+            i += 1
+            continue
+
+        course_code = _course_code_norm(f"{match.group('prefix')} {match.group('num')}")
+        entry_lines = [line]
+        j = i + 1
+        while j < len(lines):
+            probe = lines[j]
+            if _FACULTY_TEACH_CURRENT_RE.search(probe) or _FACULTY_TEACH_PROGRAM_RE.search(probe):
+                break
+            if _COURSE_CODE_ANYWHERE_RE.search(probe):
+                break
+            if _FACULTY_SEC_RE.match(probe) and _FACULTY_SEC_HEADING_HINT_RE.search(probe):
+                break
+            entry_lines.append(probe)
+            j += 1
+
+        title_th = re.sub(r"^.*?([A-Z]{2,4}\s*\d{3})\s*", "", line).strip()
+        title_en = ''
+        credits = ''
+        for extra in entry_lines[1:4]:
+            if not credits and re.search(r"\d+\s*หน่วยกิต", extra):
+                credits = extra.strip()
+            if not title_en and extra.startswith('(') and extra.endswith(')'):
+                title_en = extra.strip('() ').strip()
+
+        entry = {
+            'course_code': course_code,
+            'course_title_th': title_th,
+            'course_title_en': title_en,
+            'credits': credits,
+            'text': "\n".join(entry_lines).strip(),
+        }
+
+        if mode == 'current':
+            current_entries.append(entry)
+        elif mode == 'program':
+            program_entries.append(entry)
+
+        i = j
+
+    return {
+        'current': current_entries,
+        'program': program_entries,
+    }
+
 _PLO_RE = re.compile(r"^\s*PLO\s*(?P<num>\d+)\b", re.IGNORECASE)
 _SUB_PLO_RE = re.compile(r"^\s*(?P<num>\d+)(?P<lemma>[A-Z])\b")
 _PLO_ANYWHERE_RE = re.compile(r"\bPLO\s*(?P<num>\d+)\b", re.IGNORECASE)
@@ -134,6 +202,8 @@ _FACULTY_SEC_HEADING_HINT_RE = re.compile(
 _FACULTY_EDU_RE = re.compile(r"(ประวัติการศึกษา|education)", re.IGNORECASE)
 _FACULTY_TEACH_RE = re.compile(r"(ภาระงานสอน|teaching\s*load|courses\s*taught)", re.IGNORECASE)
 _FACULTY_PUB_RE = re.compile(r"(ผลงาน|publication)", re.IGNORECASE)
+_FACULTY_TEACH_CURRENT_RE = re.compile(r"(?:^|\b)2\.1\s*ภาระงานสอนในปัจจุบัน", re.IGNORECASE)
+_FACULTY_TEACH_PROGRAM_RE = re.compile(r"(?:^|\b)2\.2\s*ภาระงานสอนในหลักสูตรนี้", re.IGNORECASE)
 
 _CREDITS_HINT_RE = re.compile(r"\b(\d+)\s*\((\d+\s*[-–]\s*\d+\s*[-–]\s*\d+)\)\b")
 _LO_RE = re.compile(
@@ -2498,16 +2568,13 @@ def _make_chunks_curriculum_course(paragraphs: List[Dict], source_path: str) -> 
                 elif _FACULTY_PUB_RE.search(probe):
                     dtype = 'faculty_publications'
                 # extract taught courses
-                taught = []
+                taught_current: List[str] = []
+                taught_program: List[str] = []
+                taught_entries: Dict[str, List[Dict[str, str]]] = {'current': [], 'program': []}
                 if dtype == 'faculty_teaching_load':
-                    for ln2 in sec_block:
-                        for mm in _COURSE_CODE_ANYWHERE_RE.finditer(ln2):
-                            taught.append(_course_code_norm(f"{mm.group('prefix')} {mm.group('num')}"))
-                            if len(taught) >= 40:
-                                break
-                        if len(taught) >= 40:
-                            break
-                    taught = sorted(set(taught))
+                    taught_entries = _extract_faculty_teaching_entries(sec_block)
+                    taught_current = sorted({x['course_code'] for x in taught_entries['current'] if x.get('course_code')})
+                    taught_program = sorted({x['course_code'] for x in taught_entries['program'] if x.get('course_code')})
 
                 pubs_5y = []
                 pub_years = []
@@ -2556,8 +2623,8 @@ def _make_chunks_curriculum_course(paragraphs: List[Dict], source_path: str) -> 
                             'person_name_en': name_en,
                             'academic_rank_th': rank_th,
                             'degrees': degrees,
-                            'teaching_current': taught,
-                            'teaching_in_program': taught,
+                            'teaching_current': taught_current,
+                            'teaching_in_program': taught_program,
                             'publications_5y': pubs_5y,
                             'publications_years': pub_years,
                             'source_scope': sec_scope,
@@ -2596,8 +2663,8 @@ def _make_chunks_curriculum_course(paragraphs: List[Dict], source_path: str) -> 
                                 'person_name_en': name_en,
                                 'academic_rank_th': rank_th,
                                 'degrees': degrees,
-                                'teaching_current': taught,
-                                'teaching_in_program': taught,
+                                'teaching_current': taught_current,
+                                'teaching_in_program': taught_program,
                                 'publications_5y': pubs_5y,
                                 'publications_years': pub_years,
                                 'source_scope': sec_scope,
@@ -2605,6 +2672,52 @@ def _make_chunks_curriculum_course(paragraphs: List[Dict], source_path: str) -> 
                                 'chunk_part': part_i,
                             },
                         ))
+
+                if dtype == 'faculty_teaching_load':
+                    for scope_label, entries in (
+                        ('current', taught_entries.get('current') or []),
+                        ('program', taught_entries.get('program') or []),
+                    ):
+                        for entry in entries[:80]:
+                            course_code = (entry.get('course_code') or '').strip()
+                            if not course_code:
+                                continue
+                            relation_text_lines = [name_th]
+                            if name_en:
+                                relation_text_lines.append(name_en)
+                            relation_text_lines.append(
+                                'ภาระงานสอนในปัจจุบัน' if scope_label == 'current' else 'ภาระงานสอนในหลักสูตรนี้'
+                            )
+                            relation_text_lines.append(entry.get('text') or course_code)
+                            chunks.append(_make_curriculum_chunk(
+                                source_path=source_path,
+                                resolved_source=resolved_source,
+                                resolved_path=resolved_path,
+                                pages=sec_pages,
+                                text="\n".join([x for x in relation_text_lines if x]).strip(),
+                                doc_type='faculty_course_relation',
+                                year=year,
+                                section='FacultyCourseRelation',
+                                section_heading=f"{name_th} {course_code}"[:120],
+                                section_path=['Faculty', name_th, 'TeachingLoad', scope_label, course_code],
+                                clause_id=f"{pid}:{scope_label}:{course_code}",
+                                extra_meta={
+                                    'person_id': pid,
+                                    'person_name_th': name_th,
+                                    'person_name_en': name_en,
+                                    'academic_rank_th': rank_th,
+                                    'degrees': degrees,
+                                    'course_code': course_code,
+                                    'course_code_norm': course_code,
+                                    'course_th': entry.get('course_title_th') or '',
+                                    'course_en': entry.get('course_title_en') or '',
+                                    'credits': entry.get('credits') or '',
+                                    'teaching_current': [course_code] if scope_label == 'current' else [],
+                                    'teaching_in_program': [course_code] if scope_label == 'program' else [],
+                                    'source_scope': sec_scope,
+                                    'section_id': sec_id,
+                                },
+                            ))
 
     # PLO↔Course mapping derived chunks (best-effort)
     if _PLO_MAP_HINT_RE.search(prelude_text):

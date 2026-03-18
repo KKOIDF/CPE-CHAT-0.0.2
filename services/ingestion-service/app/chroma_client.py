@@ -272,6 +272,21 @@ def _embed_texts(texts: List[str], is_query: bool = False) -> List[List[float]]:
     return [_l2_normalize(_resize_embedding(_fallback_vec(t, EMBEDDING_DIM), EMBEDDING_DIM)) for t in texts]
 
 
+def _is_compaction_hnsw_error(err: Exception) -> bool:
+    msg = str(err).lower()
+    return (
+        'error in compaction' in msg
+        and ('hnsw' in msg or 'segment writer' in msg or 'failed to apply logs' in msg)
+    )
+
+
+def _recreate_documents_collection() -> None:
+    global _collection
+    # Recover from local index corruption by recreating only this collection.
+    _client.delete_collection(name="documents")
+    _collection = _client.get_or_create_collection(name="documents")
+
+
 def upsert_chunks(chunks: List[Dict[str, Any]]):
     if not chunks:
         print("No chunks to embed; skipping upsert.")
@@ -358,6 +373,23 @@ def upsert_chunks(chunks: List[Dict[str, Any]]):
                 f"If your existing Chroma index was built with a different dim, delete the domain chroma dir under {CHROMA_DIR} and re-ingest. Error: {e}"
             )
             return
+        if _is_compaction_hnsw_error(e):
+            print(
+                "Chroma upsert failed due to compaction/HNSW index corruption. "
+                "Recreating 'documents' collection and retrying once..."
+            )
+            try:
+                _recreate_documents_collection()
+                _collection.upsert(ids=ids, embeddings=fixed, documents=documents, metadatas=metadatas)  # type: ignore[arg-type]
+            except Exception as recovery_error:
+                print(
+                    "Chroma recovery failed after recreating collection. "
+                    f"Please remove {CHROMA_DIR} for this domain and re-ingest. Error: {recovery_error}"
+                )
+                raise
+            else:
+                print(f"Upserted {len(ids)} chunks into Chroma after recovery (dim={dim}).")
+                return
         raise
     print(f"Upserted {len(ids)} chunks into Chroma (dim={dim}).")
 
