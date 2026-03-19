@@ -4,6 +4,7 @@ import math
 from pathlib import Path
 import unicodedata
 import os
+import json
 
 from .perf import time_block, add_metric
 
@@ -22,6 +23,7 @@ from .structured_curriculum import (
     Course,
     extract_courses_from_text,
     format_required_cpe_answer,
+    load_credit_totals_2564,
     load_all_courses_2564,
     load_cpe_curriculum_2564,
 )
@@ -194,13 +196,34 @@ def structured_curriculum_answer(question: str) -> str | None:
     q = normalize_question(question)
     q_lower = q.lower()
 
-    # 0) Exact total-program-credit lookup from the canonical 2564 curriculum source.
-    if any(t in q for t in ('รวมกี่หน่วยกิต', 'หน่วยกิตรวมของหลักสูตร', 'จำนวนหน่วยกิตรวม', 'ตลอดหลักสูตร')):
-        curriculum = load_cpe_curriculum_2564()
-        if curriculum:
+    totals = load_credit_totals_2564()
+    curriculum = load_cpe_curriculum_2564()
+    source_name = curriculum.source_path.name if curriculum else 'FOE10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt'
+
+    # 0) Category totals lookup from the canonical 2564 curriculum source.
+    if any(t in q for t in ('หมวดวิชาศึกษาทั่วไป', 'วิชาศึกษาทั่วไป', 'ศึกษาทั่วไป')) and 'หน่วยกิต' in q:
+        ge = totals.get('general_education')
+        if ge is not None:
+            return f"- หมวดวิชาศึกษาทั่วไปต้องศึกษารวม {ge} หน่วยกิต [{source_name}/1]"
+
+    if any(t in q for t in ('หมวดวิชาเฉพาะ', 'วิชาเฉพาะ')) and 'หน่วยกิต' in q:
+        sp = totals.get('specific')
+        if sp is not None:
+            return f"- หมวดวิชาเฉพาะต้องศึกษารวม {sp} หน่วยกิต [{source_name}/1]"
+
+    # 0.5) Total-program-credit lookup from the canonical 2564 curriculum source.
+    if (
+        'หน่วยกิต' in q
+        and (
+            any(t in q for t in ('รวมกี่หน่วยกิต', 'หน่วยกิตรวมของหลักสูตร', 'จำนวนหน่วยกิตรวม', 'ตลอดหลักสูตร'))
+            or ('หลักสูตร' in q and any(t in q for t in ('กี่', 'ทั้งหมด', 'รวม')))
+        )
+    ):
+        tot = totals.get('total')
+        if tot is not None:
             return (
-                f"- หลักสูตรวิศวกรรมคอมพิวเตอร์ต้องศึกษารวม 130 หน่วยกิต [{curriculum.source_path.name}/1]\n"
-                f"- ข้อความอ้างอิงคือ จำนวนหน่วยกิตที่เรียนตลอดหลักสูตร 130 หน่วยกิต [{curriculum.source_path.name}/1]"
+                f"- หลักสูตรวิศวกรรมคอมพิวเตอร์ต้องศึกษารวม {tot} หน่วยกิต [{source_name}/1]\n"
+                f"- ข้อความอ้างอิงคือ จำนวนหน่วยกิตรวมตลอดหลักสูตร {tot} หน่วยกิต [{source_name}/1]"
             )
 
     # 0.1) Exact course-code lookup from the canonical 2564 curriculum source.
@@ -338,6 +361,18 @@ def infer_domain(question: str) -> str | None:
         return 'curriculum'
 
     # Regulations/registrar signals.
+    # Exam-policy / discipline questions should go to regulations even if they contain time words.
+    # (Previously, the presence of words like 'เมื่อไหร่' incorrectly routed many exam-rule questions
+    # to announcements and caused irrelevant retrieval.)
+    _exam_policy_terms = (
+        'ห้องสอบ', 'เข้าห้องสอบ', 'ออกห้องสอบ', 'ออกจากห้องสอบ', 'ออกห้องสอบชั่วคราว',
+        'กรรมการคุมสอบ', 'คุมสอบ', 'ข้อสอบ', 'กระดาษคำตอบ', 'สมุดคำตอบ',
+        'ทุจริต', 'ส่อ', 'ลงโทษ', 'บทลงโทษ', 'อุทธรณ์', 'คำอุทธรณ์',
+        'คณะกรรมการกลาง', 'คณะกรรมการสอบ',
+    )
+    if any(t in q for t in _exam_policy_terms):
+        return 'regulations'
+
     # Schedule / calendar / registration timing: these usually live in announcements.
     if any(t in q for t in ('ปฏิทิน', 'กำหนดการ', 'ลงทะเบียน', 'เพิ่ม-ลด', 'เพิ่มลด', 'ช่วง', 'วัน', 'วันที่', 'เมื่อไหร่')):
         return 'announcements'
@@ -551,6 +586,178 @@ def retrieve_all_domains(
 
 
 def retrieve_by_domain(question: str, domain: str | None, k_vec: int = 20, k_kw: int = 30) -> List[Dict]:
+    def _augment_regulations_query(original_question: str, base_query: str) -> str:
+        """Domain-specific query expansion for regulations.
+
+        SQLite FTS tokenization for Thai can be brittle (few spaces), and some
+        regulation texts contain typos (e.g., 'ออกหากห้องสอบ'). We append a
+        compact set of high-signal keywords/clauses to improve recall.
+        """
+        q = (original_question or '').strip()
+        if not q:
+            return base_query
+
+        hints: list[str] = []
+
+        # Exam room entry/late arrival
+        if ('เข้าห้องสอบ' in q) or ('มาสาย' in q) or ('สาย' in q and 'สอบ' in q):
+            hints.extend([
+                'ห้องสอบ', 'การสอบ',
+                'ข้อ 12',
+                'สิบห้านาที', '15',
+                'หกสิบนาที', '60',
+                'ยื่นคำร้อง',
+                'ประธานกรรมการจัดการสอบ',
+            ])
+
+        # Leaving exam room (permanent)
+        if ('ออกห้องสอบ' in q) or ('ออกจากห้องสอบ' in q):
+            hints.extend([
+                'ห้องสอบ', 'การสอบ',
+                'ข้อ 15',
+                'ออกหากห้องสอบ',  # typo present in source
+                'หกสิบนาที', '60',
+            ])
+
+        # Temporary leave
+        if ('ชั่วคราว' in q) or ('ออกห้องสอบชั่วคราว' in q):
+            hints.extend([
+                'ห้องสอบ', 'ชั่วคราว',
+                'ข้อ 16',
+                'กรรมการคุมสอบ',
+                'เครื่องมือสื่อสาร',
+            ])
+
+        # Central committee term / duties
+        if 'คณะกรรมการ' in q and ('กลาง' in q or 'สอบกลาง' in q):
+            hints.extend([
+                'คณะกรรมการกลาง', 'การสอบ', 'ทุจริต',
+                'ข้อ 19', 'วาระ', 'สี่ปี', '4 ปี',
+                'ข้อ 20', 'อำนาจหน้าที่',
+            ])
+
+        # Appeal process
+        if 'อุทธรณ์' in q or ('ลงโทษ' in q and 'อุทธรณ์' in q):
+            hints.extend([
+                'หมวดที่ 5', 'การอุทธรณ์',
+                'ข้อ 26', 'ข้อ 27', 'ข้อ 28', 'ข้อ 29', 'ข้อ 30',
+                'อธิการบดี',
+                'สิบห้าวัน', '15 วัน',
+            ])
+
+        # De-dup while preserving order.
+        seen: set[str] = set()
+        compact: list[str] = []
+        for h in hints:
+            s = (h or '').strip()
+            if not s:
+                continue
+            k = s.lower()
+            if k in seen:
+                continue
+            seen.add(k)
+            compact.append(s)
+
+        if not compact:
+            return base_query
+
+        # Keep it short; keyword search benefits from a few clause anchors.
+        compact = compact[:18]
+        hint_block = ' '.join(compact)
+        if hint_block and hint_block not in (base_query or ''):
+            return f"{base_query} {hint_block}".strip()
+        return base_query
+
+    def _clip_long_regulations_text(item: Dict, original_question: str) -> Dict:
+        """Clip very long regulation texts to a relevant excerpt.
+
+        Some regulation sources are indexed as a single large text blob. When
+        that happens, `pack_context()` may skip them entirely due to the token
+        budget, even if retrieval selected the correct document. We keep the
+        same metadata but replace `text` with a focused excerpt.
+        """
+        try:
+            txt = str(item.get('text') or '')
+        except Exception:
+            return item
+        if not txt:
+            return item
+
+        # Only clip when the block is huge.
+        max_chars = int(os.getenv('RAG_REGULATIONS_CLIP_CHARS', '2200') or '2200')
+        if len(txt) <= max_chars:
+            return item
+
+        q = (original_question or '').strip()
+        anchors: list[str] = []
+
+        # Exam rules
+        if ('มาสาย' in q) or ('เข้าห้องสอบ' in q):
+            anchors += ['ข้อ 12']
+        if ('ออกห้องสอบชั่วคราว' in q) or ('ชั่วคราว' in q and 'ห้องสอบ' in q):
+            anchors += ['ข้อ 16']
+        if ('ออกห้องสอบ' in q) or ('ออกจากห้องสอบ' in q):
+            anchors += ['ข้อ 15', 'ข้อ 17']
+
+        # Committee
+        if 'คณะกรรมการ' in q and ('กลาง' in q or 'สอบกลาง' in q):
+            anchors += ['ข้อ 19', 'ข้อ 20', 'คณะกรรมการกลาง']
+
+        # Appeal
+        if 'อุทธรณ์' in q:
+            anchors += ['หมวดที่ 5', 'การอุทธรณ์', 'ข้อ 26', 'ข้อ 27', 'ข้อ 28', 'ข้อ 29', 'ข้อ 30']
+
+        # De-dup anchors
+        seen: set[str] = set()
+        dedup: list[str] = []
+        for a in anchors:
+            s = (a or '').strip()
+            if not s:
+                continue
+            k = s.lower()
+            if k in seen:
+                continue
+            seen.add(k)
+            dedup.append(s)
+        anchors = dedup
+
+        # Find a best anchor position.
+        pos = -1
+        hit = ''
+        for a in anchors:
+            p = txt.find(a)
+            if p != -1:
+                pos = p
+                hit = a
+                break
+
+        # If no anchor found, fallback to the first part.
+        if pos == -1:
+            clipped = txt[:max_chars].rstrip()
+        else:
+            # Keep a window around the anchor; prefer expanding to newline boundaries.
+            window = int(os.getenv('RAG_REGULATIONS_CLIP_WINDOW', '1600') or '1600')
+            half = max(200, window // 2)
+            start = max(0, pos - half)
+            end = min(len(txt), pos + half)
+
+            # Expand to nearest newlines (best-effort) to keep it readable.
+            nl_left = txt.rfind('\n', 0, start)
+            if nl_left != -1 and (start - nl_left) < 200:
+                start = nl_left + 1
+            nl_right = txt.find('\n', end)
+            if nl_right != -1 and (nl_right - end) < 200:
+                end = nl_right
+
+            clipped = txt[start:end].strip()
+            if hit and hit not in clipped:
+                # Safety: ensure anchor appears in excerpt.
+                clipped = (hit + " ...\n" + clipped).strip()
+
+        out = dict(item)
+        out['text'] = clipped
+        return out
+
     def _question_terms_for_rerank(text: str) -> list[str]:
         q = (text or '').strip()
         if not q:
@@ -639,12 +846,75 @@ def retrieve_by_domain(question: str, domain: str | None, k_vec: int = 20, k_kw:
             out.append(merged)
         return out
 
+    def _meta_get(item: Dict, key: str):
+        if key in item:
+            return item.get(key)
+        md = item.get('metadata') or {}
+        if isinstance(md, dict):
+            return md.get(key)
+        return None
+
+    def _normalize_code_text(text: str) -> str:
+        return re.sub(r"[^A-Za-z0-9]", "", (text or '').upper())
+
+    def _item_section_path(item: Dict) -> list[str]:
+        raw = _meta_get(item, 'section_path')
+        if isinstance(raw, list):
+            return [str(x) for x in raw]
+        if isinstance(raw, str):
+            s = raw.strip()
+            if not s:
+                return []
+            try:
+                parsed = json.loads(s)
+                if isinstance(parsed, list):
+                    return [str(x) for x in parsed]
+            except Exception:
+                pass
+            return [s]
+        return []
+
+    def _is_faculty_course_relation(item: Dict) -> bool:
+        dt = str(_meta_get(item, 'doc_type') or '').strip().lower()
+        if dt == 'faculty_course_relation':
+            return True
+        sec = str(_meta_get(item, 'section') or '').strip().lower()
+        if sec == 'facultycourserelation':
+            return True
+        section_path = '/'.join(_item_section_path(item)).lower()
+        return 'facultycourserelation' in section_path
+
+    def _item_matches_course_codes(item: Dict, target_codes: set[str]) -> bool:
+        if not target_codes:
+            return False
+
+        candidates: list[str] = []
+        for k in ('course_code', 'course', 'course_id'):
+            v = _meta_get(item, k)
+            if v is not None:
+                candidates.append(str(v))
+        candidates.extend(_item_section_path(item))
+        txt = item.get('text')
+        if isinstance(txt, str) and txt:
+            candidates.append(txt[:240])
+
+        for c in candidates:
+            norm = _normalize_code_text(c)
+            if not norm:
+                continue
+            for t in target_codes:
+                if t and (t == norm or t in norm):
+                    return True
+        return False
+
     dom = (domain or '').strip().lower()
     add_metric('retrieval_domain', dom or 'auto')
 
     # Use the original question to detect explicit reference hints, but use a cleaned query
     # string for retrieval so the hint doesn't pollute embedding/keyword search.
     q_search = search_query_from_question(question)
+    if dom == 'regulations':
+        q_search = _augment_regulations_query(question, q_search)
 
     ref_allow = _reference_candidates(question)
     source_allowlist: Sequence[str] | None = ref_allow if ref_allow else None
@@ -702,7 +972,10 @@ def retrieve_by_domain(question: str, domain: str | None, k_vec: int = 20, k_kw:
         merged = _apply_lexical_rerank(merged, question, dom)
         add_metric('retrieval_merged_n', len(merged))
         add_metric('retrieval_final_n', min(len(merged), MAX_CONTEXTS))
-        return merged[:MAX_CONTEXTS]
+        picked = merged[:MAX_CONTEXTS]
+        if dom == 'regulations':
+            picked = [_clip_long_regulations_text(it, question) for it in picked]
+        return picked
 
     # Domain 3: curriculum = vector + keyword + graph expansion
     # If no domain was provided, keep legacy behavior (vector+keyword on default env paths)
@@ -969,6 +1242,38 @@ def retrieve_by_domain(question: str, domain: str | None, k_vec: int = 20, k_kw:
             bank.setdefault(doc_id, d)
             ranks[doc_id] = ranks.get(doc_id, 0.0) + 2.5 / (RRF_K + r)
 
+    if dom == 'curriculum':
+        teacher_markers = (
+            'ใครสอน',
+            'ผู้สอน',
+            'อาจารย์',
+            'สอนวิชา',
+            'คนสอน',
+            'ผู้รับผิดชอบวิชา',
+            'instructor',
+            'teacher',
+            'teaches',
+        )
+        wants_teacher_for_course = bool(codes) and any(m in q_lower for m in teacher_markers)
+        if wants_teacher_for_course:
+            target_codes = {_normalize_code_text(c) for c in codes if _normalize_code_text(c)}
+            try:
+                relation_boost = float(os.getenv('RAG_FACULTY_RELATION_BOOST', '1.2') or '1.2')
+            except Exception:
+                relation_boost = 1.2
+
+            boosted = 0
+            for doc_id, d in bank.items():
+                if not _is_faculty_course_relation(d):
+                    continue
+                if not _item_matches_course_codes(d, target_codes):
+                    continue
+                ranks[doc_id] = ranks.get(doc_id, 0.0) + relation_boost
+                boosted += 1
+
+            add_metric('retrieval_teacher_course_intent', 1)
+            add_metric('retrieval_fac_rel_boosted_n', boosted)
+
     merged = [{**bank[k], 'score_rrf': v, 'doc_id': k} for k, v in ranks.items()]
     merged.sort(key=lambda x: x['score_rrf'], reverse=True)
 
@@ -1076,6 +1381,7 @@ def build_prompt(question: str, ctx: str, cites: Dict[int, str]) -> str:
             "4) หากคำถามขอ 'สรุป' หรือ 'โครงสร้าง' ให้จัดลำดับหัวข้อก่อนรายละเอียด.\n"
             "5) หากคำถามกำกวม/สั้นมาก (เช่น พิมพ์แค่ชื่อภาษา หรือ xxx) ให้ถามกลับ 1 คำถามสั้น ๆ เพื่อขอรายละเอียดที่จำเป็นก่อน.\n"
             "6) ห้ามให้ URL/ลิงก์ภายนอก เว้นแต่ URL นั้นปรากฏอยู่ในบริบท.\n"
+            "7) เรื่องวัน/วันที่/เดดไลน์: ให้ระบุเฉพาะวันที่ที่มีข้อความยืนยันตรง ๆ ในบริบทเท่านั้น ห้ามอนุมานเดดไลน์จากคำว่า 'ประกาศ ณ วันที่ ...' หรือวันที่ที่ไม่ได้ระบุว่าเป็นกำหนดการ/เส้นตาย.\n"
             
         )
     else:
@@ -1088,6 +1394,7 @@ def build_prompt(question: str, ctx: str, cites: Dict[int, str]) -> str:
             "4) หากคำถามขอ 'สรุป' หรือ 'โครงสร้าง' ให้จัดลำดับหัวข้อก่อนรายละเอียด.\n"
             "5) หากคำถามกำกวม/สั้นมาก (เช่น พิมพ์แค่ชื่อภาษา หรือ xxx) ให้ถามกลับ 1 คำถามสั้น ๆ เพื่อขอรายละเอียดที่จำเป็นก่อน.\n"
             "6) ห้ามให้ URL/ลิงก์ภายนอก เว้นแต่ URL นั้นปรากฏอยู่ในบริบท.\n"
+            "7) เรื่องวัน/วันที่/เดดไลน์: ให้ระบุเฉพาะวันที่ที่มีข้อความยืนยันตรง ๆ ในบริบทเท่านั้น ห้ามอนุมานเดดไลน์จากคำว่า 'ประกาศ ณ วันที่ ...' หรือวันที่ที่ไม่ได้ระบุว่าเป็นกำหนดการ/เส้นตาย.\n"
         )
 
     if require_citations:
@@ -1114,16 +1421,22 @@ def rag_query(question: str) -> Dict:
         '1', 'true', 'yes', 'on'
     )
     has_ref = bool(ref_allow) and strict_ref_hints
-    dom = infer_domain(q_display) or _infer_domain_from_reference(question)
-    add_metric('inferred_domain', dom or 'auto')
-    if dom:
-        retrieved = retrieve_by_domain(question, domain=dom)
-        # If too few results, widen cautiously to nearby domains first.
-        if (not has_ref) and len(retrieved) < fallback_min_results():
-            add_metric('retrieval_domain_fallback_used', 1)
-            retrieved = retrieve_all_domains(q_search, domains=fallback_domains_for_domain(dom))
+    # Some intents (e.g., intermission leave) require both policy/calendar and forms.
+    if 'ลาพัก' in q_display:
+        dom = None
+        add_metric('inferred_domain', 'multi:announcements+regulations')
+        retrieved = retrieve_all_domains(q_search, domains=['announcements', 'regulations'])
     else:
-        retrieved = retrieve_all_domains(q_search)
+        dom = infer_domain(q_display) or _infer_domain_from_reference(question)
+        add_metric('inferred_domain', dom or 'auto')
+        if dom:
+            retrieved = retrieve_by_domain(question, domain=dom)
+            # If too few results, widen cautiously to nearby domains first.
+            if (not has_ref) and len(retrieved) < fallback_min_results():
+                add_metric('retrieval_domain_fallback_used', 1)
+                retrieved = retrieve_all_domains(q_search, domains=fallback_domains_for_domain(dom))
+        else:
+            retrieved = retrieve_all_domains(q_search)
 
     retrieved = _filter_chunks_by_reference(retrieved, question, strict=has_ref)
     ctx, cites = pack_context(retrieved)

@@ -33,6 +33,7 @@ class CurriculumCPE2564:
 # Cache the parsed curriculum to avoid re-parsing per request.
 _CACHED_2564: Optional[CurriculumCPE2564] = None
 _CACHED_ALL_COURSES_2564: Optional[dict[str, Course]] = None
+_CACHED_CREDIT_TOTALS_2564: Optional[dict[str, int]] = None
 
 
 _COURSE_LINE_RE = re.compile(
@@ -288,6 +289,61 @@ def load_all_courses_2564() -> dict[str, Course]:
 
     _CACHED_ALL_COURSES_2564 = bank
     return _CACHED_ALL_COURSES_2564
+
+
+def load_credit_totals_2564() -> dict[str, int]:
+    """Extract curriculum credit totals from the canonical 2564 curriculum source.
+
+    Returns a dict with best-effort keys:
+      - general_education
+      - specific
+      - free_elective
+      - total
+    """
+    global _CACHED_CREDIT_TOTALS_2564
+    if _CACHED_CREDIT_TOTALS_2564 is not None:
+        return _CACHED_CREDIT_TOTALS_2564
+
+    src = _find_cpe_2564_source()
+    if not src:
+        _CACHED_CREDIT_TOTALS_2564 = {}
+        return _CACHED_CREDIT_TOTALS_2564
+
+    try:
+        text = src.read_text(encoding='utf-8', errors='ignore')
+    except Exception:
+        _CACHED_CREDIT_TOTALS_2564 = {}
+        return _CACHED_CREDIT_TOTALS_2564
+
+    # The totals are near the top of the document; keep parsing small and fast.
+    head = "\n".join((text or "").splitlines()[:250])
+
+    def _grab(pattern: str) -> Optional[int]:
+        m = re.search(pattern, head)
+        if not m:
+            return None
+        try:
+            return int(m.group(1))
+        except Exception:
+            return None
+
+    totals: dict[str, int] = {}
+    ge = _grab(r"หมวดวิชาศึกษาทั่วไป\s+(\d+)\s+หน่วยกิต")
+    sp = _grab(r"หมวดวิชาเฉพาะ\s+(\d+)\s+หน่วยกิต")
+    fe = _grab(r"หมวดวิชาเลือกเสรี\s+(\d+)\s+หน่วยกิต")
+    tot = _grab(r"จำนวนหน่วยกิตรวมตลอดหลักสูตร\s+(\d+)\s+หน่วยกิต")
+
+    if ge is not None:
+        totals['general_education'] = ge
+    if sp is not None:
+        totals['specific'] = sp
+    if fe is not None:
+        totals['free_elective'] = fe
+    if tot is not None:
+        totals['total'] = tot
+
+    _CACHED_CREDIT_TOTALS_2564 = totals
+    return _CACHED_CREDIT_TOTALS_2564
 
 
 def is_required_cpe_question(question: str) -> bool:

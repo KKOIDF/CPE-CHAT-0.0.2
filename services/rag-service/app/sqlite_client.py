@@ -2,7 +2,7 @@ import sqlite3
 import re
 import threading
 import os
-from typing import List, Dict, Optional, Sequence
+from typing import List, Dict, Optional, Sequence, Any
 from pathlib import Path
 
 from .config import SQLITE_PATH, domain_paths
@@ -11,7 +11,7 @@ from .config import SQLITE_PATH, domain_paths
 _thread_local = threading.local()
 
 
-def _conn_cache() -> dict[str, sqlite3.Connection]:
+def _conn_cache() -> dict[str, Any]:
     cache = getattr(_thread_local, 'sqlite_conns', None)
     if cache is None:
         cache = {}
@@ -19,11 +19,26 @@ def _conn_cache() -> dict[str, sqlite3.Connection]:
     return cache
 
 
+def _file_signature(path: Path) -> tuple[int, int]:
+    """Best-effort file signature for cache invalidation (mtime_ns, size)."""
+    try:
+        st = path.stat()
+        return int(st.st_mtime_ns), int(st.st_size)
+    except Exception:
+        return -1, -1
+
+
 def close_thread_connections() -> None:
     cache = getattr(_thread_local, 'sqlite_conns', None)
     if not cache:
         return
-    for conn in list(cache.values()):
+    for entry in list(cache.values()):
+        if isinstance(entry, dict):
+            conn = entry.get('conn')
+        else:
+            conn = entry
+        if conn is None:
+            continue
         try:
             conn.close()
         except Exception:
@@ -37,9 +52,27 @@ def get_conn(sqlite_path: Optional[str] = None):
     p = Path(sqlite_path) if sqlite_path else Path(SQLITE_PATH)
     key = str(p.resolve())
     cache = _conn_cache()
-    conn = cache.get(key)
-    if conn is not None:
+    sig = _file_signature(p)
+
+    cached = cache.get(key)
+    conn = None
+    cached_sig = None
+    if isinstance(cached, dict):
+        conn = cached.get('conn')
+        cached_sig = cached.get('sig')
+    else:
+        conn = cached
+
+    # Auto-refresh connection when the sqlite file was replaced/updated.
+    if conn is not None and cached_sig == sig:
         return conn
+
+    if conn is not None:
+        try:
+            conn.close()
+        except Exception:
+            pass
+        cache.pop(key, None)
 
     # Prefer read-only connections for safety + concurrency.
     # If the file doesn't exist yet (e.g., misconfigured volume), fall back to normal connect.
@@ -63,7 +96,7 @@ def get_conn(sqlite_path: Optional[str] = None):
     except Exception:
         pass
 
-    cache[key] = conn
+    cache[key] = {'conn': conn, 'sig': sig}
     return conn
 
 

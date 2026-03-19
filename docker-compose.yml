@@ -74,13 +74,20 @@ services:
       PYTHONDONTWRITEBYTECODE: "1"
 
       # MLflow (optional experiment tracking)
-      MLFLOW_TRACKING_URI: "http://mlflow:5000"
+      MLFLOW_TRACKING_URI: "${MLFLOW_TRACKING_URI:-http://mlflow:5000}"
 
       # MLflow Observability (enabled by default)
       MLFLOW_OBSERVABILITY_ENABLE: "${MLFLOW_OBSERVABILITY_ENABLE:-1}"
       MLFLOW_OBSERVABILITY_EXPERIMENT: "${MLFLOW_OBSERVABILITY_EXPERIMENT:-cpe-chat-online-observability}"
       MLFLOW_OBS_FLUSH_S: "${MLFLOW_OBS_FLUSH_S:-10}"
       MLFLOW_OBS_WINDOW_N: "${MLFLOW_OBS_WINDOW_N:-500}"
+
+      # MLflow per-request logging (log every incoming question as JSONL artifact)
+      MLFLOW_OBS_REQUEST_LOG_ENABLE: "${MLFLOW_OBS_REQUEST_LOG_ENABLE:-1}"
+      # Store question + answer + ctx_sources by default
+      MLFLOW_OBS_REQUEST_LOG_CONTENT: "${MLFLOW_OBS_REQUEST_LOG_CONTENT:-1}"
+      MLFLOW_OBS_REQUEST_LOG_MAX_CHARS: "${MLFLOW_OBS_REQUEST_LOG_MAX_CHARS:-2000}"
+      MLFLOW_OBS_REQUEST_LOG_DIR: "${MLFLOW_OBS_REQUEST_LOG_DIR:-requests}"
 
       # MLflow Tracing (enabled by default with sampling)
       MLFLOW_TRACING_ENABLE: "${MLFLOW_TRACING_ENABLE:-1}"

@@ -26,6 +26,7 @@ from .rag_logic import (
 from .config import RRF_K, MAX_CONTEXTS
 from .llm import llm_engine
 from .chroma_client import embed_texts
+from .neo4j_client import extract_course_codes
 
 
 _SYSTEM_MSG: dict[str, str] = {
@@ -343,6 +344,112 @@ def _fuse_rrf(lists: List[Tuple[str, List[Dict]]], cap: int) -> List[Dict]:
     return merged[:cap]
 
 
+def _normalize_code_text(text: str) -> str:
+    return re.sub(r"[^A-Za-z0-9]", "", (text or '').upper())
+
+
+def _meta_get(item: Dict[str, Any], key: str):
+    if key in item:
+        return item.get(key)
+    md = item.get('metadata') or {}
+    if isinstance(md, dict):
+        return md.get(key)
+    return None
+
+
+def _section_path_values(item: Dict[str, Any]) -> List[str]:
+    raw = _meta_get(item, 'section_path')
+    if isinstance(raw, list):
+        return [str(x) for x in raw]
+    if isinstance(raw, str):
+        s = raw.strip()
+        if not s:
+            return []
+        try:
+            parsed = json.loads(s)
+            if isinstance(parsed, list):
+                return [str(x) for x in parsed]
+        except Exception:
+            pass
+        return [s]
+    return []
+
+
+def _is_faculty_course_relation(item: Dict[str, Any]) -> bool:
+    dt = str(_meta_get(item, 'doc_type') or '').strip().lower()
+    if dt == 'faculty_course_relation':
+        return True
+    sec = str(_meta_get(item, 'section') or '').strip().lower()
+    if sec == 'facultycourserelation':
+        return True
+    section_path = '/'.join(_section_path_values(item)).lower()
+    return 'facultycourserelation' in section_path
+
+
+def _item_matches_course_codes(item: Dict[str, Any], target_codes: set[str]) -> bool:
+    if not target_codes:
+        return False
+    candidates: List[str] = []
+    for k in ('course_code', 'course', 'course_id'):
+        v = _meta_get(item, k)
+        if v is not None:
+            candidates.append(str(v))
+    candidates.extend(_section_path_values(item))
+    txt = item.get('text')
+    if isinstance(txt, str) and txt:
+        candidates.append(txt[:240])
+
+    for c in candidates:
+        norm = _normalize_code_text(c)
+        if not norm:
+            continue
+        for t in target_codes:
+            if t and (t == norm or t in norm):
+                return True
+    return False
+
+
+def _boost_faculty_relation_for_teacher_intent(
+    items: List[Dict[str, Any]],
+    question_display: str,
+    domain: Optional[str],
+) -> List[Dict[str, Any]]:
+    if (domain or '').strip().lower() != 'curriculum' or not items:
+        return items
+
+    q = (question_display or '')
+    ql = q.lower()
+    codes = {_normalize_code_text(c) for c in extract_course_codes(q) if _normalize_code_text(c)}
+    teacher_markers = (
+        'ใครสอน',
+        'ผู้สอน',
+        'อาจารย์',
+        'สอนวิชา',
+        'คนสอน',
+        'ผู้รับผิดชอบวิชา',
+        'instructor',
+        'teacher',
+        'teaches',
+    )
+    if not codes or not any(m in ql for m in teacher_markers):
+        return items
+
+    try:
+        boost = float(os.getenv('RAG_LC_FACULTY_RELATION_BOOST', os.getenv('RAG_FACULTY_RELATION_BOOST', '1.2')) or '1.2')
+    except Exception:
+        boost = 1.2
+
+    boosted: List[Dict[str, Any]] = []
+    for d in items:
+        score = float(d.get('score_rrf') or 0.0)
+        if _is_faculty_course_relation(d) and _item_matches_course_codes(d, codes):
+            score += boost
+        boosted.append({**d, 'score_rrf': score})
+
+    boosted.sort(key=lambda x: float(x.get('score_rrf') or 0.0), reverse=True)
+    return boosted
+
+
 def _generate_with_engine(prompt: str) -> str:
     user_msg = {'role': 'user', 'content': prompt}
     return llm_engine.generate(prompt, messages=[_SYSTEM_MSG, user_msg])
@@ -524,6 +631,7 @@ def _build_rag_prompt_langchain(question: str, domain: Optional[str] = None) -> 
             retrieved_lists.append(_retrieve_one(q))
 
     retrieved = _fuse_rrf(retrieved_lists, cap=cap)
+    retrieved = _boost_faculty_relation_for_teacher_intent(retrieved, q_display, dom)
 
     # If question explicitly references a file, keep contexts from that file.
     try:

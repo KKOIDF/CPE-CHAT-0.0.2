@@ -11,6 +11,7 @@ from collections import defaultdict, deque
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any, Deque, Dict, Optional, Tuple
+import uuid
 
 
 def _truthy(v: str) -> bool:
@@ -43,6 +44,11 @@ class _Cfg:
     trace_content: bool
     trace_max_chars: int
 
+    request_log_enabled: bool
+    request_log_content: bool
+    request_log_max_chars: int
+    request_log_artifact_dir: str
+
 
 class MlflowObservability:
     """Opt-in MLflow observability for rag-service.
@@ -71,6 +77,9 @@ class MlflowObservability:
         self._metric_counts: Dict[str, Dict[str, int]] = defaultdict(lambda: defaultdict(int))
         self._last_flush: float = 0.0
 
+        self._request_events: Deque[Dict[str, Any]] = deque(maxlen=max(1000, self._cfg.window_n * 2))
+        self._dropped_request_events: int = 0
+
     @staticmethod
     def _load_cfg() -> _Cfg:
         enabled = _truthy(os.getenv("MLFLOW_OBSERVABILITY_ENABLE", "0"))
@@ -86,6 +95,14 @@ class MlflowObservability:
         trace_sample_rate = float(os.getenv("MLFLOW_TRACE_SAMPLE_RATE", "0.05") or "0.05")
         trace_content = _truthy(os.getenv("MLFLOW_TRACE_CONTENT", "0"))
         trace_max_chars = int(os.getenv("MLFLOW_TRACE_MAX_CHARS", "1200") or "1200")
+
+        # Log one event per request (every question) as a JSONL artifact.
+        # Enabled by default when observability is enabled.
+        request_log_enabled = _truthy(os.getenv("MLFLOW_OBS_REQUEST_LOG_ENABLE", "1" if enabled else "0"))
+        # Default: store question + answer + ctx_sources.
+        request_log_content = _truthy(os.getenv("MLFLOW_OBS_REQUEST_LOG_CONTENT", "1"))
+        request_log_max_chars = int(os.getenv("MLFLOW_OBS_REQUEST_LOG_MAX_CHARS", "2000") or "2000")
+        request_log_artifact_dir = (os.getenv("MLFLOW_OBS_REQUEST_LOG_DIR") or "requests").strip() or "requests"
 
         # Clamp.
         if trace_sample_rate < 0:
@@ -104,6 +121,11 @@ class MlflowObservability:
             trace_sample_rate=trace_sample_rate,
             trace_content=trace_content,
             trace_max_chars=max(200, trace_max_chars),
+
+            request_log_enabled=request_log_enabled,
+            request_log_content=request_log_content,
+            request_log_max_chars=max(200, request_log_max_chars),
+            request_log_artifact_dir=request_log_artifact_dir,
         )
 
     def enabled(self) -> bool:
@@ -192,9 +214,61 @@ class MlflowObservability:
                 self._metric_sums[endpoint_key][key] += numeric
                 self._metric_counts[endpoint_key][key] += 1
 
+        # Per-request event logging (every question).
+        if self._cfg.request_log_enabled:
+            self._enqueue_request_event(endpoint=endpoint, request_name=request_name, timings=timings, metrics=metrics, error=error)
+
         # Optional trace.
         if self._cfg.tracing_enabled and random.random() < self._cfg.trace_sample_rate:
             self._log_trace(endpoint=endpoint, request_name=request_name, timings=timings, metrics=metrics, error=error)
+
+    def _enqueue_request_event(
+        self,
+        *,
+        endpoint: str,
+        request_name: str,
+        timings: Dict[str, float],
+        metrics: Dict[str, Any],
+        error: int,
+    ) -> None:
+        # Keep this fast and non-blocking; never raise.
+        try:
+            q = metrics.get("question") if isinstance(metrics.get("question"), str) else ""
+            a = metrics.get("answer") if isinstance(metrics.get("answer"), str) else ""
+            sources = metrics.get("ctx_sources") if isinstance(metrics.get("ctx_sources"), str) else ""
+
+            evt: Dict[str, Any] = {
+                "ts": datetime.now(timezone.utc).isoformat(),
+                "id": uuid.uuid4().hex,
+                "endpoint": endpoint,
+                "request_name": request_name,
+                "error": bool(error),
+                "total_ms": float(timings.get("total") or 0.0),
+                "domain": metrics.get("domain"),
+                "requested_domain": metrics.get("requested_domain"),
+                "model": metrics.get("model"),
+                "provider": metrics.get("provider"),
+                "ctx_n": metrics.get("ctx_n"),
+                "token_est": metrics.get("token_est"),
+                "guardrail_triggered": metrics.get("guardrail_triggered"),
+                "q_len": metrics.get("q_len"),
+                "answer_chars": metrics.get("answer_chars"),
+            }
+
+            # Store question always (requirement), with truncation.
+            evt["question"] = _redact_text(q, self._cfg.request_log_max_chars)
+
+            if self._cfg.request_log_content:
+                evt["answer"] = _redact_text(a, self._cfg.request_log_max_chars)
+                evt["ctx_sources"] = _redact_text(sources, self._cfg.request_log_max_chars)
+
+            with self._lock:
+                if len(self._request_events) >= self._request_events.maxlen:
+                    self._dropped_request_events += 1
+                else:
+                    self._request_events.append(evt)
+        except Exception:
+            return
 
     def _loop(self) -> None:
         while not self._stop.is_set():
@@ -207,6 +281,16 @@ class MlflowObservability:
     def flush(self) -> None:
         if not (self._cfg.enabled and self._mlflow and self._run_id):
             return
+
+        # Drain request events first to avoid unbounded growth.
+        drained_events: list[Dict[str, Any]] = []
+        dropped = 0
+        with self._lock:
+            if self._request_events:
+                drained_events = list(self._request_events)
+                self._request_events.clear()
+            dropped = int(self._dropped_request_events)
+            self._dropped_request_events = 0
 
         # Snapshot & reset window counters.
         with self._lock:
@@ -267,7 +351,48 @@ class MlflowObservability:
         except Exception:
             pass
 
+        # Log per-request JSONL artifact batch.
+        if drained_events:
+            try:
+                # Include a small meta line to indicate drops (if any).
+                if dropped:
+                    drained_events.insert(
+                        0,
+                        {
+                            "ts": datetime.now(timezone.utc).isoformat(),
+                            "kind": "meta",
+                            "dropped_request_events": dropped,
+                        },
+                    )
+                jsonl = "\n".join([json.dumps(e, ensure_ascii=False) for e in drained_events]) + "\n"
+                stamp = datetime.now(timezone.utc).astimezone().strftime("%Y%m%d_%H%M%S")
+                fname = f"requests_{stamp}_{uuid.uuid4().hex[:8]}.jsonl"
+                artifact_file = f"{self._cfg.request_log_artifact_dir.rstrip('/')}/{fname}"
+
+                # MLflow 2.5+ has log_text; keep fallback for safety.
+                log_text = getattr(self._mlflow, "log_text", None)
+                if callable(log_text):
+                    log_text(jsonl, artifact_file=artifact_file)
+                else:
+                    import tempfile
+                    from pathlib import Path
+
+                    with tempfile.TemporaryDirectory() as td:
+                        p = Path(td) / fname
+                        p.write_text(jsonl, encoding="utf-8")
+                        # artifact_path must be a directory; split.
+                        self._mlflow.log_artifact(str(p), artifact_path=self._cfg.request_log_artifact_dir)
+            except Exception:
+                pass
+
         self._last_flush = now
+
+    def flush_now(self) -> None:
+        """Best-effort immediate flush (useful at shutdown)."""
+        try:
+            self.flush()
+        except Exception:
+            pass
 
     def _log_trace(
         self,

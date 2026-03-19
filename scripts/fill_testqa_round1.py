@@ -120,7 +120,7 @@ def main() -> int:
     p = argparse.ArgumentParser()
     p.add_argument("--in", dest="in_path", default="testQA_domains_30_revised.csv")
     p.add_argument("--base-url", default="http://localhost:8001", help="RAG service base URL")
-    p.add_argument("--rounds", type=int, default=1, help="How many rounds to fill (1-3)")
+    p.add_argument("--rounds", type=int, default=1, help="How many rounds to fill (1-10)")
     p.add_argument("--timeout", type=int, default=60, help="HTTP read timeout seconds")
     p.add_argument("--connect-timeout", type=float, default=5.0, help="HTTP connect timeout seconds")
     p.add_argument("--retries", type=int, default=2, help="HTTP retries per call")
@@ -143,8 +143,8 @@ def main() -> int:
     answer_url = base_url + "/rag/answer"
 
     rounds = int(args.rounds)
-    if rounds < 1 or rounds > 4:
-        raise SystemExit("--rounds must be 1..4")
+    if rounds < 1 or rounds > 10:
+        raise SystemExit("--rounds must be 1..10")
 
     # Backup before mutating the input file.
     if not args.no_backup:
@@ -161,7 +161,7 @@ def main() -> int:
 
     # Walk rows, track section/domain and header mapping.
     current_domain: Optional[str] = None
-    round_cols: dict[int, Optional[int]] = {1: None, 2: None, 3: None, 4: None}
+    round_cols: dict[int, Optional[int]] = {}
     # Default column guess: [ลำดับ, คำถาม, คำตอบที่คาดว่าจะตอบ, r1, r2, r3]
     QUESTION_COL = 1
 
@@ -191,24 +191,26 @@ def main() -> int:
             dom = _detect_domain_from_section_line(r[0])
             if dom:
                 current_domain = dom
-                round_cols = {1: None, 2: None, 3: None, 4: None}
+                round_cols = {}
                 continue
 
             # Detect header row for a section
             if (r[0] or "").strip() == "ลำดับ" and len(r) >= 4:
-                for rn in (1, 2, 3):
+                for rn in range(1, rounds + 1):
                     round_cols[rn] = _find_round_col(r, rn)
-                # Add round 4 header if requested.
-                if rounds >= 4:
-                    round_cols[4] = _ensure_round_header(r, 4)
-                if round_cols[1] is None:
+
+                # Best-effort fallback mapping for common CSV layouts for rounds 1..3.
+                if round_cols.get(1) is None:
                     round_cols[1] = 3 if len(r) > 3 else None
-                if round_cols[2] is None:
+                if rounds >= 2 and round_cols.get(2) is None:
                     round_cols[2] = 4 if len(r) > 4 else None
-                if round_cols[3] is None:
+                if rounds >= 3 and round_cols.get(3) is None:
                     round_cols[3] = 5 if len(r) > 5 else None
-                if rounds >= 4 and round_cols[4] is None:
-                    round_cols[4] = 6 if len(r) > 6 else _ensure_round_header(r, 4)
+
+                # Ensure headers exist for any additional rounds (4+).
+                for rn in range(4, rounds + 1):
+                    if round_cols.get(rn) is None:
+                        round_cols[rn] = _ensure_round_header(r, rn)
                 continue
 
             # Fill for any known domain where a question is present.
@@ -218,14 +220,17 @@ def main() -> int:
             if not _is_int(r[0] or ""):
                 continue
 
-            if round_cols[1] is None:
+            if round_cols.get(1) is None:
                 round_cols[1] = 3
-            if round_cols[2] is None:
+            if rounds >= 2 and round_cols.get(2) is None:
                 round_cols[2] = 4
-            if round_cols[3] is None:
+            if rounds >= 3 and round_cols.get(3) is None:
                 round_cols[3] = 5
-            if rounds >= 4 and round_cols[4] is None:
-                round_cols[4] = 6
+            for rn in range(4, rounds + 1):
+                if round_cols.get(rn) is None:
+                    # If we never saw a header row (unexpected), append column now.
+                    round_cols[rn] = len(r)
+                    r.extend([""])
 
             question = (r[QUESTION_COL] if len(r) > QUESTION_COL else "").strip()
             if not question:
@@ -236,7 +241,7 @@ def main() -> int:
             payload = {"domain": current_domain, "question": question}
 
             for rn in range(1, rounds + 1):
-                col = round_cols[rn]
+                col = round_cols.get(rn)
                 if col is None:
                     continue
                 if len(r) <= col:

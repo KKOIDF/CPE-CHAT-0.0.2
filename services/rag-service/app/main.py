@@ -152,6 +152,21 @@ def _startup_observability() -> None:
 
 @app.on_event('shutdown')
 def _shutdown_cleanup():
+    # Flush and stop observability thread (best-effort).
+    try:
+        obs = init_mlflow_observability()
+        if obs and getattr(obs, "enabled", lambda: False)():
+            try:
+                obs.flush_now()
+            except Exception:
+                pass
+            try:
+                obs.stop()
+            except Exception:
+                pass
+    except Exception:
+        pass
+
     # Best-effort cleanup (useful in dev/reload; safe to ignore failures).
     try:
         close_thread_connections()
@@ -458,12 +473,80 @@ def _question_signal_terms(question: str) -> list[str]:
 
 def _has_date_intent(question: str) -> bool:
     q = (question or '')
+    # Do not treat exam-room policy questions as calendar-date questions.
+    # Example: "ออกห้องสอบเมื่อไร" is typically answered in minutes (e.g., 60 นาที),
+    # not a specific day/date.
+    if any(t in q for t in ('ห้องสอบ', 'กรรมการคุมสอบ', 'คุมสอบ', 'ทุจริต', 'อุทธรณ์')):
+        return any(t in q for t in ('วัน', 'วันที่', 'กำหนด', 'ปฏิทิน', 'ช่วงไหน', 'ภายในวัน'))
     return any(t in q for t in ('วัน', 'วันที่', 'เมื่อไร', 'กำหนด', 'ปฏิทิน', 'ช่วงไหน', 'ภายในวัน'))
 
 
 def _has_exact_date_intent(question: str) -> bool:
     q = (question or '')
+    if any(t in q for t in ('ห้องสอบ', 'กรรมการคุมสอบ', 'คุมสอบ', 'ทุจริต', 'อุทธรณ์')):
+        return any(t in q for t in ('วันที่เท่าไร', 'วันไหน', 'วันใด', 'วันที่อะไร'))
     return any(t in q for t in ('วันที่เท่าไร', 'วันไหน', 'วันใด', 'เมื่อไหร่', 'วันที่อะไร'))
+
+
+def _try_extract_exam_exit_rule(prompt: str, question: str) -> str | None:
+    """Extract exam-room exit timing rule (ข้อ 15) from context if present."""
+    q = (question or '').strip()
+    if not q:
+        return None
+    # If the user asks about temporary leave, prefer clause 16.
+    if 'ชั่วคราว' in q:
+        return None
+    if not any(t in q for t in ('ออกห้องสอบ', 'ออกจากห้องสอบ')):
+        return None
+
+    blocks = _extract_ctx_blocks(prompt)
+    if not blocks:
+        return None
+
+    for cite, text in blocks:
+        t = (text or '')
+        if 'ข้อ 15' in t and ('หกสิบนาที' in t or '60' in t):
+            stmt = t.replace('ออกหากห้องสอบ', 'ออกจากห้องสอบ')
+
+            # Prefer extracting only clause 15 (stop before clause 16/17).
+            m = re.search(r"ข้อ\s*15\s*(.+?)(?=(?:\n\s*)?ข้อ\s*1[67]\b|$)", stmt, flags=re.DOTALL)
+            if m:
+                core = (m.group(0) or '').strip()
+            else:
+                start = stmt.find('ข้อ 15')
+                core = stmt[start:].strip() if start != -1 else stmt.strip()
+                cut = re.search(r"(?:\n\s*)?ข้อ\s*1[67]\b", core)
+                if cut:
+                    core = core[:cut.start()].strip()
+
+            if len(core) > 260:
+                core = core[:260].rstrip() + ' ...'
+            return f"- {core} [{cite}]"
+    return None
+
+
+def _try_extract_exam_temp_leave_rule(prompt: str, question: str) -> str | None:
+    """Extract exam-room temporary leave rule (ข้อ 16) from context if present."""
+    q = (question or '').strip()
+    if not q:
+        return None
+    if 'ชั่วคราว' not in q and 'ออกห้องสอบชั่วคราว' not in q:
+        return None
+
+    blocks = _extract_ctx_blocks(prompt)
+    if not blocks:
+        return None
+
+    for cite, text in blocks:
+        t = (text or '')
+        if 'ข้อ 16' in t and ('ออกจากห้องสอบ' in t or 'ห้องสอบ' in t):
+            stmt = t.replace('ออกหากห้องสอบ', 'ออกจากห้องสอบ')
+            m = re.search(r"ข้อ\s*16\s*(.+?)(?=(?:\n\s*)?ข้อ\s*17\b|$)", stmt, flags=re.DOTALL)
+            core = (m.group(0) or '').strip() if m else stmt[stmt.find('ข้อ 16'):].strip()
+            if len(core) > 260:
+                core = core[:260].rstrip() + ' ...'
+            return f"- {core} [{cite}]"
+    return None
 
 
 def _has_date_evidence(text: str) -> bool:
@@ -717,6 +800,126 @@ def _try_extract_withdraw_w_dates(prompt: str, question: str | None = None) -> s
     return "\n".join(out).strip() if out else None
 
 
+def _try_extract_intermission_leave(prompt: str, question: str | None = None) -> str | None:
+    q = (question or '').strip().lower()
+    if q and not any(t in q for t in ('ลาพัก', 'ลาพักการเรียน', 'ลาพักการศึกษา', 'intermission', 'พักการเรียน')):
+        return None
+
+    blocks = _extract_ctx_blocks(prompt)
+    if not blocks:
+        return None
+
+    # Look for explicit policy sentence in academic calendar/regulations.
+    policy_line: tuple[str, str] | None = None  # (text, cite)
+    approval_hint: tuple[str, str] | None = None
+    for cite, text in blocks:
+        # Remove common publication-date tail that models often misinterpret.
+        cleaned = re.sub(r"ประกาศ\s*ณ\s*วันที่[^\n]{0,120}", "", text)
+        cleaned = re.sub(r"ประกาศณ\s*วันที่[^\n]{0,120}", "", cleaned)
+        m = re.search(
+            r"(นักศึกษาที่ประสงค์จะลา(?:พักการเรียน|พักการศึกษา)[^\n]{0,260}?(?:ก่อนวันลงทะเบียนรักษาสภาพ|ก่อนวันลงทะเบียน)[^\n]{0,160})",
+            cleaned,
+        )
+        if m:
+            policy_line = (m.group(1).strip(), cite)
+            break
+        # Fallback: ensure we capture the approval requirement even if phrasing differs.
+        m2 = re.search(
+            r"(ลา(?:พักการเรียน|พักการศึกษา)[^\n]{0,200}?ขออนุมัติจากคณะ[^\n]{0,200}?(?:ก่อนวันลงทะเบียนรักษาสภาพ|ก่อนวันลงทะเบียน)[^\n]{0,160})",
+            cleaned,
+        )
+        if m2:
+            policy_line = (m2.group(1).strip(), cite)
+            break
+
+        # Capture simpler approval requirement (often only present in form description).
+        m3 = re.search(
+            r"(ใช้ขอ[^\n]{0,220}?(?:ต้องได้รับอนุมัติจากคณะ|ขออนุมัติจากคณะ)[^\n]{0,80})",
+            cleaned,
+        )
+        if m3 and approval_hint is None:
+            approval_text = (m3.group(1) or '').strip()
+            approval_text = re.sub(r"ลิงก์\s*:\s*https?://\S+", "", approval_text).strip()
+            approval_text = re.sub(r"https?://\S+", "", approval_text).strip()
+            approval_text = approval_text.strip(' :-\t')
+            if approval_text:
+                approval_hint = (approval_text, cite)
+
+    # Look for the specific form reference/link (RO-12) if present.
+    form_line: tuple[str, str] | None = None
+    form_url: str | None = None
+
+    def _trim_pdf(url: str) -> str:
+        u = (url or '').rstrip(')];,')
+        m = re.search(r"(?i)\.pdf", u)
+        if not m:
+            return u
+        return u[: m.end()]
+
+    ro12_url: str | None = None
+    ro12_cite: str | None = None
+    line_url: str | None = None
+    line_cite: str | None = None
+
+    for cite, text in blocks:
+        # Prefer explicit RO-12 links anywhere in the block (robust to line breaks).
+        compact = re.sub(r"\s+", "", text or "")
+        pdf_urls = re.findall(r"https?://[^\s]+?\.pdf", compact, re.IGNORECASE)
+        for u in pdf_urls:
+            if 'RO-12' in (u or '').upper():
+                ro12_url = _trim_pdf(u)
+                ro12_cite = cite
+                break
+        if ro12_url and ro12_cite:
+            break
+
+        # Otherwise, only accept a URL if it appears on the same line as the intermission-leave form name.
+        if line_url is not None:
+            continue
+        for ln in (text or '').splitlines():
+            if not ln:
+                continue
+            if ('คำร้องขอลาพักการศึกษา' not in ln) and ('Intermission Leave' not in ln) and ('Request Form for Intermission Leave' not in ln):
+                continue
+            urls = re.findall(r"https?://\S+", ln)
+            if not urls:
+                # If the URL is broken across lines, the compact RO-12 scan above should catch it.
+                continue
+            pick = None
+            for u in urls:
+                if 'RO-12' in (u or '').upper():
+                    pick = u
+                    break
+            if pick is None and len(urls) == 1:
+                pick = urls[0]
+            if pick:
+                line_url = _trim_pdf(pick)
+                line_cite = cite
+                break
+
+    if ro12_url and ro12_cite:
+        form_url = ro12_url
+        form_line = ("ต้องใช้คำร้องขอลาพักการศึกษา (RO-12)", ro12_cite)
+    elif line_url and line_cite:
+        form_url = line_url
+        form_line = ("ต้องใช้คำร้องขอลาพักการศึกษา (Request Form for Intermission Leave)", line_cite)
+
+    if not policy_line and not approval_hint and not form_line:
+        return None
+
+    out: list[str] = []
+    if policy_line:
+        out.append(f"- {policy_line[0]} [{policy_line[1]}]")
+    elif approval_hint:
+        out.append(f"- {approval_hint[0]} [{approval_hint[1]}]")
+    if form_line:
+        if form_url:
+            out.append(f"- {form_line[0]}: {form_url} [{form_line[1]}]")
+        else:
+            out.append(f"- {form_line[0]} [{form_line[1]}]")
+    return "\n".join(out).strip()
+
+
 def _default_allowed_citation(prompt: str) -> str | None:
     allowed = sorted(_extract_allowed_citations(prompt or ''))
     if not allowed:
@@ -790,11 +993,24 @@ def _require_citations() -> bool:
 
 @app.post('/rag/query', response_model=RagResponse)
 def rag_endpoint(req: RagRequest):
-    if _USE_LANGCHAIN and _LANGCHAIN_READY and _langchain_rag is not None:
-        result = _langchain_rag.rag_query_langchain(req.question, req.domain)
-    else:
-        result = rag_query_domain(req.question, req.domain) if req.domain else rag_query(req.question)
-    return RagResponse(**result)
+    with request_timing('rag_query', endpoint='/rag/query', domain=req.domain):
+        add_metric('q_len', len((req.question or '').strip()))
+        add_metric('question', (req.question or '').strip())
+        add_metric('requested_domain', (req.domain or '').strip().lower() or 'auto')
+        add_metric('use_langchain', int(bool(_USE_LANGCHAIN and _LANGCHAIN_READY and _langchain_rag is not None)))
+
+        if _USE_LANGCHAIN and _LANGCHAIN_READY and _langchain_rag is not None:
+            with time_block('langchain_rag'):
+                result = _langchain_rag.rag_query_langchain(req.question, req.domain)
+        else:
+            with time_block('rag_query'):
+                result = rag_query_domain(req.question, req.domain) if req.domain else rag_query(req.question)
+
+        add_metric('ctx_n', len(result.get('contexts') or []))
+        add_metric('token_est', result.get('token_est', 0))
+        add_metric('ctx_sources', ','.join(_context_source_names(result)))
+        add_metric('prompt_chars', len(result.get('prompt') or ''))
+        return RagResponse(**result)
 
 @app.post('/rag/answer', response_model=RagAnswerResponse)
 def rag_answer_endpoint(req: RagAnswerRequest):
@@ -859,21 +1075,33 @@ def rag_answer_endpoint(req: RagAnswerRequest):
             if extracted:
                 answer = extracted
             else:
-                extracted_w = _try_extract_withdraw_w_dates(result.get('prompt') or '', question=req.question)
-                if extracted_w:
-                    answer = extracted_w
+                extracted_leave = _try_extract_intermission_leave(result.get('prompt') or '', question=req.question)
+                if extracted_leave:
+                    answer = extracted_leave
                 else:
-                    guarded = _low_confidence_guardrail(req.question, result)
-                    if guarded:
-                        add_metric('guardrail_triggered', 1)
-                        answer = guarded
+                    extracted_w = _try_extract_withdraw_w_dates(result.get('prompt') or '', question=req.question)
+                    if extracted_w:
+                        answer = extracted_w
                     else:
-                        if _USE_LANGCHAIN:
-                            # Already generated in langchain path.
-                            answer = result.get('answer') or ''
+                        extracted_exam_exit = _try_extract_exam_exit_rule(result.get('prompt') or '', question=req.question)
+                        if extracted_exam_exit:
+                            answer = extracted_exam_exit
                         else:
-                            with time_block('llm_generate'):
-                                answer = llm_engine.generate(result['prompt'], messages=[system_msg, user_msg])
+                            extracted_exam_temp = _try_extract_exam_temp_leave_rule(result.get('prompt') or '', question=req.question)
+                            if extracted_exam_temp:
+                                answer = extracted_exam_temp
+                            else:
+                                guarded = _low_confidence_guardrail(req.question, result)
+                                if guarded:
+                                    add_metric('guardrail_triggered', 1)
+                                    answer = guarded
+                                else:
+                                    if _USE_LANGCHAIN:
+                                        # Already generated in langchain path.
+                                        answer = result.get('answer') or ''
+                                    else:
+                                        with time_block('llm_generate'):
+                                            answer = llm_engine.generate(result['prompt'], messages=[system_msg, user_msg])
 
                     # Optionally enforce citations when we have context.
                     if _require_citations() and (result.get('contexts') or []) and answer and not answer.strip().startswith('('):
@@ -1015,25 +1243,30 @@ def openai_compatible_endpoint(request: dict):
             if extracted:
                 answer = extracted
             else:
-                extracted_w = _try_extract_withdraw_w_dates(result.get('prompt') or '', question=question)
-                if extracted_w:
-                    answer = extracted_w
+                extracted_leave = _try_extract_intermission_leave(result.get('prompt') or '', question=question)
+                if extracted_leave:
+                    answer = extracted_leave
                 else:
-                    guarded = _low_confidence_guardrail(question, result)
-                    if guarded:
-                        add_metric('guardrail_triggered', 1)
-                        answer = guarded
+                    extracted_w = _try_extract_withdraw_w_dates(result.get('prompt') or '', question=question)
+                    if extracted_w:
+                        answer = extracted_w
                     else:
-                        if _USE_LANGCHAIN:
-                            answer = result.get('answer') or ''
+                        guarded = _low_confidence_guardrail(question, result)
+                        if guarded:
+                            add_metric('guardrail_triggered', 1)
+                            answer = guarded
                         else:
-                            with time_block('llm_generate'):
-                                answer = llm_engine.generate(result['prompt'], messages=[system_msg, user_msg])
+                            if _USE_LANGCHAIN:
+                                answer = result.get('answer') or ''
+                            else:
+                                with time_block('llm_generate'):
+                                    answer = llm_engine.generate(result['prompt'], messages=[system_msg, user_msg])
 
             if not (answer or '').strip().startswith('('):
                 answer = _clean_answer_text(answer, strip_citations=True)
 
         add_metric('answer', (answer or '').strip())
+        add_metric('answer_chars', len((answer or '').strip()))
 
         # Return OpenAI-compatible response
         return {
