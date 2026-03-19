@@ -2,6 +2,7 @@ import os
 import re
 import logging
 import traceback
+import sqlite3
 
 import os
 
@@ -667,6 +668,273 @@ def _try_extract_total_credits(prompt: str, question: str | None = None) -> str 
     return f"- หลักสูตรกำหนดหน่วยกิตรวม {best_n} หน่วยกิต [{cite}]"
 
 
+def _extract_course_codes(text: str) -> list[str]:
+    q = (text or '').strip()
+    if not q:
+        return []
+
+    out: list[str] = []
+    seen: set[str] = set()
+    for m in re.finditer(r"\b([A-Za-z]{2,6})\s*[- ]?\s*(\d{3})\b", q):
+        code = f"{(m.group(1) or '').upper()}{m.group(2) or ''}"
+        if not code or code in seen:
+            continue
+        seen.add(code)
+        out.append(code)
+    return out
+
+
+def _load_context_texts_from_sqlite(contexts: list, domain: str | None = None) -> list[tuple[str, str]]:
+    """Load full chunk text by doc_id from domain SQLite and return [(cite, text)]."""
+    if not contexts:
+        return []
+
+    try:
+        from .config import domain_paths  # local import to avoid cycles at module load
+    except Exception:
+        return []
+
+    dom = (domain or '').strip().lower() or None
+    try:
+        _chroma_dir, sqlite_path = domain_paths(dom)
+    except Exception:
+        return []
+
+    db_path = str(sqlite_path)
+    if not db_path or not os.path.exists(db_path):
+        return []
+
+    doc_rows: list[tuple[str, str]] = []
+    ids: list[str] = []
+    id_seen: set[str] = set()
+    for c in contexts:
+        did = str((c or {}).get('doc_id') or '').strip()
+        if not did or did in id_seen:
+            continue
+        id_seen.add(did)
+        ids.append(did)
+
+    if not ids:
+        return []
+
+    text_by_id: dict[str, str] = {}
+    try:
+        con = sqlite3.connect(db_path)
+        placeholders = ','.join(['?'] * len(ids))
+        q = f"SELECT doc_id, text FROM documents WHERE doc_id IN ({placeholders})"
+        for row in con.execute(q, ids).fetchall():
+            did = str((row or [None])[0] or '').strip()
+            txt = str((row or [None, ''])[1] or '')
+            if did and txt:
+                text_by_id[did] = txt
+    except Exception:
+        return []
+    finally:
+        try:
+            con.close()  # type: ignore[name-defined]
+        except Exception:
+            pass
+
+    for c in contexts:
+        did = str((c or {}).get('doc_id') or '').strip()
+        txt = text_by_id.get(did, '')
+        if not txt:
+            continue
+        source = str((c or {}).get('source') or 'unknown').strip()
+        page = (c or {}).get('page_start') or 1
+        cite = f"{source}/{page}"
+        doc_rows.append((cite, txt))
+    return doc_rows
+
+
+def _find_instructors_from_sqlite_by_codes(domain: str | None, codes: list[str], limit_rows: int = 200) -> list[tuple[str, str]]:
+    """Fallback search across the domain SQLite for instructor-course co-occurrences.
+
+    Returns list of (name, cite) pairs.
+    """
+    if not codes:
+        return []
+
+    try:
+        from .config import domain_paths  # local import to avoid cycles at module load
+    except Exception:
+        return []
+
+    dom = (domain or '').strip().lower() or None
+    if dom is None:
+        # Heuristic: course-code questions in this project map to curriculum domain.
+        if any((c or '').upper().startswith('CPE') for c in codes):
+            dom = 'curriculum'
+
+    try:
+        _chroma_dir, sqlite_path = domain_paths(dom)
+    except Exception:
+        return []
+
+    db_path = str(sqlite_path)
+    if not db_path or not os.path.exists(db_path):
+        return []
+
+    out: list[tuple[str, str]] = []
+    seen: set[str] = set()
+    title_name_re = re.compile(r"((?:ศ\.ดร\.|รศ\.ดร\.|ผศ\.ดร\.|ดร\.|อ\.)\s*[^\n\[\]]{2,120})")
+    stop_tokens = (
+        'Assoc.', 'Assistant Professor', 'Professor', 'ภาระงานสอน',
+        'ประวัติการศึกษา', 'รายวิชา', 'อนุมัติจากสภา', 'International'
+    )
+
+    con = None
+    try:
+        con = sqlite3.connect(db_path)
+        for code in codes:
+            pref, num = code[:-3], code[-3:]
+            like1 = f"%{pref} {num}%"
+            like2 = f"%{pref}{num}%"
+            rows = con.execute(
+                "SELECT text FROM documents WHERE text LIKE ? OR text LIKE ? LIMIT ?",
+                (like1, like2, int(limit_rows)),
+            ).fetchall()
+
+            for row in rows:
+                txt = str((row or [''])[0] or '')
+                if not txt:
+                    continue
+                for m in title_name_re.finditer(txt):
+                    raw = (m.group(1) or '').strip()
+                    if not raw:
+                        continue
+
+                    cleaned = raw
+                    for tok in stop_tokens:
+                        pos = cleaned.find(tok)
+                        if pos > 0:
+                            cleaned = cleaned[:pos].strip()
+                    # Drop trailing qualification/noise after separators.
+                    cleaned = re.split(r"\s+-\s+|\s+\(|\s+Assoc\.|\s+Professor", cleaned, maxsplit=1)[0].strip()
+                    cleaned = cleaned.strip(' -,:;()[]')
+                    if len(cleaned) < 6:
+                        continue
+                    if not re.search(r"[\u0E00-\u0E7F]", cleaned):
+                        continue
+
+                    norm = re.sub(r"\s+", "", cleaned)
+                    if norm in seen:
+                        continue
+                    seen.add(norm)
+                    # We don't have exact source/page here; use sqlite-domain citation.
+                    out.append((cleaned, "sqlite_lookup/1"))
+    except Exception:
+        return out
+    finally:
+        try:
+            if con is not None:
+                con.close()
+        except Exception:
+            pass
+
+    return out
+
+
+def _try_extract_course_instructors(
+    prompt: str,
+    question: str | None = None,
+    contexts: list | None = None,
+    domain: str | None = None,
+) -> str | None:
+    """Extract instructor names for course-code questions (e.g., CPE314)."""
+    q = (question or '').strip()
+    if not q:
+        return None
+
+    intent_tokens = (
+        'ใครสอน', 'ผู้สอน', 'อาจารย์', 'อาจานย์', 'สอนโดย',
+        'instructor', 'teacher', 'teaches'
+    )
+    if not any(t in q.lower() for t in [tok.lower() for tok in intent_tokens]):
+        return None
+
+    target_codes = _extract_course_codes(q)
+    if not target_codes:
+        return None
+
+    blocks = _extract_ctx_blocks(prompt)
+    sqlite_blocks = _load_context_texts_from_sqlite(contexts or [], domain=domain)
+    all_blocks = [*blocks, *sqlite_blocks]
+    if not all_blocks:
+        return None
+
+    # Thai/academic titles commonly present before instructor names in OCR text.
+    title_name_re = re.compile(r"((?:ศ\.ดร\.|รศ\.ดร\.|ผศ\.ดร\.|ดร\.|อ\.)\s*[^\n\[\]]{2,120})")
+    stop_tokens = (
+        'Assoc.', 'Assistant Professor', 'Professor', 'ภาระงานสอน',
+        'ประวัติการศึกษา', 'รายวิชา', 'อนุมัติจากสภา', 'International'
+    )
+
+    found: list[tuple[str, str]] = []  # (name, cite)
+    for cite, text in all_blocks:
+        t = (text or '')
+        if not t.strip():
+            continue
+
+        # Keep only blocks that mention at least one asked course code.
+        mentions_code = False
+        for code in target_codes:
+            pref, num = code[:-3], code[-3:]
+            if re.search(rf"\b{re.escape(pref)}\s*[- ]?\s*{re.escape(num)}\b", t, flags=re.IGNORECASE):
+                mentions_code = True
+                break
+        if not mentions_code:
+            continue
+
+        for m in title_name_re.finditer(t):
+            raw = (m.group(1) or '').strip()
+            if not raw:
+                continue
+
+            cleaned = raw
+            for tok in stop_tokens:
+                pos = cleaned.find(tok)
+                if pos > 0:
+                    cleaned = cleaned[:pos].strip()
+            cleaned = re.split(r"\s+-\s+|\s+\(|\s+Assoc\.|\s+Professor", cleaned, maxsplit=1)[0].strip()
+            cleaned = cleaned.strip(' -,:;()[]')
+            if len(cleaned) < 6:
+                continue
+            if not re.search(r"[\u0E00-\u0E7F]", cleaned):
+                continue
+            found.append((cleaned, cite))
+
+    if not found:
+        found = _find_instructors_from_sqlite_by_codes(domain=domain, codes=target_codes)
+        if not found:
+            return None
+
+    # Deduplicate while preserving order.
+    uniq_names: list[str] = []
+    first_cite: dict[str, str] = {}
+    seen_norm: set[str] = set()
+    for name, cite in found:
+        norm = re.sub(r"\s+", "", name)
+        if norm in seen_norm:
+            continue
+        seen_norm.add(norm)
+        uniq_names.append(name)
+        first_cite[name] = cite
+
+    if not uniq_names:
+        return None
+
+    code_disp = f"{target_codes[0][:-3]} {target_codes[0][-3:]}"
+    if len(uniq_names) == 1:
+        n = uniq_names[0]
+        return f"- รายวิชา {code_disp} ระบุผู้สอนเป็น {n} [{first_cite.get(n, '')}]"
+
+    out = [f"- รายวิชา {code_disp} พบชื่อผู้สอนที่เกี่ยวข้องในเอกสารดังนี้"]
+    for n in uniq_names[:6]:
+        out.append(f"- {n} [{first_cite.get(n, '')}]")
+    return "\n".join(out)
+
+
 def _try_extract_withdraw_w_dates(prompt: str, question: str | None = None) -> str | None:
     q = (question or '').lower()
     if q and ('ถอน' not in q or 'w' not in q):
@@ -927,6 +1195,10 @@ def _default_allowed_citation(prompt: str) -> str | None:
     return f"[{allowed[0]}]"
 
 
+# Valid citation block format, e.g. [foo.txt/1]
+_CITE_RE = re.compile(r"\[[^\]/]+/\d+\]")
+
+
 def _repair_citations(answer: str, prompt: str) -> str:
     """Repair missing/invalid bracket blocks and ensure each bullet has a citation."""
     ans = (answer or '').strip()
@@ -1075,33 +1347,42 @@ def rag_answer_endpoint(req: RagAnswerRequest):
             if extracted:
                 answer = extracted
             else:
-                extracted_leave = _try_extract_intermission_leave(result.get('prompt') or '', question=req.question)
-                if extracted_leave:
-                    answer = extracted_leave
+                extracted_instructor = _try_extract_course_instructors(
+                    result.get('prompt') or '',
+                    question=req.question,
+                    contexts=result.get('contexts') or [],
+                    domain=req.domain,
+                )
+                if extracted_instructor:
+                    answer = extracted_instructor
                 else:
-                    extracted_w = _try_extract_withdraw_w_dates(result.get('prompt') or '', question=req.question)
-                    if extracted_w:
-                        answer = extracted_w
+                    extracted_leave = _try_extract_intermission_leave(result.get('prompt') or '', question=req.question)
+                    if extracted_leave:
+                        answer = extracted_leave
                     else:
-                        extracted_exam_exit = _try_extract_exam_exit_rule(result.get('prompt') or '', question=req.question)
-                        if extracted_exam_exit:
-                            answer = extracted_exam_exit
+                        extracted_w = _try_extract_withdraw_w_dates(result.get('prompt') or '', question=req.question)
+                        if extracted_w:
+                            answer = extracted_w
                         else:
-                            extracted_exam_temp = _try_extract_exam_temp_leave_rule(result.get('prompt') or '', question=req.question)
-                            if extracted_exam_temp:
-                                answer = extracted_exam_temp
+                            extracted_exam_exit = _try_extract_exam_exit_rule(result.get('prompt') or '', question=req.question)
+                            if extracted_exam_exit:
+                                answer = extracted_exam_exit
                             else:
-                                guarded = _low_confidence_guardrail(req.question, result)
-                                if guarded:
-                                    add_metric('guardrail_triggered', 1)
-                                    answer = guarded
+                                extracted_exam_temp = _try_extract_exam_temp_leave_rule(result.get('prompt') or '', question=req.question)
+                                if extracted_exam_temp:
+                                    answer = extracted_exam_temp
                                 else:
-                                    if _USE_LANGCHAIN:
-                                        # Already generated in langchain path.
-                                        answer = result.get('answer') or ''
+                                    guarded = _low_confidence_guardrail(req.question, result)
+                                    if guarded:
+                                        add_metric('guardrail_triggered', 1)
+                                        answer = guarded
                                     else:
-                                        with time_block('llm_generate'):
-                                            answer = llm_engine.generate(result['prompt'], messages=[system_msg, user_msg])
+                                        if _USE_LANGCHAIN:
+                                            # Already generated in langchain path.
+                                            answer = result.get('answer') or ''
+                                        else:
+                                            with time_block('llm_generate'):
+                                                answer = llm_engine.generate(result['prompt'], messages=[system_msg, user_msg])
 
                     # Optionally enforce citations when we have context.
                     if _require_citations() and (result.get('contexts') or []) and answer and not answer.strip().startswith('('):
@@ -1243,24 +1524,33 @@ def openai_compatible_endpoint(request: dict):
             if extracted:
                 answer = extracted
             else:
-                extracted_leave = _try_extract_intermission_leave(result.get('prompt') or '', question=question)
-                if extracted_leave:
-                    answer = extracted_leave
+                extracted_instructor = _try_extract_course_instructors(
+                    result.get('prompt') or '',
+                    question=question,
+                    contexts=result.get('contexts') or [],
+                    domain=domain,
+                )
+                if extracted_instructor:
+                    answer = extracted_instructor
                 else:
-                    extracted_w = _try_extract_withdraw_w_dates(result.get('prompt') or '', question=question)
-                    if extracted_w:
-                        answer = extracted_w
+                    extracted_leave = _try_extract_intermission_leave(result.get('prompt') or '', question=question)
+                    if extracted_leave:
+                        answer = extracted_leave
                     else:
-                        guarded = _low_confidence_guardrail(question, result)
-                        if guarded:
-                            add_metric('guardrail_triggered', 1)
-                            answer = guarded
+                        extracted_w = _try_extract_withdraw_w_dates(result.get('prompt') or '', question=question)
+                        if extracted_w:
+                            answer = extracted_w
                         else:
-                            if _USE_LANGCHAIN:
-                                answer = result.get('answer') or ''
+                            guarded = _low_confidence_guardrail(question, result)
+                            if guarded:
+                                add_metric('guardrail_triggered', 1)
+                                answer = guarded
                             else:
-                                with time_block('llm_generate'):
-                                    answer = llm_engine.generate(result['prompt'], messages=[system_msg, user_msg])
+                                if _USE_LANGCHAIN:
+                                    answer = result.get('answer') or ''
+                                else:
+                                    with time_block('llm_generate'):
+                                        answer = llm_engine.generate(result['prompt'], messages=[system_msg, user_msg])
 
             if not (answer or '').strip().startswith('('):
                 answer = _clean_answer_text(answer, strip_citations=True)

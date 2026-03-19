@@ -11,5 +11,6 @@ EXPOSE 5000
 # Persist backend store (SQLite) and serve artifacts via proxy from /mlflow/artifacts.
 # Using `mlflow-artifacts:/` ensures clients can upload/download via the tracking server.
 ENV MLFLOW_ALLOWED_HOSTS="localhost,localhost:5000,127.0.0.1,127.0.0.1:5000,mlflow,mlflow:5000,cpe-chat-mlflow,cpe-chat-mlflow:5000,10.35.29.103,10.35.29.103:5000"
+ENV MLFLOW_CORS_ALLOWED_ORIGINS="http://localhost:5000,http://127.0.0.1:5000,http://10.35.29.103:5000"
 
-CMD ["sh", "-lc", "mlflow server --host 0.0.0.0 --port 5000 --backend-store-uri sqlite:////mlflow/mlflow.db --serve-artifacts --artifacts-destination /mlflow/artifacts --default-artifact-root mlflow-artifacts:/ --allowed-hosts \"$MLFLOW_ALLOWED_HOSTS\""]
+CMD ["sh", "-lc", "mlflow server --host 0.0.0.0 --port 5000 --backend-store-uri sqlite:////mlflow/mlflow.db --serve-artifacts --artifacts-destination /mlflow/artifacts --default-artifact-root mlflow-artifacts:/ --allowed-hosts \"$MLFLOW_ALLOWED_HOSTS\" --cors-allowed-origins \"$MLFLOW_CORS_ALLOWED_ORIGINS\""]
