@@ -910,10 +910,16 @@ def retrieve_by_domain(question: str, domain: str | None, k_vec: int = 20, k_kw:
             return False
 
         candidates: list[str] = []
-        for k in ('course_code', 'course', 'course_id'):
+        for k in ('course_code', 'course_code_norm', 'course', 'course_id', 'entity_key'):
             v = _meta_get(item, k)
             if v is not None:
                 candidates.append(str(v))
+        aliases = _meta_get(item, 'aliases')
+        if isinstance(aliases, list):
+            candidates.extend([str(x) for x in aliases if x is not None])
+        links_to = _meta_get(item, 'links_to')
+        if isinstance(links_to, list):
+            candidates.extend([str(x) for x in links_to if x is not None])
         candidates.extend(_item_section_path(item))
         txt = item.get('text')
         if isinstance(txt, str) and txt:
@@ -1034,6 +1040,46 @@ def retrieve_by_domain(question: str, domain: str | None, k_vec: int = 20, k_kw:
     q = (question or '')
     q_lower = q.lower()
     codes = sorted(extract_course_codes(question))
+    target_codes = {_normalize_code_text(c) for c in codes if _normalize_code_text(c)}
+
+    exact_code_docs: List[Dict] = []
+    exact_code_doc_ids: set[str] = set()
+    if dom == 'curriculum' and target_codes:
+        # Exact-first retrieval path for course-code questions.
+        candidate_docs = [*sem, *kw_docs]
+        for d in candidate_docs:
+            did = d.get('doc_id')
+            if not isinstance(did, str) or did in exact_code_doc_ids:
+                continue
+            if _item_matches_course_codes(d, target_codes):
+                exact_code_docs.append(d)
+                exact_code_doc_ids.add(did)
+
+        # If merged candidates still miss exact hits, query SQLite by normalized code variants.
+        if not exact_code_docs:
+            exact_ids: List[str] = []
+            seen_ids: set[str] = set()
+            for code in sorted(target_codes):
+                if len(code) < 4:
+                    continue
+                needles = [code]
+                mcode = re.match(r"^([A-Z]{2,6})(\d{3})$", code)
+                if mcode:
+                    needles = [f"{mcode.group(1)} {mcode.group(2)}", code, f"รายวิชา: {mcode.group(1)}"]
+                for needle in needles:
+                    for did in keyword_search(needle, limit=max(40, k_kw), sqlite_path=sqlite_path):
+                        if did and did not in seen_ids:
+                            exact_ids.append(did)
+                            seen_ids.add(did)
+                    if len(exact_ids) >= max(80, k_kw * 2):
+                        break
+                if len(exact_ids) >= max(80, k_kw * 2):
+                    break
+            if exact_ids:
+                exact_code_docs = fetch_docs_with_path(exact_ids, sqlite_path=sqlite_path)
+                exact_code_doc_ids = {d.get('doc_id') for d in exact_code_docs if isinstance(d.get('doc_id'), str)}
+
+    add_metric('retrieval_exact_code_hits_n', len(exact_code_docs))
     if dom == 'curriculum':
         wants_lng_list = (
             re.search(r"LNG", q, re.IGNORECASE) is not None
@@ -1277,7 +1323,6 @@ def retrieve_by_domain(question: str, domain: str | None, k_vec: int = 20, k_kw:
         )
         wants_teacher_for_course = bool(codes) and any(m in q_lower for m in teacher_markers)
         if wants_teacher_for_course:
-            target_codes = {_normalize_code_text(c) for c in codes if _normalize_code_text(c)}
             try:
                 relation_boost = float(os.getenv('RAG_FACULTY_RELATION_BOOST', '1.2') or '1.2')
             except Exception:
@@ -1297,6 +1342,36 @@ def retrieve_by_domain(question: str, domain: str | None, k_vec: int = 20, k_kw:
 
     merged = [{**bank[k], 'score_rrf': v, 'doc_id': k} for k, v in ranks.items()]
     merged.sort(key=lambda x: x['score_rrf'], reverse=True)
+
+    if dom == 'curriculum' and exact_code_docs:
+        # Force-include a few exact course-code hits before generic ranking.
+        must_include = min(4, max_contexts)
+        picked: List[Dict] = []
+        seen: set[str] = set()
+
+        # Prioritize short/targeted exact chunks first.
+        exact_sorted = sorted(
+            exact_code_docs,
+            key=lambda d: len((d.get('text') or '').strip()) if isinstance(d.get('text'), str) else 10**9,
+        )
+        for d in exact_sorted:
+            did = d.get('doc_id')
+            if isinstance(did, str) and did not in seen:
+                picked.append(d)
+                seen.add(did)
+                if len(picked) >= must_include:
+                    break
+
+        for m in merged:
+            did = m.get('doc_id')
+            if isinstance(did, str) and did not in seen:
+                picked.append(m)
+                seen.add(did)
+                if len(picked) >= max_contexts:
+                    break
+        add_metric('retrieval_merged_n', len(merged))
+        add_metric('retrieval_final_n', len(picked))
+        return picked
 
     if dom == 'curriculum' and wants_prefix_list and prefix_docs:
         pref_set = {d.get('doc_id') for d in prefix_docs if d.get('doc_id')}

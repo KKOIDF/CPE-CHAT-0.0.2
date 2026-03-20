@@ -289,6 +289,60 @@ def _safe_int(x, default=0) -> int:
         return default
 
 
+def _curriculum_root_node_id(year: str) -> str:
+    y = str(year or '').strip() or 'unknown'
+    prog = re.sub(r"\s+", "_", (CURRICULUM_PROGRAM or 'curriculum').strip().lower())
+    prog = re.sub(r"[^a-z0-9_\-]", "", prog) or 'curriculum'
+    return f"program:{y}:{prog}"
+
+
+def _path_node_id(parts: List[str]) -> str:
+    cleaned = [str(p).strip() for p in (parts or []) if str(p).strip()]
+    if not cleaned:
+        return ''
+    basis = ' > '.join(cleaned)
+    return f"path:{_sha1_32(basis)[:16]}"
+
+
+def _entity_type_from_doc_type(doc_type: str) -> str:
+    dt = (doc_type or '').strip().lower()
+    mapping = {
+        'course_full': 'course',
+        'course_description': 'course',
+        'course_learning_outcomes': 'course',
+        'study_plan_term': 'study_plan',
+        'study_plan_term_row': 'study_plan',
+        'plo': 'plo',
+        'sub_plo': 'plo',
+        'faculty_roster': 'faculty',
+        'faculty_profile': 'faculty',
+        'faculty_course_relation': 'faculty',
+    }
+    return mapping.get(dt, 'section')
+
+
+def _build_course_aliases(course_code: str, course_th: str, course_en: str) -> List[str]:
+    aliases: List[str] = []
+    code_norm = _course_code_norm(course_code or '')
+    if code_norm:
+        aliases.extend([code_norm, code_norm.replace(' ', '')])
+    if course_code and course_code.strip():
+        aliases.append(course_code.strip())
+    if course_th and course_th.strip():
+        aliases.append(course_th.strip())
+    if course_en and course_en.strip():
+        aliases.append(course_en.strip())
+    seen = set()
+    out: List[str] = []
+    for a in aliases:
+        k = a.lower()
+        if k in seen:
+            continue
+        seen.add(k)
+        out.append(a)
+    return out
+
+
 def _make_curriculum_chunk(
     *,
     source_path: str,
@@ -360,6 +414,50 @@ def _make_curriculum_chunk(
     }
     if extra_meta:
         out.update(extra_meta)
+
+    # Unify entity metadata across curriculum chunk families for retrieval-time routing.
+    entity_type = str(out.get('entity_type') or _entity_type_from_doc_type(str(out.get('doc_type') or doc_type))).strip()
+    title = str(out.get('title') or out.get('section_heading') or out.get('section') or '').strip()
+    spath_any = out.get('section_path')
+    if isinstance(spath_any, list):
+        spath_list = [str(x).strip() for x in spath_any if str(x).strip()]
+    elif isinstance(spath_any, str) and spath_any.strip():
+        spath_list = [x.strip() for x in spath_any.split('>') if x.strip()]
+    else:
+        spath_list = []
+
+    parent_node_id = str(out.get('parent_node_id') or '').strip()
+    if not parent_node_id and len(spath_list) >= 2:
+        parent_node_id = _path_node_id(spath_list[:-1])
+
+    root_node_id = str(out.get('root_node_id') or '').strip() or _curriculum_root_node_id(str(out.get('year') or year))
+    node_id = str(out.get('node_id') or '').strip() or f"{entity_type}:{str(out.get('chunk_uid') or chunk_uid)[:16]}"
+
+    aliases_raw = out.get('aliases')
+    if isinstance(aliases_raw, list):
+        aliases = [str(x).strip() for x in aliases_raw if str(x).strip()]
+    else:
+        aliases = []
+    cc = str(out.get('course_code_norm') or '').strip()
+    cth = str(out.get('course_th') or '').strip()
+    cen = str(out.get('course_en') or '').strip()
+    if not aliases and (cc or cth or cen):
+        aliases = _build_course_aliases(cc, cth, cen)
+
+    out.setdefault('entity_type', entity_type)
+    out.setdefault('title', title)
+    out.setdefault('path_text', ' > '.join(spath_list))
+    out.setdefault('node_id', node_id)
+    out.setdefault('parent_node_id', parent_node_id)
+    out.setdefault('root_node_id', root_node_id)
+    out.setdefault('aliases', aliases)
+
+    # Stable entity key helps linking study-plan rows to course entities.
+    if cc:
+        out.setdefault('entity_key', f"course:{cc}")
+    else:
+        out.setdefault('entity_key', node_id)
+
     return out
 
 
@@ -1674,6 +1772,12 @@ def _make_curriculum_course_chunk(
     mct = re.match(r"\s*(\d+)", credits_breakdown or '')
     if mct:
         credits_total = _safe_int(mct.group(1), 0)
+    section_path_list = section_path or ([section_heading] if section_heading else [])
+    root_node_id = _curriculum_root_node_id(year)
+    parent_node_id = _path_node_id(section_path_list[:-1]) if len(section_path_list) >= 2 else ''
+    aliases = _build_course_aliases(course_code_norm, course_th, course_en)
+    node_id = f"course:{course_code_norm}:{(doc_type or 'course').strip().lower()}"
+
     return {
         'source': resolved_source,
         'path': resolved_path,
@@ -1699,7 +1803,8 @@ def _make_curriculum_course_chunk(
         'credits_breakdown': credits_breakdown,
         'section': section,
         'section_heading': section_heading,
-        'section_path': section_path or ([section_heading] if section_heading else []),
+        'section_path': section_path_list,
+        'path_text': ' > '.join([str(x) for x in section_path_list if str(x).strip()]),
         'lang': _infer_lang(text),
         'source_file': source_file,
         'source_scope': source_scope or (f"p{page_start}-p{page_end}" if page_start or page_end else ''),
@@ -1710,6 +1815,15 @@ def _make_curriculum_course_chunk(
         'priority': _source_priority(source_path),
         'source_priority': _source_priority(source_path),
         'learning_outcomes': learning_outcomes or [],
+        'entity_type': 'course',
+        'title': (course_th or course_en or course_code_norm).strip(),
+        'title_th': (course_th or '').strip(),
+        'title_en': (course_en or '').strip(),
+        'aliases': aliases,
+        'node_id': node_id,
+        'parent_node_id': parent_node_id,
+        'root_node_id': root_node_id,
+        'entity_key': f"course:{course_code_norm}",
     }
 
 
@@ -2320,11 +2434,15 @@ def _make_chunks_curriculum_course(paragraphs: List[Dict], source_path: str) -> 
                 section_path=['Study Plan', head, code],
                 clause_id=f"{head}|{code}|{ri}",
                 extra_meta={
+                    'entity_type': 'study_plan',
+                    'title': f"{head} {code}".strip(),
                     'term_label': head,
                     'plan_label': head if 'แผน' in head else '',
                     'course_code_norm': code,
                     'credits_breakdown': credits_breakdown,
                     'canonical_key': f"{year}|{head}|{code}|study_plan_term_row",
+                    'entity_key': f"study_plan:{year}:{head}:{code}",
+                    'links_to': [f"course:{code}"],
                 },
             ))
 

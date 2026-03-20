@@ -157,6 +157,9 @@ def cli():
         os.environ['CHUNK_STRATEGY'] = str(args.chunk_strategy).strip().lower()
     elif args.langchain:
         os.environ.setdefault('CHUNK_STRATEGY', 'langchain_recursive')
+    elif str(os.getenv('CPE_DOMAIN', '')).strip().lower() == 'curriculum':
+        # Prevent accidental fallback to a generic global strategy for curriculum ingestion.
+        os.environ.setdefault('CURRICULUM_CHUNK_STRATEGY', 'curriculum_course')
     run_ingest(args.input, args.output, store=not args.no_store, embed=not args.no_embed)
 
 if __name__ == '__main__':
