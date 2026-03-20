@@ -6,8 +6,10 @@ import time
 from datetime import datetime
 from pathlib import Path
 
-ROOT = Path('/home/testuser/CPE-CHAT-0.0.2')
-sys.path.insert(0, str(ROOT / 'services' / 'rag-service'))
+# Resolve repo root from this file so the script works across machines.
+ROOT = Path(__file__).resolve().parents[1]
+RAG_SERVICE_DIR = ROOT / 'services' / 'rag-service'
+sys.path.insert(0, str(RAG_SERVICE_DIR))
 
 QUESTIONS = [
     ('curriculum', 'CPE 342 คือวิชาอะไร'),
@@ -38,6 +40,11 @@ def has_code(text: str, code):
 
 def run_mode(exact_on: bool):
     os.environ['RAG_CURRICULUM_EXACT_CODE_FIRST'] = '1' if exact_on else '0'
+
+    # Ensure app-level config is reloaded with the current env for each mode.
+    for m in list(sys.modules.keys()):
+        if m == 'app' or m.startswith('app.'):
+            del sys.modules[m]
 
     from fastapi.testclient import TestClient
     from app.main import app
@@ -91,6 +98,17 @@ def summarize(rows):
 def main():
     os.environ['CPE_INDEX_ROOT'] = str(ROOT / 'indexes')
     os.environ['LLM_ENABLE'] = '0'
+    os.environ['RAG_USE_LANGCHAIN'] = '0'
+    os.environ['EMBED_DEVICE'] = 'cpu'
+    os.environ['CUDA_VISIBLE_DEVICES'] = ''
+
+    print('EVAL_ENV', {
+        'CPE_INDEX_ROOT': os.environ.get('CPE_INDEX_ROOT'),
+        'LLM_ENABLE': os.environ.get('LLM_ENABLE'),
+        'RAG_USE_LANGCHAIN': os.environ.get('RAG_USE_LANGCHAIN'),
+        'EMBED_DEVICE': os.environ.get('EMBED_DEVICE'),
+        'CUDA_VISIBLE_DEVICES': os.environ.get('CUDA_VISIBLE_DEVICES'),
+    })
 
     start = time.time()
     before_rows = run_mode(False)

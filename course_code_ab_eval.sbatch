@@ -41,6 +41,9 @@ python3 -V || true
 # Runtime config for deterministic A/B eval.
 export CPE_INDEX_ROOT="${CPE_INDEX_ROOT:-$REPO_ROOT/indexes}"
 export LLM_ENABLE=0
+export RAG_USE_LANGCHAIN=0
+export EMBED_DEVICE=cpu
+export CUDA_VISIBLE_DEVICES=""
 
 # Optional: reduce tokenizer parallelism noise in batch logs.
 export TOKENIZERS_PARALLELISM=false
