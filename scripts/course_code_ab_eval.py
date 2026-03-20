@@ -134,6 +134,7 @@ def main():
     os.environ['CPE_INDEX_ROOT'] = str(ROOT / 'indexes')
     os.environ['LLM_ENABLE'] = '0'
     os.environ['RAG_USE_LANGCHAIN'] = '0'
+    os.environ['RAG_USE_STRUCTURED_CURRICULUM'] = '0'
     os.environ['EMBED_DEVICE'] = 'cpu'
     os.environ['CUDA_VISIBLE_DEVICES'] = ''
 
@@ -141,6 +142,7 @@ def main():
         'CPE_INDEX_ROOT': os.environ.get('CPE_INDEX_ROOT'),
         'LLM_ENABLE': os.environ.get('LLM_ENABLE'),
         'RAG_USE_LANGCHAIN': os.environ.get('RAG_USE_LANGCHAIN'),
+        'RAG_USE_STRUCTURED_CURRICULUM': os.environ.get('RAG_USE_STRUCTURED_CURRICULUM'),
         'EMBED_DEVICE': os.environ.get('EMBED_DEVICE'),
         'CUDA_VISIBLE_DEVICES': os.environ.get('CUDA_VISIBLE_DEVICES'),
     })
