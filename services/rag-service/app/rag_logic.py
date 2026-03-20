@@ -199,25 +199,6 @@ def structured_curriculum_answer(question: str) -> str | None:
     totals = load_credit_totals_2564()
     curriculum = load_cpe_curriculum_2564()
     source_name = curriculum.source_path.name if curriculum else 'FOE10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt'
-        hallucination_detection = (
-            "\n=== ตัวตรวจจับความไม่ถูกต้องของข้อมูล (Hallucination Detection) ===\n"
-            "MUST DO: ตรวจสอบสิ่งที่ถามในคำถาม กับที่เอกสารระบุ:\n\n"
-            "ตัวอย่าง 1 - ข้อมูลตรงข้าม:\n"
-            "  Q: 'หลักสูตรรับนักศึกษาต่างชาติใช่หรือไม่?'\n"
-            "  Context: 'รับเฉพาะนักศึกษาไทยเท่านั้น'\n"
-            "  ✅ ตอบ: 'ข้อมูลในคำถามไม่ถูกต้อง หลักสูตรรับเฉพาะนักศึกษาไทยเท่านั้น ไม่รับต่างชาติ'\n\n"
-            "ตัวอย่าง 2 - ตัวเลขผิด:\n"
-            "  Q: 'วิชาเฉพาะมีวิชาเลือก 15 หน่วยกิตใช่หรือไม่?'\n"
-            "  Context: 'วิชาเลือก 12 หน่วยกิต'\n"
-            "  ✅ ตอบ: 'ข้อมูลในคำถามไม่ถูกต้อง วิชาเฉพาะมีวิชาเลือก 12 หน่วยกิต ไม่ใช่ 15 หน่วยกิต'\n\n"
-            "ตัวอย่าง 3 - ไม่มีข้อมูล:\n"
-            "  Q: 'CPE 100 มีวิชาบังคับก่อนใช่หรือไม่?'\n"
-            "  Context: (ไม่มีการกล่าวถึง)\n"
-            "  ✅ ตอบ: 'เอกสารไม่ได้ระบุว่า CPE 100 มีวิชาบังคับก่อนหรือไม่'\n\n"
-            "STRICT RULES:\n"
-            "- ไม่ปล่อยให้ตัวเลข วันที่ ชื่ออยู่ในสงสัย\n"
-            "- ตรวจเสมอว่าคำถามมี 'ใช่หรือไม่' หรือ 'เท่าไร' หรือ 'กี่' → ทั้งหมดต้องตรวจสอบกับบริบท\n"
-            "- ห้ามปล่อยไม่ยืนยัน ตอบให้ชัดเจนว่า 'ถูก' 'ผิด' หรือ 'ไม่มีข้อมูล'\n"
 
     # 0) Category totals lookup from the canonical 2564 curriculum source.
     if any(t in q for t in ('หมวดวิชาศึกษาทั่วไป', 'วิชาศึกษาทั่วไป', 'ศึกษาทั่วไป')) and 'หน่วยกิต' in q:
@@ -225,20 +206,14 @@ def structured_curriculum_answer(question: str) -> str | None:
         if ge is not None:
             return f"- หมวดวิชาศึกษาทั่วไปต้องศึกษารวม {ge} หน่วยกิต [{source_name}/1]"
 
-                f"{hallucination_detection}\n"
-                f"คำตอบ:\n"
         sp = totals.get('specific')
         if sp is not None:
             return f"- หมวดวิชาเฉพาะต้องศึกษารวม {sp} หน่วยกิต [{source_name}/1]"
 
     # 0.5) Total-program-credit lookup from the canonical 2564 curriculum source.
-            f"{hallucination_detection}\n"
-            f"คำตอบ:\n"
-        'หน่วยกิต' in q
-        and (
-            any(t in q for t in ('รวมกี่หน่วยกิต', 'หน่วยกิตรวมของหลักสูตร', 'จำนวนหน่วยกิตรวม', 'ตลอดหลักสูตร'))
-            or ('หลักสูตร' in q and any(t in q for t in ('กี่', 'ทั้งหมด', 'รวม')))
-        )
+    if 'หน่วยกิต' in q and (
+        any(t in q for t in ('รวมกี่หน่วยกิต', 'หน่วยกิตรวมของหลักสูตร', 'จำนวนหน่วยกิตรวม', 'ตลอดหลักสูตร'))
+        or ('หลักสูตร' in q and any(t in q for t in ('กี่', 'ทั้งหมด', 'รวม')))
     ):
         tot = totals.get('total')
         if tot is not None:
@@ -1044,7 +1019,11 @@ def retrieve_by_domain(question: str, domain: str | None, k_vec: int = 20, k_kw:
 
     exact_code_docs: List[Dict] = []
     exact_code_doc_ids: set[str] = set()
-    if dom == 'curriculum' and target_codes:
+    exact_first_enabled = (os.getenv('RAG_CURRICULUM_EXACT_CODE_FIRST', '1') or '1').strip().lower() in (
+        '1', 'true', 'yes', 'on'
+    )
+    add_metric('retrieval_exact_code_route_enabled', int(exact_first_enabled))
+    if dom == 'curriculum' and target_codes and exact_first_enabled:
         # Exact-first retrieval path for course-code questions.
         candidate_docs = [*sem, *kw_docs]
         for d in candidate_docs:
