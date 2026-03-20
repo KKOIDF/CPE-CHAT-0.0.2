@@ -38,6 +38,29 @@ def has_code(text: str, code):
     return code['spaced'] in t or code['compact'] in t
 
 
+def _norm_alnum(text: str) -> str:
+    return re.sub(r'[^A-Z0-9]', '', (text or '').upper())
+
+
+def _code_match_loose(text: str, code) -> bool:
+    if not text or not code:
+        return False
+    t = _norm_alnum(text)
+    return code['compact'] in t
+
+
+def _contexts_text(contexts: list) -> list[str]:
+    out = []
+    for c in contexts or []:
+        parts = [
+            str(c.get('text') or ''),
+            str(c.get('source') or ''),
+            str(c.get('path') or ''),
+        ]
+        out.append('\n'.join(parts))
+    return out
+
+
 def run_mode(exact_on: bool):
     os.environ['RAG_CURRICULUM_EXACT_CODE_FIRST'] = '1' if exact_on else '0'
 
@@ -58,10 +81,12 @@ def run_mode(exact_on: bool):
         qj = qres.json() if qres.status_code == 200 else {}
         aj = ares.json() if ares.status_code == 200 else {}
         contexts = qj.get('contexts') or []
+        prompt = qj.get('prompt') or ''
 
-        top1_text = (contexts[0].get('text') if contexts else '') or ''
-        top3_text = '\n'.join((c.get('text') or '') for c in contexts[:3])
-        top5_text = '\n'.join((c.get('text') or '') for c in contexts[:5])
+        ctx_texts = _contexts_text(contexts)
+        top1_text = ctx_texts[0] if ctx_texts else ''
+        top3_text = '\n'.join(ctx_texts[:3])
+        top5_text = '\n'.join(ctx_texts[:5])
 
         answer = (aj.get('answer') or '').strip()
         fallback = any(h in answer for h in FALLBACK_HINTS)
@@ -74,8 +99,13 @@ def run_mode(exact_on: bool):
             'hit_top1_exact_code': has_code(top1_text, code),
             'hit_top3_exact_code': has_code(top3_text, code),
             'hit_top5_exact_code': has_code(top5_text, code),
+            'hit_top1_loose': _code_match_loose(top1_text, code),
+            'hit_top3_loose': _code_match_loose(top3_text, code),
+            'hit_top5_loose': _code_match_loose(top5_text, code),
+            'hit_prompt_loose': _code_match_loose(prompt, code),
             'answer_has_code': has_code(answer, code),
             'answer_is_fallback': fallback,
+            'answer_is_structured': (aj.get('prompt') == '(structured curriculum answer)'),
             'top1_source': (contexts[0].get('source') if contexts else None),
             'top1_page': (contexts[0].get('page_start') if contexts else None),
             'answer_preview': answer[:200],
@@ -90,8 +120,13 @@ def summarize(rows):
         'hit_top1_rate': sum(r['hit_top1_exact_code'] for r in rows) / n,
         'hit_top3_rate': sum(r['hit_top3_exact_code'] for r in rows) / n,
         'hit_top5_rate': sum(r['hit_top5_exact_code'] for r in rows) / n,
+        'hit_top1_loose_rate': sum(r['hit_top1_loose'] for r in rows) / n,
+        'hit_top3_loose_rate': sum(r['hit_top3_loose'] for r in rows) / n,
+        'hit_top5_loose_rate': sum(r['hit_top5_loose'] for r in rows) / n,
+        'hit_prompt_loose_rate': sum(r['hit_prompt_loose'] for r in rows) / n,
         'answer_has_code_rate': sum(r['answer_has_code'] for r in rows) / n,
         'non_fallback_rate': sum((not r['answer_is_fallback']) for r in rows) / n,
+        'structured_answer_rate': sum(r['answer_is_structured'] for r in rows) / n,
     }
 
 
@@ -143,7 +178,18 @@ def main():
         '## Summary',
         '',
     ]
-    for k in ['hit_top1_rate', 'hit_top3_rate', 'hit_top5_rate', 'answer_has_code_rate', 'non_fallback_rate']:
+    for k in [
+        'hit_top1_rate',
+        'hit_top3_rate',
+        'hit_top5_rate',
+        'hit_top1_loose_rate',
+        'hit_top3_loose_rate',
+        'hit_top5_loose_rate',
+        'hit_prompt_loose_rate',
+        'answer_has_code_rate',
+        'non_fallback_rate',
+        'structured_answer_rate',
+    ]:
         lines.append(f"- {k}: before={before[k]:.3f} after={after[k]:.3f} delta={after[k]-before[k]:+.3f}")
     lines.append('')
     lines.append('## After per-question')
@@ -151,7 +197,7 @@ def main():
     for r in after_rows:
         lines.append(f"- Q: {r['question']}")
         lines.append(
-            f"  hit@1={r['hit_top1_exact_code']} hit@3={r['hit_top3_exact_code']} hit@5={r['hit_top5_exact_code']} answer_has_code={r['answer_has_code']} fallback={r['answer_is_fallback']}"
+            f"  hit@1={r['hit_top1_exact_code']} hit@3={r['hit_top3_exact_code']} hit@5={r['hit_top5_exact_code']} loose@5={r['hit_top5_loose']} prompt_hit={r['hit_prompt_loose']} answer_has_code={r['answer_has_code']} fallback={r['answer_is_fallback']} structured={r['answer_is_structured']}"
         )
         lines.append(f"  top1={r['top1_source']}/{r['top1_page']}")
         lines.append(f"  answer={r['answer_preview']}")
