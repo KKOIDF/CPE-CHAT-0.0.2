@@ -11,6 +11,8 @@ ROOT = Path(__file__).resolve().parents[1]
 RAG_SERVICE_DIR = ROOT / 'services' / 'rag-service'
 sys.path.insert(0, str(RAG_SERVICE_DIR))
 
+from app.sqlite_client import fetch_docs_with_path, domain_sqlite_path
+
 QUESTIONS = [
     ('curriculum', 'CPE 342 คือวิชาอะไร'),
     ('curriculum', 'LNG 220 คือวิชาอะไร'),
@@ -61,6 +63,33 @@ def _contexts_text(contexts: list) -> list[str]:
     return out
 
 
+def _hydrate_contexts_with_text(contexts: list, domain: str | None) -> list:
+    if not contexts:
+        return []
+    ids: list[str] = []
+    for c in contexts:
+        did = c.get('doc_id')
+        if isinstance(did, str) and did:
+            ids.append(did)
+    if not ids:
+        return contexts
+
+    sqlite_path = domain_sqlite_path(domain)
+    docs = fetch_docs_with_path(ids, sqlite_path=sqlite_path)
+    by_id = {d.get('doc_id'): d for d in docs if d.get('doc_id')}
+
+    out: list = []
+    for c in contexts:
+        did = c.get('doc_id')
+        if isinstance(did, str) and did in by_id:
+            merged = dict(c)
+            merged['text'] = by_id[did].get('text') or ''
+            out.append(merged)
+        else:
+            out.append(c)
+    return out
+
+
 def run_mode(exact_on: bool):
     os.environ['RAG_CURRICULUM_EXACT_CODE_FIRST'] = '1' if exact_on else '0'
 
@@ -80,7 +109,7 @@ def run_mode(exact_on: bool):
 
         qj = qres.json() if qres.status_code == 200 else {}
         aj = ares.json() if ares.status_code == 200 else {}
-        contexts = qj.get('contexts') or []
+        contexts = _hydrate_contexts_with_text(qj.get('contexts') or [], domain)
         prompt = qj.get('prompt') or ''
 
         ctx_texts = _contexts_text(contexts)
@@ -132,7 +161,7 @@ def summarize(rows):
 
 def main():
     os.environ['CPE_INDEX_ROOT'] = str(ROOT / 'indexes')
-    os.environ['LLM_ENABLE'] = '0'
+    os.environ['LLM_ENABLE'] = os.environ.get('LLM_ENABLE', '0')
     os.environ['RAG_USE_LANGCHAIN'] = '0'
     os.environ['RAG_USE_STRUCTURED_CURRICULUM'] = '0'
     os.environ['EMBED_DEVICE'] = 'cpu'

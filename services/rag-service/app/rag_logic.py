@@ -345,21 +345,48 @@ def infer_domain(question: str) -> str | None:
     ql = q.lower()
 
     # Curriculum signals: course codes / prefixes / curriculum-specific keywords.
+    # Strong signal: explicit course codes (e.g., CPE 342, LNG 220, GEN 121)
     if re.search(r"\b[A-Za-z]{2,6}\s*\d{3}\b", q):
         return 'curriculum'
+    
+    # Strong signal: common curriculum prefixes
     if re.search(r"\b(cpe|lng|ssc|gen|cpx|cen|csc)\b", ql):
         return 'curriculum'
-    # Note: 'รายวิชา' can appear in registrar actions like 'ถอนรายวิชา', which are not curriculum.
+    
+    # Medium signals: curriculum-specific keywords and phrases
+    curriculum_indicators = (
+        'หลักสูตร',           # curriculum
+        'แผนการเรียน',        # study plan
+        'หน่วยกิต',           # credits
+        'วิชาบังคับ',         # required courses
+        'วิชาเลือก',          # elective courses
+        'คำอธิบายรายวิชา',    # course description
+        'รายวิชา',            # course (if not registrar op)
+        'ต้องผ่าน',           # must pass / prerequisite
+        'บังคับก่อน',         # prerequisite
+        'วิชาบังคับก่อน',     # prerequisite courses
+        'ก่อนเรียน',          # before studying
+        'สาขาวิชา',           # major/branch
+        'กลุ่มวิชา',           # course group
+        'หมวดวิชา',           # course category
+        'ปีที่',               # year level
+        'ชั้นปี',              # academic year/level
+        'ภาคการศึกษา',        # semester
+        'ต้องมีพื้นฐาน',       # must have foundation
+    )
+    
+    # Don't route registrar operations to curriculum  
     _registrar_ops = ('ถอนรายวิชา', 'เพิ่ม-ลด', 'เพิ่มลด', 'ลงทะเบียน', 'ปฏิทิน', 'กำหนดการ')
-    if any(t in q for t in ('หลักสูตร', 'แผนการเรียน', 'หน่วยกิต', 'วิชาบังคับ', 'วิชาเลือก', 'คำอธิบายรายวิชา', 'รายวิชา')) and not any(op in q for op in _registrar_ops):
+    
+    if any(t in q for t in curriculum_indicators) and not any(op in q for op in _registrar_ops):
         return 'curriculum'
-    if 'ภาษา' in q and any(t in q for t in ('จีน', 'ญี่ปุ่น', 'เกาหลี', 'ฝรั่งเศส', 'สเปน', 'เยอรมัน', 'รัสเซีย', 'มลายู', 'มาเล')):
+    
+    # Strong signal: foreign language questions with specific languages (likely LNG courses)
+    if 'ภาษา' in q and any(t in q for t in ('จีน', 'ญี่ปุ่น', 'เกาหลี', 'ฝรั่งเศส', 'สเปน', 'เยอรมัน', 'รัสเซีย', 'มลายู', 'มาเล', 'ญี่ปุ่น', 'พม่า')):
         return 'curriculum'
 
     # Regulations/registrar signals.
     # Exam-policy / discipline questions should go to regulations even if they contain time words.
-    # (Previously, the presence of words like 'เมื่อไหร่' incorrectly routed many exam-rule questions
-    # to announcements and caused irrelevant retrieval.)
     _exam_policy_terms = (
         'ห้องสอบ', 'เข้าห้องสอบ', 'ออกห้องสอบ', 'ออกจากห้องสอบ', 'ออกห้องสอบชั่วคราว',
         'กรรมการคุมสอบ', 'คุมสอบ', 'ข้อสอบ', 'กระดาษคำตอบ', 'สมุดคำตอบ',
@@ -372,6 +399,7 @@ def infer_domain(question: str) -> str | None:
     # Schedule / calendar / registration timing: these usually live in announcements.
     if any(t in q for t in ('ปฏิทิน', 'กำหนดการ', 'ลงทะเบียน', 'เพิ่ม-ลด', 'เพิ่มลด', 'ช่วง', 'วัน', 'วันที่', 'เมื่อไหร่')):
         return 'announcements'
+    
     # Withdraw/W questions often need the academic calendar (announcements) more than policy text.
     if ('ถอนรายวิชา' in q or re.search(r"\bW\b|\(W\)", q, re.IGNORECASE)):
         # If user asks for when/how, prefer announcements.
@@ -582,6 +610,69 @@ def retrieve_all_domains(
 
 
 def retrieve_by_domain(question: str, domain: str | None, k_vec: int = 20, k_kw: int = 30) -> List[Dict]:
+    def _augment_curriculum_query(original_question: str, base_query: str) -> str:
+        """Domain-specific query expansion for curriculum questions.
+
+        Curriculum data relies heavily on course code matching and structured data.
+        We add hints for common question patterns to improve recall.
+        """
+        q = (original_question or '').strip()
+        if not q:
+            return base_query
+
+        hints: list[str] = []
+
+        # Course description/title queries
+        if any(t in q for t in ('คือวิชาอะไร', 'คือ', 'ชื่อ', 'ชื่อวิชา', 'เรื่องอะไร')):
+            hints.extend(['รายวิชา', 'คำอธิบายวิชา', 'course description', 'title'])
+
+        # Credit/unit queries
+        if any(t in q for t in ('หน่วยกิต', 'กี่หน่วย', 'หน่วยการศึกษา', 'หน่วยกิตรวม')):
+            hints.extend(['หน่วยกิต', 'credit', 'units', 'ชั่วโมง'])
+
+        # Year/semester queries
+        if any(t in q for t in ('ปีไหน', 'ชั้นปี', 'ปีที่', 'เทอม', 'ภาค')):
+            hints.extend(['ปีที่', 'ชั้นปี', 'ภาคการศึกษา', 'semester', 'year'])
+
+        # Category/group queries
+        if any(t in q for t in ('กลุ่มวิชา', 'หมวดวิชา', 'แผนกวิชา', 'สาขา')):
+            hints.extend(['หมวดวิชา', 'กลุ่มวิชา', 'category', 'group'])
+
+        # Prerequisite queries
+        if any(t in q for t in ('ต้องผ่าน', 'บังคับก่อน', 'ก่อนเรียน', 'prerequisite')):
+            hints.extend(['วิชาบังคับก่อน', 'prerequisite', 'requirement', 'ต้องมีพื้นฐาน'])
+
+        # Lecturer queries
+        if any(t in q for t in ('ใครสอน', 'อาจารย์', 'ผู้สอน', 'teacher')):
+            hints.extend(['อาจารย์', 'ผู้สอน', 'lecturer', 'instructor', 'teacher'])
+
+        # Course code patterns
+        if re.search(r"\b[A-Za-z]{2,6}\s*\d{3}\b", q):
+            hints.extend(['รายวิชา', 'course code', 'course number'])
+
+        # De-dup while preserving order.
+        seen: set[str] = set()
+        compact: list[str] = []
+        for h in hints:
+            s = (h or '').strip()
+            if not s:
+                continue
+            k = s.lower()
+            if k in seen:
+                continue
+            seen.add(k)
+            compact.append(s)
+
+        if not compact:
+            return base_query
+
+        # Keep it short; keyword search benefits from a few clause anchors.
+        compact = compact[:12]
+        hint_block = ' '.join(compact)
+        if hint_block and hint_block not in (base_query or ''):
+            return f"{base_query} {hint_block}".strip()
+        return base_query
+
     def _augment_regulations_query(original_question: str, base_query: str) -> str:
         """Domain-specific query expansion for regulations.
 
@@ -796,6 +887,40 @@ def retrieve_by_domain(question: str, domain: str | None, k_vec: int = 20, k_kw:
         boosted.sort(key=lambda x: float(x.get('score_rrf') or 0.0), reverse=True)
         return boosted
 
+    def _apply_curriculum_rerank(items: List[Dict], original_question: str, target_codes: set[str]) -> List[Dict]:
+        """Curriculum-specific reranking to boost exact course code matches.
+
+        Prioritizes documents that directly match extracted course codes.
+        """
+        if not items or not target_codes:
+            return items
+        
+        boosted: List[Dict] = []
+        for item in items:
+            updated = dict(item)
+            base_score = float(updated.get('score_rrf') or 0.0)
+            
+            # Check if item matches any target course code
+            if _item_matches_course_codes(item, target_codes):
+                # Boost score significantly for exact matches
+                updated['score_rrf'] = base_score + 0.5
+                updated['_curriculum_match'] = True
+            
+            boosted.append(updated)
+        
+        # Sort: exact matches first, then by original RRF score
+        def sort_key(x):
+            has_match = float(x.get('_curriculum_match', False))
+            return (has_match, float(x.get('score_rrf', 0.0)))
+        
+        boosted.sort(key=sort_key, reverse=True)
+        
+        # Clean up temporary fields
+        for item in boosted:
+            item.pop('_curriculum_match', None)
+        
+        return boosted
+
     def _hydrate_from_sqlite(items: List[Dict], sqlite_path: str | None) -> List[Dict]:
         """Replace item text/metadata from SQLite when doc_id is known.
 
@@ -898,7 +1023,7 @@ def retrieve_by_domain(question: str, domain: str | None, k_vec: int = 20, k_kw:
         candidates.extend(_item_section_path(item))
         txt = item.get('text')
         if isinstance(txt, str) and txt:
-            candidates.append(txt[:240])
+            candidates.append(txt)
 
         for c in candidates:
             norm = _normalize_code_text(c)
@@ -909,6 +1034,24 @@ def retrieve_by_domain(question: str, domain: str | None, k_vec: int = 20, k_kw:
                     return True
         return False
 
+    def _contains_target_code_in_visible_fields(item: Dict, target_codes: set[str]) -> bool:
+        if not target_codes:
+            return False
+        blob = ' '.join(
+            [
+                str(item.get('text') or ''),
+                str(item.get('source') or ''),
+                str(item.get('path') or ''),
+            ]
+        )
+        norm_blob = _normalize_code_text(blob)
+        if not norm_blob:
+            return False
+        for t in target_codes:
+            if t and t in norm_blob:
+                return True
+        return False
+
     dom = (domain or '').strip().lower()
     add_metric('retrieval_domain', dom or 'auto')
 
@@ -917,6 +1060,8 @@ def retrieve_by_domain(question: str, domain: str | None, k_vec: int = 20, k_kw:
     q_search = search_query_from_question(question)
     if dom == 'regulations':
         q_search = _augment_regulations_query(question, q_search)
+    elif dom == 'curriculum':
+        q_search = _augment_curriculum_query(question, q_search)
 
     ref_allow = _reference_candidates(question)
     source_allowlist: Sequence[str] | None = ref_allow if ref_allow else None
@@ -1055,7 +1200,15 @@ def retrieve_by_domain(question: str, domain: str | None, k_vec: int = 20, k_kw:
                 if len(exact_ids) >= max(80, k_kw * 2):
                     break
             if exact_ids:
-                exact_code_docs = fetch_docs_with_path(exact_ids, sqlite_path=sqlite_path)
+                exact_fetched = fetch_docs_with_path(exact_ids, sqlite_path=sqlite_path)
+                # Keep only chunks that truly contain the target course code and have usable text.
+                exact_code_docs = [
+                    d
+                    for d in exact_fetched
+                    if _item_matches_course_codes(d, target_codes)
+                    and _contains_target_code_in_visible_fields(d, target_codes)
+                    and str(d.get('text') or '').strip()
+                ]
                 exact_code_doc_ids = {d.get('doc_id') for d in exact_code_docs if isinstance(d.get('doc_id'), str)}
 
     add_metric('retrieval_exact_code_hits_n', len(exact_code_docs))
@@ -1321,17 +1474,25 @@ def retrieve_by_domain(question: str, domain: str | None, k_vec: int = 20, k_kw:
 
     merged = [{**bank[k], 'score_rrf': v, 'doc_id': k} for k, v in ranks.items()]
     merged.sort(key=lambda x: x['score_rrf'], reverse=True)
+    
+    # Apply curriculum-specific reranking to boost exact course code matches
+    if dom == 'curriculum' and target_codes:
+        merged = _apply_curriculum_rerank(merged, question, target_codes)
 
     if dom == 'curriculum' and exact_code_docs:
         # Force-include a few exact course-code hits before generic ranking.
-        must_include = min(4, max_contexts)
+        must_include = min(5, max_contexts)
         picked: List[Dict] = []
         seen: set[str] = set()
 
-        # Prioritize short/targeted exact chunks first.
+        # Prioritize exact chunks that visibly include the target code and non-empty text.
         exact_sorted = sorted(
             exact_code_docs,
-            key=lambda d: len((d.get('text') or '').strip()) if isinstance(d.get('text'), str) else 10**9,
+            key=lambda d: (
+                0 if _contains_target_code_in_visible_fields(d, target_codes) else 1,
+                0 if str(d.get('text') or '').strip() else 1,
+                len((d.get('text') or '').strip()) if isinstance(d.get('text'), str) else 10**9,
+            ),
         )
         for d in exact_sorted:
             did = d.get('doc_id')
