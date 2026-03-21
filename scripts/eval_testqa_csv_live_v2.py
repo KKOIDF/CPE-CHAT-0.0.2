@@ -114,6 +114,91 @@ def _post_answer(base_url: str, question: str, domain: Optional[str], timeout_s:
     return r.json()
 
 
+def _truthy(s: str) -> bool:
+    return str(s or "").strip().lower() in {"1", "true", "yes", "y", "on"}
+
+
+def _infer_behavior_from_thai_row(question_type: str, expected_answer: str) -> str:
+    _ = question_type  # Currently informational; behavior is inferred mostly from expected answer text.
+    txt = (expected_answer or "").strip()
+    if not txt:
+        return "ANSWER"
+
+    abstain_markers = [
+        "ไม่สามารถยืนยัน",
+        "เอกสารที่มีไม่ได้ระบุ",
+        "ไม่มีข้อมูลนี้ในเอกสาร",
+        "เอกสารไม่ได้ระบุ",
+        "ไม่สามารถสรุป",
+    ]
+    if any(m in txt for m in abstain_markers):
+        return "ABSTAIN"
+    return "ANSWER"
+
+
+def _normalize_input_rows(rows: List[Dict[str, Any]], default_domain: str) -> tuple[List[Dict[str, Any]], str]:
+    if not rows:
+        return [], "empty"
+
+    first = rows[0]
+    if "question" in first:
+        normalized: List[Dict[str, Any]] = []
+        for r in rows:
+            expected_behavior = (r.get("expected_behavior") or "").strip().upper() or "ANSWER"
+            expect_answerable = _truthy(str(r.get("expect_answerable") or ""))
+            normalized.append(
+                {
+                    "id": (r.get("id") or "").strip(),
+                    "domain": (r.get("domain") or "").strip(),
+                    "question": (r.get("question") or "").strip(),
+                    "expected_behavior": expected_behavior,
+                    "expect_answerable": expect_answerable,
+                    "expected_answer": (r.get("expected_answer") or "").strip(),
+                    "reference_hint": (r.get("reference_hint") or "").strip(),
+                    "tags": (r.get("tags") or "").strip(),
+                }
+            )
+        return normalized, "v2"
+
+    # Thai CSV format support, e.g. kmutt_cpe_questions_1_100.csv
+    if "คำถาม" in first:
+        normalized = []
+        for r in rows:
+            expected_answer = (r.get("คำตอบที่คาดหวัง") or "").strip()
+            question_type = (r.get("ประเภทคำถาม") or "").strip()
+            expected_behavior = _infer_behavior_from_thai_row(question_type, expected_answer)
+            normalized.append(
+                {
+                    "id": (r.get("ข้อ") or "").strip(),
+                    "domain": default_domain,
+                    "question": (r.get("คำถาม") or "").strip(),
+                    "expected_behavior": expected_behavior,
+                    "expect_answerable": expected_behavior == "ANSWER",
+                    "expected_answer": expected_answer,
+                    "reference_hint": "",
+                    "tags": question_type,
+                }
+            )
+        return normalized, "thai_qa"
+
+    # Unknown schema; pass through with best-effort fallback keys.
+    normalized = []
+    for r in rows:
+        normalized.append(
+            {
+                "id": (r.get("id") or r.get("ข้อ") or "").strip(),
+                "domain": (r.get("domain") or default_domain or "").strip(),
+                "question": (r.get("question") or r.get("คำถาม") or "").strip(),
+                "expected_behavior": (r.get("expected_behavior") or "ANSWER").strip().upper() or "ANSWER",
+                "expect_answerable": _truthy(str(r.get("expect_answerable") or "1")),
+                "expected_answer": (r.get("expected_answer") or r.get("คำตอบที่คาดหวัง") or "").strip(),
+                "reference_hint": (r.get("reference_hint") or "").strip(),
+                "tags": (r.get("tags") or r.get("ประเภทคำถาม") or "").strip(),
+            }
+        )
+    return normalized, "unknown"
+
+
 def _percentile(values: List[float], p: float) -> float:
     if not values:
         return 0.0
@@ -208,6 +293,7 @@ def main() -> int:
     ap.add_argument("--sleep", type=float, default=0.0)
     ap.add_argument("--limit", type=int, default=0)
     ap.add_argument("--sim-threshold", type=float, default=0.55)
+    ap.add_argument("--default-domain", default="curriculum")
     args = ap.parse_args()
 
     in_path = Path(args.input)
@@ -218,10 +304,12 @@ def main() -> int:
         reader = csv.DictReader(f)
         rows = [r for r in reader]
 
+    normalized_rows, input_format = _normalize_input_rows(rows, default_domain=str(args.default_domain or "").strip())
+
     results: List[CaseResult] = []
     total = 0
 
-    for r in rows:
+    for r in normalized_rows:
         if args.limit and total >= int(args.limit):
             break
         q = (r.get("question") or "").strip()
@@ -233,7 +321,7 @@ def main() -> int:
         cid = (r.get("id") or "").strip()
         domain = (r.get("domain") or "").strip() or None
         expected_behavior = (r.get("expected_behavior") or "").strip().upper() or "ANSWER"
-        expect_answerable = (r.get("expect_answerable") or "").strip().lower() in {"1", "true", "yes", "y"}
+        expect_answerable = bool(r.get("expect_answerable"))
         expected_answer = (r.get("expected_answer") or "").strip()
         reference_hint = (r.get("reference_hint") or "").strip()
         tags = (r.get("tags") or "").strip()
@@ -363,6 +451,7 @@ def main() -> int:
         latency_by_domain.setdefault(x.domain or "unknown", []).append(x.latency_ms)
 
     summary = {
+        "input_format": input_format,
         "total": n_total,
         "answerable_cases": n_ans,
         "unanswerable_cases": n_unans,
@@ -608,11 +697,13 @@ def main() -> int:
             mlf.log_params(
                 {
                     "input": str(in_path),
+                    "input_format": input_format,
                     "base_url": str(args.base_url),
                     "timeout_s": float(args.timeout),
                     "sleep_s": float(args.sleep),
                     "limit": int(args.limit),
                     "sim_threshold": float(args.sim_threshold),
+                    "default_domain": str(args.default_domain),
                 }
             )
             mlf.log_metrics(summary)
