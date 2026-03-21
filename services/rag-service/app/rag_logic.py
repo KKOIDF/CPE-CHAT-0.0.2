@@ -1,4 +1,5 @@
 from typing import List, Dict, Tuple, Sequence
+from concurrent.futures import ThreadPoolExecutor
 import re
 import math
 from pathlib import Path
@@ -51,6 +52,21 @@ _LANG_AUGMENT: dict[str, str] = {
 
 
 _THAI_TO_ARABIC = str.maketrans('๐๑๒๓๔๕๖๗๘๙', '0123456789')
+
+
+_RETRIEVAL_PARALLEL = (os.getenv('RAG_RETRIEVAL_PARALLEL', '1') or '1').strip().lower() in (
+    '1', 'true', 'yes', 'on'
+)
+_VECTOR_ONLY = (os.getenv('RAG_VECTOR_ONLY', '1') or '1').strip().lower() in (
+    '1', 'true', 'yes', 'on'
+)
+_SEARCH_ALL_DOMAINS = (os.getenv('RAG_SEARCH_ALL_DOMAINS', '1') or '1').strip().lower() in (
+    '1', 'true', 'yes', 'on'
+)
+try:
+    _RETRIEVAL_PARALLEL_WORKERS = max(2, int(os.getenv('RAG_RETRIEVAL_PARALLEL_WORKERS', '2') or '2'))
+except Exception:
+    _RETRIEVAL_PARALLEL_WORKERS = 2
 
 
 _COMMON_TYPO_FIXES: list[tuple[str, str]] = [
@@ -605,11 +621,100 @@ def retrieve_all_domains(
             ranks[key] = ranks.get(key, 0.0) + 1.0 / (RRF_K + r)
 
     merged = [{**bank[k], 'score_rrf': v} for k, v in ranks.items()]
+
+    # Intent-aware boost: keep all-domain recall, but prioritize regulations
+    # when the question clearly asks about exam rules/policies.
+    ql = (question or '').strip().lower()
+    exam_policy_intent = (
+        any(t in ql for t in ('สอบ', 'ห้องสอบ', 'คุมสอบ', 'มาสาย', 'ทุจริต', 'อุทธรณ์'))
+        and any(t in ql for t in ('ได้กี่', 'กี่นาที', 'กี่วัน', 'ระเบียบ', 'ข้อ', 'นโยบาย', 'อนุญาต'))
+    )
+    if exam_policy_intent:
+        boosted: List[Dict] = []
+        for d in merged:
+            u = dict(d)
+            dom = str(u.get('domain') or '').strip().lower()
+            src = str(u.get('source') or '').strip().lower()
+            score = float(u.get('score_rrf') or 0.0)
+            if dom == 'regulations':
+                score += 0.25
+            if ('rule_exam' in src) or ('สอบ' in src and 'ระเบียบ' in src):
+                score += 0.55
+            if src.endswith('forms.txt'):
+                score -= 0.20
+            if dom == 'curriculum':
+                score -= 0.20
+            if dom == 'announcements':
+                score -= 0.12
+            u['score_rrf'] = score
+            boosted.append(u)
+        merged = boosted
+
     merged.sort(key=lambda x: x.get('score_rrf', 0.0), reverse=True)
     return merged[:MAX_CONTEXTS]
 
 
 def retrieve_by_domain(question: str, domain: str | None, k_vec: int = 20, k_kw: int = 30) -> List[Dict]:
+    def _retrieve_semantic_and_keyword(
+        query: str,
+        top_k_vec: int,
+        top_k_kw: int,
+        target_domain: str | None,
+        sqlite_file: str | None,
+        allowlist: Sequence[str] | None,
+        fallback_name: str | None = None,
+    ) -> tuple[List[Dict], List[str]]:
+        if _VECTOR_ONLY:
+            sem_block = 'vector_search' if not fallback_name else f'vector_search_{fallback_name}'
+            with time_block(sem_block):
+                sem_out = semantic_search_domain(
+                    query,
+                    top_k=top_k_vec,
+                    domain=target_domain,
+                    source_allowlist=allowlist,
+                )
+            return sem_out, []
+
+        if _RETRIEVAL_PARALLEL:
+            block = 'parallel_search' if not fallback_name else f'parallel_search_{fallback_name}'
+            with time_block(block):
+                with ThreadPoolExecutor(max_workers=_RETRIEVAL_PARALLEL_WORKERS) as ex:
+                    fut_sem = ex.submit(
+                        semantic_search_domain,
+                        query,
+                        top_k_vec,
+                        target_domain,
+                        allowlist,
+                    )
+                    fut_kw = ex.submit(
+                        keyword_search,
+                        query,
+                        top_k_kw,
+                        sqlite_file,
+                        allowlist,
+                    )
+                    sem_out = fut_sem.result()
+                    kw_ids_out = fut_kw.result()
+            return sem_out, kw_ids_out
+
+        sem_block = 'vector_search' if not fallback_name else f'vector_search_{fallback_name}'
+        kw_block = 'keyword_search' if not fallback_name else f'keyword_search_{fallback_name}'
+        with time_block(sem_block):
+            sem_out = semantic_search_domain(
+                query,
+                top_k=top_k_vec,
+                domain=target_domain,
+                source_allowlist=allowlist,
+            )
+        with time_block(kw_block):
+            kw_ids_out = keyword_search(
+                query,
+                limit=top_k_kw,
+                sqlite_path=sqlite_file,
+                source_allowlist=allowlist,
+            )
+        return sem_out, kw_ids_out
+
     def _augment_curriculum_query(original_question: str, base_query: str) -> str:
         """Domain-specific query expansion for curriculum questions.
 
@@ -1076,28 +1181,86 @@ def retrieve_by_domain(question: str, domain: str | None, k_vec: int = 20, k_kw:
     if dom in ('announcements', 'regulations'):
         sqlite_path = domain_sqlite_path(dom)
 
-        with time_block('vector_search'):
-            sem = semantic_search_domain(q_search, top_k=k_vec, domain=dom, source_allowlist=source_allowlist)
+        sem, kw_ids = _retrieve_semantic_and_keyword(
+            q_search,
+            k_vec,
+            k_kw,
+            dom,
+            sqlite_path,
+            source_allowlist,
+        )
         with time_block('hydrate_sqlite'):
-            sem = _hydrate_from_sqlite(sem, sqlite_path)
-        with time_block('keyword_search'):
-            kw_ids = keyword_search(q_search, limit=k_kw, sqlite_path=sqlite_path, source_allowlist=source_allowlist)
+            if sem:
+                sem = _hydrate_from_sqlite(sem, sqlite_path)
         with time_block('fetch_kw_docs'):
-            kw_docs = fetch_docs_with_path(kw_ids, sqlite_path=sqlite_path)
+            kw_docs = fetch_docs_with_path(kw_ids, sqlite_path=sqlite_path) if kw_ids else []
+
+        # Hard anchor for exam-room policy queries via vector index only.
+        if dom == 'regulations':
+            ql = (question or '').strip().lower()
+            exam_late_intent = (
+                ('สอบ' in ql or 'ห้องสอบ' in ql)
+                and ('มาสาย' in ql or 'สาย' in ql or 'เข้าห้องสอบ' in ql)
+            )
+            if exam_late_intent:
+                add_metric('retrieval_exam_late_anchor', 1)
+                with time_block('vector_search_exam_anchor'):
+                    sem_extra = semantic_search_domain(
+                        'ข้อ 12 ห้องสอบ มาสาย สิบห้านาที 15 หกสิบนาที 60',
+                        top_k=max(20, k_vec * 2),
+                        domain='regulations',
+                        source_allowlist=None,
+                    )
+                with time_block('hydrate_sqlite_exam_anchor'):
+                    sem_extra = _hydrate_from_sqlite(sem_extra, sqlite_path)
+                if sem_extra:
+                    clause12_docs: List[Dict] = []
+                    other_docs: List[Dict] = []
+                    for d in sem_extra:
+                        txt = str(d.get('text') or '')
+                        if ('ข้อ 12' in txt and 'ห้องสอบ' in txt and (('สิบห้านาที' in txt) or ('15' in txt)) and (('หกสิบนาที' in txt) or ('60' in txt))):
+                            clause12_docs.append(d)
+                        else:
+                            other_docs.append(d)
+                    prioritized = [*clause12_docs, *other_docs]
+                    seen_doc_ids: set[str] = {
+                        str(d.get('doc_id'))
+                        for d in sem
+                        if d.get('doc_id') is not None
+                    }
+                    injected: List[Dict] = []
+                    for d in prioritized:
+                        did = d.get('doc_id')
+                        key = str(did) if did is not None else ''
+                        if key and key in seen_doc_ids:
+                            continue
+                        injected.append(d)
+                        if key:
+                            seen_doc_ids.add(key)
+                        if len(injected) >= 10:
+                            break
+                    if injected:
+                        sem = [*injected, *sem]
         add_metric('retrieval_sem_n', len(sem))
         add_metric('retrieval_kw_n', len(kw_docs))
 
         # If the user explicitly referenced a source, stay within it (avoid cross-doc hallucinations).
         if (not strict_ref) and source_allowlist and (len(sem) + len(kw_docs) < 2):
             add_metric('retrieval_source_fallback_used', 1)
-            with time_block('vector_search_fallback'):
-                sem = semantic_search_domain(q_search, top_k=k_vec, domain=dom, source_allowlist=None)
+            sem, kw_ids = _retrieve_semantic_and_keyword(
+                q_search,
+                k_vec,
+                k_kw,
+                dom,
+                sqlite_path,
+                None,
+                fallback_name='fallback',
+            )
             with time_block('hydrate_sqlite_fallback'):
-                sem = _hydrate_from_sqlite(sem, sqlite_path)
-            with time_block('keyword_search_fallback'):
-                kw_ids = keyword_search(q_search, limit=k_kw, sqlite_path=sqlite_path, source_allowlist=None)
+                if sem:
+                    sem = _hydrate_from_sqlite(sem, sqlite_path)
             with time_block('fetch_kw_docs_fallback'):
-                kw_docs = fetch_docs_with_path(kw_ids, sqlite_path=sqlite_path)
+                kw_docs = fetch_docs_with_path(kw_ids, sqlite_path=sqlite_path) if kw_ids else []
             add_metric('retrieval_sem_n', len(sem))
             add_metric('retrieval_kw_n', len(kw_docs))
 
@@ -1128,27 +1291,38 @@ def retrieve_by_domain(question: str, domain: str | None, k_vec: int = 20, k_kw:
     # If no domain was provided, keep legacy behavior (vector+keyword on default env paths)
     sqlite_path = domain_sqlite_path(dom) if dom else None
 
-    with time_block('vector_search'):
-        sem = semantic_search_domain(q_search, top_k=k_vec, domain=dom or None, source_allowlist=source_allowlist)
+    sem, kw_ids = _retrieve_semantic_and_keyword(
+        q_search,
+        k_vec,
+        k_kw,
+        dom or None,
+        sqlite_path,
+        source_allowlist,
+    )
     with time_block('hydrate_sqlite'):
-        sem = _hydrate_from_sqlite(sem, sqlite_path)
-    with time_block('keyword_search'):
-        kw_ids = keyword_search(q_search, limit=k_kw, sqlite_path=sqlite_path, source_allowlist=source_allowlist)
+        if sem:
+            sem = _hydrate_from_sqlite(sem, sqlite_path)
     with time_block('fetch_kw_docs'):
-        kw_docs = fetch_docs_with_path(kw_ids, sqlite_path=sqlite_path)
+        kw_docs = fetch_docs_with_path(kw_ids, sqlite_path=sqlite_path) if kw_ids else []
     add_metric('retrieval_sem_n', len(sem))
     add_metric('retrieval_kw_n', len(kw_docs))
 
     if (not strict_ref) and source_allowlist and (len(sem) + len(kw_docs) < 2):
         add_metric('retrieval_source_fallback_used', 1)
-        with time_block('vector_search_fallback'):
-            sem = semantic_search_domain(q_search, top_k=k_vec, domain=dom or None, source_allowlist=None)
+        sem, kw_ids = _retrieve_semantic_and_keyword(
+            q_search,
+            k_vec,
+            k_kw,
+            dom or None,
+            sqlite_path,
+            None,
+            fallback_name='fallback',
+        )
         with time_block('hydrate_sqlite_fallback'):
-            sem = _hydrate_from_sqlite(sem, sqlite_path)
-        with time_block('keyword_search_fallback'):
-            kw_ids = keyword_search(q_search, limit=k_kw, sqlite_path=sqlite_path, source_allowlist=None)
+            if sem:
+                sem = _hydrate_from_sqlite(sem, sqlite_path)
         with time_block('fetch_kw_docs_fallback'):
-            kw_docs = fetch_docs_with_path(kw_ids, sqlite_path=sqlite_path)
+            kw_docs = fetch_docs_with_path(kw_ids, sqlite_path=sqlite_path) if kw_ids else []
         add_metric('retrieval_sem_n', len(sem))
         add_metric('retrieval_kw_n', len(kw_docs))
 
@@ -1209,7 +1383,11 @@ def retrieve_by_domain(question: str, domain: str | None, k_vec: int = 20, k_kw:
                     and _contains_target_code_in_visible_fields(d, target_codes)
                     and str(d.get('text') or '').strip()
                 ]
-                exact_code_doc_ids = {d.get('doc_id') for d in exact_code_docs if isinstance(d.get('doc_id'), str)}
+                exact_code_doc_ids = {
+                    str(d.get('doc_id'))
+                    for d in exact_code_docs
+                    if isinstance(d.get('doc_id'), str)
+                }
 
     add_metric('retrieval_exact_code_hits_n', len(exact_code_docs))
     if dom == 'curriculum':
@@ -1665,14 +1843,16 @@ def rag_query(question: str) -> Dict:
     else:
         dom = infer_domain(q_display) or _infer_domain_from_reference(question)
         add_metric('inferred_domain', dom or 'auto')
-        if dom:
+        if dom and not _SEARCH_ALL_DOMAINS:
             retrieved = retrieve_by_domain(question, domain=dom)
             # If too few results, widen cautiously to nearby domains first.
             if (not has_ref) and len(retrieved) < fallback_min_results():
                 add_metric('retrieval_domain_fallback_used', 1)
                 retrieved = retrieve_all_domains(q_search, domains=fallback_domains_for_domain(dom))
         else:
-            retrieved = retrieve_all_domains(q_search)
+            # Search all domains to avoid wrong-domain misses from router/inference.
+            add_metric('retrieval_all_domains_forced', 1)
+            retrieved = retrieve_all_domains(question)
 
     retrieved = _filter_chunks_by_reference(retrieved, question, strict=has_ref)
     ctx, cites = pack_context(retrieved)

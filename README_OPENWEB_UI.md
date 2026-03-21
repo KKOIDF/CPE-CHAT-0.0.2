@@ -105,10 +105,8 @@ python run_server.py
 TYPHOON_API_KEY=your-api-key
 TYPHOON_BASE_URL=https://api.opentyphoon.ai/v1
 
-# (Recommended) Enable LangChain orchestration path
+# (Default) Quality mode: more accurate, slower
 RAG_USE_LANGCHAIN=1
-
-# Quality toggles (optional)
 RAG_LC_MULTIQUERY=1
 RAG_LC_RERANK=1
 RAG_LC_COMPRESS=1
@@ -138,6 +136,28 @@ Tuning knobs (all optional):
 - `RAG_LC_PARALLEL=1` to retrieve variants in parallel
 - `RAG_LC_RERANK=1` and `RAG_LC_RERANK_TOPN=24`
 - `RAG_LC_COMPRESS=1` and `RAG_LC_COMPRESS_MAX_CHARS=700`
+
+Quick presets:
+- Quality mode (default in `.env.example`):
+```ini
+RAG_USE_LANGCHAIN=1
+RAG_LC_MULTIQUERY=1
+RAG_LC_MULTIQUERY_N=4
+RAG_LC_PARALLEL=1
+RAG_LC_RERANK=1
+RAG_LC_RERANK_ALL=1
+RAG_LC_COMPRESS=1
+RAG_LC_COMPRESS_ALL=1
+RAG_LC_ENFORCE_CITATIONS=1
+```
+- Fast mode (lower latency):
+```ini
+RAG_USE_LANGCHAIN=1
+RAG_LC_MULTIQUERY=0
+RAG_LC_RERANK=0
+RAG_LC_COMPRESS=0
+RAG_LC_ENFORCE_CITATIONS=0
+```
 
 ### OpenWeb-UI Settings
 

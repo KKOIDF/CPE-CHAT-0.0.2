@@ -42,23 +42,23 @@ services:
       # Debug endpoints (disabled by default)
       RAG_EXPOSE_CONFIG: "${RAG_EXPOSE_CONFIG:-0}"
 
-      # LangChain orchestration path (optional)
-      # Controlled via .env; defaults keep legacy behavior unless enabled.
-      RAG_USE_LANGCHAIN: "${RAG_USE_LANGCHAIN:-0}"
-      RAG_LC_MULTIQUERY: "${RAG_LC_MULTIQUERY:-0}"
-      RAG_LC_MULTIQUERY_N: "${RAG_LC_MULTIQUERY_N:-3}"
+      # LangChain orchestration defaults: quality mode (more accurate, slower).
+      # Override in .env for fast mode if needed.
+      RAG_USE_LANGCHAIN: "${RAG_USE_LANGCHAIN:-1}"
+      RAG_LC_MULTIQUERY: "${RAG_LC_MULTIQUERY:-1}"
+      RAG_LC_MULTIQUERY_N: "${RAG_LC_MULTIQUERY_N:-4}"
       RAG_LC_MULTIQUERY_ALL: "${RAG_LC_MULTIQUERY_ALL:-0}"
-      RAG_LC_PARALLEL: "${RAG_LC_PARALLEL:-0}"
+      RAG_LC_PARALLEL: "${RAG_LC_PARALLEL:-1}"
       RAG_LC_PARALLEL_WORKERS: "${RAG_LC_PARALLEL_WORKERS:-4}"
-      RAG_LC_RERANK: "${RAG_LC_RERANK:-0}"
+      RAG_LC_RERANK: "${RAG_LC_RERANK:-1}"
       RAG_LC_RERANK_TOPN: "${RAG_LC_RERANK_TOPN:-24}"
-      RAG_LC_RERANK_ALL: "${RAG_LC_RERANK_ALL:-0}"
-      RAG_LC_COMPRESS: "${RAG_LC_COMPRESS:-0}"
+      RAG_LC_RERANK_ALL: "${RAG_LC_RERANK_ALL:-1}"
+      RAG_LC_COMPRESS: "${RAG_LC_COMPRESS:-1}"
       RAG_LC_COMPRESS_MAX_CHARS: "${RAG_LC_COMPRESS_MAX_CHARS:-700}"
-      RAG_LC_COMPRESS_ALL: "${RAG_LC_COMPRESS_ALL:-0}"
+      RAG_LC_COMPRESS_ALL: "${RAG_LC_COMPRESS_ALL:-1}"
       RAG_LC_ROUTE_LLM: "${RAG_LC_ROUTE_LLM:-0}"
       RAG_LC_STRUCTURED: "${RAG_LC_STRUCTURED:-0}"
-      RAG_LC_ENFORCE_CITATIONS: "${RAG_LC_ENFORCE_CITATIONS:-0}"
+      RAG_LC_ENFORCE_CITATIONS: "${RAG_LC_ENFORCE_CITATIONS:-1}"
 
       # Optional Neo4j (Graph RAG) configuration
       # If not set, Graph features will gracefully fall back to non-graph retrieval.

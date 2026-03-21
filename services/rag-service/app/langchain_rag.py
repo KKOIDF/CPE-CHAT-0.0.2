@@ -25,7 +25,7 @@ from .rag_logic import (
 )
 from .config import RRF_K, MAX_CONTEXTS
 from .llm import llm_engine
-from .chroma_client import embed_texts
+from .chroma_client import embed_texts, semantic_search_domain
 from .neo4j_client import extract_course_codes
 
 
@@ -61,6 +61,85 @@ _ROUTE_LLM_ENABLE = os.getenv('RAG_LC_ROUTE_LLM', '0') in ('1', 'true', 'True')
 _STRUCTURED_ENABLE = os.getenv('RAG_LC_STRUCTURED', '0') in ('1', 'true', 'True')
 
 _ENFORCE_CITATIONS = os.getenv('RAG_LC_ENFORCE_CITATIONS', '0') in ('1', 'true', 'True')
+_SEARCH_ALL_DOMAINS = os.getenv('RAG_SEARCH_ALL_DOMAINS', '1') in ('1', 'true', 'True')
+
+
+def _boost_regulations_for_exam_intent(items: List[Dict], question: str) -> List[Dict]:
+    ql = (question or '').strip().lower()
+    exam_policy_intent = (
+        any(t in ql for t in ('สอบ', 'ห้องสอบ', 'คุมสอบ', 'มาสาย', 'ทุจริต', 'อุทธรณ์'))
+        and any(t in ql for t in ('ได้กี่', 'กี่นาที', 'กี่วัน', 'ระเบียบ', 'ข้อ', 'นโยบาย', 'อนุญาต'))
+    )
+    if not exam_policy_intent or not items:
+        return items
+
+    boosted: List[Dict] = []
+    for d in items:
+        u = dict(d)
+        dom = str(u.get('domain') or '').strip().lower()
+        src = str(u.get('source') or '').strip().lower()
+        score = float(u.get('score_rrf') or 0.0)
+        if dom == 'regulations':
+            score += 0.25
+        if ('rule_exam' in src) or ('สอบ' in src and 'ระเบียบ' in src):
+            score += 0.55
+        if src.endswith('forms.txt'):
+            score -= 0.20
+        if dom == 'curriculum':
+            score -= 0.20
+        if dom == 'announcements':
+            score -= 0.12
+        u['score_rrf'] = score
+        boosted.append(u)
+
+    boosted.sort(key=lambda x: float(x.get('score_rrf') or 0.0), reverse=True)
+    return boosted
+
+
+def _inject_exam_rule_anchors(items: List[Dict], question: str, cap: int) -> List[Dict]:
+    ql = (question or '').strip().lower()
+    exam_late_intent = (
+        ('สอบ' in ql or 'ห้องสอบ' in ql)
+        and ('มาสาย' in ql or 'สาย' in ql or 'เข้าห้องสอบ' in ql)
+    )
+    if (not exam_late_intent) or (not items):
+        return items[:cap]
+
+    try:
+        regs = semantic_search_domain(
+            'ข้อ 12 ห้องสอบ มาสาย สิบห้านาที 15 หกสิบนาที 60',
+            top_k=40,
+            domain='regulations',
+            source_allowlist=None,
+        )
+    except Exception:
+        return items[:cap]
+    if not regs:
+        return items[:cap]
+
+    anchors: List[Dict] = []
+    for d in regs:
+        src = str(d.get('source') or '').strip().lower()
+        txt = str(d.get('text') or '')
+        if ('rule_exam' in src) or ('ข้อ 12' in txt and 'ห้องสอบ' in txt and ('สิบห้านาที' in txt or '15' in txt)):
+            anchors.append(d)
+            if len(anchors) >= 2:
+                break
+    if not anchors:
+        return items[:cap]
+
+    out: List[Dict] = []
+    seen: set[str] = set()
+    for d in [*anchors, *items]:
+        did = d.get('doc_id')
+        key = str(did) if did is not None else f"{d.get('source')}::{len(out)}"
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(d)
+        if len(out) >= cap:
+            break
+    return out
 
 
 def _extract_citations_from_text(answer: str) -> List[str]:
@@ -606,7 +685,7 @@ def _build_rag_prompt_langchain(question: str, domain: Optional[str] = None) -> 
     retrieved_lists: List[Tuple[str, List[Dict]]] = []
 
     def _retrieve_one(q: str) -> Tuple[str, List[Dict]]:
-        if dom:
+        if dom and not _SEARCH_ALL_DOMAINS:
             items = retrieve_by_domain(q, domain=dom)
             if (not has_ref) and len(items) < fallback_min_results():
                 doms = fallback_domains_for_domain(dom)
@@ -631,6 +710,8 @@ def _build_rag_prompt_langchain(question: str, domain: Optional[str] = None) -> 
             retrieved_lists.append(_retrieve_one(q))
 
     retrieved = _fuse_rrf(retrieved_lists, cap=cap)
+    retrieved = _boost_regulations_for_exam_intent(retrieved, q_display)
+    retrieved = _inject_exam_rule_anchors(retrieved, q_display, cap=cap)
     retrieved = _boost_faculty_relation_for_teacher_intent(retrieved, q_display, dom)
 
     # If question explicitly references a file, keep contexts from that file.

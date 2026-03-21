@@ -550,6 +550,29 @@ def _try_extract_exam_temp_leave_rule(prompt: str, question: str) -> str | None:
     return None
 
 
+def _try_extract_exam_late_entry_rule(prompt: str, question: str) -> str | None:
+    """Extract late-entry policy (ข้อ 12) from context when asked."""
+    q = (question or '').strip()
+    if not q:
+        return None
+    ql = q.lower()
+    if not (('สอบ' in ql or 'ห้องสอบ' in ql) and ('มาสาย' in ql or 'สาย' in ql or 'เข้าห้องสอบ' in ql)):
+        return None
+
+    blocks = _extract_ctx_blocks(prompt)
+    if not blocks:
+        return None
+
+    for cite, text in blocks:
+        t = (text or '')
+        if ('ข้อ 12' in t) and ('ห้องสอบ' in t) and (('สิบห้านาที' in t) or ('15' in t)) and (('หกสิบนาที' in t) or ('60' in t)):
+            return (
+                f"- หากมาสายเกิน 15 นาที แต่ไม่เกิน 60 นาที ต้องยื่นคำร้องขอเข้าห้องสอบเพื่อพิจารณาอนุญาตก่อนเข้าห้องสอบ [{cite}]\n"
+                f"- หากมาสายเกิน 60 นาที ถือว่าหมดสิทธิ์เข้าห้องสอบ [{cite}]"
+            )
+    return None
+
+
 def _has_date_evidence(text: str) -> bool:
     t = (text or '')
     if _MONTH_RE.search(t) or _DOW_RE.search(t):
@@ -1364,25 +1387,29 @@ def rag_answer_endpoint(req: RagAnswerRequest):
                         if extracted_w:
                             answer = extracted_w
                         else:
-                            extracted_exam_exit = _try_extract_exam_exit_rule(result.get('prompt') or '', question=req.question)
-                            if extracted_exam_exit:
-                                answer = extracted_exam_exit
+                            extracted_exam_late = _try_extract_exam_late_entry_rule(result.get('prompt') or '', question=req.question)
+                            if extracted_exam_late:
+                                answer = extracted_exam_late
                             else:
-                                extracted_exam_temp = _try_extract_exam_temp_leave_rule(result.get('prompt') or '', question=req.question)
-                                if extracted_exam_temp:
-                                    answer = extracted_exam_temp
+                                extracted_exam_exit = _try_extract_exam_exit_rule(result.get('prompt') or '', question=req.question)
+                                if extracted_exam_exit:
+                                    answer = extracted_exam_exit
                                 else:
-                                    guarded = _low_confidence_guardrail(req.question, result)
-                                    if guarded:
-                                        add_metric('guardrail_triggered', 1)
-                                        answer = guarded
+                                    extracted_exam_temp = _try_extract_exam_temp_leave_rule(result.get('prompt') or '', question=req.question)
+                                    if extracted_exam_temp:
+                                        answer = extracted_exam_temp
                                     else:
-                                        if _USE_LANGCHAIN:
-                                            # Already generated in langchain path.
-                                            answer = result.get('answer') or ''
+                                        guarded = _low_confidence_guardrail(req.question, result)
+                                        if guarded:
+                                            add_metric('guardrail_triggered', 1)
+                                            answer = guarded
                                         else:
-                                            with time_block('llm_generate'):
-                                                answer = llm_engine.generate(result['prompt'], messages=[system_msg, user_msg])
+                                            if _USE_LANGCHAIN:
+                                                # Already generated in langchain path.
+                                                answer = result.get('answer') or ''
+                                            else:
+                                                with time_block('llm_generate'):
+                                                    answer = llm_engine.generate(result['prompt'], messages=[system_msg, user_msg])
 
                     # Optionally enforce citations when we have context.
                     if _require_citations() and (result.get('contexts') or []) and answer and not answer.strip().startswith('('):
@@ -1541,16 +1568,20 @@ def openai_compatible_endpoint(request: dict):
                         if extracted_w:
                             answer = extracted_w
                         else:
-                            guarded = _low_confidence_guardrail(question, result)
-                            if guarded:
-                                add_metric('guardrail_triggered', 1)
-                                answer = guarded
+                            extracted_exam_late = _try_extract_exam_late_entry_rule(result.get('prompt') or '', question=question)
+                            if extracted_exam_late:
+                                answer = extracted_exam_late
                             else:
-                                if _USE_LANGCHAIN:
-                                    answer = result.get('answer') or ''
+                                guarded = _low_confidence_guardrail(question, result)
+                                if guarded:
+                                    add_metric('guardrail_triggered', 1)
+                                    answer = guarded
                                 else:
-                                    with time_block('llm_generate'):
-                                        answer = llm_engine.generate(result['prompt'], messages=[system_msg, user_msg])
+                                    if _USE_LANGCHAIN:
+                                        answer = result.get('answer') or ''
+                                    else:
+                                        with time_block('llm_generate'):
+                                            answer = llm_engine.generate(result['prompt'], messages=[system_msg, user_msg])
 
             if not (answer or '').strip().startswith('('):
                 answer = _clean_answer_text(answer, strip_citations=True)
