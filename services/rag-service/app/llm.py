@@ -14,12 +14,15 @@ from .config import (
     OPENAI_API_KEY,
     OPENAI_BASE_URL,
     OPENAI_TIMEOUT_S,
-    OLLAMA_BASE_URL,
-    OLLAMA_TIMEOUT_S,
+    TYPHOON_API_KEY,
+    TYPHOON_BASE_URL,
+    TYPHOON_TIMEOUT_S,
 )
 
 import requests
 import os
+import json
+import re
 
 try:
     from transformers import AutoTokenizer, AutoModelForCausalLM, pipeline
@@ -28,10 +31,9 @@ except Exception:
     AutoModelForCausalLM = None  # type: ignore
     pipeline = None  # type: ignore
 
-try:
-    import ollama
-except Exception:
-    ollama = None  # type: ignore
+
+# Reuse HTTP connections to remote providers (OpenAI/Typhoon) to reduce latency.
+_HTTP = requests.Session()
 
 class LLMEngine:
     def __init__(self, model_name: str):
@@ -49,8 +51,7 @@ class LLMEngine:
             return
 
         # Remote provider has no local loading.
-        provider = (LLM_PROVIDER or '').strip().lower()
-        if provider in ('openai', 'ollama') or (self.model_name or '').startswith('gpt-'):
+        if (LLM_PROVIDER or '').strip().lower() == 'openai' or (self.model_name or '').startswith('gpt-'):
             return
         # Auto recommend 4-bit for very large models if not already enabled.
         if ("30" in self.model_name or "70" in self.model_name) and not LLM_4BIT and not self._warned:
@@ -150,14 +151,11 @@ class LLMEngine:
             return "(LLM disabled: set LLM_ENABLE=1 to enable generation)"
 
         provider = (LLM_PROVIDER or '').strip().lower()
-        
-        # Handle Ollama provider
-        if provider == 'ollama':
-            return self._generate_ollama(prompt=prompt, messages=messages)
-        
-        # Handle OpenAI provider
         if provider == 'openai' or (provider == '' and (self.model_name or '').startswith('gpt-')):
             return self._generate_openai(prompt=prompt, messages=messages)
+        
+        if provider == 'typhoon':
+            return self._generate_typhoon(prompt=prompt, messages=messages)
 
         self.load()
         # Pipeline path
@@ -253,7 +251,7 @@ class LLMEngine:
                 # Reduce reasoning so we get visible text within token budget.
                 payload['reasoning'] = {'effort': 'minimal'}
                 payload['text'] = {'format': {'type': 'text'}}
-            resp = requests.post(url, headers=headers, json=payload, timeout=OPENAI_TIMEOUT_S)
+            resp = _HTTP.post(url, headers=headers, json=payload, timeout=OPENAI_TIMEOUT_S)
             if debug:
                 print(f"[OpenAI][responses] status={resp.status_code}")
             if resp.status_code < 300:
@@ -318,7 +316,7 @@ class LLMEngine:
             else:
                 payload['max_tokens'] = LLM_MAX_TOKENS
 
-            resp = requests.post(url, headers=headers, json=payload, timeout=OPENAI_TIMEOUT_S)
+            resp = _HTTP.post(url, headers=headers, json=payload, timeout=OPENAI_TIMEOUT_S)
             if debug:
                 print(f"[OpenAI][chat.completions] status={resp.status_code}")
             if resp.status_code >= 300:
@@ -334,57 +332,91 @@ class LLMEngine:
         except Exception as e:
             return f"(OpenAI request failed: {e})"
 
-    def _generate_ollama(self, prompt: str, messages: Optional[List[Dict[str, str]]] = None) -> str:
-        """Generate text using Ollama API.
+    def _generate_typhoon(self, prompt: str, messages: Optional[List[Dict[str, str]]] = None) -> str:
+        if not TYPHOON_API_KEY:
+            return "(Typhoon unavailable: set TYPHOON_API_KEY)"
+
+        base = (TYPHOON_BASE_URL or 'https://api.opentyphoon.ai/v1').rstrip('/')
+        debug = os.getenv('TYPHOON_DEBUG', '0') in ('1', 'true', 'True')
         
-        Args:
-            prompt: The text prompt (used if messages is None)
-            messages: Optional chat messages format (list of dicts with 'role' and 'content')
-        
-        Returns:
-            Generated text response
-        """
-        if ollama is None:
-            return "(Ollama package not installed: pip install ollama)"
-        
+        headers = {
+            'Authorization': f'Bearer {TYPHOON_API_KEY}',
+            'Content-Type': 'application/json',
+        }
+
+        # Build messages for Typhoon API
+        # If messages are supplied, use them; otherwise use prompt as user message
+        if messages:
+            msgs = messages
+        else:
+            msgs = [{'role': 'user', 'content': prompt}]
+
+        def _parse_token_error(resp_text: str) -> tuple[int, int, int] | None:
+            """Return (prompt_tokens, required, provided) if resp_text matches token-limit error."""
+            try:
+                data = json.loads(resp_text or '')
+                detail = data.get('detail') if isinstance(data, dict) else None
+                if not isinstance(detail, str):
+                    return None
+                m = re.search(
+                    r"prompt_tokens:\s*(\d+).*required:\s*(\d+).*provided:\s*(\d+)",
+                    detail,
+                    flags=re.IGNORECASE,
+                )
+                if not m:
+                    return None
+                return int(m.group(1)), int(m.group(2)), int(m.group(3))
+            except Exception:
+                return None
+
+        def _post(payload: Dict[str, Any]) -> requests.Response:
+            url = f"{base}/chat/completions"
+            return _HTTP.post(url, headers=headers, json=payload, timeout=TYPHOON_TIMEOUT_S)
+
         try:
-            # Use messages format if provided, otherwise use simple prompt
-            if messages:
-                # Use chat API with messages
-                response = ollama.chat(
-                    model=self.model_name,
-                    messages=messages,
-                    options={
-                        'temperature': LLM_TEMPERATURE,
-                        'num_predict': LLM_MAX_TOKENS,
-                    }
-                )
-                # Extract message content from response
-                content = response.get('message', {}).get('content', '')
-                return content.strip() or "(empty response)"
-            else:
-                # Use generate API with simple prompt
-                response = ollama.generate(
-                    model=self.model_name,
-                    prompt=prompt,
-                    options={
-                        'temperature': LLM_TEMPERATURE,
-                        'num_predict': LLM_MAX_TOKENS,
-                    }
-                )
-                # Extract response text
-                content = response.get('response', '')
-                return content.strip() or "(empty response)"
-                
+            payload: Dict[str, Any] = {
+                'model': self.model_name,
+                'messages': msgs,
+                'temperature': LLM_TEMPERATURE,
+                # Typhoon's API enforces max_tokens >= prompt_tokens + 1.
+                # Some deployments accept max_completion_tokens, others only max_tokens.
+                'max_completion_tokens': LLM_MAX_TOKENS,
+                'max_tokens': LLM_MAX_TOKENS,
+                'top_p': 0.6,
+                'frequency_penalty': 0,
+            }
+
+            resp = _post(payload)
+            if debug:
+                print(f"[Typhoon][chat.completions] status={resp.status_code}")
+
+            # Auto-retry once when max_tokens is too small for the prompt.
+            if resp.status_code == 400:
+                parsed = _parse_token_error(resp.text)
+                if parsed:
+                    _prompt_tokens, required, _provided = parsed
+                    margin = int(os.getenv('TYPHOON_TOKEN_MARGIN', '512'))
+                    cap = int(os.getenv('TYPHOON_MAX_TOKENS_CAP', '8192'))
+                    bumped = min(required + max(1, margin), cap)
+                    if bumped > int(payload.get('max_tokens') or 0):
+                        payload['max_tokens'] = bumped
+                        payload['max_completion_tokens'] = bumped
+                        resp = _post(payload)
+                        if debug:
+                            print(f"[Typhoon][chat.completions] retry status={resp.status_code} (max_tokens={bumped})")
+
+            if resp.status_code >= 300:
+                return f"(Typhoon error {resp.status_code}: {resp.text[:300]})"
+            data = resp.json()
+            content = (((data or {}).get('choices') or [{}])[0].get('message') or {}).get('content')
+            out = (content or '').strip()
+            if out:
+                return out
+            if debug:
+                print('[Typhoon][chat.completions] empty content; raw:', resp.text[:800])
+            return '(empty response)'
         except Exception as e:
-            error_msg = str(e)
-            # Provide helpful error messages
-            if 'connection' in error_msg.lower() or 'refused' in error_msg.lower():
-                return f"(Ollama connection failed: Is Ollama running at {OLLAMA_BASE_URL}? Error: {e})"
-            elif 'model' in error_msg.lower() and 'not found' in error_msg.lower():
-                return f"(Ollama model '{self.model_name}' not found. Run: ollama pull {self.model_name})"
-            else:
-                return f"(Ollama error: {e})"
+            return f"(Typhoon request failed: {e})"
 
 # Singleton
 llm_engine = LLMEngine(LLM_MODEL)

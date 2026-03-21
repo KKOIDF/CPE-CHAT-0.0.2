@@ -1,5 +1,7 @@
 param(
-  [string]$Root = (Split-Path -Parent $PSScriptRoot)
+  [string]$Root = (Split-Path -Parent $PSScriptRoot),
+  # Embedding device: 'cuda' (use NVIDIA GPU), 'cpu' (force CPU), or 'auto'
+  [ValidateSet('cuda','cpu','auto')][string]$EmbedDevice = 'cuda'
 )
 
 $repo = $Root
@@ -12,12 +14,12 @@ foreach ($d in $domains) {
     continue
   }
 
-  $files = Get-ChildItem -Path $input -Recurse -File -Include *.pdf,*.xlsx,*.xls,*.csv,*.tsv -ErrorAction SilentlyContinue
+  $files = Get-ChildItem -Path $input -Recurse -File -Include *.pdf,*.txt,*.xlsx,*.xls,*.csv,*.tsv -ErrorAction SilentlyContinue
   if (-not $files -or $files.Count -eq 0) {
     Write-Host "[SKIP] ${d}: no supported files in $input"
     continue
   }
 
   Write-Host "[RUN] Ingest domain=$d (files=$($files.Count))"
-  & (Join-Path $PSScriptRoot "ingest_domain.ps1") -Domain $d -InputPath $input -Output ("data/db/" + $d)
+  & (Join-Path $PSScriptRoot "ingest_domain.ps1") -Domain $d -InputPath $input -Output ("data/db/" + $d) -EmbedDevice $EmbedDevice
 }

@@ -1,0 +1,177 @@
+services:
+  # RAG Service with Typhoon LLM integration
+  rag-service:
+    build:
+      context: ./services/rag-service
+      dockerfile: Dockerfile
+    container_name: cpe-chat-rag
+    ports:
+      - "${RAG_PORT:-8001}:8001"
+    environment:
+      # Network configuration
+      RAG_HOST: "0.0.0.0"
+      RAG_PORT: "8001"
+      
+      # Data directories (mount points)
+      DATA_DIR: /app/data
+      CHROMA_DIR: /app/indexes/chroma
+      SQLITE_PATH: /app/indexes/sqlite/ingestion.db
+      CPE_INDEX_ROOT: /app/indexes
+      
+      # Embedding configuration
+      EMBEDDING_MODEL: "BAAI/bge-m3"
+      EMBEDDING_DIM: "512"
+      TOKEN_BUDGET: "1200"
+      MAX_CONTEXTS: "8"
+      
+      # LLM Configuration - Using Typhoon API
+      LLM_ENABLE: "1"
+      LLM_PROVIDER: "typhoon"
+      LLM_MODEL: "typhoon-v2.5-30b-a3b-instruct"
+      LLM_MAX_TOKENS: "512"
+      LLM_TEMPERATURE: "0.4"
+      
+      # Typhoon API Configuration
+      TYPHOON_API_KEY: "${TYPHOON_API_KEY}"
+      TYPHOON_BASE_URL: "${TYPHOON_BASE_URL:-https://api.opentyphoon.ai/v1}"
+      TYPHOON_TIMEOUT_S: "60"
+      
+      # CORS Configuration for OpenWeb-UI
+      CORS_ORIGINS: "http://localhost:3000,http://localhost:8080,${OPENWEB_UI_URL:-http://localhost:3000}"
+
+      # Debug endpoints (disabled by default)
+      RAG_EXPOSE_CONFIG: "${RAG_EXPOSE_CONFIG:-0}"
+
+      # LangChain orchestration defaults: quality mode (more accurate, slower).
+      # Override in .env for fast mode if needed.
+      RAG_USE_LANGCHAIN: "${RAG_USE_LANGCHAIN:-1}"
+      RAG_LC_MULTIQUERY: "${RAG_LC_MULTIQUERY:-1}"
+      RAG_LC_MULTIQUERY_N: "${RAG_LC_MULTIQUERY_N:-4}"
+      RAG_LC_MULTIQUERY_ALL: "${RAG_LC_MULTIQUERY_ALL:-0}"
+      RAG_LC_PARALLEL: "${RAG_LC_PARALLEL:-1}"
+      RAG_LC_PARALLEL_WORKERS: "${RAG_LC_PARALLEL_WORKERS:-4}"
+      RAG_LC_RERANK: "${RAG_LC_RERANK:-1}"
+      RAG_LC_RERANK_TOPN: "${RAG_LC_RERANK_TOPN:-24}"
+      RAG_LC_RERANK_ALL: "${RAG_LC_RERANK_ALL:-1}"
+      RAG_LC_COMPRESS: "${RAG_LC_COMPRESS:-1}"
+      RAG_LC_COMPRESS_MAX_CHARS: "${RAG_LC_COMPRESS_MAX_CHARS:-700}"
+      RAG_LC_COMPRESS_ALL: "${RAG_LC_COMPRESS_ALL:-1}"
+      RAG_LC_ROUTE_LLM: "${RAG_LC_ROUTE_LLM:-0}"
+      RAG_LC_STRUCTURED: "${RAG_LC_STRUCTURED:-0}"
+      RAG_LC_ENFORCE_CITATIONS: "${RAG_LC_ENFORCE_CITATIONS:-1}"
+
+      # Optional Neo4j (Graph RAG) configuration
+      # If not set, Graph features will gracefully fall back to non-graph retrieval.
+      NEO4J_URI: "${NEO4J_URI:-}"
+      NEO4J_USERNAME: "${NEO4J_USERNAME:-}"
+      NEO4J_USER: "${NEO4J_USER:-}"
+      NEO4J_PASSWORD: "${NEO4J_PASSWORD:-}"
+      NEO4J_DATABASE: "${NEO4J_DATABASE:-}"
+      NEO4J_VECTOR_DIM: "512"
+      
+      # Python configuration
+      PYTHONUNBUFFERED: "1"
+      PYTHONDONTWRITEBYTECODE: "1"
+
+      # MLflow (optional experiment tracking)
+      MLFLOW_TRACKING_URI: "${MLFLOW_TRACKING_URI:-http://mlflow:5000}"
+
+      # MLflow Observability (enabled by default)
+      MLFLOW_OBSERVABILITY_ENABLE: "${MLFLOW_OBSERVABILITY_ENABLE:-1}"
+      MLFLOW_OBSERVABILITY_EXPERIMENT: "${MLFLOW_OBSERVABILITY_EXPERIMENT:-cpe-chat-online-observability}"
+      MLFLOW_OBS_FLUSH_S: "${MLFLOW_OBS_FLUSH_S:-10}"
+      MLFLOW_OBS_WINDOW_N: "${MLFLOW_OBS_WINDOW_N:-500}"
+
+      # MLflow per-request logging (log every incoming question as JSONL artifact)
+      MLFLOW_OBS_REQUEST_LOG_ENABLE: "${MLFLOW_OBS_REQUEST_LOG_ENABLE:-1}"
+      # Store question + answer + ctx_sources by default
+      MLFLOW_OBS_REQUEST_LOG_CONTENT: "${MLFLOW_OBS_REQUEST_LOG_CONTENT:-1}"
+      MLFLOW_OBS_REQUEST_LOG_MAX_CHARS: "${MLFLOW_OBS_REQUEST_LOG_MAX_CHARS:-2000}"
+      MLFLOW_OBS_REQUEST_LOG_DIR: "${MLFLOW_OBS_REQUEST_LOG_DIR:-requests}"
+
+      # MLflow Tracing (enabled by default with sampling)
+      MLFLOW_TRACING_ENABLE: "${MLFLOW_TRACING_ENABLE:-1}"
+      MLFLOW_TRACE_SAMPLE_RATE: "${MLFLOW_TRACE_SAMPLE_RATE:-1}"
+      MLFLOW_TRACE_CONTENT: "${MLFLOW_TRACE_CONTENT:-1}"
+      MLFLOW_TRACE_MAX_CHARS: "${MLFLOW_TRACE_MAX_CHARS:-1200}"
+    
+    volumes:
+      # Mount indexed data from host
+      - ./indexes:/app/indexes
+      - ./data:/app/data
+      - ./chroma:/app/chroma
+    
+    networks:
+      - cpe-network
+    
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; urllib.request.urlopen('http://localhost:8001/health').read(); sys.exit(0)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    
+    restart: unless-stopped
+    
+    # For debugging (remove in production)
+    # stdin_open: true
+    # tty: true
+
+  # OpenWeb-UI - Web interface for LLM interaction with RAG
+  openweb-ui:
+    image: ghcr.io/open-webui/open-webui:${OPENWEB_UI_TAG:-latest}
+    container_name: cpe-chat-openweb-ui
+    ports:
+      - "${OPENWEB_UI_PORT:-3000}:8080"
+    environment:
+      # OpenWeb-UI configuration
+      # RAG service exposes an OpenAI-compatible API under /v1
+      OPENAI_API_BASE_URL: "http://rag-service:8001/v1"
+      
+      # Enable authentication (optional)
+      # WEBUI_AUTH_TOKEN: "${OPENWEB_UI_AUTH:-}"
+      
+      # Default model to use (matches RAG service model)
+      OPENAI_API_KEY: "not-required"
+    
+    volumes:
+      # Persistent storage for OpenWeb-UI
+      - openweb-ui-data:/app/backend/data
+    
+    networks:
+      - cpe-network
+    
+    depends_on:
+      rag-service:
+        condition: service_healthy
+    
+    restart: unless-stopped
+    
+    # For debugging (remove in production)
+    # stdin_open: true
+    # tty: true
+
+  # MLflow - Experiment tracking UI/API
+  mlflow:
+    build:
+      context: ./services/mlflow
+      dockerfile: Dockerfile
+    container_name: cpe-chat-mlflow
+    ports:
+      - "${MLFLOW_PORT:-5000}:5000"
+    volumes:
+      - mlflow-data:/mlflow
+    networks:
+      - cpe-network
+    restart: unless-stopped
+
+networks:
+  cpe-network:
+    driver: bridge
+
+volumes:
+  openweb-ui-data:
+    driver: local
+
+  mlflow-data:
+    driver: local

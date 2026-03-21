@@ -14,8 +14,25 @@ except Exception:
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# Repo root (..../CPE-CHAT-0.0.2)
-ROOT_DIR = BASE_DIR.parent.parent
+
+def _find_repo_root(start_dir: Path) -> Path:
+	"""Best-effort locate the project root.
+
+	In local dev, this repo typically has `docker-compose.yml` and `indexes/` at the root.
+	In the Docker image, the app is copied to `/app/app`, and runtime volumes mount
+	`/app/indexes`, `/app/data`, etc.
+	"""
+	for p in (start_dir, *start_dir.parents):
+		try:
+			if (p / 'indexes').exists() or (p / 'docker-compose.yml').exists():
+				return p
+		except Exception:
+			continue
+	return start_dir
+
+
+# Repo root (best-effort; used to locate `indexes/` and optional `.env`)
+ROOT_DIR = _find_repo_root(BASE_DIR)
 
 # Load repo-level .env if available (best-effort)
 if load_dotenv:
@@ -28,6 +45,9 @@ if load_dotenv:
 DATA_DIR = Path(os.getenv('DATA_DIR', str(ROOT_DIR / 'services' / 'ingestion-service' / 'data')))
 
 _KNOWN_DOMAINS = {'announcements', 'regulations', 'curriculum'}
+
+# Public, stable ordering for "query all domains" behavior.
+KNOWN_DOMAINS = ('announcements', 'regulations', 'curriculum')
 
 def domain_paths(domain: str | None):
 	"""Return (chroma_dir, sqlite_path) for a domain.
@@ -50,6 +70,7 @@ CHROMA_DIR, SQLITE_PATH = domain_paths(os.getenv('CPE_DOMAIN'))
 
 EMBEDDING_MODEL = os.getenv('EMBEDDING_MODEL', 'BAAI/bge-m3')
 EMBED_BATCH = int(os.getenv('EMBED_BATCH', '32'))
+EMBEDDING_DIM = int(os.getenv('EMBEDDING_DIM', '512'))
 TOKEN_BUDGET = int(os.getenv('TOKEN_BUDGET', '1200'))
 RRF_K = int(os.getenv('RRF_K', '60'))
 MAX_CONTEXTS = int(os.getenv('MAX_CONTEXTS', '8'))
@@ -65,12 +86,13 @@ LLM_CPU_FALLBACK = os.getenv('LLM_CPU_FALLBACK', '1') in ('1','true','True')  # 
 LLM_DEVICE_MAP = os.getenv('LLM_DEVICE_MAP', 'auto')  # override accelerate device_map
 
 # Remote LLM (OpenAI) settings (optional)
-LLM_PROVIDER = os.getenv('LLM_PROVIDER', '').strip().lower()  # '', 'hf', 'openai', 'ollama'
+LLM_PROVIDER = os.getenv('LLM_PROVIDER', '').strip().lower()  # '', 'hf', 'openai', 'typhoon'
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY', '')
 OPENAI_BASE_URL = os.getenv('OPENAI_BASE_URL', 'https://api.openai.com/v1')
 OPENAI_TIMEOUT_S = float(os.getenv('OPENAI_TIMEOUT_S', '60'))
 
-# Ollama settings
-OLLAMA_BASE_URL = os.getenv('OLLAMA_BASE_URL', 'http://localhost:11434')
-OLLAMA_TIMEOUT_S = float(os.getenv('OLLAMA_TIMEOUT_S', '120'))
+# Typhoon API settings (optional)
+TYPHOON_API_KEY = os.getenv('TYPHOON_API_KEY', '')
+TYPHOON_BASE_URL = os.getenv('TYPHOON_BASE_URL', 'https://api.opentyphoon.ai/v1')
+TYPHOON_TIMEOUT_S = float(os.getenv('TYPHOON_TIMEOUT_S', '60'))
 

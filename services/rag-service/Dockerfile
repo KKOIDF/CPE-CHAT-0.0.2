@@ -6,9 +6,13 @@ COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY app ./app
+COPY run_server.py ./
+
 ENV DATA_DIR=/app/data
 ENV CHROMA_DIR=/app/data/chroma
 ENV SQLITE_PATH=/app/data/db/ingestion.db
+ENV RAG_HOST=0.0.0.0
+ENV RAG_PORT=8001
 
-EXPOSE 8000
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+EXPOSE 8001
+CMD ["python", "run_server.py"]

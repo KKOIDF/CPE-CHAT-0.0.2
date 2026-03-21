@@ -109,7 +109,18 @@ def _neo4j_driver():
     password = os.getenv('NEO4J_PASSWORD')
     if not (uri and user and password):
         return None
-    return GraphDatabase.driver(uri, auth=(user, password))
+    # Avoid hanging ingestion when Neo4j is unreachable.
+    # neo4j-python-driver uses this timeout for socket operations.
+    try:
+        timeout = float(os.getenv('NEO4J_TIMEOUT', '10'))
+    except Exception:
+        timeout = 10.0
+    return GraphDatabase.driver(
+        uri,
+        auth=(user, password),
+        connection_timeout=timeout,
+        max_transaction_retry_time=timeout,
+    )
 
 
 def _ensure_schema(tx):
@@ -125,11 +136,11 @@ def _ensure_schema(tx):
     tx.run("CREATE INDEX course_domain IF NOT EXISTS FOR (c:Course) ON (c.domain)")
 
     # Vector index (Neo4j 5.11+). Best-effort: ignore if unsupported.
-    # We use a fixed dim default for BGE-M3 (1024) but allow override by env.
+    # Default aligns with EMBEDDING_DIM (512) but allow override by env.
     try:
-        dim = int(os.getenv('NEO4J_VECTOR_DIM', '1024'))
+        dim = int(os.getenv('NEO4J_VECTOR_DIM', '512'))
     except Exception:
-        dim = 1024
+        dim = 512
     try:
         tx.run(
             """
@@ -755,7 +766,12 @@ def upsert_chunks_to_neo4j(chunks: Iterable[Dict[str, Any]], domain: Optional[st
 
     domain = (domain or os.getenv('CPE_DOMAIN', 'curriculum')).strip().lower() or 'curriculum'
 
+    prereq_hint_re = re.compile(r"(วิชาบังคับก่อน|บังคับก่อน|ก่อนเรียน|pre\s*-?requisite|prerequisite)", re.IGNORECASE)
+    coreq_hint_re = re.compile(r"(วิชาบังคับร่วม|ร่วมเรียน|co\s*-?requisite|corequisite)", re.IGNORECASE)
+    none_hint_re = re.compile(r"\b(ไม่มี|none|n/a|na)\b", re.IGNORECASE)
+
     rows: List[Tuple[str, str, int, int, int, List[str]]] = []
+    prereq_edges: List[Dict[str, Any]] = []
     for c in chunks:
         doc_id = str(c.get('doc_id') or '')
         if not doc_id:
@@ -777,6 +793,49 @@ def upsert_chunks_to_neo4j(chunks: Iterable[Dict[str, Any]], domain: Optional[st
         codes = sorted(_extract_course_codes(text))
         # Store only lightweight metadata in Neo4j; full text stays in SQLite/Chroma
         rows.append((doc_id, path, page_start, page_end, chunk_id, codes))
+
+        # Curriculum: best-effort prerequisite extraction from chunk text.
+        # We infer the "target" course as the earliest strict code occurrence in the chunk,
+        # then look for prerequisite/co-requisite lines and link to codes mentioned there.
+        if domain == 'curriculum' and text:
+            strict_codes = sorted({_norm_course_code(x) for x in _extract_course_codes_for_schema(text) if x})
+            strict_codes = [x for x in strict_codes if x]
+            target = _primary_code_for_chunk(text, strict_codes) if strict_codes else None
+            if target:
+                for raw_ln in text.translate(_THAI_TO_ARABIC).splitlines():
+                    ln = raw_ln.strip()
+                    if not ln or len(ln) < 6:
+                        continue
+                    if not (prereq_hint_re.search(ln) or coreq_hint_re.search(ln)):
+                        continue
+                    # Skip explicit none
+                    if none_hint_re.search(ln) and len(_extract_course_codes_for_schema(ln)) == 0:
+                        continue
+
+                    kind = 'coreq' if coreq_hint_re.search(ln) else 'prereq'
+                    reqs = sorted({_norm_course_code(x) for x in _extract_course_codes_for_schema(ln) if x})
+                    reqs = [r for r in reqs if r and r != target]
+                    if not reqs:
+                        continue
+
+                    # Keep edge evidence small to avoid bloating Neo4j.
+                    raw_ev = ln
+                    if len(raw_ev) > 240:
+                        raw_ev = raw_ev[:240]
+
+                    # Prevent pathological explosion on table-like lines.
+                    for req in reqs[:12]:
+                        prereq_edges.append(
+                            {
+                                'target': target,
+                                'req': req,
+                                'kind': kind,
+                                'evidence_doc_id': doc_id,
+                                'evidence_path': path,
+                                'evidence_page': page_start,
+                                'raw': raw_ev,
+                            }
+                        )
 
     if not rows:
         return 0
@@ -814,6 +873,44 @@ def upsert_chunks_to_neo4j(chunks: Iterable[Dict[str, Any]], domain: Optional[st
             MATCH (a:Chunk {doc_id: e.a})
             MATCH (b:Chunk {doc_id: e.b})
             MERGE (a)-[:NEXT {domain:$domain}]->(b)
+            """,
+            edges=edges_rows,
+            domain=domain,
+        )
+
+    def _upsert_prereq_edges(tx, edges_rows):
+        tx.run(
+            """
+            UNWIND $edges AS e
+            MERGE (a:Course {code: e.target})
+            SET a.domain = $domain
+            MERGE (b:Course {code: e.req})
+            SET b.domain = $domain
+            MERGE (a)-[r:PREREQ {domain:$domain}]->(b)
+            SET r.kind = 'prereq',
+                r.evidence_doc_id = coalesce(r.evidence_doc_id, e.evidence_doc_id),
+                r.evidence_path = coalesce(r.evidence_path, e.evidence_path),
+                r.evidence_page = coalesce(r.evidence_page, e.evidence_page),
+                r.raw = coalesce(r.raw, e.raw)
+            """,
+            edges=edges_rows,
+            domain=domain,
+        )
+
+    def _upsert_coreq_edges(tx, edges_rows):
+        tx.run(
+            """
+            UNWIND $edges AS e
+            MERGE (a:Course {code: e.target})
+            SET a.domain = $domain
+            MERGE (b:Course {code: e.req})
+            SET b.domain = $domain
+            MERGE (a)-[r:COREQ {domain:$domain}]->(b)
+            SET r.kind = 'coreq',
+                r.evidence_doc_id = coalesce(r.evidence_doc_id, e.evidence_doc_id),
+                r.evidence_path = coalesce(r.evidence_path, e.evidence_path),
+                r.evidence_page = coalesce(r.evidence_page, e.evidence_page),
+                r.raw = coalesce(r.raw, e.raw)
             """,
             edges=edges_rows,
             domain=domain,
@@ -865,6 +962,27 @@ def upsert_chunks_to_neo4j(chunks: Iterable[Dict[str, Any]], domain: Optional[st
                 done += len(sube)
                 if done % (batch_size * 10) == 0 or done == total_e:
                     print(f"[Neo4j] Upserted NEXT {done}/{total_e} edges...")
+
+        # Prereq/coreq edges (best-effort). Batch in separate writes.
+        if prereq_edges:
+            pre = [e for e in prereq_edges if e.get('kind') == 'prereq']
+            co = [e for e in prereq_edges if e.get('kind') == 'coreq']
+            if pre:
+                total_p = len(pre)
+                done_p = 0
+                for i in range(0, total_p, batch_size * 2):
+                    subp = pre[i:i + batch_size * 2]
+                    session.execute_write(_upsert_prereq_edges, subp)
+                    done_p += len(subp)
+                print(f"[Neo4j] Upserted PREREQ {done_p}/{total_p} edges...")
+            if co:
+                total_c = len(co)
+                done_c = 0
+                for i in range(0, total_c, batch_size * 2):
+                    subc = co[i:i + batch_size * 2]
+                    session.execute_write(_upsert_coreq_edges, subc)
+                    done_c += len(subc)
+                print(f"[Neo4j] Upserted COREQ {done_c}/{total_c} edges...")
 
     try:
         drv.close()

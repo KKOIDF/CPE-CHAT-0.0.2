@@ -1,0 +1,90 @@
+{
+  "generated_at": "2026-03-10T17:11:28.880094",
+  "results": [
+    {
+      "case_id": "ann_exact_date_guardrail",
+      "domain": "announcements",
+      "question": "ประกาศค่าประกันภัยมีผลบังคับตั้งแต่วันที่เท่าไร",
+      "answer": "ไม่พบข้อความยืนยันโดยตรงในเอกสารที่ค้นได้",
+      "latency_ms": 2962.1574077755213,
+      "contexts_count": 8,
+      "token_est": 184,
+      "sources": [
+        "eng2561.txt",
+        "ประกาศ_มจธ_หลักเกณฑ์การจัดสรรผลประโยชน์_พศ2566_ฉบับเต็ม.txt",
+        "insurance_std_1.txt",
+        "insurance_std.txt"
+      ],
+      "passed": true,
+      "abstain_hit": true,
+      "source_hit": true,
+      "error": null
+    },
+    {
+      "case_id": "ann_accident_insurance_fee",
+      "domain": "announcements",
+      "question": "มหาวิทยาลัยเก็บค่าประกันภัยอุบัติเหตุคืออะไร?",
+      "answer": "ไม่พบข้อความยืนยันโดยตรงในเอกสารที่ค้นได้",
+      "latency_ms": 4278.76757318154,
+      "contexts_count": 8,
+      "token_est": 543,
+      "sources": [
+        "insurance_std_1.txt",
+        "131.txt",
+        "insurance_std.txt",
+        "137.txt",
+        "2018_06_08_15_13_16.txt"
+      ],
+      "passed": false,
+      "abstain_hit": true,
+      "source_hit": true,
+      "error": null
+    },
+    {
+      "case_id": "reg_conflict_priority",
+      "domain": "regulations",
+      "question": "ถ้าข้อความในระเบียบอื่นขัดกับระเบียบการสอบจะให้ใช้เอกสารไหน?",
+      "answer": "ไม่พบข้อความยืนยันโดยตรงในเอกสารที่ค้นได้",
+      "latency_ms": 4401.502324268222,
+      "contexts_count": 8,
+      "token_est": 1006,
+      "sources": [
+        "forms.txt",
+        "129.txt",
+        "rule_exam2560.txt"
+      ],
+      "passed": false,
+      "abstain_hit": true,
+      "source_hit": true,
+      "error": null
+    },
+    {
+      "case_id": "cur_total_credits",
+      "domain": "curriculum",
+      "question": "หลักสูตรวิศวกรรมคอมพิวเตอร์ต้องศึกษารวมกี่หน่วยกิต?",
+      "answer": "- หลักสูตรวิศวกรรมคอมพิวเตอร์ต้องศึกษารวม 130 หน่วยกิต [FOE10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt/1]\n- ข้อความอ้างอิงคือ จำนวนหน่วยกิตที่เรียนตลอดหลักสูตร 130 หน่วยกิต [FOE10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt/1]",
+      "latency_ms": 3.9435396902263165,
+      "contexts_count": 0,
+      "token_est": 0,
+      "sources": [],
+      "passed": true,
+      "abstain_hit": false,
+      "source_hit": true,
+      "error": null
+    },
+    {
+      "case_id": "cur_cpe100_lookup",
+      "domain": "curriculum",
+      "question": "วิชา CPE 100 คืออะไร และมีกี่หน่วยกิต?",
+      "answer": "- วิชา CPE 100 คือ การเขียนโปรแกรมคอมพิวเตอร์สำหรับวิศวกร [FOE10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt/1]\n- วิชา CPE 100 มีจำนวน 3 หน่วยกิต [FOE10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt/1]",
+      "latency_ms": 3.8270512595772743,
+      "contexts_count": 0,
+      "token_est": 0,
+      "sources": [],
+      "passed": false,
+      "abstain_hit": false,
+      "source_hit": false,
+      "error": null
+    }
+  ]
+}

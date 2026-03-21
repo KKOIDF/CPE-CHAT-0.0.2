@@ -10,8 +10,18 @@ import sys
 
 # Allow running from anywhere
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 
 from app.rag_logic import retrieve_by_domain
+
+try:
+    import mlflow_utils as mlf
+except Exception:  # pragma: no cover
+    mlf = None  # type: ignore
+
+
+if mlf and getattr(mlf, "enabled", lambda: False)():
+    os.environ.setdefault("MLFLOW_EXPERIMENT", os.getenv("MLFLOW_RETRIEVAL_EXPERIMENT", "cpe-chat-retrieval-regression"))
 
 
 @dataclass
@@ -172,6 +182,55 @@ def main() -> None:
 
     print(f"✅ Wrote report: {out_md}")
     print(f"✅ Wrote data:   {out_json}")
+
+    if mlf and getattr(mlf, "enabled", lambda: False)():
+        total = len(results)
+        no_contexts = sum(1 for r in results if int(r.get("contexts") or 0) == 0)
+        flagged = sum(1 for r in results if r.get("notes"))
+        avg_contexts = (sum(int(r.get("contexts") or 0) for r in results) / total) if total else 0.0
+
+        with mlf.start_run(
+            run_name=f"retrieval_eval_{ts_slug}",
+            tags={"script": "services/rag-service/scripts/retrieval_eval_suite.py"},
+        ):
+            mlf.log_params({"top": int(args.top)})
+            mlf.log_metrics(
+                {
+                    "total": total,
+                    "no_contexts": no_contexts,
+                    "flagged": flagged,
+                    "avg_contexts": avg_contexts,
+                }
+            )
+            mlf.log_artifacts([str(out_md), str(out_json)])
+
+            try:
+                from app import config as cfg  # type: ignore
+
+                ctx = {
+                    "generated": ts_slug,
+                    "env": mlf.env_snapshot(),
+                    "resolved": {
+                        "ROOT_DIR": str(getattr(cfg, "ROOT_DIR", "")),
+                        "DATA_DIR": str(getattr(cfg, "DATA_DIR", "")),
+                        "CHROMA_DIR": str(getattr(cfg, "CHROMA_DIR", "")),
+                        "SQLITE_PATH": str(getattr(cfg, "SQLITE_PATH", "")),
+                        "EMBEDDING_MODEL": getattr(cfg, "EMBEDDING_MODEL", ""),
+                        "EMBED_BATCH": getattr(cfg, "EMBED_BATCH", None),
+                        "EMBEDDING_DIM": getattr(cfg, "EMBEDDING_DIM", None),
+                        "TOKEN_BUDGET": getattr(cfg, "TOKEN_BUDGET", None),
+                        "RRF_K": getattr(cfg, "RRF_K", None),
+                        "MAX_CONTEXTS": getattr(cfg, "MAX_CONTEXTS", None),
+                        "LLM_ENABLE": getattr(cfg, "LLM_ENABLE", None),
+                        "LLM_PROVIDER": getattr(cfg, "LLM_PROVIDER", ""),
+                        "LLM_MODEL": getattr(cfg, "LLM_MODEL", ""),
+                        "LLM_MAX_TOKENS": getattr(cfg, "LLM_MAX_TOKENS", None),
+                        "LLM_TEMPERATURE": getattr(cfg, "LLM_TEMPERATURE", None),
+                    },
+                }
+                mlf.log_dict_artifact(ctx, artifact_file=f"run_context_{ts_slug}.json")
+            except Exception:
+                pass
 
 
 if __name__ == "__main__":

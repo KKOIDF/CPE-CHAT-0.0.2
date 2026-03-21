@@ -11,4 +11,9 @@ sentencepiece
 bitsandbytes
 neo4j
 python-dotenv
-ollama
+
+# LangChain (used optionally via RAG_USE_LANGCHAIN=1)
+langchain-core
+
+# Experiment tracking (optional)
+mlflow

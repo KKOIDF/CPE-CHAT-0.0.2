@@ -5,7 +5,7 @@ from .validation import script_ratios
 from .config import THAI_WORD_TOKENIZER, THAI_SENT_TOKENIZER
 
 _TH_CHR = r'\u0E00-\u0E7F'
-_TH_PAIR = re.compile(rf'([{_TH_CHR}])\s+([{_TH_CHR}])')
+_TH_PAIR = re.compile(rf'([{_TH_CHR}])[ \t]+([{_TH_CHR}])')
 _SENT_SPLIT = re.compile(r"(?<=[\.!?…\u0E2F\u0E5B\u0E46])\s+")
 _BULLET_START = re.compile(r"^([\-\•\–\*]|\d+[\.)]|[ก-ฮ]\)|\([0-9]+\)|\([ก-ฮ]\))\s+")
 
@@ -54,11 +54,19 @@ def tidy_thai_spacing(text: str) -> str:
 
 
 def thai_postprocess(text: str) -> str:
-    t = tidy_thai_spacing(text)
-    if _HAS_THAI:
-        try: t = th_normalize(t)
-        except Exception: pass
-    return t
+    # Preserve newlines: some Thai normalizers treat all whitespace the same
+    # and can accidentally collapse paragraph boundaries.
+    lines = text.split('\n')
+    out: List[str] = []
+    for ln in lines:
+        t = tidy_thai_spacing(ln)
+        if _HAS_THAI:
+            try:
+                t = th_normalize(t)
+            except Exception:
+                pass
+        out.append(t)
+    return '\n'.join(out)
 
 
 def choose_ocr_lang_for_text(text: str, default: str = 'tha', latin_threshold: float = 0.15) -> str:

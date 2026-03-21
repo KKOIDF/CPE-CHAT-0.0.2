@@ -76,14 +76,12 @@ docker run --rm -v /absolute/path/input:/input ingestion-service --input /input
 | OCR_DPI | OCR image DPI | 450 |
 | MIN_QUALITY_SCORE | Score threshold for OCR fallback | 0.2 |
 | MIN_LENGTH | Min length for MuPDF accept | 50 |
-| OCR_ENGINE | Force OCR backend (auto\|poppler\|tesseract\|typhoon) | auto |
-| TY_OCR_ENABLE | Enable Typhoon OCR fallback usage | 0 |
-| TY_OCR_TIMEOUT | Per-request timeout seconds for Typhoon OCR API | 60 |
-| TY_OCR_RETRIES | Retry attempts on transient (5xx/timeout) errors | 3 |
-| TY_OCR_RETRY_BACKOFF | Base seconds for exponential backoff between retries | 2 |
+| OCR_ENGINE | Force OCR backend (auto\|poppler\|tesseract) | auto |
 | CHUNK_MIN_TOKENS | Lower token target | 400 |
 | CHUNK_MAX_TOKENS | Upper token target | 800 |
 | CHUNK_OVERLAP_RATIO | Overlap ratio for tail carry | 0.12 |
+| CHUNK_STRATEGY | Chunking strategy (structure\|sentence_window\|announcement_template\|curriculum_course\|regulation_template) | announcements default to announcement_template; curriculum defaults to curriculum_course; regulations default to regulation_template |
+| CURRICULUM_PROGRAM | Program name for curriculum metadata | B.Eng. Computer Engineering |
 | EMBEDDING_MODEL | SentenceTransformer model | BAAI/bge-m3 |
 | EMBEDDING_API_BASE | External embedding API base | (unset) |
 | EMBEDDING_API_KEY | Embedding API key | (unset) |
@@ -95,32 +93,45 @@ docker run --rm -v /absolute/path/input:/input ingestion-service --input /input
 
 Set `OCR_ENGINE` to:
 
-* `auto` (default): MuPDF text, page-level quality check, fallback Typhoon (if enabled) then Tesseract.
+* `auto` (default): MuPDF text, page-level quality check, fallback to Tesseract on low-quality pages.
 * `poppler`: Use only MuPDF text (no OCR), fastest.
 * `tesseract`: Force full Tesseract OCR for all pages.
-* `typhoon`: Force Typhoon OCR for all pages (requires `TY_OCR_ENABLE=1`).
-
-If `TY_OCR_ENABLE=0`, specifying `OCR_ENGINE=typhoon` automatically downgrades to `auto`.
-
-#### Typhoon OCR Reliability
-
-If you encounter repeated `503 Service Unavailable` or timeouts:
-
-1. Lower `TY_OCR_TIMEOUT` (e.g. 45) to fail faster.
-2. Increase `TY_OCR_RETRIES` slightly (e.g. 4–5) if the service is intermittently flaky.
-3. Adjust `TY_OCR_RETRY_BACKOFF` to tune wait between retries (exponential: base * 2^attempt).
-4. Temporarily disable with `TY_OCR_ENABLE=0` to proceed using MuPDF + Tesseract only.
-5. Monitor logs for `[Typhoon OCR]` messages to see retry cadence.
-
-The ingestion will gracefully continue (pages return empty text) when Typhoon OCR ultimately fails, allowing fallback logic to supply alternative OCR where configured.
 
 ### Flagged Chunk Handling
 
 Chunks whose page text fails quality heuristics get `status=flagged`. When `EMBED_FLAGGED=false`, these are skipped during embedding and written to a timestamped review file under `data/db/review/flagged_*.jsonl` for manual inspection.
 
+### Per-domain Chunking Overrides
+
+When you run with `--domain announcements|regulations|curriculum` (or set `CPE_DOMAIN`), you can override chunking settings per-domain by prefixing env vars with the uppercased domain name:
+
+```bash
+# Example: use smaller, sentence-based chunks for announcements
+export CPE_DOMAIN=announcements
+export ANNOUNCEMENTS_CHUNK_STRATEGY=announcement_template
+export ANNOUNCEMENTS_CHUNK_MIN_TOKENS=200
+export ANNOUNCEMENTS_CHUNK_MAX_TOKENS=500
+export ANNOUNCEMENTS_CHUNK_OVERLAP_RATIO=0.10
+
+# Example: keep structure-aware chunking for regulations
+export CPE_DOMAIN=regulations
+export REGULATIONS_CHUNK_STRATEGY=structure
+export REGULATIONS_CHUNK_MIN_TOKENS=400
+export REGULATIONS_CHUNK_MAX_TOKENS=900
+export REGULATIONS_CHUNK_OVERLAP_RATIO=0.12
+
+# Example: course-centric chunks for curriculum (recommended)
+export CPE_DOMAIN=curriculum
+export CURRICULUM_PROGRAM='B.Eng. Computer Engineering (2564)'
+# This is already the default for curriculum if not set:
+export CURRICULUM_CHUNK_STRATEGY=curriculum_course
+```
+
+If a per-domain variable is not set, the service falls back to the global `CHUNK_*` env vars, then to defaults.
+
 ## Extending
 
-* Alternate OCR: Control via `OCR_ENGINE` and `TY_OCR_ENABLE`.
+* Alternate OCR: Control via `OCR_ENGINE`.
 * Replace embedding with Typhoon/LLaMA: modify `_embed_texts` in `chroma_client.py` to call external service.
 * Add API layer: create FastAPI app wrapping `run_ingest` for remote triggering.
 
@@ -149,4 +160,4 @@ print(semantic_search('หลักเกณฑ์การรับสมัค
 1. Wrap service with ingestion API (FastAPI) for `chat-backend` to call.
 2. Implement RAG service combining Chroma semantic + SQLite keyword results.
 3. Add incremental update & re-chunk logic.
-4. Integrate Typhoon OCR / LLaMA embedding endpoints.
+4. Integrate external embedding endpoints.

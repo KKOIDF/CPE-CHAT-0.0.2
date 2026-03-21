@@ -32,7 +32,7 @@ try:
 
         vals = dotenv_values(env_path)
         print('dotenv_values keys', len(vals or {}))
-        for k in ['LLM_ENABLE', 'LLM_PROVIDER', 'LLM_MODEL', 'OPENAI_API_KEY', 'NEO4J_URI', 'TY_OCR_API_KEY']:
+        for k in ['LLM_ENABLE', 'LLM_PROVIDER', 'LLM_MODEL', 'OPENAI_API_KEY', 'NEO4J_URI']:
             v = vals.get(k) if vals else None
             print(f'dotenv_values[{k}] set', bool(v))
     except Exception as e2:

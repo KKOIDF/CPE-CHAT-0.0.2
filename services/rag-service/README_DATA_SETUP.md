@@ -29,7 +29,9 @@ indexes/
 RAG Service จะเลือก path ตามโดเมนโดยดูจาก:
 1) request body field `domain` (แนะนำ)
 2) หรือ env `CPE_DOMAIN`
-3) ถ้าไม่ระบุ จะ fallback ไป `DATA_DIR` แบบเดิม
+3) ถ้าไม่ระบุ จะค้นข้ามทุกโดเมนที่รองรับ (announcements/regulations/curriculum)
+
+หมายเหตุ: หากต้องการบังคับโดเมนเดียว ให้ส่ง `domain` ใน request body หรือกำหนด `CPE_DOMAIN`.
 
 ### การปรับแต่งตำแหน่ง (ถ้าต้องการ)
 
@@ -42,6 +44,27 @@ $env:CPE_DOMAIN = "announcements"             # optional default domain
 
 # Legacy fallback
 $env:DATA_DIR = "C:\path\to\legacy\ingestion-service\data"
+```
+
+### การตั้งค่าให้ Embedding ใช้ GPU (RTX 4050)
+
+RAG Service จะ embed query เพื่อทำ semantic search โดยจะเลือกใช้ GPU อัตโนมัติถ้าเครื่องมี CUDA พร้อมใช้งาน
+(และมี PyTorch แบบ CUDA ติดตั้งอยู่) โดยสามารถ override ได้ด้วย:
+
+```powershell
+# ใช้ GPU (ถ้ามี CUDA)
+$env:EMBED_DEVICE = "cuda"   # หรือ "cuda:0"
+
+# บังคับใช้ CPU
+$env:EMBED_DEVICE = "cpu"
+```
+
+หมายเหตุ: ถ้า `EMBED_DEVICE=cuda` แต่เครื่องไม่มี CUDA/torch แบบ CUDA ระบบจะ fallback เป็น CPU.
+
+ตรวจสอบ CUDA ใน environment ที่รัน RAG Service:
+
+```powershell
+python -c "import torch; print(torch.__version__); print('cuda_available', torch.cuda.is_available())"
 ```
 
 ## การตรวจสอบการเชื่อมต่อ
@@ -97,6 +120,69 @@ python test_data_connection.py --domain curriculum
 5. Context packing ตาม token budget
 ```
 
+## ทางเลือก B: ใช้ Open WebUI Pipelines (Pipe)
+
+เหมาะสำหรับผู้ที่อยากเรียก RAG Service ของเราจาก Open WebUI โดยตรง
+
+### 1) ตรวจสอบว่า RAG Service เข้าถึงได้
+
+- ค่าเริ่มต้นรันที่ `http://127.0.0.1:8001`
+- ถ้า Open WebUI รันใน Docker ให้ใช้ `http://host.docker.internal:8001` หรือ IP ของเครื่องที่รัน RAG Service
+
+ตรวจสอบด้วย:
+
+```bash
+curl http://<rag-host>:8001/health
+```
+
+คาดหวังผลลัพธ์:
+
+```json
+{"status":"ok"}
+```
+
+### 2) ตั้งค่า Pipeline (Pipe) ใน Open WebUI
+
+ตั้งค่าพื้นฐาน (ค่าชื่อเมนูอาจต่างกันเล็กน้อยตามเวอร์ชัน):
+
+1. ไปที่ **Settings** -> **Pipelines** -> **Add**
+2. เลือกชนิด **Pipe**
+3. ตั้งค่า:
+   - **Method**: `POST`
+   - **URL**: `http://<rag-host>:8001/rag/answer`
+   - **Headers**: `Content-Type: application/json`
+4. ใส่ Body Template (ตัวอย่าง):
+
+```json
+{"question":"{{input}}","domain":"announcements"}
+```
+
+> หมายเหตุ: สามารถตัด `domain` ออกได้ถ้าต้องการค้นข้ามทุกโดเมน
+
+### 3) การ map ผลลัพธ์
+
+RAG Service จะส่ง JSON กลับในรูปแบบ:
+
+```json
+{
+  "question": "...",
+  "prompt": "...",
+  "answer": "- คำตอบพร้อมอ้างอิง [ไฟล์/หน้า]\n...",
+  "contexts": [ ... ],
+  "token_est": 123
+}
+```
+
+ให้ตั้งค่า Pipeline ให้นำค่าจาก field `answer` ไปเป็นข้อความตอบกลับ
+
+### 4) ทดสอบแบบเร็ว (optional)
+
+```bash
+curl -X POST http://<rag-host>:8001/rag/answer \
+  -H "Content-Type: application/json" \
+  -d '{"question":"ขอรายละเอียดหน่วยกิตรวมของหลักสูตร","domain":"curriculum"}'
+```
+
 ## ข้อควรระวัง
 
 ### ✅ ทำ
@@ -149,6 +235,12 @@ Solution: รัน ingestion pipeline อีกครั้งเพื่อ�
 
 ```
 Solution: ตั้งค่า DATA_DIR environment variable ให้ชี้ไปที่ตำแหน่งที่ถูกต้อง
+```
+
+### ปัญหา: Open WebUI เชื่อมต่อไม่ได้
+
+```
+Solution: ตรวจสอบว่า RAG Service เปิดพอร์ต 8001 และเข้าถึงได้จากเครื่อง/คอนเทนเนอร์ที่รัน Open WebUI
 ```
 
 ## ข้อมูลเพิ่มเติม

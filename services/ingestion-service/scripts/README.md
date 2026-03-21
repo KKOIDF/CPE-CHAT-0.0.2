@@ -89,8 +89,8 @@ python services/ingestion-service/scripts/export_flagged_images.py data/db/revie
 # 1. Analyze flagged chunks
 python services/ingestion-service/scripts/analyze_flagged.py data/db/review/flagged_20251121111219.jsonl
 
-# 2. Try reprocessing with Typhoon OCR
-python services/ingestion-service/scripts/reprocess_flagged.py data/db/review/flagged_20251121111219.jsonl --engine typhoon
+# 2. Try reprocessing with Tesseract OCR
+python services/ingestion-service/scripts/reprocess_flagged.py data/db/review/flagged_20251121111219.jsonl --engine tesseract
 
 # 3. If still poor quality, export images for manual review
 python services/ingestion-service/scripts/export_flagged_images.py data/db/review/flagged_20251121111219.jsonl --max-pages 5
@@ -108,14 +108,13 @@ EMBED_FLAGGED=false          # Don't embed low-quality chunks
 MIN_QUALITY_SCORE=0.2        # Quality threshold for flagging
 MIN_LENGTH=50                # Min text length
 OCR_ENGINE=auto              # Default engine for reprocess
-TY_OCR_ENABLE=1              # Enable Typhoon OCR
-TY_OCR_API_KEY=sk-...        # Typhoon API key
 POPPLER_PATH=C:\\...          # Poppler binaries path
 ```
 
 ## Notes
 
-- Reprocessed chunks get new doc_id like eprocess_typhoon_0
+- Reprocessed chunks get new doc_id like 
+reprocess_tesseract_0
 - Original flagged chunks remain in review files
 - Improved chunks are added to DB/Chroma (not replacing originals)
 - Review files are never modified by scripts

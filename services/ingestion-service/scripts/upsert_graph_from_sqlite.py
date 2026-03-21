@@ -14,6 +14,7 @@ def main():
     p = argparse.ArgumentParser(description='Upsert curriculum graph into Neo4j from per-domain SQLite (indexes/<domain>/vector/sqlite/ingestion.db)')
     p.add_argument('--domain', default='curriculum', help='domain name (default: curriculum)')
     p.add_argument('--limit', type=int, default=0, help='optional limit for quick testing (0 = no limit)')
+    p.add_argument('--focus-code', default=None, help='Optional course code (e.g., LNG120) to only upsert chunks whose text mentions this code')
     p.add_argument('--program-name', default=None, help='Program name for (:Program) node (default: env CPE_PROGRAM_NAME or domain)')
     p.add_argument('--reset-program', action='store_true', help='Reset Program/Category/SemesterPlan links for this program_key before rebuilding course schema')
     p.add_argument('--no-course-schema', action='store_true', help='Only upsert Chunk/Course mentions graph; skip Program/Course.description+embedding upsert')
@@ -47,11 +48,22 @@ def main():
     cur = conn.cursor()
 
     # Use rowid as a stable per-row ordering key (works even if schema has no explicit id)
-    q = "SELECT rowid as chunk_id, doc_id, path, page_start, page_end, text FROM documents ORDER BY rowid ASC"
+    q = "SELECT rowid as chunk_id, doc_id, path, page_start, page_end, text FROM documents"
+    params: list[str] = []
+    if args.focus_code:
+        # Best-effort LIKE filter for quick testing. We include both dense and spaced variants.
+        code = str(args.focus_code).strip().upper().replace('-', '')
+        if code:
+            spaced = code
+            if len(code) >= 6 and code[:3].isalpha() and code[3:].isdigit():
+                spaced = f"{code[:3]} {code[3:]}"
+            q += " WHERE text LIKE ? OR text LIKE ?"
+            params = [f"%{code}%", f"%{spaced}%"]
+    q += " ORDER BY rowid ASC"
     if args.limit and args.limit > 0:
         q += f" LIMIT {int(args.limit)}"
 
-    rows = cur.execute(q).fetchall()
+    rows = cur.execute(q, params).fetchall() if params else cur.execute(q).fetchall()
     conn.close()
 
     chunks = [

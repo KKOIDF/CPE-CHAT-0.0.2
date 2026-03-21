@@ -1,0 +1,89 @@
+{
+  "generated_at": "2026-03-10T16:58:49.449632",
+  "results": [
+    {
+      "case_id": "ann_exact_date_guardrail",
+      "domain": "announcements",
+      "question": "ประกาศค่าประกันภัยมีผลบังคับตั้งแต่วันที่เท่าไร",
+      "answer": "- ประกาศค่าประกันภัยมีผลบังคับใช้ตั้งแต่ปีการศึกษา 2563 เป็นต้นไป\n- เอกสารไม่ได้กล่าวตรง ๆ เกี่ยวกับวันที่แน่นอนในแต่ละเดือนหรือวันถัดจากวันประกาศสำหรับประกาศค่าประกันภัย โดยข้อมูลที่มีระบุเพียงว่า \"ตั้งแต่ปีการศึกษา 2563 เป็นต้นไป\"",
+      "latency_ms": 2329.108553007245,
+      "contexts_count": 8,
+      "token_est": 184,
+      "sources": [
+        "eng2561.txt",
+        "ประกาศ_มจธ_หลักเกณฑ์การจัดสรรผลประโยชน์_พศ2566_ฉบับเต็ม.txt",
+        "insurance_std_1.txt",
+        "insurance_std.txt"
+      ],
+      "passed": true,
+      "abstain_hit": true,
+      "source_hit": true,
+      "error": null
+    },
+    {
+      "case_id": "ann_registered_foreign_fee",
+      "domain": "announcements",
+      "question": "ค่าจัดส่งต่างประเทศแบบลงทะเบียนเท่าไร?",
+      "answer": "- ค่าจัดส่งต่างประเทศแบบลงทะเบียน (Registered) สำหรับเอกสารสำคัญทางการศึกษา คือ 200 บาท ตามประกาศอัตราค่าธรรมเนียมการบริการจัดส่งเอกสารสำคัญทางการศึกษาทางไปรษณีย์ พ.ศ. 2562",
+      "latency_ms": 1953.9157329127192,
+      "contexts_count": 8,
+      "token_est": 1186,
+      "sources": [
+        "t_fee.txt",
+        "131.txt",
+        "fee2567update.txt",
+        "announce_financ.txt"
+      ],
+      "passed": false,
+      "abstain_hit": false,
+      "source_hit": true,
+      "error": null
+    },
+    {
+      "case_id": "reg_conflict_priority",
+      "domain": "regulations",
+      "question": "ถ้าข้อความในระเบียบอื่นขัดกับระเบียบการสอบจะให้ใช้เอกสารไหน?",
+      "answer": "- ระเบียบการสอบของนักศึกษา พ.ศ. 2560 ให้ใช้แทนเอกสารอื่นที่ขัดหรือแย้งกับระเบียบนี้\n- ข้อ 4 ของระเบียบการสอบ พ.ศ. 2560 ระบุชัดเจนว่า \"ข้อความในระเบียบมติประกาศหรือคำสั่งอื่นใดซึ่งขัดหรือแย้งกับระเบียบนี้ให้ใช้ระเบียบนี้แทน\"\n- ดังนั้น หากข้อความในระเบียบอื่นขัดกับระเบียบการสอบ จะให้ใช้ \"ระเบียบมหาวิทยาลัยเทคโนโลยีพระจอมเกล้าธนบุรีว่าด้วยการสอบของนักศึกษา พ.ศ. 2560\" เป็นหลัก",
+      "latency_ms": 3424.9789039604366,
+      "contexts_count": 8,
+      "token_est": 1006,
+      "sources": [
+        "forms.txt",
+        "129.txt",
+        "rule_exam2560.txt"
+      ],
+      "passed": true,
+      "abstain_hit": false,
+      "source_hit": true,
+      "error": null
+    },
+    {
+      "case_id": "cur_total_credits",
+      "domain": "curriculum",
+      "question": "หลักสูตรวิศวกรรมคอมพิวเตอร์ต้องศึกษารวมกี่หน่วยกิต?",
+      "answer": "",
+      "latency_ms": 90060.76143216342,
+      "contexts_count": 0,
+      "token_est": 0,
+      "sources": [],
+      "passed": false,
+      "abstain_hit": false,
+      "source_hit": false,
+      "error": "ReadTimeout: HTTPConnectionPool(host='127.0.0.1', port=8001): Read timed out. (read timeout=90.0)"
+    },
+    {
+      "case_id": "cur_cpe100_lookup",
+      "domain": "curriculum",
+      "question": "วิชา CPE 100 คืออะไร และมีกี่หน่วยกิต?",
+      "answer": "",
+      "latency_ms": 90064.5422800444,
+      "contexts_count": 0,
+      "token_est": 0,
+      "sources": [],
+      "passed": false,
+      "abstain_hit": false,
+      "source_hit": false,
+      "error": "ReadTimeout: HTTPConnectionPool(host='127.0.0.1', port=8001): Read timed out. (read timeout=90.0)"
+    }
+  ]
+}

@@ -8,11 +8,11 @@ pythainlp
 pandas
 openpyxl
 xlrd
+langdetect
 
 # Embeddings / vector store
 chromadb
 sentence-transformers
-typhoon-ocr
 python-dotenv
 
 # Graph (optional; used for curriculum hybrid graph RAG)
@@ -20,5 +20,9 @@ neo4j
 
 # Optional HTTP embedding API
 requests
+
+# Optional: LangChain splitters (CHUNK_STRATEGY=langchain_recursive)
+langchain-core
+langchain-text-splitters
 
 # SQLite FTS is built-in; ensure Python >=3.11 preferred

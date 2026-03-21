@@ -1,11 +1,14 @@
 from pathlib import Path
 from typing import List
-import pandas as pd
+try:
+    import pandas as pd  # type: ignore
+except Exception:
+    pd = None  # type: ignore
 
 from .utils import clean_for_index
 
 
-def _df_to_sheet_text(df: pd.DataFrame) -> str:
+def _df_to_sheet_text(df) -> str:
     if df is None or df.empty:
         return ''
     df = df.fillna('')
@@ -17,6 +20,8 @@ def _df_to_sheet_text(df: pd.DataFrame) -> str:
 
 def extract_excel_to_records(xl_path: str) -> List[dict]:
     """Return list of records similar to page records for chunking."""
+    if pd is None:
+        raise ModuleNotFoundError("pandas is required for Excel/CSV ingestion. Install it or ingest only .txt/.pdf inputs.")
     p = Path(xl_path)
     records = []
     try:
