@@ -13,14 +13,18 @@ from .rag_logic import (
     normalize_question,
     search_query_from_question,
     extract_lexical_anchors,
+    decompose_question,
     infer_domain,
+    is_multi_doc_question,
     fallback_domains_for_domain,
     fallback_min_results,
     retrieve_by_domain,
     retrieve_all_domains,
+    retrieve_multi_document,
     _reference_candidates,
     _filter_chunks_by_reference,
     pack_context,
+    pack_context_grouped,
     build_prompt,
     est_tokens,
 )
@@ -554,6 +558,7 @@ def rag_answer_langchain(question: str, domain: Optional[str] = None) -> Dict[st
     ctx = built['ctx']
     cites = built['cites']
     prompt = built['prompt']
+    meta = built.get('meta')
 
     if _STRUCTURED_ENABLE:
         prompt = (
@@ -624,6 +629,7 @@ def rag_answer_langchain(question: str, domain: Optional[str] = None) -> Dict[st
             for r in retrieved
         ],
         'token_est': est_tokens(ctx),
+        'meta': meta,
     }
 
     if _STRUCTURED_ENABLE:
@@ -663,6 +669,70 @@ def _build_rag_prompt_langchain(question: str, domain: Optional[str] = None) -> 
         if not dom:
             dom = _route_domain_llm(q_display) or ''
     dom = dom or None
+
+    # Multi-document retrieval mode (shared with legacy rag_logic): when enabled,
+    # bypass multi-query and use the tuned multi-doc retrieval pipeline.
+    multi_doc_mode = (os.getenv('RAG_MULTI_DOC_MODE', 'auto') or 'auto').strip().lower()
+    multi_doc_triggered = False
+    multi_doc_used = False
+    multi_doc_reason = ''
+    multi_doc_subqs: List[str] = []
+
+    if multi_doc_mode in ('1', 'true', 'yes', 'on'):
+        multi_doc_triggered = True
+        multi_doc_used = True
+        multi_doc_reason = 'forced'
+    elif multi_doc_mode == 'auto' and is_multi_doc_question(q_display):
+        multi_doc_triggered = True
+        multi_doc_used = True
+        multi_doc_reason = 'auto'
+
+    if multi_doc_used:
+        try:
+            multi_doc_subqs = decompose_question(
+                question,
+                max_parts=max(1, int(os.getenv('RAG_MULTI_DOC_MAX_SUBQS', '3') or '3')),
+            )
+        except Exception:
+            multi_doc_subqs = []
+
+        retrieved = retrieve_multi_document(question)
+        try:
+            retrieved = _filter_chunks_by_reference(retrieved, question, strict=has_ref)
+        except Exception:
+            pass
+
+        ctx, cites = pack_context_grouped(retrieved)
+        prompt = build_prompt(q_display, ctx, cites)
+
+        unique_sources: set[str] = set()
+        unique_domains: set[str] = set()
+        for r in (retrieved or []):
+            src = str(r.get('source') or r.get('path') or '').strip()
+            if src:
+                unique_sources.add(src)
+            d2 = str(r.get('domain') or '').strip().lower()
+            if d2:
+                unique_domains.add(d2)
+
+        return {
+            'q_display': q_display,
+            'q_search': q_search,
+            'domain': dom,
+            'retrieved': retrieved,
+            'ctx': ctx,
+            'cites': cites,
+            'prompt': prompt,
+            'meta': {
+                'multi_doc_mode': multi_doc_mode,
+                'multi_doc_triggered': bool(multi_doc_triggered),
+                'multi_doc_used': bool(multi_doc_used),
+                'multi_doc_reason': multi_doc_reason,
+                'multi_doc_subqs': list(multi_doc_subqs or []),
+                'retrieved_unique_sources': len(unique_sources),
+                'retrieved_unique_domains': len(unique_domains),
+            },
+        }
 
     # Multi-query retrieval (best-effort): use LLM to generate query variants,
     # retrieve for each query, then fuse with RRF.
@@ -770,6 +840,16 @@ def _build_rag_prompt_langchain(question: str, domain: Optional[str] = None) -> 
     ctx, cites = pack_context(retrieved)
     prompt = build_prompt(q_display, ctx, cites)
 
+    unique_sources: set[str] = set()
+    unique_domains: set[str] = set()
+    for r in (retrieved or []):
+        src = str(r.get('source') or r.get('path') or '').strip()
+        if src:
+            unique_sources.add(src)
+        d2 = str(r.get('domain') or '').strip().lower()
+        if d2:
+            unique_domains.add(d2)
+
     return {
         'q_display': q_display,
         'q_search': q_search,
@@ -778,6 +858,15 @@ def _build_rag_prompt_langchain(question: str, domain: Optional[str] = None) -> 
         'ctx': ctx,
         'cites': cites,
         'prompt': prompt,
+        'meta': {
+            'multi_doc_mode': multi_doc_mode,
+            'multi_doc_triggered': bool(multi_doc_triggered),
+            'multi_doc_used': bool(multi_doc_used),
+            'multi_doc_reason': multi_doc_reason,
+            'multi_doc_subqs': list(multi_doc_subqs or []),
+            'retrieved_unique_sources': len(unique_sources),
+            'retrieved_unique_domains': len(unique_domains),
+        },
     }
 
 
@@ -791,6 +880,7 @@ def rag_query_langchain(question: str, domain: Optional[str] = None) -> Dict[str
     retrieved = built['retrieved']
     prompt = built['prompt']
     ctx = built['ctx']
+    meta = built.get('meta')
 
     return {
         'prompt': prompt,
@@ -807,4 +897,5 @@ def rag_query_langchain(question: str, domain: Optional[str] = None) -> Dict[str
             for r in (retrieved or [])
         ],
         'token_est': est_tokens(ctx),
+        'meta': meta,
     }

@@ -9,6 +9,7 @@ import os
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+from typing import Any
 import re
 from .rag_logic import rag_query, rag_query_domain
 from .rag_logic import structured_curriculum_answer
@@ -213,6 +214,7 @@ class RagResponse(BaseModel):
     prompt: str
     contexts: list
     token_est: int
+    meta: dict[str, Any] | None = None
 
 class RagAnswerRequest(BaseModel):
     question: str
@@ -224,6 +226,7 @@ class RagAnswerResponse(BaseModel):
     answer: str
     contexts: list
     token_est: int
+    meta: dict[str, Any] | None = None
 
 
 # OpenAI API compatible models
@@ -1424,29 +1427,32 @@ def rag_answer_endpoint(req: RagAnswerRequest):
                         if extracted_w:
                             answer = extracted_w
                         else:
+                            # Exam-room policies can be multi-intent (e.g., มาสาย + ออกชั่วคราว).
+                            # Don't return early on the first extractor hit; combine when applicable.
                             extracted_exam_late = _try_extract_exam_late_entry_rule(result.get('prompt') or '', question=req.question)
-                            if extracted_exam_late:
+                            extracted_exam_temp = _try_extract_exam_temp_leave_rule(result.get('prompt') or '', question=req.question)
+                            extracted_exam_exit = _try_extract_exam_exit_rule(result.get('prompt') or '', question=req.question)
+
+                            if extracted_exam_late and extracted_exam_temp:
+                                answer = f"{extracted_exam_late}\n{extracted_exam_temp}"
+                            elif extracted_exam_late:
                                 answer = extracted_exam_late
+                            elif extracted_exam_exit:
+                                answer = extracted_exam_exit
+                            elif extracted_exam_temp:
+                                answer = extracted_exam_temp
                             else:
-                                extracted_exam_exit = _try_extract_exam_exit_rule(result.get('prompt') or '', question=req.question)
-                                if extracted_exam_exit:
-                                    answer = extracted_exam_exit
+                                guarded = _low_confidence_guardrail(req.question, result)
+                                if guarded:
+                                    add_metric('guardrail_triggered', 1)
+                                    answer = guarded
                                 else:
-                                    extracted_exam_temp = _try_extract_exam_temp_leave_rule(result.get('prompt') or '', question=req.question)
-                                    if extracted_exam_temp:
-                                        answer = extracted_exam_temp
+                                    if _USE_LANGCHAIN:
+                                        # Already generated in langchain path.
+                                        answer = result.get('answer') or ''
                                     else:
-                                        guarded = _low_confidence_guardrail(req.question, result)
-                                        if guarded:
-                                            add_metric('guardrail_triggered', 1)
-                                            answer = guarded
-                                        else:
-                                            if _USE_LANGCHAIN:
-                                                # Already generated in langchain path.
-                                                answer = result.get('answer') or ''
-                                            else:
-                                                with time_block('llm_generate'):
-                                                    answer = llm_engine.generate(result['prompt'], messages=[system_msg, user_msg])
+                                        with time_block('llm_generate'):
+                                            answer = llm_engine.generate(result['prompt'], messages=[system_msg, user_msg])
 
                     # Optionally enforce citations when we have context.
                     if _require_citations() and (result.get('contexts') or []) and answer and not answer.strip().startswith('('):
@@ -1473,7 +1479,8 @@ def rag_answer_endpoint(req: RagAnswerRequest):
             prompt=result['prompt'],
             answer=answer,
             contexts=result['contexts'],
-            token_est=result['token_est']
+            token_est=result['token_est'],
+            meta=result.get('meta'),
         )
 
 @app.get('/v1/models')

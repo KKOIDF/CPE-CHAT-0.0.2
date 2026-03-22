@@ -326,6 +326,15 @@ def ensure_min_sources(
     def _src(d: Dict) -> str:
         return _normalize_source_key(str(d.get('source') or d.get('path') or 'unknown')) or 'unknown'
 
+    def _chunk_key(d: Dict) -> str:
+        did = str(d.get('doc_id') or '')
+        pg = str(d.get('page_start') or '') + '-' + str(d.get('page_end') or '')
+        src = str(d.get('source') or d.get('path') or '')
+        txt = re.sub(r"\s+", " ", str(d.get('text') or '').strip())
+        if len(txt) > 140:
+            txt = txt[:140]
+        return did + '::' + pg + '::' + src + '::' + txt
+
     # 1) Seed at least N unique sources (best chunk per source in rank order).
     seeded: List[Dict] = []
     seen_src: set[str] = set()
@@ -344,8 +353,7 @@ def ensure_min_sources(
     seen_keys: set[str] = set()
     for d in seeded:
         counts[_src(d)] = counts.get(_src(d), 0) + 1
-        k = str(d.get('doc_id') or '') + '::' + str(d.get('page_start') or '') + '::' + str(d.get('source') or d.get('path') or '')
-        seen_keys.add(k)
+        seen_keys.add(_chunk_key(d))
 
     for d in items:
         if len(merged) >= limit:
@@ -354,7 +362,7 @@ def ensure_min_sources(
         if counts.get(s, 0) >= max_per_source:
             continue
         # De-dup by doc_id/path-ish.
-        key = str(d.get('doc_id') or '') + '::' + str(d.get('page_start') or '') + '::' + str(d.get('source') or d.get('path') or '')
+        key = _chunk_key(d)
         if key in seen_keys:
             continue
         merged.append(d)
@@ -372,6 +380,43 @@ def pack_context_grouped(
 ) -> Tuple[str, Dict[int, str]]:
     if not chunks:
         return '', {}
+
+    def _truncate_block_to_fit(prefix: str, text: str, remaining_tokens: int) -> str | None:
+        """Return a possibly-truncated block that fits in remaining token budget.
+
+        Uses a rough chars-per-token heuristic with a safety check via est_tokens.
+        """
+        if remaining_tokens <= 0:
+            return None
+        base = (prefix or '')
+        base_tokens = est_tokens(base)
+        if base_tokens >= remaining_tokens:
+            return None
+        txt = (text or '').strip()
+        # If already fits, keep as-is.
+        candidate = base + txt
+        if est_tokens(candidate) <= remaining_tokens:
+            return candidate
+
+        # Otherwise, truncate to fit. Approx 4 chars/token is a common heuristic.
+        avail_tokens = max(1, remaining_tokens - base_tokens)
+        approx_chars = max(80, int(avail_tokens * 4))
+        if approx_chars <= 0:
+            return None
+        clipped = txt[:approx_chars].rstrip()
+        if clipped and clipped != txt:
+            clipped = clipped + ' ...'
+        candidate = base + clipped
+        # Safety: if still too big, shrink once more.
+        if est_tokens(candidate) > remaining_tokens:
+            approx_chars = max(40, int(approx_chars * 0.6))
+            clipped = txt[:approx_chars].rstrip()
+            if clipped and clipped != txt:
+                clipped = clipped + ' ...'
+            candidate = base + clipped
+        if est_tokens(candidate) <= remaining_tokens and candidate.strip() != base.strip():
+            return candidate
+        return None
 
     def _group_key(c: Dict) -> str:
         dom = str(c.get('domain') or '').strip()
@@ -400,6 +445,38 @@ def pack_context_grouped(
     i = 0
 
     for gk in order:
+        remaining = budget_tokens - used
+        if remaining <= 0:
+            continue
+
+        # Only emit a group header if we can include at least one chunk.
+        group_blocks: List[str] = []
+        group_cites: List[str] = []
+
+        for c in groups.get(gk, []):
+            cite = _cite_label(c)
+            txt = (c.get('text', '') or '').strip()
+            if truncate_chars is not None and truncate_chars > 0 and len(txt) > truncate_chars:
+                txt = txt[:truncate_chars].rstrip() + ' ...'
+
+            prefix = f"[{cite}] "
+            remaining = budget_tokens - used - est_tokens(f"[Source: {gk}]")
+            if remaining <= 0:
+                break
+
+            block = _truncate_block_to_fit(prefix, txt, remaining_tokens=remaining)
+            if not block:
+                continue
+            group_blocks.append(block)
+            group_cites.append(cite)
+
+            # Stop early if we're close to budget; later groups can still contribute.
+            if (budget_tokens - used) < 80:
+                break
+
+        if not group_blocks:
+            continue
+
         header = f"[Source: {gk}]"
         ht = est_tokens(header)
         if used + ht > budget_tokens:
@@ -407,14 +484,10 @@ def pack_context_grouped(
         packed_blocks.append(header)
         used += ht
 
-        for c in groups.get(gk, []):
-            cite = _cite_label(c)
-            txt = (c.get('text', '') or '').strip()
-            if truncate_chars is not None and truncate_chars > 0 and len(txt) > truncate_chars:
-                txt = txt[:truncate_chars].rstrip() + ' ...'
-            block = f"[{cite}] {txt}"
+        for block, cite in zip(group_blocks, group_cites):
             t = est_tokens(block)
             if used + t > budget_tokens:
+                # Best-effort: should rarely happen due to _truncate_block_to_fit.
                 continue
             packed_blocks.append(block)
             used += t
@@ -451,8 +524,72 @@ def retrieve_multi_document(question: str) -> List[Dict]:
     anchors = extract_lexical_anchors(question)
     fused = promote_exact_anchor_hits(fused, anchors)
 
+    # Regulations-specific rerank for clause coverage. Multi-doc fusion is intentionally
+    # generic and can over-favor chunks that appear in both semantic+keyword lists.
+    # For questions asking about exam-room temporary leave, explicitly boost clause-16
+    # chunks so they survive downstream per-source caps.
+    try:
+        ql = (question or '').strip().lower()
+        want_exam_temp_leave = (
+            ('สอบ' in ql or 'ห้องสอบ' in ql)
+            and (('ชั่วคราว' in ql) or ('ออกจากห้องสอบชั่วคราว' in ql) or ('ออกห้องสอบชั่วคราว' in ql))
+        )
+        if want_exam_temp_leave and fused:
+            bonus = float(os.getenv('RAG_MULTI_DOC_REGULATIONS_CLAUSE16_BONUS', '0.35') or '0.35')
+
+            def _is_clause16(d: Dict) -> bool:
+                t = str(d.get('text') or '')
+                return ('ข้อ 16' in t) and (('ชั่วคราว' in t) or ('ออกจากห้องสอบ' in t) or ('กรรมการคุมสอบ' in t) or ('เครื่องมือสื่อสาร' in t))
+
+            boosted: List[Dict] = []
+            for d in fused:
+                u = dict(d)
+                base = float(u.get('score_final') or u.get('score_rrf') or 0.0)
+                if _is_clause16(u):
+                    base += bonus
+                u['score_final'] = base
+                u['score_rrf'] = base
+                boosted.append(u)
+            boosted.sort(key=lambda x: float(x.get('score_final') or x.get('score_rrf') or 0.0), reverse=True)
+            fused = boosted
+    except Exception:
+        pass
+
     # Doc stage: ensure we pull evidence from multiple documents, not only the single best chunk.
     doc_selected = select_chunks_from_top_documents(fused, top_docs=_MULTI_DOC_DOC_TOPN, per_doc=_MULTI_DOC_CHUNKS_PER_DOC)
+
+    # If a critical clause chunk exists in the fused pool but is not within the
+    # top `per_doc` chunks for its document, inject it here so downstream
+    # per-source caps don't erase it entirely.
+    try:
+        ql = (question or '').strip().lower()
+        want_exam_temp_leave = (
+            ('สอบ' in ql or 'ห้องสอบ' in ql)
+            and (('ชั่วคราว' in ql) or ('ออกจากห้องสอบชั่วคราว' in ql) or ('ออกห้องสอบชั่วคราว' in ql))
+        )
+        if want_exam_temp_leave and fused and doc_selected:
+            def _is_clause16(d: Dict) -> bool:
+                t = str(d.get('text') or '')
+                return ('ข้อ 16' in t) and (('ชั่วคราว' in t) or ('ออกจากห้องสอบ' in t) or ('กรรมการคุมสอบ' in t) or ('เครื่องมือสื่อสาร' in t))
+
+            has16 = any(_is_clause16(d) for d in doc_selected)
+            if not has16:
+                cand16 = None
+                for d in fused:
+                    if _is_clause16(d):
+                        cand16 = d
+                        break
+                if cand16 and (not any(str(x.get('doc_id') or '') == str(cand16.get('doc_id') or '') for x in doc_selected)):
+                    add_metric('multi_doc_inject_clause16', 1)
+                    u = dict(cand16)
+                    boost = float(os.getenv('RAG_MULTI_DOC_REGULATIONS_CLAUSE16_INJECT_BOOST', '0.55') or '0.55')
+                    base = float(u.get('score_final') or u.get('score_rrf') or 0.0)
+                    u['score_final'] = base + boost
+                    u['score_rrf'] = u['score_final']
+                    doc_selected = [*doc_selected, u]
+                    doc_selected.sort(key=lambda x: float(x.get('score_final') or x.get('score_rrf') or 0.0), reverse=True)
+    except Exception:
+        pass
 
     # Diversity + min-sources for final contexts.
     final = ensure_min_sources(
@@ -461,6 +598,100 @@ def retrieve_multi_document(question: str) -> List[Dict]:
         max_per_source=_MULTI_DOC_MAX_PER_SOURCE,
         limit=_MULTI_DOC_FINAL_LIMIT,
     )
+
+    # Regulations-specific: when the question includes multiple exam-room intents,
+    # the per-source cap can drop a needed clause chunk (e.g., ข้อ 12 or ข้อ 16)
+    # even though it exists in the fused pool. Force-include missing clause chunks
+    # while keeping per-source limits.
+    try:
+        ql = (question or '').strip().lower()
+        want_exam_late = (
+            ('สอบ' in ql or 'ห้องสอบ' in ql)
+            and ('มาสาย' in ql or 'สาย' in ql or 'เข้าห้องสอบ' in ql)
+        )
+        want_exam_temp_leave = (
+            ('สอบ' in ql or 'ห้องสอบ' in ql)
+            and (('ชั่วคราว' in ql) or ('ออกจากห้องสอบชั่วคราว' in ql) or ('ออกห้องสอบชั่วคราว' in ql))
+        )
+
+        if (want_exam_late or want_exam_temp_leave) and (final or []) and (fused or []):
+            def _src_key(d: Dict) -> str:
+                return _normalize_source_key(str(d.get('source') or d.get('path') or '')) or ''
+
+            def _is_clause16(d: Dict) -> bool:
+                t = str(d.get('text') or '')
+                return ('ข้อ 16' in t) and (('ชั่วคราว' in t) or ('ออกจากห้องสอบ' in t) or ('กรรมการคุมสอบ' in t) or ('เครื่องมือสื่อสาร' in t))
+
+            def _is_clause12(d: Dict) -> bool:
+                t = str(d.get('text') or '')
+                if 'ข้อ 12' not in t:
+                    return False
+                # Prefer the specific late-arrival policy chunk.
+                return (
+                    ('ห้องสอบ' in t)
+                    and (('สิบห้านาที' in t) or ('15' in t))
+                    and (('หกสิบนาที' in t) or ('60' in t))
+                )
+
+            # 1) Ensure clause 16 if asked.
+            if want_exam_temp_leave and (not any(_is_clause16(d) for d in final)):
+                cand16 = next((d for d in fused if _is_clause16(d)), None)
+                if cand16 and (not any(str(x.get('doc_id') or '') == str(cand16.get('doc_id') or '') for x in final)):
+                    add_metric('multi_doc_force_clause16', 1)
+                    sk = _src_key(cand16)
+                    swap_idx = None
+                    if sk:
+                        same_src = [
+                            (i, d) for i, d in enumerate(final)
+                            if _src_key(d) == sk
+                        ]
+                        if same_src:
+                            same_src.sort(key=lambda p: float((p[1].get('score_final') or p[1].get('score_rrf') or 0.0)))
+                            swap_idx = same_src[0][0]
+                    if swap_idx is None:
+                        swap_idx = min(
+                            range(len(final)),
+                            key=lambda i: float((final[i].get('score_final') or final[i].get('score_rrf') or 0.0)),
+                        )
+                    final[int(swap_idx)] = cand16
+                    final.sort(key=lambda x: float(x.get('score_final') or x.get('score_rrf') or 0.0), reverse=True)
+
+            # 2) Ensure clause 12 if asked (and avoid keeping two clause-16 chunks).
+            if want_exam_late and (not any(_is_clause12(d) for d in final)):
+                cand12 = next((d for d in fused if _is_clause12(d)), None)
+                if cand12 and (not any(str(x.get('doc_id') or '') == str(cand12.get('doc_id') or '') for x in final)):
+                    add_metric('multi_doc_force_clause12', 1)
+                    sk = _src_key(cand12)
+                    swap_idx = None
+
+                    # Prefer swapping out a redundant clause-16 chunk from the same source.
+                    c16_same = [
+                        (i, d) for i, d in enumerate(final)
+                        if (sk and _src_key(d) == sk and _is_clause16(d))
+                    ]
+                    if c16_same:
+                        c16_same.sort(key=lambda p: float((p[1].get('score_final') or p[1].get('score_rrf') or 0.0)))
+                        swap_idx = c16_same[0][0]
+
+                    if swap_idx is None and sk:
+                        same_src = [
+                            (i, d) for i, d in enumerate(final)
+                            if _src_key(d) == sk
+                        ]
+                        if same_src:
+                            same_src.sort(key=lambda p: float((p[1].get('score_final') or p[1].get('score_rrf') or 0.0)))
+                            swap_idx = same_src[0][0]
+
+                    if swap_idx is None:
+                        swap_idx = min(
+                            range(len(final)),
+                            key=lambda i: float((final[i].get('score_final') or final[i].get('score_rrf') or 0.0)),
+                        )
+                    final[int(swap_idx)] = cand12
+                    final.sort(key=lambda x: float(x.get('score_final') or x.get('score_rrf') or 0.0), reverse=True)
+    except Exception:
+        pass
+
     add_metric('multi_doc_used', 1)
     add_metric('multi_doc_subq_n', len(subqs))
     add_metric('multi_doc_fused_n', len(fused))
@@ -929,7 +1160,7 @@ def majority_domain_rescue(
     if not counts:
         return items
 
-    maj_dom = max(counts, key=counts.get)
+    maj_dom = max(counts, key=lambda k: counts[k])
     if counts.get(maj_dom, 0) < int(require_majority):
         return items
 
@@ -937,57 +1168,28 @@ def majority_domain_rescue(
     if not maj_dom or maj_dom == top1_dom:
         return items
 
-    # Items are already sorted desc, so the first occurrence is the best candidate.
-    best_idx = None
-    best_score = None
-    for i, d in enumerate(items):
-        dom = str(d.get('domain') or '').strip().lower()
-        if dom != maj_dom:
-            continue
-        best_idx = i
-        best_score = float(d.get('score_final') or d.get('score_rrf') or 0.0)
-        break
-    if best_idx is None:
+    def _score(d: Dict) -> float:
+        return float(d.get('score_final') or d.get('score_rrf') or 0.0)
+
+    # Items are already sorted desc, so the first matching domain item is its best candidate.
+    best_idx = next(
+        (i for i, d in enumerate(items) if str(d.get('domain') or '').strip().lower() == maj_dom),
+        None,
+    )
+    if best_idx is None or best_idx == 0:
         return items
 
-    top1_score = float(items[0].get('score_final') or items[0].get('score_rrf') or 0.0)
-    if (top1_score - float(best_score or 0.0)) <= float(margin):
-        rescued = list(items)
-        rescued.insert(0, rescued.pop(best_idx))
-        return rescued
-    return items
+    top_score = _score(items[0])
+    maj_score = _score(items[best_idx])
 
+    # Rescue only when the majority-domain best item is not much worse than rank-1.
+    if maj_score + float(margin) < top_score:
+        return items
 
-def infer_domain_bias(question: str) -> str | None:
-    q = (question or '').strip().lower()
-    if not q:
-        return None
-
-    # Strong hint: course-code questions are usually curriculum, unless explicitly about exam schedules.
-    # (Used only as fallback when infer_domain() returns None.)
-    has_course_code = re.search(r"\b[a-z]{2,6}\s*[- ]?\s*\d{3}\b", q, flags=re.IGNORECASE) is not None
-    examish = any(t in q for t in ('ตารางสอบ', 'สอบกลางภาค', 'สอบปลายภาค', 'วันสอบ', 'สอบ'))
-    if has_course_code and not examish:
-        return 'curriculum'
-
-    curriculum_terms = [
-        'หน่วยกิต', 'หลักสูตร', 'วิชาศึกษาทั่วไป', 'วิชาเลือก', 'วิชาบังคับ', 'ก่อนเรียน',
-        'prerequisite', 'pre-requisite',
-    ]
-    regulations_terms = [
-        'ระเบียบ', 'ข้อบังคับ', 'อุทธรณ์', 'ทุจริต', 'มาสาย', 'หมดสิทธิ์', 'วินัย',
-    ]
-    announcements_terms = [
-        'ประกาศ', 'กำหนดการ', 'ปฏิทิน', 'เปิด', 'ปิด', 'ชำระ', 'ค่าธรรมเนียม',
-    ]
-
-    if any(t in q for t in curriculum_terms):
-        return 'curriculum'
-    if any(t in q for t in regulations_terms):
-        return 'regulations'
-    if any(t in q for t in announcements_terms):
-        return 'announcements'
-    return None
+    out = list(items)
+    rescued = out.pop(best_idx)
+    out.insert(0, rescued)
+    return out
 
 
 def promote_exact_anchor_hits(items: List[Dict], anchors: List[str], bonus_per_hit: float = _ANCHOR_HIT_BONUS) -> List[Dict]:
@@ -1034,10 +1236,13 @@ def diversify_by_source(items: List[Dict], max_per_source: int = _MAX_PER_SOURCE
     per_src: Dict[str, int] = {}
 
     def _k(d: Dict) -> str:
-        did = d.get('doc_id')
-        if did is not None:
-            return str(did)
-        return str(d.get('source') or '') + '::' + str(d.get('path') or '')
+        did = str(d.get('doc_id') or '')
+        pg = str(d.get('page_start') or '') + '-' + str(d.get('page_end') or '')
+        src = str(d.get('source') or d.get('path') or '')
+        txt = re.sub(r"\s+", " ", str(d.get('text') or '').strip())
+        if len(txt) > 140:
+            txt = txt[:140]
+        return did + '::' + pg + '::' + src + '::' + txt
 
     def _src(d: Dict) -> str:
         s = d.get('source')
@@ -1136,6 +1341,15 @@ def structured_curriculum_answer(question: str) -> str | None:
     # If the query asks about instructor/teacher, do not force a title+credit answer.
     instructor_intent = any(t in q for t in ('ใครสอน', 'ผู้สอน', 'อาจารย์', 'คนสอน'))
 
+    # If the user asks about prerequisites or where the course appears in the study plan
+    # (term/semester/year), do not shortcut to title+credits; prefer full RAG retrieval.
+    prereq_intent = any(t in q for t in (
+        'ต้องผ่าน', 'บังคับก่อน', 'วิชาบังคับก่อน', 'ผ่านอะไรก่อน', 'prereq', 'pre-req', 'prerequisite', 'เงื่อนไขก่อน'
+    ))
+    term_intent = any(t in q for t in (
+        'เทอม', 'ภาค', 'ภาคการศึกษา', 'semester', 'ปีที่', 'ชั้นปี', 'อยู่ปี', 'เรียนปี'
+    ))
+
     # When question is composed as:
     #   "<prev>\nคำถามต่อเนื่อง: <last>"
     # prioritize course codes from the follow-up segment to avoid stale-code bleed.
@@ -1168,7 +1382,7 @@ def structured_curriculum_answer(question: str) -> str | None:
             followup_codes = _codes_in_order(tail)
 
     codes = followup_codes or _codes_in_order(q)
-    if codes and not instructor_intent:
+    if codes and not instructor_intent and not (prereq_intent or term_intent):
         all_courses = load_all_courses_2564()
         # Prefer the latest-mentioned code in the user message to avoid stale-code bleed.
         for code in reversed(codes):
@@ -1324,6 +1538,41 @@ def infer_domain(question: str) -> str | None:
     if 'ประกาศ' in q or 'announcement' in ql:
         return 'announcements'
 
+    return None
+
+
+def infer_domain_bias(question: str) -> str | None:
+    """Lightweight fallback domain bias when infer_domain() is inconclusive.
+
+    Used only as a soft hint (never a hard gate) by all-domain fusion.
+    """
+    q = (question or '').strip().lower()
+    if not q:
+        return None
+
+    # Strong hint: course-code questions are usually curriculum, unless explicitly about exam schedules.
+    has_course_code = re.search(r"\b[a-z]{2,6}\s*[- ]?\s*\d{3}\b", q, flags=re.IGNORECASE) is not None
+    examish = any(t in q for t in ('ตารางสอบ', 'สอบกลางภาค', 'สอบปลายภาค', 'วันสอบ', 'สอบ'))
+    if has_course_code and not examish:
+        return 'curriculum'
+
+    curriculum_terms = [
+        'หน่วยกิต', 'หลักสูตร', 'วิชาศึกษาทั่วไป', 'วิชาเลือก', 'วิชาบังคับ', 'ก่อนเรียน',
+        'prerequisite', 'pre-requisite',
+    ]
+    regulations_terms = [
+        'ระเบียบ', 'ข้อบังคับ', 'อุทธรณ์', 'ทุจริต', 'มาสาย', 'หมดสิทธิ์', 'วินัย',
+    ]
+    announcements_terms = [
+        'ประกาศ', 'กำหนดการ', 'ปฏิทิน', 'เปิด', 'ปิด', 'ชำระ', 'ค่าธรรมเนียม',
+    ]
+
+    if any(t in q for t in curriculum_terms):
+        return 'curriculum'
+    if any(t in q for t in regulations_terms):
+        return 'regulations'
+    if any(t in q for t in announcements_terms):
+        return 'announcements'
     return None
 
 
@@ -1561,6 +1810,47 @@ def retrieve_all_domains(
             u['score_rrf'] = score
             boosted.append(u)
         merged = boosted
+
+    # Specific clause coverage: temporary leave from exam room (ข้อ 16).
+    # In all-domain fusion, the correct clause chunk can rank low and get trimmed
+    # before multi-doc has a chance to combine intents.
+    want_exam_late = (
+        ('สอบ' in ql or 'ห้องสอบ' in ql)
+        and ('มาสาย' in ql or 'สาย' in ql or 'เข้าห้องสอบ' in ql)
+    )
+    want_exam_temp_leave = (
+        ('สอบ' in ql or 'ห้องสอบ' in ql)
+        and (('ชั่วคราว' in ql) or ('ออกจากห้องสอบชั่วคราว' in ql) or ('ออกห้องสอบชั่วคราว' in ql))
+    )
+    if (want_exam_late or want_exam_temp_leave) and merged:
+        try:
+            clause12_bonus = float(os.getenv('RAG_ALLDOM_REGULATIONS_CLAUSE12_BONUS', '0.75') or '0.75')
+            clause16_bonus = float(os.getenv('RAG_ALLDOM_REGULATIONS_CLAUSE16_BONUS', '0.85') or '0.85')
+        except Exception:
+            clause12_bonus = 0.75
+            clause16_bonus = 0.85
+
+        boosted2: List[Dict] = []
+        for d in merged:
+            u = dict(d)
+            dom = str(u.get('domain') or '').strip().lower()
+            text = str(u.get('text') or '')
+            score = float(u.get('score_final') or u.get('score_rrf') or 0.0)
+            if dom == 'regulations':
+                if want_exam_late:
+                    if (
+                        ('ข้อ 12' in text)
+                        and ('ห้องสอบ' in text)
+                        and (('สิบห้านาที' in text) or ('15' in text))
+                        and (('หกสิบนาที' in text) or ('60' in text))
+                    ):
+                        score += clause12_bonus
+                if ('ข้อ 16' in text) and (('ชั่วคราว' in text) or ('ออกจากห้องสอบ' in text) or ('กรรมการคุมสอบ' in text) or ('เครื่องมือสื่อสาร' in text)):
+                    score += clause16_bonus
+            u['score_final'] = score
+            u['score_rrf'] = score
+            boosted2.append(u)
+        merged = boosted2
 
     # Penalize overbroad sources for curriculum/regulations intents (calendar/schedule leaks).
     merged = apply_overbroad_source_penalty(merged, inferred, question=question)
@@ -1863,38 +2153,56 @@ def retrieve_by_domain(
             dedup.append(s)
         anchors = dedup
 
-        # Find a best anchor position.
-        pos = -1
-        hit = ''
+        # Find anchor positions.
+        hits: list[tuple[int, str]] = []
         for a in anchors:
             p = txt.find(a)
             if p != -1:
-                pos = p
-                hit = a
-                break
+                hits.append((p, a))
 
         # If no anchor found, fallback to the first part.
-        if pos == -1:
+        if not hits:
             clipped = txt[:max_chars].rstrip()
         else:
-            # Keep a window around the anchor; prefer expanding to newline boundaries.
+            # Some questions include multiple intents (e.g., ข้อ 12 + ข้อ 16).
+            # Prefer including multiple small excerpts rather than clipping to only
+            # the first anchor, which can drop relevant clauses.
+            try:
+                max_anchor_snips = max(1, int(os.getenv('RAG_REGULATIONS_CLIP_MAX_ANCHORS', '2') or '2'))
+            except Exception:
+                max_anchor_snips = 2
+
+            # Keep a window around each anchor; prefer expanding to newline boundaries.
             window = int(os.getenv('RAG_REGULATIONS_CLIP_WINDOW', '1600') or '1600')
             half = max(200, window // 2)
-            start = max(0, pos - half)
-            end = min(len(txt), pos + half)
 
-            # Expand to nearest newlines (best-effort) to keep it readable.
-            nl_left = txt.rfind('\n', 0, start)
-            if nl_left != -1 and (start - nl_left) < 200:
-                start = nl_left + 1
-            nl_right = txt.find('\n', end)
-            if nl_right != -1 and (nl_right - end) < 200:
-                end = nl_right
+            hits.sort(key=lambda x: x[0])
+            picked_hits = hits[:max_anchor_snips]
 
-            clipped = txt[start:end].strip()
-            if hit and hit not in clipped:
-                # Safety: ensure anchor appears in excerpt.
-                clipped = (hit + " ...\n" + clipped).strip()
+            parts: list[str] = []
+            for pos, hit in picked_hits:
+                start = max(0, pos - half)
+                end = min(len(txt), pos + half)
+
+                nl_left = txt.rfind('\n', 0, start)
+                if nl_left != -1 and (start - nl_left) < 200:
+                    start = nl_left + 1
+                nl_right = txt.find('\n', end)
+                if nl_right != -1 and (nl_right - end) < 200:
+                    end = nl_right
+
+                seg = txt[start:end].strip()
+                if hit and hit not in seg:
+                    seg = (hit + " ...\n" + seg).strip()
+                if seg:
+                    parts.append(seg)
+
+            if not parts:
+                clipped = txt[:max_chars].rstrip()
+            else:
+                clipped = "\n\n...\n\n".join(parts).strip()
+                if len(clipped) > max_chars:
+                    clipped = clipped[:max_chars].rstrip() + ' ...'
 
         out = dict(item)
         out['text'] = clipped
@@ -2110,6 +2418,15 @@ def retrieve_by_domain(
     dom = (domain or '').strip().lower()
     add_metric('retrieval_domain', dom or 'auto')
 
+    # Some call sites (multi-doc wide retrieval) need a wider per-domain context
+    # list than the default MAX_CONTEXTS.
+    max_contexts_local = MAX_CONTEXTS
+    if max_contexts_override is not None:
+        try:
+            max_contexts_local = max(1, int(max_contexts_override))
+        except Exception:
+            max_contexts_local = MAX_CONTEXTS
+
     semantic_q, keyword_q = build_retrieval_queries(question)
     if dom == 'regulations':
         semantic_q = _augment_regulations_query(question, semantic_q)
@@ -2192,6 +2509,54 @@ def retrieve_by_domain(
                             break
                     if injected:
                         sem = [*injected, *sem]
+
+            exam_temp_leave_intent = (
+                ('สอบ' in ql or 'ห้องสอบ' in ql)
+                and (
+                    ('ชั่วคราว' in ql)
+                    or ('ออกจากห้องสอบชั่วคราว' in ql)
+                    or ('ออกห้องสอบชั่วคราว' in ql)
+                )
+            )
+            if exam_temp_leave_intent:
+                add_metric('retrieval_exam_temp_leave_anchor', 1)
+                with time_block('vector_search_exam_temp_leave_anchor'):
+                    sem_extra = semantic_search_domain(
+                        'ข้อ 16 ห้องสอบ ออกจากห้องสอบชั่วคราว กรรมการคุมสอบ เครื่องมือสื่อสาร',
+                        top_k=max(20, k_vec * 2),
+                        domain='regulations',
+                        source_allowlist=None,
+                    )
+                with time_block('hydrate_sqlite_exam_temp_leave_anchor'):
+                    sem_extra = _hydrate_from_sqlite(sem_extra, sqlite_path)
+                if sem_extra:
+                    clause16_docs: List[Dict] = []
+                    other_docs: List[Dict] = []
+                    for d in sem_extra:
+                        txt = str(d.get('text') or '')
+                        if ('ข้อ 16' in txt) and (('ชั่วคราว' in txt) or ('ออกจากห้องสอบ' in txt) or ('กรรมการคุมสอบ' in txt)):
+                            clause16_docs.append(d)
+                        else:
+                            other_docs.append(d)
+                    prioritized = [*clause16_docs, *other_docs]
+                    seen_doc_ids: set[str] = {
+                        str(d.get('doc_id'))
+                        for d in sem
+                        if d.get('doc_id') is not None
+                    }
+                    injected: List[Dict] = []
+                    for d in prioritized:
+                        did = d.get('doc_id')
+                        key = str(did) if did is not None else ''
+                        if key and key in seen_doc_ids:
+                            continue
+                        injected.append(d)
+                        if key:
+                            seen_doc_ids.add(key)
+                        if len(injected) >= 8:
+                            break
+                    if injected:
+                        sem = [*injected, *sem]
         add_metric('retrieval_sem_n', len(sem))
         add_metric('retrieval_kw_n', len(kw_docs))
 
@@ -2226,8 +2591,69 @@ def retrieve_by_domain(
         merged = _apply_lexical_rerank(merged, question, dom)
         merged = promote_exact_anchor_hits(merged, anchors)
         add_metric('retrieval_merged_n', len(merged))
-        candidates = merged[: max(MAX_CONTEXTS * 4, MAX_CONTEXTS)]
-        picked = diversify_by_source(candidates, max_per_source=_MAX_PER_SOURCE, limit=MAX_CONTEXTS)
+        candidates = merged[: max(max_contexts_local * 4, max_contexts_local)]
+        picked = diversify_by_source(candidates, max_per_source=_MAX_PER_SOURCE, limit=max_contexts_local)
+
+        # Regulations: ensure the final set covers key clauses when the question
+        # clearly asks about them (helps when per-source caps would otherwise keep
+        # only multiple chunks about the same clause).
+        if dom == 'regulations':
+            try:
+                ql = (question or '').strip().lower()
+                want_exam_temp_leave = (
+                    ('สอบ' in ql or 'ห้องสอบ' in ql)
+                    and (('ชั่วคราว' in ql) or ('ออกจากห้องสอบชั่วคราว' in ql) or ('ออกห้องสอบชั่วคราว' in ql))
+                )
+                if want_exam_temp_leave and candidates and picked:
+                    def _is_clause16(d: Dict) -> bool:
+                        t = str(d.get('text') or '')
+                        return ('ข้อ 16' in t) and (('ชั่วคราว' in t) or ('ออกจากห้องสอบ' in t) or ('กรรมการคุมสอบ' in t) or ('เครื่องมือสื่อสาร' in t))
+
+                    has16 = any(_is_clause16(d) for d in picked)
+                    if not has16:
+                        cand16 = None
+                        for d in candidates:
+                            if _is_clause16(d):
+                                cand16 = d
+                                break
+                        # Fallback: force a clause-16 hit via targeted vector search.
+                        if cand16 is None:
+                            try:
+                                with time_block('vector_search_exam_temp_leave_fallback'):
+                                    sem_extra2 = semantic_search_domain(
+                                        'ข้อ 16 ห้องสอบ ออกจากห้องสอบชั่วคราว กรรมการคุมสอบ เครื่องมือสื่อสาร',
+                                        top_k=max(30, k_vec * 2),
+                                        domain='regulations',
+                                        source_allowlist=None,
+                                    )
+                                sem_extra2 = _hydrate_from_sqlite(sem_extra2, sqlite_path)
+                                for d in (sem_extra2 or []):
+                                    if _is_clause16(d):
+                                        cand16 = d
+                                        break
+                            except Exception:
+                                cand16 = None
+                        if cand16 and (not any(str(x.get('doc_id') or '') == str(cand16.get('doc_id') or '') for x in picked)):
+                            add_metric('retrieval_force_clause16', 1)
+                            src_key = _normalize_source_key(str(cand16.get('source') or cand16.get('path') or ''))
+                            swap_idx = None
+                            if src_key:
+                                same_src = [
+                                    (i, d) for i, d in enumerate(picked)
+                                    if _normalize_source_key(str(d.get('source') or d.get('path') or '')) == src_key
+                                ]
+                                if same_src:
+                                    same_src.sort(key=lambda p: float((p[1].get('score_final') or p[1].get('score_rrf') or 0.0)))
+                                    swap_idx = same_src[0][0]
+                            if swap_idx is None:
+                                swap_idx = min(
+                                    range(len(picked)),
+                                    key=lambda i: float((picked[i].get('score_final') or picked[i].get('score_rrf') or 0.0)),
+                                )
+                            picked[int(swap_idx)] = cand16
+                            picked.sort(key=lambda x: float(x.get('score_final') or x.get('score_rrf') or 0.0), reverse=True)
+            except Exception:
+                pass
         add_metric('retrieval_final_n', len(picked))
         if dom == 'regulations':
             picked = [_clip_long_regulations_text(it, question) for it in picked]
@@ -2775,6 +3201,33 @@ def pack_context(
     budget_tokens: int = TOKEN_BUDGET,
     truncate_chars: int | None = None,
 ) -> Tuple[str, Dict[int, str]]:
+    def _truncate_block_to_fit(prefix: str, text: str, remaining_tokens: int) -> str | None:
+        if remaining_tokens <= 0:
+            return None
+        base = (prefix or '')
+        base_tokens = est_tokens(base)
+        if base_tokens >= remaining_tokens:
+            return None
+        txt = (text or '').strip()
+        candidate = base + txt
+        if est_tokens(candidate) <= remaining_tokens:
+            return candidate
+        avail_tokens = max(1, remaining_tokens - base_tokens)
+        approx_chars = max(80, int(avail_tokens * 4))
+        clipped = txt[:approx_chars].rstrip()
+        if clipped and clipped != txt:
+            clipped = clipped + ' ...'
+        candidate = base + clipped
+        if est_tokens(candidate) > remaining_tokens:
+            approx_chars = max(40, int(approx_chars * 0.6))
+            clipped = txt[:approx_chars].rstrip()
+            if clipped and clipped != txt:
+                clipped = clipped + ' ...'
+            candidate = base + clipped
+        if est_tokens(candidate) <= remaining_tokens and candidate.strip() != base.strip():
+            return candidate
+        return None
+
     packed_blocks = []
     used = 0
     cites = {}
@@ -2783,10 +3236,14 @@ def pack_context(
         txt = (c.get('text', '') or '').strip()
         if truncate_chars is not None and truncate_chars > 0 and len(txt) > truncate_chars:
             txt = txt[:truncate_chars].rstrip() + ' ...'
-        block = f"[{cite}] {txt}"
+        prefix = f"[{cite}] "
+        remaining = budget_tokens - used
+        block = _truncate_block_to_fit(prefix, txt, remaining_tokens=remaining)
+        if not block:
+            # Don't stop entirely; later chunks may be smaller and still fit.
+            continue
         t = est_tokens(block)
         if used + t > budget_tokens:
-            # Don't stop entirely; later chunks may be smaller and still fit.
             continue
         packed_blocks.append(block)
         used += t
@@ -2828,11 +3285,12 @@ def build_prompt(question: str, ctx: str, cites: Dict[int, str]) -> str:
             "หลักการตอบ:\n"
             "1) ใช้เฉพาะข้อมูลในบริบทที่ให้ หากไม่พบคำตอบแบบชัดเจน ให้ตอบสิ่งที่สรุปได้จากบริบทเท่านั้น และระบุชัดเจนว่าเอกสารไม่ได้กล่าวตรง ๆ หรือไม่มีข้อความยืนยันโดยตรง.\n"
             "2) ให้ตอบเป็น bullet เป็นหลัก (ขึ้นต้นด้วย '- ') และแต่ละ bullet ต้องลงท้ายด้วยการอ้างอิงอย่างน้อย 1 รายการต่อบรรทัด โดยใส่ท้ายบรรทัดในรูปแบบ [source/page].\n"
-            "3) ห้ามเดาข้อมูลนอกรายการที่มี ใช้เฉพาะข้อมูลที่มีในบริบทเท่านั้น.\n"
-            "4) หากคำถามขอ 'สรุป' หรือ 'โครงสร้าง' ให้จัดลำดับหัวข้อก่อนรายละเอียด.\n"
-            "5) หากคำถามกำกวม/สั้นมาก (เช่น พิมพ์แค่ชื่อภาษา หรือ xxx) ให้ถามกลับ 1 คำถามสั้น ๆ เพื่อขอรายละเอียดที่จำเป็นก่อน.\n"
-            "6) ห้ามให้ URL/ลิงก์ภายนอก เว้นแต่ URL นั้นปรากฏอยู่ในบริบท.\n"
-            "7) เรื่องวัน/วันที่/เดดไลน์: ให้ระบุเฉพาะวันที่ที่มีข้อความยืนยันตรง ๆ ในบริบทเท่านั้น ห้ามอนุมานเดดไลน์จากคำว่า 'ประกาศ ณ วันที่ ...' หรือวันที่ที่ไม่ได้ระบุว่าเป็นกำหนดการ/เส้นตาย.\n"
+            "3) หากคำถามมีหลายประเด็น/หลายคำถามย่อย ให้ตอบให้ครบทุกประเด็น โดยแยก 1 bullet ต่อ 1 ประเด็น.\n"
+            "4) ห้ามเดาข้อมูลนอกรายการที่มี ใช้เฉพาะข้อมูลที่มีในบริบทเท่านั้น.\n"
+            "5) หากคำถามขอ 'สรุป' หรือ 'โครงสร้าง' ให้จัดลำดับหัวข้อก่อนรายละเอียด.\n"
+            "6) หากคำถามกำกวม/สั้นมาก (เช่น พิมพ์แค่ชื่อภาษา หรือ xxx) ให้ถามกลับ 1 คำถามสั้น ๆ เพื่อขอรายละเอียดที่จำเป็นก่อน.\n"
+            "7) ห้ามให้ URL/ลิงก์ภายนอก เว้นแต่ URL นั้นปรากฏอยู่ในบริบท.\n"
+            "8) เรื่องวัน/วันที่/เดดไลน์: ให้ระบุเฉพาะวันที่ที่มีข้อความยืนยันตรง ๆ ในบริบทเท่านั้น ห้ามอนุมานเดดไลน์จากคำว่า 'ประกาศ ณ วันที่ ...' หรือวันที่ที่ไม่ได้ระบุว่าเป็นกำหนดการ/เส้นตาย.\n"
             f"{multi_doc_guidance}"
             
         )
@@ -2842,11 +3300,12 @@ def build_prompt(question: str, ctx: str, cites: Dict[int, str]) -> str:
             "หลักการตอบ:\n"
             "1) ใช้เฉพาะข้อมูลในบริบทที่ให้ หากไม่พบคำตอบแบบชัดเจน ให้ตอบสิ่งที่สรุปได้จากบริบทเท่านั้น และระบุชัดเจนว่าเอกสารไม่ได้กล่าวตรง ๆ หรือไม่มีข้อความยืนยันโดยตรง.\n"
             "2) ให้ตอบเป็น bullet เป็นหลัก (ขึ้นต้นด้วย '- ') และตอบให้ตรงคำถาม กระชับ ชัดเจน.\n"
-            "3) ห้ามเดาข้อมูลนอกรายการที่มี ใช้เฉพาะข้อมูลที่มีในบริบทเท่านั้น.\n"
-            "4) หากคำถามขอ 'สรุป' หรือ 'โครงสร้าง' ให้จัดลำดับหัวข้อก่อนรายละเอียด.\n"
-            "5) หากคำถามกำกวม/สั้นมาก (เช่น พิมพ์แค่ชื่อภาษา หรือ xxx) ให้ถามกลับ 1 คำถามสั้น ๆ เพื่อขอรายละเอียดที่จำเป็นก่อน.\n"
-            "6) ห้ามให้ URL/ลิงก์ภายนอก เว้นแต่ URL นั้นปรากฏอยู่ในบริบท.\n"
-            "7) เรื่องวัน/วันที่/เดดไลน์: ให้ระบุเฉพาะวันที่ที่มีข้อความยืนยันตรง ๆ ในบริบทเท่านั้น ห้ามอนุมานเดดไลน์จากคำว่า 'ประกาศ ณ วันที่ ...' หรือวันที่ที่ไม่ได้ระบุว่าเป็นกำหนดการ/เส้นตาย.\n"
+            "3) หากคำถามมีหลายประเด็น/หลายคำถามย่อย ให้ตอบให้ครบทุกประเด็น โดยแยก 1 bullet ต่อ 1 ประเด็น.\n"
+            "4) ห้ามเดาข้อมูลนอกรายการที่มี ใช้เฉพาะข้อมูลที่มีในบริบทเท่านั้น.\n"
+            "5) หากคำถามขอ 'สรุป' หรือ 'โครงสร้าง' ให้จัดลำดับหัวข้อก่อนรายละเอียด.\n"
+            "6) หากคำถามกำกวม/สั้นมาก (เช่น พิมพ์แค่ชื่อภาษา หรือ xxx) ให้ถามกลับ 1 คำถามสั้น ๆ เพื่อขอรายละเอียดที่จำเป็นก่อน.\n"
+            "7) ห้ามให้ URL/ลิงก์ภายนอก เว้นแต่ URL นั้นปรากฏอยู่ในบริบท.\n"
+            "8) เรื่องวัน/วันที่/เดดไลน์: ให้ระบุเฉพาะวันที่ที่มีข้อความยืนยันตรง ๆ ในบริบทเท่านั้น ห้ามอนุมานเดดไลน์จากคำว่า 'ประกาศ ณ วันที่ ...' หรือวันที่ที่ไม่ได้ระบุว่าเป็นกำหนดการ/เส้นตาย.\n"
             f"{multi_doc_guidance}"
         )
 
