@@ -1,0 +1,98 @@
+{
+  "summary": {
+    "total_cases": 1,
+    "overall_pass_rate": 0.0,
+    "answer_hit_rate": 0.0,
+    "retrieval_hit_rate": 0.0,
+    "citation_validity_rate": 0.0,
+    "must_not_contain_pass_rate": 1.0,
+    "avg_latency_ms": 0.9446140029467642,
+    "p95_latency_ms": 0.9446140029467642,
+    "avg_retrieval_latency_ms": 6.889373995363712,
+    "p95_retrieval_latency_ms": 6.889373995363712,
+    "by_category": {
+      "curriculum_fact_lookup": {
+        "total": 1.0,
+        "overall_pass_rate": 0.0,
+        "answer_hit_rate": 0.0,
+        "retrieval_hit_rate": 0.0,
+        "citation_validity_rate": 0.0
+      }
+    },
+    "adaptive_metrics_avg": {
+      "retrieval_adaptive_retry_triggered": 0.0,
+      "retrieval_adaptive_retry_succeeded": 0.0,
+      "retrieval_fallback_all_domains_triggered": 0.0,
+      "retrieval_fallback_all_domains_succeeded": 0.0,
+      "structured_rescue_triggered": 0.0,
+      "structured_rescue_succeeded": 0.0,
+      "curriculum_bypass_vector_triggered": 0.0,
+      "low_confidence_detected": 0.0,
+      "initial_retrieval_doc_count": 0.0,
+      "retry_retrieval_doc_count": 0.0,
+      "initial_top_score": 0.0,
+      "retry_top_score": 0.0
+    },
+    "failed_cases_top10": [
+      {
+        "id": "curriculum_001",
+        "category": "curriculum_fact_lookup",
+        "question": "หลักสูตรวิศวกรรมคอมพิวเตอร์ 2564 มีหน่วยกิตรวมตลอดหลักสูตรเท่าไร",
+        "error": "ConnectionError: ('Connection aborted.', ConnectionResetError(104, 'Connection reset by peer'))",
+        "answer_hit_coverage": 0.0,
+        "retrieval_hit_pass": false,
+        "citation_validity_pass": false,
+        "must_not_contain_pass": true,
+        "total_latency_ms": 0.9446140029467642
+      }
+    ]
+  },
+  "cases": [
+    {
+      "id": "curriculum_001",
+      "category": "curriculum_fact_lookup",
+      "question": "หลักสูตรวิศวกรรมคอมพิวเตอร์ 2564 มีหน่วยกิตรวมตลอดหลักสูตรเท่าไร",
+      "expected_domain": "curriculum",
+      "expected_domains_any": [],
+      "answer": "",
+      "answer_hit_pass": false,
+      "answer_hit_coverage": 0.0,
+      "answer_keywords_matched": 0,
+      "answer_keywords_total": 2,
+      "retrieval_hit_pass": false,
+      "retrieval_domain_pass": false,
+      "retrieval_source_pass": false,
+      "retrieval_domains_found": [],
+      "retrieval_missing_source_tokens": [
+        "foe10",
+        "curriculum"
+      ],
+      "citation_validity_pass": false,
+      "citation_total": 0,
+      "citation_valid_count": 0,
+      "citation_issues": [
+        "missing_citations"
+      ],
+      "must_not_contain_pass": true,
+      "total_pass": false,
+      "total_latency_ms": 0.9446140029467642,
+      "retrieval_latency_ms": 6.889373995363712,
+      "contexts_count": 0,
+      "error": "ConnectionError: ('Connection aborted.', ConnectionResetError(104, 'Connection reset by peer'))",
+      "adaptive": {
+        "retrieval_adaptive_retry_triggered": 0.0,
+        "retrieval_adaptive_retry_succeeded": 0.0,
+        "retrieval_fallback_all_domains_triggered": 0.0,
+        "retrieval_fallback_all_domains_succeeded": 0.0,
+        "structured_rescue_triggered": 0.0,
+        "structured_rescue_succeeded": 0.0,
+        "curriculum_bypass_vector_triggered": 0.0,
+        "low_confidence_detected": 0.0,
+        "initial_retrieval_doc_count": 0.0,
+        "retry_retrieval_doc_count": 0.0,
+        "initial_top_score": 0.0,
+        "retry_top_score": 0.0
+      }
+    }
+  ]
+}

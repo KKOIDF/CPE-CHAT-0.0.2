@@ -84,6 +84,23 @@ def _is_low_confidence(items: List[Dict]) -> bool:
     return _top_retrieval_score(items) < _LOW_SCORE_THRESHOLD
 
 
+def _new_adaptive_state() -> Dict[str, float | int]:
+    return {
+        'retrieval_adaptive_retry_triggered': 0,
+        'retrieval_adaptive_retry_succeeded': 0,
+        'retrieval_fallback_all_domains_triggered': 0,
+        'retrieval_fallback_all_domains_succeeded': 0,
+        'structured_rescue_triggered': 0,
+        'structured_rescue_succeeded': 0,
+        'curriculum_bypass_vector_triggered': 0,
+        'low_confidence_detected': 0,
+        'initial_retrieval_doc_count': 0,
+        'retry_retrieval_doc_count': 0,
+        'initial_top_score': 0.0,
+        'retry_top_score': 0.0,
+    }
+
+
 def rag_query(question: str) -> Dict:
     q_display = normalize_question(question)
     q_search = search_query_from_question(question)
@@ -98,10 +115,14 @@ def rag_query(question: str) -> Dict:
     multi_doc_used = False
     multi_doc_reason: str | None = None
     multi_doc_subqs: List[str] = []
+    adaptive = _new_adaptive_state()
+    fallback_used = False
 
     if 'ลาพัก' in q_display:
         add_metric('inferred_domain', 'multi:announcements+regulations')
         retrieved = _retrieve_all_domains(q_search, domains=['announcements', 'regulations'])
+        adaptive['initial_retrieval_doc_count'] = len(retrieved or [])
+        adaptive['initial_top_score'] = _top_retrieval_score(retrieved)
     else:
         multi_doc_on = False
         if _MULTI_DOC_MODE in ('1', 'true', 'yes', 'on'):
@@ -121,18 +142,30 @@ def rag_query(question: str) -> Dict:
 
             if dom == 'curriculum' and _CURRICULUM_BYPASS_VECTOR:
                 add_metric('retrieval_curriculum_vector_bypass', 1)
+                add_metric('curriculum_bypass_vector_triggered', 1)
+                adaptive['curriculum_bypass_vector_triggered'] = 1
                 retrieved = _retrieve_by_domain(question, domain=dom, vector_enabled=False)
             elif dom and not _SEARCH_ALL_DOMAINS:
                 retrieved = _retrieve_by_domain(question, domain=dom)
                 if (not has_ref) and len(retrieved) < fallback_min_results():
                     add_metric('retrieval_domain_fallback_used', 1)
+                    add_metric('retrieval_fallback_all_domains_triggered', 1)
+                    adaptive['retrieval_fallback_all_domains_triggered'] = 1
                     retrieved = _retrieve_all_domains(q_search, domains=fallback_domains_for_domain(dom))
+                    fallback_used = True
             else:
                 add_metric('retrieval_all_domains_forced', 1)
                 retrieved = _retrieve_all_domains(question)
 
+            adaptive['initial_retrieval_doc_count'] = len(retrieved or [])
+            adaptive['initial_top_score'] = _top_retrieval_score(retrieved)
+            if _is_low_confidence(retrieved):
+                add_metric('low_confidence_detected', 1)
+                adaptive['low_confidence_detected'] = 1
+
             if _ADAPTIVE_ORCHESTRATION and (not has_ref) and _is_low_confidence(retrieved):
                 add_metric('retrieval_adaptive_retry_triggered', 1)
+                adaptive['retrieval_adaptive_retry_triggered'] = 1
                 retry_q = _expand_query_for_retry(question, dom)
                 if dom:
                     retrieved_retry = _retrieve_by_domain(
@@ -140,18 +173,38 @@ def rag_query(question: str) -> Dict:
                         domain=dom,
                         vector_enabled=not (dom == 'curriculum' and _CURRICULUM_BYPASS_VECTOR),
                     )
+                    adaptive['retry_retrieval_doc_count'] = len(retrieved_retry or [])
+                    adaptive['retry_top_score'] = _top_retrieval_score(retrieved_retry)
                     if _is_low_confidence(retrieved_retry):
                         add_metric('retrieval_adaptive_fallback_all_domains', 1)
+                        add_metric('retrieval_fallback_all_domains_triggered', 1)
+                        adaptive['retrieval_fallback_all_domains_triggered'] = 1
                         retrieved = _retrieve_all_domains(retry_q, domains=fallback_domains_for_domain(dom))
+                        fallback_used = True
                     else:
+                        add_metric('retrieval_adaptive_retry_succeeded', 1)
+                        adaptive['retrieval_adaptive_retry_succeeded'] = 1
                         retrieved = retrieved_retry
                 else:
                     retrieved = _retrieve_all_domains(retry_q)
+                    adaptive['retry_retrieval_doc_count'] = len(retrieved or [])
+                    adaptive['retry_top_score'] = _top_retrieval_score(retrieved)
+                    if not _is_low_confidence(retrieved):
+                        add_metric('retrieval_adaptive_retry_succeeded', 1)
+                        adaptive['retrieval_adaptive_retry_succeeded'] = 1
+
+            if fallback_used and retrieved:
+                add_metric('retrieval_fallback_all_domains_succeeded', 1)
+                adaptive['retrieval_fallback_all_domains_succeeded'] = 1
 
     if dom_inferred == 'curriculum' and _CURRICULUM_BYPASS_VECTOR and not retrieved:
+        adaptive['structured_rescue_triggered'] = 1
+        add_metric('structured_rescue_triggered', 1)
         deterministic = structured_curriculum_answer(question)
         if deterministic:
             add_metric('structured_curriculum_adaptive_rescue', 1)
+            add_metric('structured_rescue_succeeded', 1)
+            adaptive['structured_rescue_succeeded'] = 1
             retrieved = [
                 {
                     'doc_id': 'structured:curriculum',
@@ -205,6 +258,7 @@ def rag_query(question: str) -> Dict:
             'multi_doc_subqs': list(multi_doc_subqs or []),
             'retrieved_unique_sources': len(unique_sources),
             'retrieved_unique_domains': len(unique_domains),
+            'adaptive': adaptive,
         },
     }
 
@@ -212,28 +266,46 @@ def rag_query(question: str) -> Dict:
 def rag_query_domain(question: str, domain: str | None) -> Dict:
     q_display = normalize_question(question)
     dom = (domain or '').strip().lower()
+    adaptive = _new_adaptive_state()
     add_metric('inferred_domain', dom or 'auto')
+    if dom == 'curriculum' and _CURRICULUM_BYPASS_VECTOR:
+        add_metric('curriculum_bypass_vector_triggered', 1)
+        adaptive['curriculum_bypass_vector_triggered'] = 1
     retrieved = _retrieve_by_domain(
         question,
         domain=domain,
         vector_enabled=not (dom == 'curriculum' and _CURRICULUM_BYPASS_VECTOR),
     )
+    adaptive['initial_retrieval_doc_count'] = len(retrieved or [])
+    adaptive['initial_top_score'] = _top_retrieval_score(retrieved)
+    if _is_low_confidence(retrieved):
+        add_metric('low_confidence_detected', 1)
+        adaptive['low_confidence_detected'] = 1
 
     if _ADAPTIVE_ORCHESTRATION and _is_low_confidence(retrieved):
         add_metric('retrieval_adaptive_retry_triggered', 1)
+        adaptive['retrieval_adaptive_retry_triggered'] = 1
         retry_q = _expand_query_for_retry(question, dom)
         retrieved_retry = _retrieve_by_domain(
             retry_q,
             domain=domain,
             vector_enabled=not (dom == 'curriculum' and _CURRICULUM_BYPASS_VECTOR),
         )
+        adaptive['retry_retrieval_doc_count'] = len(retrieved_retry or [])
+        adaptive['retry_top_score'] = _top_retrieval_score(retrieved_retry)
         if len(retrieved_retry) >= len(retrieved) or _top_retrieval_score(retrieved_retry) > _top_retrieval_score(retrieved):
+            add_metric('retrieval_adaptive_retry_succeeded', 1)
+            adaptive['retrieval_adaptive_retry_succeeded'] = 1
             retrieved = retrieved_retry
 
     if dom == 'curriculum' and _CURRICULUM_BYPASS_VECTOR and not retrieved:
+        adaptive['structured_rescue_triggered'] = 1
+        add_metric('structured_rescue_triggered', 1)
         deterministic = structured_curriculum_answer(question)
         if deterministic:
             add_metric('structured_curriculum_adaptive_rescue', 1)
+            add_metric('structured_rescue_succeeded', 1)
+            adaptive['structured_rescue_succeeded'] = 1
             retrieved = [
                 {
                     'doc_id': 'structured:curriculum',
@@ -273,4 +345,7 @@ def rag_query_domain(question: str, domain: str | None) -> Dict:
             for r in retrieved
         ],
         'token_est': est_tokens(ctx),
+        'meta': {
+            'adaptive': adaptive,
+        },
     }
