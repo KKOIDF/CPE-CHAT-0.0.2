@@ -1,0 +1,259 @@
+from __future__ import annotations
+
+from typing import List
+import re
+import unicodedata
+
+
+# Simple token counter heuristic (~4 chars/token Thai)
+CHAR_PER_TOKEN = 4.0
+
+
+_LANG_SYNONYMS: list[tuple[str, str]] = [
+    ('อาจาร์ย', 'อาจารย์'),
+    ('ภาษามาเล', 'ภาษามลายู'),
+    ('ภาษา มาเล', 'ภาษามลายู'),
+]
+
+_LANG_AUGMENT: dict[str, str] = {
+    'ภาษามลายู': 'Malay',
+    'ภาษาฝรั่งเศส': 'French',
+    'ภาษาจีน': 'Chinese',
+    'ภาษาญี่ปุ่น': 'Japanese',
+    'ภาษาเกาหลี': 'Korean',
+    'ภาษาเยอรมัน': 'German',
+    'ภาษาสเปน': 'Spanish',
+    'ภาษารัสเซีย': 'Russian',
+}
+
+
+_THAI_TO_ARABIC = str.maketrans('๐๑๒๓๔๕๖๗๘๙', '0123456789')
+
+
+_COMMON_TYPO_FIXES: list[tuple[str, str]] = [
+    # common Thai typos that frequently appear in chat inputs
+    ('หนวยกิต', 'หน่วยกิต'),
+    ('หน่วยกิจ', 'หน่วยกิต'),
+    ('หนวยกิจ', 'หน่วยกิต'),
+    ('หลกสตร', 'หลักสูตร'),
+    ('หลักสุตร', 'หลักสูตร'),
+    ('แผนการเรยน', 'แผนการเรียน'),
+    ('ลงทะเบยน', 'ลงทะเบียน'),
+    ('ลงทะเบีย', 'ลงทะเบียน'),
+]
+
+
+def normalize_question(question: str) -> str:
+    """Normalize user input while keeping it readable for the prompt."""
+    q = (question or '').strip()
+    if not q:
+        return ''
+
+    # Unicode normalization helps with odd punctuation/fullwidth characters.
+    q = unicodedata.normalize('NFKC', q)
+
+    # Normalize Thai digits and common dash characters.
+    q = q.translate(_THAI_TO_ARABIC)
+    q = q.replace('–', '-').replace('—', '-').replace('−', '-')
+
+    # Normalize whitespace
+    q = re.sub(r"\s+", " ", q).strip()
+
+    # Fix a few common typos / synonyms
+    for src, dst in _LANG_SYNONYMS:
+        q = q.replace(src, dst)
+    for src, dst in _COMMON_TYPO_FIXES:
+        q = q.replace(src, dst)
+
+    # Light bilingual augmentation for better recall (vector/keyword).
+    # Keep this readable (only appends a single English hint).
+    for th, en in _LANG_AUGMENT.items():
+        if th in q and en not in q:
+            q = f"{q} ({en})"
+    return q
+
+
+def _expand_course_code_variants(q: str) -> list[str]:
+    """Generate compact search variants for common course-code formats.
+
+    Keeps output small; intended for retrieval/query-time only.
+    """
+    if not q:
+        return []
+
+    variants: list[str] = []
+
+    # Normalize common digit typos in alphanum codes, e.g. CPE1O0 -> CPE100
+    q2 = re.sub(r"(?<=\d)[oO](?=\d)", "0", q)
+
+    # Alphanumeric course codes: CPE100 / CPE-100 / CPE 100
+    for m in re.finditer(r"\b([A-Za-z]{2,6})\s*[-]?\s*([0-9]{3})\b", q2):
+        pfx = (m.group(1) or '').upper()
+        num = m.group(2) or ''
+        if not pfx or not num:
+            continue
+        variants.extend([f"{pfx}{num}", f"{pfx} {num}", f"{pfx}-{num}"])
+
+    # Placeholder family codes: LNGxxx / lngXX -> LNGxxx + LNG
+    for m in re.finditer(r"\b([A-Za-z]{2,6})[xX]{2,}\b", q2):
+        pfx = (m.group(1) or '').upper()
+        if len(pfx) >= 2:
+            variants.extend([f"{pfx}xxx", pfx])
+
+    # Numeric Thai uni codes: 261-101 / 261 101 / 261.101 -> 261101 and friends
+    for m in re.finditer(r"\b([0-9]{3})\s*[- .]\s*([0-9]{3})\b", q2):
+        a = m.group(1) or ''
+        b = m.group(2) or ''
+        if a and b:
+            variants.extend([f"{a}{b}", f"{a}-{b}", f"{a} {b}"])
+
+    # De-dup, keep order, cap for prompt safety
+    seen: set[str] = set()
+    out: list[str] = []
+    for v in variants:
+        v = (v or '').strip()
+        if not v or v in seen:
+            continue
+        out.append(v)
+        seen.add(v)
+        if len(out) >= 8:
+            break
+    return out
+
+
+def search_query_from_question(question: str) -> str:
+    """Return a retrieval-optimized query string.
+
+    Important: this may include additional normalized variants, but should not
+    be used verbatim as the question shown to the model/user.
+    """
+    q = normalize_question(question)
+    if not q:
+        return ''
+    variants = _expand_course_code_variants(q)
+    if not variants:
+        return q
+    # Append compact hint block; keep it short.
+    hint = ' / '.join(variants[:8])
+    if hint and hint not in q:
+        return f"{q} ({hint})"
+    return q
+
+
+def normalize_query_for_retrieval(q: str) -> str:
+    """Normalize query for retrieval (search-time only).
+
+    More aggressive than `normalize_question()`; aims to reduce formatting variance
+    (Thai digits, separators, course-code spacing) before semantic/keyword search.
+    """
+    txt = (q or '').strip()
+    if not txt:
+        return ''
+    txt = unicodedata.normalize('NFKC', txt)
+    txt = txt.translate(_THAI_TO_ARABIC)
+    txt = txt.replace('–', '-').replace('—', '-').replace('−', '-')
+    txt = re.sub(r"[-_/]+", " ", txt)
+    txt = re.sub(r"\s+", " ", txt).strip()
+    # CPE-101 / CPE 101 -> CPE101
+    txt = re.sub(r"\b([A-Za-z]{2,6})\s+(\d{3})\b", r"\1\2", txt)
+    txt = re.sub(r"\b([A-Za-z]{2,6})-(\d{3})\b", r"\1\2", txt)
+    return txt
+
+
+def normalize_query_for_keyword(q: str) -> str:
+    """Normalize while preserving exact lexical anchors."""
+    txt = (q or '').strip()
+    if not txt:
+        return ''
+    txt = unicodedata.normalize('NFKC', txt)
+    txt = txt.translate(_THAI_TO_ARABIC)
+    txt = txt.replace('–', '-').replace('—', '-').replace('−', '-')
+    txt = re.sub(r"\s+", " ", txt).strip()
+    return txt
+
+
+def build_retrieval_queries(question: str) -> tuple[str, str]:
+    raw = (question or '').strip()
+    if not raw:
+        return '', ''
+    semantic_q = normalize_query_for_retrieval(search_query_from_question(raw))
+    keyword_q = normalize_query_for_keyword(raw)
+    return semantic_q, keyword_q
+
+
+def extract_lexical_anchors(q: str) -> List[str]:
+    """Extract high-signal tokens (course codes, clauses, numbers) for anti-drift."""
+    txt = normalize_query_for_keyword(q)
+    if not txt:
+        return []
+
+    anchors: List[str] = []
+
+    course_anchors: List[str] = []
+    clause_anchors: List[str] = []
+
+    # Course code anchors: normalize to compact form (CPE123).
+    for m in re.finditer(r"\b([A-Za-z]{2,6})\s*[- ]?\s*(\d{3})\b", txt):
+        pfx = (m.group(1) or '').upper()
+        num = (m.group(2) or '').strip()
+        if pfx and num:
+            course_anchors.append(f"{pfx}{num}")
+
+    anchors.extend(course_anchors)
+
+    # Thai clause/article anchors.
+    for m in re.finditer(r"(ข้อ|มาตรา)\s*(\d{1,4})", txt):
+        kind = (m.group(1) or '').strip()
+        num = (m.group(2) or '').strip()
+        if kind and num:
+            clause_anchors.append(f"{kind} {num}")
+
+    anchors.extend(clause_anchors)
+
+    # Time-unit anchors (e.g., '15 นาที')
+    for m in re.finditer(r"\b(\d{1,3})\s*(นาที|ชม\.|ชั่วโมง|วัน|สัปดาห์)\b", txt):
+        n = (m.group(1) or '').strip()
+        u = (m.group(2) or '').strip()
+        if n and u:
+            anchors.append(f"{n} {u}")
+
+    # Numeric anchors are useful when the question is *only* numeric (e.g., '15 นาที'),
+    # but become noisy when a stronger anchor already exists (course code / clause).
+    if (not course_anchors) and (not clause_anchors):
+        for m in re.finditer(r"\b\d{1,4}\b", txt):
+            anchors.append(m.group(0))
+
+    # Domain-intent anchors: help curriculum/regulations beat broad announcements/calendar docs.
+    ql = txt.lower()
+    keyword_anchors = [
+        # curriculum-ish
+        'หน่วยกิต', 'หลักสูตร', 'วิชาศึกษาทั่วไป', 'หมวด', 'วิชาเลือก', 'วิชาบังคับ', 'ก่อนเรียน',
+        'prerequisite', 'pre-requisite', 'gpa', 'เกรด',
+        # regulations-ish
+        'ระเบียบ', 'ข้อบังคับ', 'อุทธรณ์', 'ทุจริต', 'วินัย', 'มาสาย', 'หมดสิทธิ์',
+    ]
+    for t in keyword_anchors:
+        if t and t.lower() in ql:
+            anchors.append(t)
+
+    # Add 'สอบ' only when the question is explicitly about rules/discipline,
+    # otherwise it tends to drag in exam schedules for course-code queries.
+    if 'สอบ' in ql:
+        regs_cues = ('ระเบียบ', 'ข้อบังคับ', 'อุทธรณ์', 'ทุจริต', 'วินัย', 'มาสาย', 'หมดสิทธิ์')
+        if any(c in ql for c in regs_cues):
+            anchors.append('สอบ')
+
+    out: List[str] = []
+    seen: set[str] = set()
+    for a in anchors:
+        s = (a or '').strip()
+        if not s:
+            continue
+        k = s.lower()
+        if k in seen:
+            continue
+        seen.add(k)
+        out.append(s)
+        if len(out) >= 12:
+            break
+    return out

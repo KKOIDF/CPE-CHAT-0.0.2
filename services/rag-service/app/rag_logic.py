@@ -29,6 +29,12 @@ from .structured_curriculum import (
     load_all_courses_2564,
     load_cpe_curriculum_2564,
 )
+from . import normalization as _normalization
+from . import routing as _routing
+from . import retrieval as _retrieval
+from . import rerank as _rerank
+from . import context_packing as _context_packing
+from . import prompting as _prompting
 
 
 logger = logging.getLogger(__name__)
@@ -3452,3 +3458,42 @@ def rag_query_domain(question: str, domain: str | None) -> Dict:
         ],
         'token_est': est_tokens(ctx)
     }
+
+
+# Modularized function bindings (kept here for backward compatibility imports).
+normalize_question = _normalization.normalize_question
+search_query_from_question = _normalization.search_query_from_question
+build_retrieval_queries = _normalization.build_retrieval_queries
+normalize_query_for_retrieval = _normalization.normalize_query_for_retrieval
+normalize_query_for_keyword = _normalization.normalize_query_for_keyword
+extract_lexical_anchors = _normalization.extract_lexical_anchors
+
+is_multi_doc_question = _routing.is_multi_doc_question
+decompose_question = _routing.decompose_question
+infer_domain = _routing.infer_domain
+infer_domain_bias = _routing.infer_domain_bias
+fallback_domains_for_domain = _routing.fallback_domains_for_domain
+fallback_min_results = _routing.fallback_min_results
+_reference_candidates = _routing._reference_candidates
+_infer_domain_from_reference = _routing._infer_domain_from_reference
+_filter_chunks_by_reference = _routing._filter_chunks_by_reference
+
+_normalize_source_key = _rerank._normalize_source_key
+fuse_rrf_lists = _rerank.fuse_rrf_lists
+select_chunks_from_top_documents = _rerank.select_chunks_from_top_documents
+ensure_min_sources = _rerank.ensure_min_sources
+fuse_semantic_keyword = _rerank.fuse_semantic_keyword
+apply_domain_prior = _rerank.apply_domain_prior
+apply_overbroad_source_penalty = _rerank.apply_overbroad_source_penalty
+majority_domain_rescue = _rerank.majority_domain_rescue
+promote_exact_anchor_hits = _rerank.promote_exact_anchor_hits
+diversify_by_source = _rerank.diversify_by_source
+
+# Keep legacy retrieval execution path active for now to avoid behavior regressions.
+# Retrieval logic has been extracted to `retrieval.py` for incremental migration.
+
+est_tokens = _context_packing.est_tokens
+pack_context = _context_packing.pack_context
+pack_context_grouped = _context_packing.pack_context_grouped
+
+build_prompt = _prompting.build_prompt
