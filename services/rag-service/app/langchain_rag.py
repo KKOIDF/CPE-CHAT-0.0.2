@@ -9,25 +9,19 @@ from typing import Any, Dict, Optional, List, Tuple
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.runnables import RunnableLambda
 
-from .rag_logic import (
-    normalize_question,
-    search_query_from_question,
-    extract_lexical_anchors,
+from .normalization import normalize_question, search_query_from_question, extract_lexical_anchors
+from .routing import (
     decompose_question,
     infer_domain,
     is_multi_doc_question,
     fallback_domains_for_domain,
     fallback_min_results,
-    retrieve_by_domain,
-    retrieve_all_domains,
-    retrieve_multi_document,
     _reference_candidates,
     _filter_chunks_by_reference,
-    pack_context,
-    pack_context_grouped,
-    build_prompt,
-    est_tokens,
 )
+from .retrieval import retrieve_by_domain, retrieve_all_domains, retrieve_multi_document
+from .context_packing import pack_context, pack_context_grouped, est_tokens
+from .prompting import build_prompt
 from .config import RRF_K, MAX_CONTEXTS
 from .llm import llm_engine
 from .chroma_client import embed_texts, semantic_search_domain

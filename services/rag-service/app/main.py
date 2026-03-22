@@ -4,15 +4,11 @@ import logging
 import traceback
 import sqlite3
 
-import os
-
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Any
-import re
-from .rag_logic import rag_query, rag_query_domain
-from .rag_logic import structured_curriculum_answer
+from .orchestration import rag_query, rag_query_domain, structured_curriculum_answer
 from .llm import llm_engine
 from .sqlite_client import close_thread_connections
 from .neo4j_client import close_driver
