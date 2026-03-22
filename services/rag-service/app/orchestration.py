@@ -32,11 +32,62 @@ _MULTI_DOC_MODE = (os.getenv('RAG_MULTI_DOC_MODE', 'auto') or 'auto').strip().lo
 _SEARCH_ALL_DOMAINS = (os.getenv('RAG_SEARCH_ALL_DOMAINS', '1') or '1').strip().lower() in (
     '1', 'true', 'yes', 'on'
 )
+_ADAPTIVE_ORCHESTRATION = (os.getenv('RAG_ADAPTIVE_ORCHESTRATION', '1') or '1').strip().lower() in (
+    '1', 'true', 'yes', 'on'
+)
+_CURRICULUM_BYPASS_VECTOR = (os.getenv('RAG_CURRICULUM_BYPASS_VECTOR', '1') or '1').strip().lower() in (
+    '1', 'true', 'yes', 'on'
+)
+try:
+    _LOW_SCORE_THRESHOLD = float(os.getenv('RAG_ADAPTIVE_LOW_SCORE', '0.06') or '0.06')
+except Exception:
+    _LOW_SCORE_THRESHOLD = 0.06
+try:
+    _MIN_DOCS_FOR_CONFIDENT = max(1, int(os.getenv('RAG_ADAPTIVE_MIN_DOCS', '2') or '2'))
+except Exception:
+    _MIN_DOCS_FOR_CONFIDENT = 2
+
+
+def _top_retrieval_score(items: List[Dict]) -> float:
+    top = 0.0
+    for it in (items or []):
+        try:
+            s = float(it.get('score_final') or it.get('score_rrf') or 0.0)
+        except Exception:
+            s = 0.0
+        if s > top:
+            top = s
+    return top
+
+
+def _expand_query_for_retry(question: str, domain: str | None) -> str:
+    q = (question or '').strip()
+    dom = (domain or '').strip().lower()
+    if not q:
+        return q
+
+    dom_hints = {
+        'curriculum': 'รายวิชา course code หน่วยกิต วิชาบังคับก่อน ปีที่ ภาคการศึกษา',
+        'regulations': 'ข้อบังคับ ระเบียบ เกณฑ์ เงื่อนไข ประกาศ',
+        'announcements': 'ประกาศ กำหนดการ วันเวลา หมายเหตุ',
+    }
+    hints = dom_hints.get(dom, 'รายละเอียด เงื่อนไข เอกสารอ้างอิง')
+    subqs = decompose_question(q, max_parts=2)
+    if subqs:
+        q = f"{q} {' '.join(subqs)}"
+    return f"{q} {hints}".strip()
+
+
+def _is_low_confidence(items: List[Dict]) -> bool:
+    if len(items or []) < _MIN_DOCS_FOR_CONFIDENT:
+        return True
+    return _top_retrieval_score(items) < _LOW_SCORE_THRESHOLD
 
 
 def rag_query(question: str) -> Dict:
     q_display = normalize_question(question)
     q_search = search_query_from_question(question)
+    dom_inferred = infer_domain(q_display) or _infer_domain_from_reference(question)
     ref_allow = _reference_candidates(question)
     strict_ref_hints = (os.getenv('STRICT_REFERENCE_HINTS', '1') or '1').strip().lower() in (
         '1', 'true', 'yes', 'on'
@@ -65,9 +116,13 @@ def rag_query(question: str) -> Dict:
             multi_doc_subqs = decompose_question(question, max_parts=3)
             retrieved = _retrieve_multi_document(question)
         else:
-            dom = infer_domain(q_display) or _infer_domain_from_reference(question)
+            dom = dom_inferred
             add_metric('inferred_domain', dom or 'auto')
-            if dom and not _SEARCH_ALL_DOMAINS:
+
+            if dom == 'curriculum' and _CURRICULUM_BYPASS_VECTOR:
+                add_metric('retrieval_curriculum_vector_bypass', 1)
+                retrieved = _retrieve_by_domain(question, domain=dom, vector_enabled=False)
+            elif dom and not _SEARCH_ALL_DOMAINS:
                 retrieved = _retrieve_by_domain(question, domain=dom)
                 if (not has_ref) and len(retrieved) < fallback_min_results():
                     add_metric('retrieval_domain_fallback_used', 1)
@@ -75,6 +130,38 @@ def rag_query(question: str) -> Dict:
             else:
                 add_metric('retrieval_all_domains_forced', 1)
                 retrieved = _retrieve_all_domains(question)
+
+            if _ADAPTIVE_ORCHESTRATION and (not has_ref) and _is_low_confidence(retrieved):
+                add_metric('retrieval_adaptive_retry_triggered', 1)
+                retry_q = _expand_query_for_retry(question, dom)
+                if dom:
+                    retrieved_retry = _retrieve_by_domain(
+                        retry_q,
+                        domain=dom,
+                        vector_enabled=not (dom == 'curriculum' and _CURRICULUM_BYPASS_VECTOR),
+                    )
+                    if _is_low_confidence(retrieved_retry):
+                        add_metric('retrieval_adaptive_fallback_all_domains', 1)
+                        retrieved = _retrieve_all_domains(retry_q, domains=fallback_domains_for_domain(dom))
+                    else:
+                        retrieved = retrieved_retry
+                else:
+                    retrieved = _retrieve_all_domains(retry_q)
+
+    if dom_inferred == 'curriculum' and _CURRICULUM_BYPASS_VECTOR and not retrieved:
+        deterministic = structured_curriculum_answer(question)
+        if deterministic:
+            add_metric('structured_curriculum_adaptive_rescue', 1)
+            retrieved = [
+                {
+                    'doc_id': 'structured:curriculum',
+                    'domain': 'curriculum',
+                    'source': 'structured_curriculum_answer',
+                    'path': 'structured_curriculum_answer',
+                    'text': deterministic,
+                    'score_rrf': 1.0,
+                }
+            ]
 
     retrieved = _filter_chunks_by_reference(retrieved, question, strict=has_ref)
     if _MULTI_DOC_MODE == 'auto' and is_multi_doc_question(q_display):
@@ -124,8 +211,39 @@ def rag_query(question: str) -> Dict:
 
 def rag_query_domain(question: str, domain: str | None) -> Dict:
     q_display = normalize_question(question)
-    add_metric('inferred_domain', (domain or '').strip().lower() or 'auto')
-    retrieved = _retrieve_by_domain(question, domain=domain)
+    dom = (domain or '').strip().lower()
+    add_metric('inferred_domain', dom or 'auto')
+    retrieved = _retrieve_by_domain(
+        question,
+        domain=domain,
+        vector_enabled=not (dom == 'curriculum' and _CURRICULUM_BYPASS_VECTOR),
+    )
+
+    if _ADAPTIVE_ORCHESTRATION and _is_low_confidence(retrieved):
+        add_metric('retrieval_adaptive_retry_triggered', 1)
+        retry_q = _expand_query_for_retry(question, dom)
+        retrieved_retry = _retrieve_by_domain(
+            retry_q,
+            domain=domain,
+            vector_enabled=not (dom == 'curriculum' and _CURRICULUM_BYPASS_VECTOR),
+        )
+        if len(retrieved_retry) >= len(retrieved) or _top_retrieval_score(retrieved_retry) > _top_retrieval_score(retrieved):
+            retrieved = retrieved_retry
+
+    if dom == 'curriculum' and _CURRICULUM_BYPASS_VECTOR and not retrieved:
+        deterministic = structured_curriculum_answer(question)
+        if deterministic:
+            add_metric('structured_curriculum_adaptive_rescue', 1)
+            retrieved = [
+                {
+                    'doc_id': 'structured:curriculum',
+                    'domain': 'curriculum',
+                    'source': 'structured_curriculum_answer',
+                    'path': 'structured_curriculum_answer',
+                    'text': deterministic,
+                    'score_rrf': 1.0,
+                }
+            ]
 
     strict_ref_hints = (os.getenv('STRICT_REFERENCE_HINTS', '1') or '1').strip().lower() in (
         '1', 'true', 'yes', 'on'

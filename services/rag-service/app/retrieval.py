@@ -137,6 +137,22 @@ try:
 except Exception:
     _DOMAIN_RESCUE_REQUIRE_MAJORITY = 3
 
+_ROBUST_REWRITE_ON_FAIL = (os.getenv('RAG_ROBUST_REWRITE_ON_FAIL', '1') or '1').strip().lower() in (
+    '1', 'true', 'yes', 'on'
+)
+try:
+    _ROBUST_MIN_RESULTS = max(1, int(os.getenv('RAG_ROBUST_MIN_RESULTS', '2') or '2'))
+except Exception:
+    _ROBUST_MIN_RESULTS = 2
+try:
+    _ROBUST_MAX_REWRITES = max(1, int(os.getenv('RAG_ROBUST_MAX_REWRITES', '2') or '2'))
+except Exception:
+    _ROBUST_MAX_REWRITES = 2
+try:
+    _ROBUST_MIN_SOURCES = max(1, int(os.getenv('RAG_ROBUST_MIN_SOURCES', '2') or '2'))
+except Exception:
+    _ROBUST_MIN_SOURCES = 2
+
 
 def _normalize_source_key(s: str) -> str:
     txt = (s or '').strip().lower()
@@ -163,6 +179,87 @@ def _doc_key_for_fusion(d: Dict, fallback_prefix: str, i: int) -> str:
     if isinstance(path, str) and path.strip():
         return path.strip()
     return f"{fallback_prefix}_{i}"
+
+
+def _build_failure_rewrites(question: str, domain: str | None) -> List[str]:
+    q = (question or '').strip()
+    if not q:
+        return []
+
+    out: list[str] = []
+
+    # Base normalized rewrite (helps mixed Thai/EN or punctuation-heavy prompts).
+    q_norm = search_query_from_question(q)
+    if q_norm and q_norm != q:
+        out.append(q_norm)
+
+    # Anchor-focused rewrite (helps clause/code lookups).
+    anchors = extract_lexical_anchors(q)
+    if anchors:
+        out.append(f"{q} {' '.join(anchors[:6])}".strip())
+
+    dom = (domain or '').strip().lower()
+    dom_hint = {
+        'curriculum': 'รายวิชา course code หน่วยกิต วิชาบังคับก่อน',
+        'regulations': 'ระเบียบ ข้อบังคับ ข้อกำหนด เงื่อนไข',
+        'announcements': 'ประกาศ กำหนดการ วันเวลา รายละเอียด',
+    }.get(dom)
+    if dom_hint:
+        out.append(f"{q_norm or q} {dom_hint}".strip())
+
+    dedup: list[str] = []
+    seen: set[str] = set()
+    for cand in out:
+        key = re.sub(r"\s+", " ", (cand or '').strip().lower())
+        if not key or key in seen:
+            continue
+        seen.add(key)
+        dedup.append(cand)
+    return dedup[:_ROBUST_MAX_REWRITES]
+
+
+def _collapse_near_duplicates(items: List[Dict]) -> List[Dict]:
+    if not items:
+        return []
+
+    kept: list[Dict] = []
+    seen: set[str] = set()
+    for d in items:
+        src = _normalize_source_key(str(d.get('source') or d.get('path') or ''))
+        pg = f"{d.get('page_start') or ''}-{d.get('page_end') or ''}"
+        txt = re.sub(r"\s+", " ", str(d.get('text') or '').strip().lower())
+        if len(txt) > 220:
+            txt = txt[:220]
+        did = str(d.get('doc_id') or '').strip()
+        sig = f"{did}|{src}|{pg}|{txt}"
+        if sig in seen:
+            continue
+        seen.add(sig)
+        kept.append(d)
+    return kept
+
+
+def _merge_unique_docs(base: List[Dict], extra: List[Dict]) -> List[Dict]:
+    if not base:
+        return list(extra or [])
+    if not extra:
+        return list(base)
+
+    out: list[Dict] = list(base)
+    seen: set[str] = set()
+    for d in out:
+        key = str(d.get('doc_id') or d.get('source') or d.get('path') or '')
+        if key:
+            seen.add(key)
+
+    for d in extra:
+        key = str(d.get('doc_id') or d.get('source') or d.get('path') or '')
+        if key and key in seen:
+            continue
+        if key:
+            seen.add(key)
+        out.append(d)
+    return out
 
 
 def fuse_rrf_lists(lists: List[List[Dict]], weights: List[float] | None = None, k: int = RRF_K) -> List[Dict]:
@@ -1019,6 +1116,29 @@ def retrieve_all_domains(
 
     merged = [{**bank[k], 'score_rrf': v} for k, v in ranks.items()]
 
+    if not merged:
+        add_metric('retrieval_empty_initial', 1)
+        # Empty-result rescue: keyword-only pass across domains.
+        for dom in doms:
+            try:
+                rescue = retrieve_by_domain(
+                    question,
+                    domain=dom,
+                    k_vec=k_vec,
+                    k_kw=max(k_kw, 50),
+                    max_contexts_override=max(final_limit, 6),
+                    vector_enabled=False,
+                )
+            except Exception:
+                rescue = []
+            for r, d in enumerate(rescue, 1):
+                doc_id = d.get('doc_id') or d.get('source') or f'kwrescue_{r}'
+                key = f"{dom}:{doc_id}"
+                if key not in bank:
+                    bank[key] = {**d, 'doc_id': doc_id, 'domain': dom}
+                ranks[key] = ranks.get(key, 0.0) + 1.0 / (RRF_K + r)
+        merged = [{**bank[k], 'score_rrf': v} for k, v in ranks.items()]
+
     # Soft domain prior (boost), never a hard gate.
     inferred = infer_domain(normalize_question(question)) or infer_domain_bias(question)
     merged = apply_domain_prior(merged, inferred)
@@ -1106,7 +1226,15 @@ def retrieve_all_domains(
     max_per_source = max(1, int(max_per_source))
 
     candidates = merged[: max(final_limit * 4, final_limit)]
+    candidates = _collapse_near_duplicates(candidates)
+    candidates = ensure_min_sources(
+        candidates,
+        min_sources=min(_ROBUST_MIN_SOURCES, final_limit),
+        max_per_source=max_per_source,
+        limit=max(final_limit * 2, final_limit),
+    )
     final = diversify_by_source(candidates, max_per_source=max_per_source, limit=final_limit)
+    final = _collapse_near_duplicates(final)
     final = majority_domain_rescue(final)
     _log_retrieval(
         'retrieve_all_domains',
@@ -1138,6 +1266,7 @@ def retrieve_by_domain(
     k_vec: int = 20,
     k_kw: int = 30,
     max_contexts_override: int | None = None,
+    vector_enabled: bool = True,
 ) -> List[Dict]:
     def _retrieve_semantic_and_keyword(
         semantic_query: str,
@@ -1148,7 +1277,19 @@ def retrieve_by_domain(
         sqlite_file: str | None,
         allowlist: Sequence[str] | None,
         fallback_name: str | None = None,
+        run_vector: bool = True,
     ) -> tuple[List[Dict], List[str]]:
+        if not run_vector:
+            kw_block = 'keyword_search' if not fallback_name else f'keyword_search_{fallback_name}'
+            with time_block(kw_block):
+                kw_ids_out = keyword_search(
+                    keyword_query,
+                    limit=top_k_kw,
+                    sqlite_path=sqlite_file,
+                    source_allowlist=allowlist,
+                )
+            return [], kw_ids_out
+
         if _VECTOR_ONLY:
             sem_block = 'vector_search' if not fallback_name else f'vector_search_{fallback_name}'
             with time_block(sem_block):
@@ -1660,6 +1801,20 @@ def retrieve_by_domain(
                 return True
         return False
 
+    def _finalize_picks(items: List[Dict], limit: int) -> List[Dict]:
+        if not items:
+            return []
+        lim = max(1, int(limit))
+        collapsed = _collapse_near_duplicates(items)
+        with_floor = ensure_min_sources(
+            collapsed,
+            min_sources=min(_ROBUST_MIN_SOURCES, lim),
+            max_per_source=_MAX_PER_SOURCE,
+            limit=lim,
+        )
+        out = diversify_by_source(with_floor, max_per_source=_MAX_PER_SOURCE, limit=lim)
+        return _collapse_near_duplicates(out)
+
     dom = (domain or '').strip().lower()
     add_metric('retrieval_domain', dom or 'auto')
 
@@ -1701,6 +1856,7 @@ def retrieve_by_domain(
             dom,
             sqlite_path,
             source_allowlist,
+            run_vector=vector_enabled,
         )
         with time_block('hydrate_sqlite'):
             if sem:
@@ -1817,6 +1973,7 @@ def retrieve_by_domain(
                 sqlite_path,
                 None,
                 fallback_name='fallback',
+                run_vector=vector_enabled,
             )
             with time_block('hydrate_sqlite_fallback'):
                 if sem:
@@ -1825,6 +1982,37 @@ def retrieve_by_domain(
                 kw_docs = fetch_docs_with_path(kw_ids, sqlite_path=sqlite_path) if kw_ids else []
             add_metric('retrieval_sem_n', len(sem))
             add_metric('retrieval_kw_n', len(kw_docs))
+
+        if _ROBUST_REWRITE_ON_FAIL and (not strict_ref) and (len(sem) + len(kw_docs) < _ROBUST_MIN_RESULTS):
+            rewrites = _build_failure_rewrites(question, dom)
+            if rewrites:
+                add_metric('retrieval_query_rewrite_attempted', 1)
+            for idx, rq in enumerate(rewrites, start=1):
+                sem_q2, kw_q2 = build_retrieval_queries(rq)
+                if dom == 'regulations':
+                    sem_q2 = _augment_regulations_query(rq, sem_q2)
+                sem2, kw_ids2 = _retrieve_semantic_and_keyword(
+                    sem_q2,
+                    kw_q2,
+                    max(k_vec, 24),
+                    max(k_kw, 40),
+                    dom,
+                    sqlite_path,
+                    None,
+                    fallback_name=f'rewrite_{idx}',
+                    run_vector=vector_enabled,
+                )
+                if sem2:
+                    sem2 = _hydrate_from_sqlite(sem2, sqlite_path)
+                kw2 = fetch_docs_with_path(kw_ids2, sqlite_path=sqlite_path) if kw_ids2 else []
+                sem = _merge_unique_docs(sem, sem2)
+                kw_docs = _merge_unique_docs(kw_docs, kw2)
+                if len(sem) + len(kw_docs) >= _ROBUST_MIN_RESULTS:
+                    add_metric('retrieval_query_rewrite_success', 1)
+                    break
+
+        if not sem and not kw_docs:
+            add_metric('retrieval_empty_after_fetch', 1)
 
         merged = fuse_semantic_keyword(
             sem,
@@ -1837,7 +2025,7 @@ def retrieve_by_domain(
         merged = promote_exact_anchor_hits(merged, anchors)
         add_metric('retrieval_merged_n', len(merged))
         candidates = merged[: max(max_contexts_local * 4, max_contexts_local)]
-        picked = diversify_by_source(candidates, max_per_source=_MAX_PER_SOURCE, limit=max_contexts_local)
+        picked = _finalize_picks(candidates, max_contexts_local)
 
         # Regulations: ensure the final set covers key clauses when the question
         # clearly asks about them (helps when per-source caps would otherwise keep
@@ -1937,6 +2125,7 @@ def retrieve_by_domain(
         dom or None,
         sqlite_path,
         source_allowlist,
+        run_vector=vector_enabled,
     )
     with time_block('hydrate_sqlite'):
         if sem:
@@ -1957,6 +2146,7 @@ def retrieve_by_domain(
             sqlite_path,
             None,
             fallback_name='fallback',
+            run_vector=vector_enabled,
         )
         with time_block('hydrate_sqlite_fallback'):
             if sem:
@@ -1965,6 +2155,37 @@ def retrieve_by_domain(
             kw_docs = fetch_docs_with_path(kw_ids, sqlite_path=sqlite_path) if kw_ids else []
         add_metric('retrieval_sem_n', len(sem))
         add_metric('retrieval_kw_n', len(kw_docs))
+
+    if _ROBUST_REWRITE_ON_FAIL and (not strict_ref) and (len(sem) + len(kw_docs) < _ROBUST_MIN_RESULTS):
+        rewrites = _build_failure_rewrites(question, dom)
+        if rewrites:
+            add_metric('retrieval_query_rewrite_attempted', 1)
+        for idx, rq in enumerate(rewrites, start=1):
+            sem_q2, kw_q2 = build_retrieval_queries(rq)
+            if dom == 'curriculum':
+                sem_q2 = _augment_curriculum_query(rq, sem_q2)
+            sem2, kw_ids2 = _retrieve_semantic_and_keyword(
+                sem_q2,
+                kw_q2,
+                max(k_vec, 24),
+                max(k_kw, 40),
+                dom or None,
+                sqlite_path,
+                None,
+                fallback_name=f'rewrite_{idx}',
+                run_vector=vector_enabled,
+            )
+            if sem2:
+                sem2 = _hydrate_from_sqlite(sem2, sqlite_path)
+            kw2 = fetch_docs_with_path(kw_ids2, sqlite_path=sqlite_path) if kw_ids2 else []
+            sem = _merge_unique_docs(sem, sem2)
+            kw_docs = _merge_unique_docs(kw_docs, kw2)
+            if len(sem) + len(kw_docs) >= _ROBUST_MIN_RESULTS:
+                add_metric('retrieval_query_rewrite_success', 1)
+                break
+
+    if not sem and not kw_docs:
+        add_metric('retrieval_empty_after_fetch', 1)
 
     # Heuristic: users often ask "LNGxxx มีวิชาอะไรให้เลือกเรียนบ้าง" without naming languages.
     # Pull in curriculum chunks anchored by the "รายวิชา: LNG" header to increase recall.
@@ -2336,7 +2557,7 @@ def retrieve_by_domain(
                     break
         add_metric('retrieval_merged_n', len(merged))
         add_metric('retrieval_final_n', len(picked))
-        picked = diversify_by_source(picked, max_per_source=_MAX_PER_SOURCE, limit=max_contexts)
+        picked = _finalize_picks(picked, max_contexts)
         _log_retrieval(
             'retrieve_by_domain',
             {
@@ -2373,7 +2594,7 @@ def retrieve_by_domain(
                     break
             add_metric('retrieval_merged_n', len(merged))
             add_metric('retrieval_final_n', len(picked))
-        picked = diversify_by_source(picked, max_per_source=_MAX_PER_SOURCE, limit=max_contexts)
+        picked = _finalize_picks(picked, max_contexts)
         _log_retrieval(
             'retrieve_by_domain',
             {
@@ -2409,7 +2630,7 @@ def retrieve_by_domain(
                     break
         add_metric('retrieval_merged_n', len(merged))
         add_metric('retrieval_final_n', len(picked))
-        picked = diversify_by_source(picked, max_per_source=_MAX_PER_SOURCE, limit=max_contexts)
+        picked = _finalize_picks(picked, max_contexts)
         _log_retrieval(
             'retrieve_by_domain',
             {
@@ -2425,7 +2646,7 @@ def retrieve_by_domain(
 
     add_metric('retrieval_merged_n', len(merged))
     candidates = merged[: max(max_contexts * 4, max_contexts)]
-    picked = diversify_by_source(candidates, max_per_source=_MAX_PER_SOURCE, limit=max_contexts)
+    picked = _finalize_picks(candidates, max_contexts)
     add_metric('retrieval_final_n', len(picked))
     _log_retrieval(
         'retrieve_by_domain',
