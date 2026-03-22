@@ -23,6 +23,7 @@ import requests
 import os
 import json
 import re
+import time
 
 try:
     from transformers import AutoTokenizer, AutoModelForCausalLM, pipeline
@@ -373,6 +374,9 @@ class LLMEngine:
             url = f"{base}/chat/completions"
             return _HTTP.post(url, headers=headers, json=payload, timeout=TYPHOON_TIMEOUT_S)
 
+        def _is_transient_status(status_code: int) -> bool:
+            return status_code == 429 or 500 <= status_code <= 599
+
         try:
             payload: Dict[str, Any] = {
                 'model': self.model_name,
@@ -386,26 +390,58 @@ class LLMEngine:
                 'frequency_penalty': 0,
             }
 
-            resp = _post(payload)
-            if debug:
-                print(f"[Typhoon][chat.completions] status={resp.status_code}")
+            # Retry transient provider failures (5xx/429) and network errors.
+            max_retries = max(0, int(os.getenv('TYPHOON_RETRIES', '2')))
+            backoff_s = max(0.1, float(os.getenv('TYPHOON_RETRY_BACKOFF_S', '2.0')))
+            resp: Optional[requests.Response] = None
 
-            # Auto-retry once when max_tokens is too small for the prompt.
-            if resp.status_code == 400:
-                parsed = _parse_token_error(resp.text)
-                if parsed:
-                    _prompt_tokens, required, _provided = parsed
-                    margin = int(os.getenv('TYPHOON_TOKEN_MARGIN', '512'))
-                    cap = int(os.getenv('TYPHOON_MAX_TOKENS_CAP', '8192'))
-                    bumped = min(required + max(1, margin), cap)
-                    if bumped > int(payload.get('max_tokens') or 0):
-                        payload['max_tokens'] = bumped
-                        payload['max_completion_tokens'] = bumped
-                        resp = _post(payload)
-                        if debug:
-                            print(f"[Typhoon][chat.completions] retry status={resp.status_code} (max_tokens={bumped})")
+            for attempt in range(max_retries + 1):
+                try:
+                    resp = _post(payload)
+                except Exception as e:
+                    if attempt >= max_retries:
+                        return f"(Typhoon request failed after retries: {e})"
+                    sleep_s = backoff_s * (attempt + 1)
+                    if debug:
+                        print(f"[Typhoon][retry] request exception on attempt {attempt + 1}: {e}; sleeping {sleep_s:.1f}s")
+                    time.sleep(sleep_s)
+                    continue
+
+                if debug:
+                    print(f"[Typhoon][chat.completions] status={resp.status_code} attempt={attempt + 1}/{max_retries + 1}")
+
+                # Auto-retry once when max_tokens is too small for the prompt.
+                if resp.status_code == 400:
+                    parsed = _parse_token_error(resp.text)
+                    if parsed:
+                        _prompt_tokens, required, _provided = parsed
+                        margin = int(os.getenv('TYPHOON_TOKEN_MARGIN', '512'))
+                        cap = int(os.getenv('TYPHOON_MAX_TOKENS_CAP', '8192'))
+                        bumped = min(required + max(1, margin), cap)
+                        if bumped > int(payload.get('max_tokens') or 0):
+                            payload['max_tokens'] = bumped
+                            payload['max_completion_tokens'] = bumped
+                            resp = _post(payload)
+                            if debug:
+                                print(f"[Typhoon][chat.completions] retry status={resp.status_code} (max_tokens={bumped})")
+
+                if resp.status_code < 300:
+                    break
+
+                if not _is_transient_status(resp.status_code) or attempt >= max_retries:
+                    break
+
+                sleep_s = backoff_s * (attempt + 1)
+                if debug:
+                    print(f"[Typhoon][retry] transient status={resp.status_code}; sleeping {sleep_s:.1f}s")
+                time.sleep(sleep_s)
+
+            if resp is None:
+                return "(Typhoon request failed: no response)"
 
             if resp.status_code >= 300:
+                if _is_transient_status(resp.status_code):
+                    return "(Typhoon unavailable temporarily. Please try again in 30-60 seconds.)"
                 return f"(Typhoon error {resp.status_code}: {resp.text[:300]})"
             data = resp.json()
             content = (((data or {}).get('choices') or [{}])[0].get('message') or {}).get('content')

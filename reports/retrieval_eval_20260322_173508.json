@@ -1,0 +1,2316 @@
+{
+  "csv": "/home/testuser/CPE-CHAT-0.0.2/testQA_domains_30_revised.csv",
+  "evaluated": 90,
+  "doc_eval_rows": 26,
+  "hit@5": 26,
+  "hit@10": 26,
+  "avg_hit_rank": 1.0,
+  "domain_top1_accuracy": 82,
+  "domain_top5_majority_accuracy": 84,
+  "miss_by_inferred_domain": {},
+  "miss_by_section": {},
+  "results": [
+    {
+      "qid": 1,
+      "section": "announcements",
+      "question": "มหาวิทยาลัยเก็บค่าประกันภัยอุบัติเหตุคืออะไร? (อ้างอิง: insurance-std.txt)",
+      "inferred_domain": null,
+      "top1_domain": "announcements",
+      "top5_domain_counts": {
+        "announcements": 5
+      },
+      "top1_section_match": true,
+      "top5_majority_section_match": true,
+      "expected_refs": [
+        "insurance-std.txt"
+      ],
+      "expected_refs_norm": [
+        "insurance_std.txt"
+      ],
+      "hit_rank": 1,
+      "hit@5": true,
+      "hit@10": true,
+      "top_5": [
+        "insurance_std.txt",
+        "insurance_std.txt",
+        "insurance_std.txt",
+        "insurance_std.txt",
+        "insurance_std.txt"
+      ]
+    },
+    {
+      "qid": 2,
+      "section": "announcements",
+      "question": "ประกาศค่าประกันภัยมีผลบังคับตั้งแต่เมื่อไร? (อ้างอิง: insurance-std.txt)",
+      "inferred_domain": "announcements",
+      "top1_domain": "announcements",
+      "top5_domain_counts": {
+        "announcements": 5
+      },
+      "top1_section_match": true,
+      "top5_majority_section_match": true,
+      "expected_refs": [
+        "insurance-std.txt"
+      ],
+      "expected_refs_norm": [
+        "insurance_std.txt"
+      ],
+      "hit_rank": 1,
+      "hit@5": true,
+      "hit@10": true,
+      "top_5": [
+        "insurance_std.txt",
+        "insurance_std.txt",
+        "insurance_std.txt",
+        "insurance_std.txt",
+        "insurance_std.txt"
+      ]
+    },
+    {
+      "qid": 3,
+      "section": "announcements",
+      "question": "ใครมีอำนาจเก็บค่าประกันภัยจากนักศึกษา? (อ้างอิง: insurance-std.txt)",
+      "inferred_domain": null,
+      "top1_domain": "announcements",
+      "top5_domain_counts": {
+        "announcements": 5
+      },
+      "top1_section_match": true,
+      "top5_majority_section_match": true,
+      "expected_refs": [
+        "insurance-std.txt"
+      ],
+      "expected_refs_norm": [
+        "insurance_std.txt"
+      ],
+      "hit_rank": 1,
+      "hit@5": true,
+      "hit@10": true,
+      "top_5": [
+        "insurance_std.txt",
+        "insurance_std.txt",
+        "insurance_std.txt",
+        "insurance_std.txt",
+        "insurance_std.txt"
+      ]
+    },
+    {
+      "qid": 4,
+      "section": "announcements",
+      "question": "นักศึกษาต้องจ่ายค่าประกันภัยเท่าไรต่อปี? (อ้างอิง: insurance-std.txt)",
+      "inferred_domain": null,
+      "top1_domain": "announcements",
+      "top5_domain_counts": {
+        "announcements": 5
+      },
+      "top1_section_match": true,
+      "top5_majority_section_match": true,
+      "expected_refs": [
+        "insurance-std.txt"
+      ],
+      "expected_refs_norm": [
+        "insurance_std.txt"
+      ],
+      "hit_rank": 1,
+      "hit@5": true,
+      "hit@10": true,
+      "top_5": [
+        "insurance_std.txt",
+        "insurance_std.txt",
+        "insurance_std.txt",
+        "insurance_std.txt",
+        "insurance_std.txt"
+      ]
+    },
+    {
+      "qid": 5,
+      "section": "announcements",
+      "question": "ใครมีอำนาจวินิจฉัยเมื่อเกิดปัญหากับประกาศนี้? (อ้างอิง: insurance-std.txt)",
+      "inferred_domain": "announcements",
+      "top1_domain": "announcements",
+      "top5_domain_counts": {
+        "announcements": 5
+      },
+      "top1_section_match": true,
+      "top5_majority_section_match": true,
+      "expected_refs": [
+        "insurance-std.txt"
+      ],
+      "expected_refs_norm": [
+        "insurance_std.txt"
+      ],
+      "hit_rank": 1,
+      "hit@5": true,
+      "hit@10": true,
+      "top_5": [
+        "insurance_std.txt",
+        "insurance_std.txt",
+        "insurance_std.txt",
+        "insurance_std.txt",
+        "insurance_std.txt"
+      ]
+    },
+    {
+      "qid": 6,
+      "section": "announcements",
+      "question": "ประกาศค่าธรรมเนียมการจัดส่งเอกสารมีชื่ออะไร? (อ้างอิง: t_fee.txt)",
+      "inferred_domain": "announcements",
+      "top1_domain": "announcements",
+      "top5_domain_counts": {
+        "announcements": 5
+      },
+      "top1_section_match": true,
+      "top5_majority_section_match": true,
+      "expected_refs": [
+        "t_fee.txt"
+      ],
+      "expected_refs_norm": [
+        "t_fee.txt"
+      ],
+      "hit_rank": 1,
+      "hit@5": true,
+      "hit@10": true,
+      "top_5": [
+        "t_fee.txt",
+        "t_fee.txt",
+        "t_fee.txt",
+        "t_fee.txt",
+        "t_fee.txt"
+      ]
+    },
+    {
+      "qid": 7,
+      "section": "announcements",
+      "question": "ประกาศค่าธรรมเนียมการจัดส่งเอกสารมีผลบังคับตั้งแต่เมื่อไร? (อ้างอิง: t_fee.txt)",
+      "inferred_domain": "announcements",
+      "top1_domain": "announcements",
+      "top5_domain_counts": {
+        "announcements": 5
+      },
+      "top1_section_match": true,
+      "top5_majority_section_match": true,
+      "expected_refs": [
+        "t_fee.txt"
+      ],
+      "expected_refs_norm": [
+        "t_fee.txt"
+      ],
+      "hit_rank": 1,
+      "hit@5": true,
+      "hit@10": true,
+      "top_5": [
+        "t_fee.txt",
+        "t_fee.txt",
+        "t_fee.txt",
+        "t_fee.txt",
+        "t_fee.txt"
+      ]
+    },
+    {
+      "qid": 8,
+      "section": "announcements",
+      "question": "ใครเป็นผู้เรียกเก็บค่าธรรมเนียมการจัดส่งเอกสาร? (อ้างอิง: t_fee.txt)",
+      "inferred_domain": null,
+      "top1_domain": "announcements",
+      "top5_domain_counts": {
+        "announcements": 5
+      },
+      "top1_section_match": true,
+      "top5_majority_section_match": true,
+      "expected_refs": [
+        "t_fee.txt"
+      ],
+      "expected_refs_norm": [
+        "t_fee.txt"
+      ],
+      "hit_rank": 1,
+      "hit@5": true,
+      "hit@10": true,
+      "top_5": [
+        "t_fee.txt",
+        "t_fee.txt",
+        "t_fee.txt",
+        "t_fee.txt",
+        "t_fee.txt"
+      ]
+    },
+    {
+      "qid": 9,
+      "section": "announcements",
+      "question": "ใครมีสิทธิวินิจฉัยปัญหาเกี่ยวกับประกาศค่าธรรมเนียม? (อ้างอิง: t_fee.txt)",
+      "inferred_domain": "announcements",
+      "top1_domain": "announcements",
+      "top5_domain_counts": {
+        "announcements": 5
+      },
+      "top1_section_match": true,
+      "top5_majority_section_match": true,
+      "expected_refs": [
+        "t_fee.txt"
+      ],
+      "expected_refs_norm": [
+        "t_fee.txt"
+      ],
+      "hit_rank": 1,
+      "hit@5": true,
+      "hit@10": true,
+      "top_5": [
+        "t_fee.txt",
+        "t_fee.txt",
+        "t_fee.txt",
+        "t_fee.txt",
+        "t_fee.txt"
+      ]
+    },
+    {
+      "qid": 10,
+      "section": "announcements",
+      "question": "ค่าจัดส่งเอกสารหนึ่งชุดทางไปรษณีย์ลงทะเบียนเท่าไร? (อ้างอิง: t_fee.txt)",
+      "inferred_domain": "announcements",
+      "top1_domain": "announcements",
+      "top5_domain_counts": {
+        "announcements": 5
+      },
+      "top1_section_match": true,
+      "top5_majority_section_match": true,
+      "expected_refs": [
+        "t_fee.txt"
+      ],
+      "expected_refs_norm": [
+        "t_fee.txt"
+      ],
+      "hit_rank": 1,
+      "hit@5": true,
+      "hit@10": true,
+      "top_5": [
+        "t_fee.txt",
+        "t_fee.txt",
+        "t_fee.txt",
+        "t_fee.txt",
+        "t_fee.txt"
+      ]
+    },
+    {
+      "qid": 11,
+      "section": "announcements",
+      "question": "ค่าจัดส่งเอกสารหนึ่งชุดทางไปรษณีย์ด่วนพิเศษ (EMS) เท่าไร? (อ้างอิง: t_fee.txt)",
+      "inferred_domain": null,
+      "top1_domain": "announcements",
+      "top5_domain_counts": {
+        "announcements": 5
+      },
+      "top1_section_match": true,
+      "top5_majority_section_match": true,
+      "expected_refs": [
+        "t_fee.txt"
+      ],
+      "expected_refs_norm": [
+        "t_fee.txt"
+      ],
+      "hit_rank": 1,
+      "hit@5": true,
+      "hit@10": true,
+      "top_5": [
+        "t_fee.txt",
+        "t_fee.txt",
+        "t_fee.txt",
+        "t_fee.txt",
+        "t_fee.txt"
+      ]
+    },
+    {
+      "qid": 12,
+      "section": "announcements",
+      "question": "ค่าจัดส่งสองชุดขึ้นไปทางไปรษณีย์ลงทะเบียนเท่าไร? (อ้างอิง: t_fee.txt)",
+      "inferred_domain": "announcements",
+      "top1_domain": "announcements",
+      "top5_domain_counts": {
+        "announcements": 5
+      },
+      "top1_section_match": true,
+      "top5_majority_section_match": true,
+      "expected_refs": [
+        "t_fee.txt"
+      ],
+      "expected_refs_norm": [
+        "t_fee.txt"
+      ],
+      "hit_rank": 1,
+      "hit@5": true,
+      "hit@10": true,
+      "top_5": [
+        "t_fee.txt",
+        "t_fee.txt",
+        "t_fee.txt",
+        "t_fee.txt",
+        "t_fee.txt"
+      ]
+    },
+    {
+      "qid": 13,
+      "section": "announcements",
+      "question": "ค่าจัดส่งสองชุดขึ้นไปทางไปรษณีย์ด่วนพิเศษเท่าไร? (อ้างอิง: t_fee.txt)",
+      "inferred_domain": null,
+      "top1_domain": "announcements",
+      "top5_domain_counts": {
+        "announcements": 5
+      },
+      "top1_section_match": true,
+      "top5_majority_section_match": true,
+      "expected_refs": [
+        "t_fee.txt"
+      ],
+      "expected_refs_norm": [
+        "t_fee.txt"
+      ],
+      "hit_rank": 1,
+      "hit@5": true,
+      "hit@10": true,
+      "top_5": [
+        "t_fee.txt",
+        "t_fee.txt",
+        "t_fee.txt",
+        "t_fee.txt",
+        "t_fee.txt"
+      ]
+    },
+    {
+      "qid": 14,
+      "section": "announcements",
+      "question": "ค่าจัดส่งต่างประเทศแบบลงทะเบียนเท่าไร? (อ้างอิง: t_fee.txt)",
+      "inferred_domain": "announcements",
+      "top1_domain": "announcements",
+      "top5_domain_counts": {
+        "announcements": 5
+      },
+      "top1_section_match": true,
+      "top5_majority_section_match": true,
+      "expected_refs": [
+        "t_fee.txt"
+      ],
+      "expected_refs_norm": [
+        "t_fee.txt"
+      ],
+      "hit_rank": 1,
+      "hit@5": true,
+      "hit@10": true,
+      "top_5": [
+        "t_fee.txt",
+        "t_fee.txt",
+        "t_fee.txt",
+        "t_fee.txt",
+        "t_fee.txt"
+      ]
+    },
+    {
+      "qid": 15,
+      "section": "announcements",
+      "question": "ค่าจัดส่งต่างประเทศแบบลงทะเบียนไปต่างประเทศเท่าไร? (อ้างอิง: t_fee.txt)",
+      "inferred_domain": "announcements",
+      "top1_domain": "announcements",
+      "top5_domain_counts": {
+        "announcements": 5
+      },
+      "top1_section_match": true,
+      "top5_majority_section_match": true,
+      "expected_refs": [
+        "t_fee.txt"
+      ],
+      "expected_refs_norm": [
+        "t_fee.txt"
+      ],
+      "hit_rank": 1,
+      "hit@5": true,
+      "hit@10": true,
+      "top_5": [
+        "t_fee.txt",
+        "t_fee.txt",
+        "t_fee.txt",
+        "t_fee.txt",
+        "t_fee.txt"
+      ]
+    },
+    {
+      "qid": 16,
+      "section": "announcements",
+      "question": "นักศึกษาภายนอกที่เข้าศึกษาเพิ่มเติมต้องจ่ายค่าใช้จ่ายอะไร? (อ้างอิง: price.txt)",
+      "inferred_domain": null,
+      "top1_domain": "announcements",
+      "top5_domain_counts": {
+        "announcements": 3
+      },
+      "top1_section_match": true,
+      "top5_majority_section_match": true,
+      "expected_refs": [
+        "price.txt"
+      ],
+      "expected_refs_norm": [
+        "price.txt"
+      ],
+      "hit_rank": 1,
+      "hit@5": true,
+      "hit@10": true,
+      "top_5": [
+        "price.txt",
+        "price.txt",
+        "price.txt"
+      ]
+    },
+    {
+      "qid": 17,
+      "section": "announcements",
+      "question": "ประกาศค่าใช้จ่ายนักศึกษาภายนอกมีผลบังคับเมื่อไร? (อ้างอิง: price.txt)",
+      "inferred_domain": "announcements",
+      "top1_domain": "announcements",
+      "top5_domain_counts": {
+        "announcements": 3
+      },
+      "top1_section_match": true,
+      "top5_majority_section_match": true,
+      "expected_refs": [
+        "price.txt"
+      ],
+      "expected_refs_norm": [
+        "price.txt"
+      ],
+      "hit_rank": 1,
+      "hit@5": true,
+      "hit@10": true,
+      "top_5": [
+        "price.txt",
+        "price.txt",
+        "price.txt"
+      ]
+    },
+    {
+      "qid": 18,
+      "section": "announcements",
+      "question": "นักศึกษาภายนอกมีตัวเลือกค่าใช้จ่ายอะไรบ้าง? (อ้างอิง: price.txt)",
+      "inferred_domain": null,
+      "top1_domain": "announcements",
+      "top5_domain_counts": {
+        "announcements": 3
+      },
+      "top1_section_match": true,
+      "top5_majority_section_match": true,
+      "expected_refs": [
+        "price.txt"
+      ],
+      "expected_refs_norm": [
+        "price.txt"
+      ],
+      "hit_rank": 1,
+      "hit@5": true,
+      "hit@10": true,
+      "top_5": [
+        "price.txt",
+        "price.txt",
+        "price.txt"
+      ]
+    },
+    {
+      "qid": 19,
+      "section": "announcements",
+      "question": "ค่าประกันทรัพย์สินเสียหายจะคืนให้เมื่อไร? (อ้างอิง: price.txt)",
+      "inferred_domain": null,
+      "top1_domain": "announcements",
+      "top5_domain_counts": {
+        "announcements": 3
+      },
+      "top1_section_match": true,
+      "top5_majority_section_match": true,
+      "expected_refs": [
+        "price.txt"
+      ],
+      "expected_refs_norm": [
+        "price.txt"
+      ],
+      "hit_rank": 1,
+      "hit@5": true,
+      "hit@10": true,
+      "top_5": [
+        "price.txt",
+        "price.txt",
+        "price.txt"
+      ]
+    },
+    {
+      "qid": 20,
+      "section": "announcements",
+      "question": "ใครมีการวินิจฉัยเมื่อเกิดปัญหากับค่าใช้จ่ายนักศึกษาภายนอก? (อ้างอิง: price.txt)",
+      "inferred_domain": null,
+      "top1_domain": "announcements",
+      "top5_domain_counts": {
+        "announcements": 3
+      },
+      "top1_section_match": true,
+      "top5_majority_section_match": true,
+      "expected_refs": [
+        "price.txt"
+      ],
+      "expected_refs_norm": [
+        "price.txt"
+      ],
+      "hit_rank": 1,
+      "hit@5": true,
+      "hit@10": true,
+      "top_5": [
+        "price.txt",
+        "price.txt",
+        "price.txt"
+      ]
+    },
+    {
+      "qid": 21,
+      "section": "announcements",
+      "question": "นักศึกษาภายนอกจ่ายค่าประกันทรัพย์สินเท่าไร? (อ้างอิง: price.txt)",
+      "inferred_domain": null,
+      "top1_domain": "announcements",
+      "top5_domain_counts": {
+        "announcements": 3
+      },
+      "top1_section_match": true,
+      "top5_majority_section_match": true,
+      "expected_refs": [
+        "price.txt"
+      ],
+      "expected_refs_norm": [
+        "price.txt"
+      ],
+      "hit_rank": 1,
+      "hit@5": true,
+      "hit@10": true,
+      "top_5": [
+        "price.txt",
+        "price.txt",
+        "price.txt"
+      ]
+    },
+    {
+      "qid": 22,
+      "section": "announcements",
+      "question": "ประกาศค่าบำรุงนักศึกษาต่างชาติมีชื่ออะไร? (อ้างอิง: fee2567update.txt)",
+      "inferred_domain": "announcements",
+      "top1_domain": "announcements",
+      "top5_domain_counts": {
+        "announcements": 5
+      },
+      "top1_section_match": true,
+      "top5_majority_section_match": true,
+      "expected_refs": [
+        "fee2567update.txt"
+      ],
+      "expected_refs_norm": [
+        "fee2567update.txt"
+      ],
+      "hit_rank": 1,
+      "hit@5": true,
+      "hit@10": true,
+      "top_5": [
+        "fee2567update.txt",
+        "fee2567update.txt",
+        "fee2567update.txt",
+        "fee2567update.txt",
+        "fee2567update.txt"
+      ]
+    },
+    {
+      "qid": 23,
+      "section": "announcements",
+      "question": "ประกาศค่าบำรุงนักศึกษาต่างชาติมีผลบังคับตั้งแต่ปีการศึกษาใด? (อ้างอิง: fee2567update.txt)",
+      "inferred_domain": "announcements",
+      "top1_domain": "announcements",
+      "top5_domain_counts": {
+        "announcements": 5
+      },
+      "top1_section_match": true,
+      "top5_majority_section_match": true,
+      "expected_refs": [
+        "fee2567update.txt"
+      ],
+      "expected_refs_norm": [
+        "fee2567update.txt"
+      ],
+      "hit_rank": 1,
+      "hit@5": true,
+      "hit@10": true,
+      "top_5": [
+        "fee2567update.txt",
+        "fee2567update.txt",
+        "fee2567update.txt",
+        "fee2567update.txt",
+        "fee2567update.txt"
+      ]
+    },
+    {
+      "qid": 24,
+      "section": "announcements",
+      "question": "อัตราค่าบำรุงนักศึกษาต่างชาติใช้สำหรับปีการศึกษาใด? (อ้างอิง: fee2567update.txt)",
+      "inferred_domain": null,
+      "top1_domain": "announcements",
+      "top5_domain_counts": {
+        "announcements": 5
+      },
+      "top1_section_match": true,
+      "top5_majority_section_match": true,
+      "expected_refs": [
+        "fee2567update.txt"
+      ],
+      "expected_refs_norm": [
+        "fee2567update.txt"
+      ],
+      "hit_rank": 1,
+      "hit@5": true,
+      "hit@10": true,
+      "top_5": [
+        "fee2567update.txt",
+        "fee2567update.txt",
+        "fee2567update.txt",
+        "fee2567update.txt",
+        "fee2567update.txt"
+      ]
+    },
+    {
+      "qid": 25,
+      "section": "announcements",
+      "question": "อัตราค่าบำรุงนักศึกษาต่างชาติกำหนดโดยใคร? (อ้างอิง: fee2567update.txt)",
+      "inferred_domain": null,
+      "top1_domain": "announcements",
+      "top5_domain_counts": {
+        "announcements": 5
+      },
+      "top1_section_match": true,
+      "top5_majority_section_match": true,
+      "expected_refs": [
+        "fee2567update.txt"
+      ],
+      "expected_refs_norm": [
+        "fee2567update.txt"
+      ],
+      "hit_rank": 1,
+      "hit@5": true,
+      "hit@10": true,
+      "top_5": [
+        "fee2567update.txt",
+        "fee2567update.txt",
+        "fee2567update.txt",
+        "fee2567update.txt",
+        "fee2567update.txt"
+      ]
+    },
+    {
+      "qid": 26,
+      "section": "announcements",
+      "question": "ใครมีอำนาจบังคับประกาศค่าบำรุงนักศึกษาต่างชาติ? (อ้างอิง: fee2567update.txt)",
+      "inferred_domain": "announcements",
+      "top1_domain": "announcements",
+      "top5_domain_counts": {
+        "announcements": 5
+      },
+      "top1_section_match": true,
+      "top5_majority_section_match": true,
+      "expected_refs": [
+        "fee2567update.txt"
+      ],
+      "expected_refs_norm": [
+        "fee2567update.txt"
+      ],
+      "hit_rank": 1,
+      "hit@5": true,
+      "hit@10": true,
+      "top_5": [
+        "fee2567update.txt",
+        "fee2567update.txt",
+        "fee2567update.txt",
+        "fee2567update.txt",
+        "fee2567update.txt"
+      ]
+    },
+    {
+      "qid": 27,
+      "section": "announcements",
+      "question": "วันสุดท้ายของการชำระเงินค่าลงทะเบียนคือวันไหน?",
+      "inferred_domain": "announcements",
+      "top1_domain": "announcements",
+      "top5_domain_counts": {
+        "announcements": 5
+      },
+      "top1_section_match": true,
+      "top5_majority_section_match": true,
+      "expected_refs": [],
+      "expected_refs_norm": [],
+      "hit_rank": null,
+      "hit@5": false,
+      "hit@10": false,
+      "top_5": [
+        "academiccalendar2025th.txt",
+        "ปฏิทินการศึกษา2568.txt",
+        "ปฏิทินการศึกษา2568.txt",
+        "2568thv3_5th(1).txt",
+        "2568thv3_5th(1).txt"
+      ]
+    },
+    {
+      "qid": 28,
+      "section": "announcements",
+      "question": "ลิงก์ระบบลงทะเบียนเรียนอยู่ที่ไหน?",
+      "inferred_domain": "announcements",
+      "top1_domain": "announcements",
+      "top5_domain_counts": {
+        "announcements": 5
+      },
+      "top1_section_match": true,
+      "top5_majority_section_match": true,
+      "expected_refs": [],
+      "expected_refs_norm": [],
+      "hit_rank": null,
+      "hit@5": false,
+      "hit@10": false,
+      "top_5": [
+        "academiccalendar2025th.txt",
+        "academiccalendar2025th.txt",
+        "ปฏิทินการศึกษา2568.txt",
+        "ปฏิทินการศึกษา2568.txt",
+        "approved_exam2568.txt"
+      ]
+    },
+    {
+      "qid": 29,
+      "section": "announcements",
+      "question": "ระบบลงทะเบียนเปิดให้บริการตั้งแต่เวลาใดถึงเวลาใด?",
+      "inferred_domain": "announcements",
+      "top1_domain": "announcements",
+      "top5_domain_counts": {
+        "announcements": 5
+      },
+      "top1_section_match": true,
+      "top5_majority_section_match": true,
+      "expected_refs": [],
+      "expected_refs_norm": [],
+      "hit_rank": null,
+      "hit@5": false,
+      "hit@10": false,
+      "top_5": [
+        "ปฏิทินการศึกษา2568.txt",
+        "ปฏิทินการศึกษา2568.txt",
+        "academiccalendar2025th.txt",
+        "eng2561.txt",
+        "eng2561.txt"
+      ]
+    },
+    {
+      "qid": 30,
+      "section": "announcements",
+      "question": "วันไหนนักศึกษาสามารถลดรายวิชาได้? (โมดูล 5 สัปดาห์ ช่วงที่ 1)",
+      "inferred_domain": "curriculum",
+      "top1_domain": "curriculum",
+      "top5_domain_counts": {
+        "curriculum": 4,
+        "announcements": 1
+      },
+      "top1_section_match": false,
+      "top5_majority_section_match": false,
+      "expected_refs": [],
+      "expected_refs_norm": [],
+      "hit_rank": null,
+      "hit@5": false,
+      "hit@10": false,
+      "top_5": [
+        "วศ.บ._วศวกรรมคอมพวเตอร_ปรบปรง.64.txt",
+        "วศ.บ._วศวกรรมคอมพวเตอร_ปรบปรง.64.txt",
+        "โครงสร้างหลักสูตรรายวิชาศึกษาทั่วไปมจธ.txt",
+        "โครงสร้างหลักสูตรรายวิชาศึกษาทั่วไปมจธ.txt",
+        "ปฏิทินการศึกษา2568.txt"
+      ]
+    },
+    {
+      "qid": 1,
+      "section": "regulations",
+      "question": "ระเบียบดำเนินการเกี่ยวกับการสอบมีผลบังคับตั้งแต่เมื่อไร?",
+      "inferred_domain": null,
+      "top1_domain": "regulations",
+      "top5_domain_counts": {
+        "regulations": 5
+      },
+      "top1_section_match": true,
+      "top5_majority_section_match": true,
+      "expected_refs": [],
+      "expected_refs_norm": [],
+      "hit_rank": null,
+      "hit@5": false,
+      "hit@10": false,
+      "top_5": [
+        "rule_exam2560.txt",
+        "rule_exam2560.txt",
+        "129.txt",
+        "129.txt",
+        "rule2563_4b.txt"
+      ]
+    },
+    {
+      "qid": 2,
+      "section": "regulations",
+      "question": "ระเบียบการสอบใหม่ยกเลิกระเบียบเก่าอะไร?",
+      "inferred_domain": null,
+      "top1_domain": "regulations",
+      "top5_domain_counts": {
+        "regulations": 5
+      },
+      "top1_section_match": true,
+      "top5_majority_section_match": true,
+      "expected_refs": [],
+      "expected_refs_norm": [],
+      "hit_rank": null,
+      "hit@5": false,
+      "hit@10": false,
+      "top_5": [
+        "rule_exam2560.txt",
+        "129.txt",
+        "129.txt",
+        "celemony2539.txt",
+        "rule57_2.txt"
+      ]
+    },
+    {
+      "qid": 3,
+      "section": "regulations",
+      "question": "ถ้าข้อความในระเบียบอื่นขัดกับระเบียบการสอบจะให้ใช้เอกสารไหน?",
+      "inferred_domain": null,
+      "top1_domain": "regulations",
+      "top5_domain_counts": {
+        "regulations": 5
+      },
+      "top1_section_match": true,
+      "top5_majority_section_match": true,
+      "expected_refs": [],
+      "expected_refs_norm": [],
+      "hit_rank": null,
+      "hit@5": false,
+      "hit@10": false,
+      "top_5": [
+        "rule_exam2560.txt",
+        "129.txt",
+        "129.txt",
+        "forms.txt",
+        "forms.txt"
+      ]
+    },
+    {
+      "qid": 4,
+      "section": "regulations",
+      "question": "ใครมีอำนาจออกประกาศเพิ่มเติมเกี่ยวกับการสอบ?",
+      "inferred_domain": "announcements",
+      "top1_domain": "announcements",
+      "top5_domain_counts": {
+        "announcements": 5
+      },
+      "top1_section_match": false,
+      "top5_majority_section_match": false,
+      "expected_refs": [],
+      "expected_refs_norm": [],
+      "hit_rank": null,
+      "hit@5": false,
+      "hit@10": false,
+      "top_5": [
+        "approved_exam2568.txt",
+        "calculator2023.txt",
+        "schedule2565.txt",
+        "calculator2023.txt",
+        "schedule2565.txt"
+      ]
+    },
+    {
+      "qid": 5,
+      "section": "regulations",
+      "question": "นักศึกษาต้องแต่งตัวแบบไหนเมื่อเข้าห้องสอบ?",
+      "inferred_domain": "regulations",
+      "top1_domain": "regulations",
+      "top5_domain_counts": {
+        "regulations": 5
+      },
+      "top1_section_match": true,
+      "top5_majority_section_match": true,
+      "expected_refs": [],
+      "expected_refs_norm": [],
+      "hit_rank": null,
+      "hit@5": false,
+      "hit@10": false,
+      "top_5": [
+        "forms.txt",
+        "rule_exam2560.txt",
+        "rule_exam2560.txt",
+        "129.txt",
+        "133.txt"
+      ]
+    },
+    {
+      "qid": 6,
+      "section": "regulations",
+      "question": "นักศึกษาต้องนำสิ่งของอะไรเข้าห้องสอบ?",
+      "inferred_domain": "regulations",
+      "top1_domain": "regulations",
+      "top5_domain_counts": {
+        "regulations": 5
+      },
+      "top1_section_match": true,
+      "top5_majority_section_match": true,
+      "expected_refs": [],
+      "expected_refs_norm": [],
+      "hit_rank": null,
+      "hit@5": false,
+      "hit@10": false,
+      "top_5": [
+        "rule_exam2560.txt",
+        "rule_exam2560.txt",
+        "129.txt",
+        "133.txt",
+        "135.txt"
+      ]
+    },
+    {
+      "qid": 7,
+      "section": "regulations",
+      "question": "นักศึกษาห้ามนำสิ่งของไหนเข้าห้องสอบ?",
+      "inferred_domain": "regulations",
+      "top1_domain": "regulations",
+      "top5_domain_counts": {
+        "regulations": 5
+      },
+      "top1_section_match": true,
+      "top5_majority_section_match": true,
+      "expected_refs": [],
+      "expected_refs_norm": [],
+      "hit_rank": null,
+      "hit@5": false,
+      "hit@10": false,
+      "top_5": [
+        "rule_exam2560.txt",
+        "rule_exam2560.txt",
+        "129.txt",
+        "133.txt",
+        "135.txt"
+      ]
+    },
+    {
+      "qid": 8,
+      "section": "regulations",
+      "question": "นักศึกษาห้ามนำเครื่องมือการศึกษาหลายอย่างไหนเข้าห้องสอบ?",
+      "inferred_domain": "regulations",
+      "top1_domain": "regulations",
+      "top5_domain_counts": {
+        "regulations": 5
+      },
+      "top1_section_match": true,
+      "top5_majority_section_match": true,
+      "expected_refs": [],
+      "expected_refs_norm": [],
+      "hit_rank": null,
+      "hit@5": false,
+      "hit@10": false,
+      "top_5": [
+        "rule_exam2560.txt",
+        "rule_exam2560.txt",
+        "129.txt",
+        "133.txt",
+        "135.txt"
+      ]
+    },
+    {
+      "qid": 9,
+      "section": "regulations",
+      "question": "นักศึกษาเอาเครื่องคิดเลขเข้าห้องสอบได้หรือไม่?",
+      "inferred_domain": "regulations",
+      "top1_domain": "regulations",
+      "top5_domain_counts": {
+        "regulations": 5
+      },
+      "top1_section_match": true,
+      "top5_majority_section_match": true,
+      "expected_refs": [],
+      "expected_refs_norm": [],
+      "hit_rank": null,
+      "hit@5": false,
+      "hit@10": false,
+      "top_5": [
+        "handbook2562g.txt",
+        "handbook2562g.txt",
+        "129.txt",
+        "133.txt",
+        "135.txt"
+      ]
+    },
+    {
+      "qid": 10,
+      "section": "regulations",
+      "question": "นักศึกษามาสายกว่า 15 นาทีสามารถเข้าห้องสอบได้หรือ?",
+      "inferred_domain": "regulations",
+      "top1_domain": "regulations",
+      "top5_domain_counts": {
+        "regulations": 5
+      },
+      "top1_section_match": true,
+      "top5_majority_section_match": true,
+      "expected_refs": [],
+      "expected_refs_norm": [],
+      "hit_rank": null,
+      "hit@5": false,
+      "hit@10": false,
+      "top_5": [
+        "129.txt",
+        "133.txt",
+        "135.txt",
+        "2018_06_08_15_10_33.txt",
+        "rule_exam2560.txt"
+      ]
+    },
+    {
+      "qid": 11,
+      "section": "regulations",
+      "question": "นักศึกษาสามารถแลกเปลี่ยนสิ่งของระหว่างสอบได้หรือไม่?",
+      "inferred_domain": null,
+      "top1_domain": "announcements",
+      "top5_domain_counts": {
+        "announcements": 2,
+        "regulations": 2,
+        "curriculum": 1
+      },
+      "top1_section_match": false,
+      "top5_majority_section_match": false,
+      "expected_refs": [],
+      "expected_refs_norm": [],
+      "hit_rank": null,
+      "hit@5": false,
+      "hit@10": false,
+      "top_5": [
+        "academiccalendar2025th.txt",
+        "handbook2562g.txt",
+        "วศ.บ._วศวกรรมคอมพวเตอร_ปรบปรง.64.txt",
+        "academiccalendar2025th.txt",
+        "handbook2562g.txt"
+      ]
+    },
+    {
+      "qid": 12,
+      "section": "regulations",
+      "question": "นักศึกษาสามารถออกห้องสอบเมื่อไร?",
+      "inferred_domain": "regulations",
+      "top1_domain": "regulations",
+      "top5_domain_counts": {
+        "regulations": 5
+      },
+      "top1_section_match": true,
+      "top5_majority_section_match": true,
+      "expected_refs": [],
+      "expected_refs_norm": [],
+      "hit_rank": null,
+      "hit@5": false,
+      "hit@10": false,
+      "top_5": [
+        "129.txt",
+        "133.txt",
+        "135.txt",
+        "2018_06_08_15_10_33.txt",
+        "ad_out57.txt"
+      ]
+    },
+    {
+      "qid": 13,
+      "section": "regulations",
+      "question": "นักศึกษาออกห้องสอบชั่วคราว ต้องได้อนุญาตจากใครและทำอย่างไร?",
+      "inferred_domain": "regulations",
+      "top1_domain": "regulations",
+      "top5_domain_counts": {
+        "regulations": 5
+      },
+      "top1_section_match": true,
+      "top5_majority_section_match": true,
+      "expected_refs": [],
+      "expected_refs_norm": [],
+      "hit_rank": null,
+      "hit@5": false,
+      "hit@10": false,
+      "top_5": [
+        "rule_exam2560.txt",
+        "rule_exam2560.txt",
+        "covid_19(2).txt",
+        "forms.txt",
+        "forms.txt"
+      ]
+    },
+    {
+      "qid": 14,
+      "section": "regulations",
+      "question": "เมื่อออกจากห้องสอบแล้ว นักศึกษาต้องทำอะไร?",
+      "inferred_domain": "regulations",
+      "top1_domain": "regulations",
+      "top5_domain_counts": {
+        "regulations": 5
+      },
+      "top1_section_match": true,
+      "top5_majority_section_match": true,
+      "expected_refs": [],
+      "expected_refs_norm": [],
+      "hit_rank": null,
+      "hit@5": false,
+      "hit@10": false,
+      "top_5": [
+        "rule_exam2560.txt",
+        "rule_exam2560.txt",
+        "ruleg2568.txt",
+        "handbook2562g.txt",
+        "handbook2562g.txt"
+      ]
+    },
+    {
+      "qid": 15,
+      "section": "regulations",
+      "question": "คณะกรรมการสอบกลางมีวาระการดำรงตำแหน่งกี่ปี?",
+      "inferred_domain": "regulations",
+      "top1_domain": "regulations",
+      "top5_domain_counts": {
+        "regulations": 5
+      },
+      "top1_section_match": true,
+      "top5_majority_section_match": true,
+      "expected_refs": [],
+      "expected_refs_norm": [],
+      "hit_rank": null,
+      "hit@5": false,
+      "hit@10": false,
+      "top_5": [
+        "129.txt",
+        "2018_06_08_15_10_33.txt",
+        "ad_out57.txt",
+        "covid_19(2).txt",
+        "discipline2566_fulltext.txt"
+      ]
+    },
+    {
+      "qid": 16,
+      "section": "regulations",
+      "question": "คณะกรรมการสอบกลางมีอำนาจหน้าที่อะไร?",
+      "inferred_domain": "regulations",
+      "top1_domain": "regulations",
+      "top5_domain_counts": {
+        "regulations": 5
+      },
+      "top1_section_match": true,
+      "top5_majority_section_match": true,
+      "expected_refs": [],
+      "expected_refs_norm": [],
+      "hit_rank": null,
+      "hit@5": false,
+      "hit@10": false,
+      "top_5": [
+        "129.txt",
+        "2018_06_08_15_10_33.txt",
+        "ad_out57.txt",
+        "covid_19(2).txt",
+        "discipline2566_fulltext.txt"
+      ]
+    },
+    {
+      "qid": 17,
+      "section": "regulations",
+      "question": "การกระทำอะไรถือเป็นทุจริตในการสอบ?",
+      "inferred_domain": "regulations",
+      "top1_domain": "regulations",
+      "top5_domain_counts": {
+        "regulations": 5
+      },
+      "top1_section_match": true,
+      "top5_majority_section_match": true,
+      "expected_refs": [],
+      "expected_refs_norm": [],
+      "hit_rank": null,
+      "hit@5": false,
+      "hit@10": false,
+      "top_5": [
+        "rule_exam2560.txt",
+        "forms.txt",
+        "forms.txt",
+        "rule57.txt",
+        "rule57_2.txt"
+      ]
+    },
+    {
+      "qid": 18,
+      "section": "regulations",
+      "question": "บทลงโทษสำหรับผู้ทุจริตการสอบคืออะไรบ้าง?",
+      "inferred_domain": "regulations",
+      "top1_domain": "regulations",
+      "top5_domain_counts": {
+        "regulations": 5
+      },
+      "top1_section_match": true,
+      "top5_majority_section_match": true,
+      "expected_refs": [],
+      "expected_refs_norm": [],
+      "hit_rank": null,
+      "hit@5": false,
+      "hit@10": false,
+      "top_5": [
+        "rule_exam2560.txt",
+        "rule_exam2560.txt",
+        "discipline2566_fulltext.txt",
+        "discipline2566_fulltext.txt",
+        "handbook2562g.txt"
+      ]
+    },
+    {
+      "qid": 19,
+      "section": "regulations",
+      "question": "การกระทำไหนไม่ถือเป็นทุจริตแต่เป็นการไม่ปฏิบัติตามระเบียบ?",
+      "inferred_domain": "regulations",
+      "top1_domain": "regulations",
+      "top5_domain_counts": {
+        "regulations": 5
+      },
+      "top1_section_match": true,
+      "top5_majority_section_match": true,
+      "expected_refs": [],
+      "expected_refs_norm": [],
+      "hit_rank": null,
+      "hit@5": false,
+      "hit@10": false,
+      "top_5": [
+        "rule_exam2560.txt",
+        "129.txt",
+        "133.txt",
+        "forms.txt",
+        "forms.txt"
+      ]
+    },
+    {
+      "qid": 20,
+      "section": "regulations",
+      "question": "อาจารย์มีสิทธิลงโทษนักศึกษารายไรได้บ้าง?",
+      "inferred_domain": "regulations",
+      "top1_domain": "regulations",
+      "top5_domain_counts": {
+        "regulations": 5
+      },
+      "top1_section_match": true,
+      "top5_majority_section_match": true,
+      "expected_refs": [],
+      "expected_refs_norm": [],
+      "hit_rank": null,
+      "hit@5": false,
+      "hit@10": false,
+      "top_5": [
+        "discipline2566_fulltext.txt",
+        "discipline2566_fulltext.txt",
+        "rule_exam2560.txt",
+        "rule_exam2560.txt",
+        "ruleg2568.txt"
+      ]
+    },
+    {
+      "qid": 21,
+      "section": "regulations",
+      "question": "คณะกรรมการกลางมีสิทธิลงโทษได้ในกรณีไหน?",
+      "inferred_domain": "regulations",
+      "top1_domain": "regulations",
+      "top5_domain_counts": {
+        "regulations": 5
+      },
+      "top1_section_match": true,
+      "top5_majority_section_match": true,
+      "expected_refs": [],
+      "expected_refs_norm": [],
+      "hit_rank": null,
+      "hit@5": false,
+      "hit@10": false,
+      "top_5": [
+        "129.txt",
+        "2018_06_08_15_10_33.txt",
+        "ad_out57.txt",
+        "covid_19(2).txt",
+        "discipline2566_fulltext.txt"
+      ]
+    },
+    {
+      "qid": 22,
+      "section": "regulations",
+      "question": "นักศึกษาถูกลงโทษสามารถอุทธรณ์ได้หรือไม่?",
+      "inferred_domain": "regulations",
+      "top1_domain": "regulations",
+      "top5_domain_counts": {
+        "regulations": 5
+      },
+      "top1_section_match": true,
+      "top5_majority_section_match": true,
+      "expected_refs": [],
+      "expected_refs_norm": [],
+      "hit_rank": null,
+      "hit@5": false,
+      "hit@10": false,
+      "top_5": [
+        "discipline2566_fulltext.txt",
+        "handbook2562g.txt",
+        "handbook2562g.txt",
+        "129.txt",
+        "133.txt"
+      ]
+    },
+    {
+      "qid": 23,
+      "section": "regulations",
+      "question": "การอุทธรณ์โทษต้องทำขั้นตอนไหนบ้าง?",
+      "inferred_domain": "regulations",
+      "top1_domain": "regulations",
+      "top5_domain_counts": {
+        "regulations": 5
+      },
+      "top1_section_match": true,
+      "top5_majority_section_match": true,
+      "expected_refs": [],
+      "expected_refs_norm": [],
+      "hit_rank": null,
+      "hit@5": false,
+      "hit@10": false,
+      "top_5": [
+        "discipline2566_fulltext.txt",
+        "handbook2562g.txt",
+        "handbook2562g.txt",
+        "rule_exam2560.txt",
+        "ruleg2568.txt"
+      ]
+    },
+    {
+      "qid": 24,
+      "section": "regulations",
+      "question": "อุทธรณ์ต้องยื่นให้กับใคร และในระยะเวลาเท่าไร?",
+      "inferred_domain": "regulations",
+      "top1_domain": "regulations",
+      "top5_domain_counts": {
+        "regulations": 5
+      },
+      "top1_section_match": true,
+      "top5_majority_section_match": true,
+      "expected_refs": [],
+      "expected_refs_norm": [],
+      "hit_rank": null,
+      "hit@5": false,
+      "hit@10": false,
+      "top_5": [
+        "discipline2566_fulltext.txt",
+        "rule_exam2560.txt",
+        "rule_exam2560.txt",
+        "discipline2566_fulltext.txt",
+        "handbook2562g.txt"
+      ]
+    },
+    {
+      "qid": 25,
+      "section": "regulations",
+      "question": "อธิการบดีมีอำนาจอะไรต่อการอุทธรณ์?",
+      "inferred_domain": "regulations",
+      "top1_domain": "regulations",
+      "top5_domain_counts": {
+        "regulations": 5
+      },
+      "top1_section_match": true,
+      "top5_majority_section_match": true,
+      "expected_refs": [],
+      "expected_refs_norm": [],
+      "hit_rank": null,
+      "hit@5": false,
+      "hit@10": false,
+      "top_5": [
+        "discipline2566_fulltext.txt",
+        "handbook2562g.txt",
+        "handbook2562g.txt",
+        "rule_exam2560.txt",
+        "ruleg2568.txt"
+      ]
+    },
+    {
+      "qid": 26,
+      "section": "regulations",
+      "question": "คณะกรรมการอุทธรณ์มีองค์ประกอบอย่างไร?",
+      "inferred_domain": "regulations",
+      "top1_domain": "regulations",
+      "top5_domain_counts": {
+        "regulations": 5
+      },
+      "top1_section_match": true,
+      "top5_majority_section_match": true,
+      "expected_refs": [],
+      "expected_refs_norm": [],
+      "hit_rank": null,
+      "hit@5": false,
+      "hit@10": false,
+      "top_5": [
+        "129.txt",
+        "2018_06_08_15_10_33.txt",
+        "ad_out57.txt",
+        "covid_19(2).txt",
+        "discipline2566_fulltext.txt"
+      ]
+    },
+    {
+      "qid": 27,
+      "section": "regulations",
+      "question": "ข้อบังคับวินัยนักศึกษามีผลบังคับเมื่อไร?",
+      "inferred_domain": "regulations",
+      "top1_domain": "regulations",
+      "top5_domain_counts": {
+        "regulations": 5
+      },
+      "top1_section_match": true,
+      "top5_majority_section_match": true,
+      "expected_refs": [],
+      "expected_refs_norm": [],
+      "hit_rank": null,
+      "hit@5": false,
+      "hit@10": false,
+      "top_5": [
+        "ad_out57.txt",
+        "discipline2566_fulltext.txt",
+        "ip2565.txt",
+        "ip2565.txt",
+        "privacy2563.txt"
+      ]
+    },
+    {
+      "qid": 28,
+      "section": "regulations",
+      "question": "ข้อบังคับวินัยสะเบียบการสอบยกเลิกอะไร?",
+      "inferred_domain": "regulations",
+      "top1_domain": "regulations",
+      "top5_domain_counts": {
+        "regulations": 5
+      },
+      "top1_section_match": true,
+      "top5_majority_section_match": true,
+      "expected_refs": [],
+      "expected_refs_norm": [],
+      "hit_rank": null,
+      "hit@5": false,
+      "hit@10": false,
+      "top_5": [
+        "rule_exam2560.txt",
+        "ad_out57.txt",
+        "discipline2566_fulltext.txt",
+        "ip2565.txt",
+        "ip2565.txt"
+      ]
+    },
+    {
+      "qid": 29,
+      "section": "regulations",
+      "question": "ใครเป็นผู้รักษาข้อบังคับวินัยนักศึกษา?",
+      "inferred_domain": "regulations",
+      "top1_domain": "regulations",
+      "top5_domain_counts": {
+        "regulations": 5
+      },
+      "top1_section_match": true,
+      "top5_majority_section_match": true,
+      "expected_refs": [],
+      "expected_refs_norm": [],
+      "hit_rank": null,
+      "hit@5": false,
+      "hit@10": false,
+      "top_5": [
+        "discipline2566_fulltext.txt",
+        "discipline2566_fulltext.txt",
+        "ip2565.txt",
+        "rule57.txt",
+        "rule_exam2560.txt"
+      ]
+    },
+    {
+      "qid": 30,
+      "section": "regulations",
+      "question": "นักศึกษาต้องปฏิบัติตามอะไร?",
+      "inferred_domain": null,
+      "top1_domain": "announcements",
+      "top5_domain_counts": {
+        "announcements": 2,
+        "regulations": 2,
+        "curriculum": 1
+      },
+      "top1_section_match": false,
+      "top5_majority_section_match": false,
+      "expected_refs": [],
+      "expected_refs_norm": [],
+      "hit_rank": null,
+      "hit@5": false,
+      "hit@10": false,
+      "top_5": [
+        "academiccalendar2025th.txt",
+        "129.txt",
+        "วิชาlng2562.txt",
+        "academiccalendar2025th.txt",
+        "133.txt"
+      ]
+    },
+    {
+      "qid": 1,
+      "section": "curriculum",
+      "question": "หมวดวิชาศึกษาทั่วไปมีกี่หน่วยกิต?",
+      "inferred_domain": "curriculum",
+      "top1_domain": "curriculum",
+      "top5_domain_counts": {
+        "curriculum": 3,
+        "announcements": 1,
+        "regulations": 1
+      },
+      "top1_section_match": true,
+      "top5_majority_section_match": true,
+      "expected_refs": [],
+      "expected_refs_norm": [],
+      "hit_rank": null,
+      "hit@5": false,
+      "hit@10": false,
+      "top_5": [
+        "วศ.บ._วศวกรรมคอมพวเตอร_ปรบปรง.64.txt",
+        "วศ.บ._วศวกรรมคอมพวเตอร_ปรบปรง.64.txt",
+        "โครงสร้างหลักสูตรรายวิชาศึกษาทั่วไปมจธ.txt",
+        "ปฏิทินการศึกษา2568.txt",
+        "handbook2562g.txt"
+      ]
+    },
+    {
+      "qid": 2,
+      "section": "curriculum",
+      "question": "หมวดวิชาเฉพาะมีกี่หน่วยกิต?",
+      "inferred_domain": "curriculum",
+      "top1_domain": "curriculum",
+      "top5_domain_counts": {
+        "curriculum": 4,
+        "announcements": 1
+      },
+      "top1_section_match": true,
+      "top5_majority_section_match": true,
+      "expected_refs": [],
+      "expected_refs_norm": [],
+      "hit_rank": null,
+      "hit@5": false,
+      "hit@10": false,
+      "top_5": [
+        "โครงสร้างหลักสูตรรายวิชาศึกษาทั่วไปมจธ.txt",
+        "โครงสร้างหลักสูตรรายวิชาศึกษาทั่วไปมจธ.txt",
+        "วศ.บ._วศวกรรมคอมพวเตอร_ปรบปรง.64.txt",
+        "วศ.บ._วศวกรรมคอมพวเตอร_ปรบปรง.64.txt",
+        "ปฏิทินการศึกษา2568.txt"
+      ]
+    },
+    {
+      "qid": 3,
+      "section": "curriculum",
+      "question": "หลักสูตรวิศวกรรมคอมพิวเตอร์ต้องศึกษารวมกี่หน่วยกิต?",
+      "inferred_domain": "curriculum",
+      "top1_domain": "curriculum",
+      "top5_domain_counts": {
+        "curriculum": 4,
+        "announcements": 1
+      },
+      "top1_section_match": true,
+      "top5_majority_section_match": true,
+      "expected_refs": [],
+      "expected_refs_norm": [],
+      "hit_rank": null,
+      "hit@5": false,
+      "hit@10": false,
+      "top_5": [
+        "วศ.บ._วศวกรรมคอมพวเตอร_ปรบปรง.64.txt",
+        "วศ.บ._วศวกรรมคอมพวเตอร_ปรบปรง.64.txt",
+        "foe10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt",
+        "foe10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt",
+        "ปฏิทินการศึกษา2568.txt"
+      ]
+    },
+    {
+      "qid": 4,
+      "section": "curriculum",
+      "question": "วิชา CPE 100 คืออะไร และมีกี่หน่วยกิต?",
+      "inferred_domain": "curriculum",
+      "top1_domain": "curriculum",
+      "top5_domain_counts": {
+        "curriculum": 3,
+        "announcements": 2
+      },
+      "top1_section_match": true,
+      "top5_majority_section_match": true,
+      "expected_refs": [],
+      "expected_refs_norm": [],
+      "hit_rank": null,
+      "hit@5": false,
+      "hit@10": false,
+      "top_5": [
+        "วศ.บ._วศวกรรมคอมพวเตอร_ปรบปรง.64.txt",
+        "วศ.บ._วศวกรรมคอมพวเตอร_ปรบปรง.64.txt",
+        "foe10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt",
+        "eng_b2568.txt",
+        "eng_b2568.txt"
+      ]
+    },
+    {
+      "qid": 5,
+      "section": "curriculum",
+      "question": "วิชา CPE 101 คืออะไร และมีกี่หน่วยกิต?",
+      "inferred_domain": "curriculum",
+      "top1_domain": "curriculum",
+      "top5_domain_counts": {
+        "curriculum": 3,
+        "announcements": 1,
+        "regulations": 1
+      },
+      "top1_section_match": true,
+      "top5_majority_section_match": true,
+      "expected_refs": [],
+      "expected_refs_norm": [],
+      "hit_rank": null,
+      "hit@5": false,
+      "hit@10": false,
+      "top_5": [
+        "foe10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt",
+        "วศ.บ._วศวกรรมคอมพวเตอร_ปรบปรง.64.txt",
+        "foe10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt",
+        "ปฏิทินการศึกษา2568.txt",
+        "forms.txt"
+      ]
+    },
+    {
+      "qid": 6,
+      "section": "curriculum",
+      "question": "วิชา CPE 111 คืออะไร และมีกี่หน่วยกิต?",
+      "inferred_domain": "curriculum",
+      "top1_domain": "curriculum",
+      "top5_domain_counts": {
+        "curriculum": 4,
+        "announcements": 1
+      },
+      "top1_section_match": true,
+      "top5_majority_section_match": true,
+      "expected_refs": [],
+      "expected_refs_norm": [],
+      "hit_rank": null,
+      "hit@5": false,
+      "hit@10": false,
+      "top_5": [
+        "วศ.บ._วศวกรรมคอมพวเตอร_ปรบปรง.64.txt",
+        "foe10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt",
+        "วศ.บ._วศวกรรมคอมพวเตอร_ปรบปรง.64.txt",
+        "foe10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt",
+        "academiccalendar2025th.txt"
+      ]
+    },
+    {
+      "qid": 7,
+      "section": "curriculum",
+      "question": "วิชา LNG 120 คืออะไร และมีกี่หน่วยกิต?",
+      "inferred_domain": "curriculum",
+      "top1_domain": "curriculum",
+      "top5_domain_counts": {
+        "curriculum": 4,
+        "regulations": 1
+      },
+      "top1_section_match": true,
+      "top5_majority_section_match": true,
+      "expected_refs": [],
+      "expected_refs_norm": [],
+      "hit_rank": null,
+      "hit@5": false,
+      "hit@10": false,
+      "top_5": [
+        "foe10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt",
+        "วศ.บ._วศวกรรมคอมพวเตอร_ปรบปรง.64.txt",
+        "foe10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt",
+        "วศ.บ._วศวกรรมคอมพวเตอร_ปรบปรง.64.txt",
+        "rule57.txt"
+      ]
+    },
+    {
+      "qid": 8,
+      "section": "curriculum",
+      "question": "วิชา MTH 101 คืออะไร และมีกี่หน่วยกิต?",
+      "inferred_domain": "curriculum",
+      "top1_domain": "curriculum",
+      "top5_domain_counts": {
+        "curriculum": 2,
+        "announcements": 2,
+        "regulations": 1
+      },
+      "top1_section_match": true,
+      "top5_majority_section_match": false,
+      "expected_refs": [],
+      "expected_refs_norm": [],
+      "hit_rank": null,
+      "hit@5": false,
+      "hit@10": false,
+      "top_5": [
+        "foe10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt",
+        "foe10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt",
+        "ปฏิทินการศึกษา2568.txt",
+        "forms.txt",
+        "ปฏิทินการศึกษา2568.txt"
+      ]
+    },
+    {
+      "qid": 9,
+      "section": "curriculum",
+      "question": "วิชา PHY 103 คืออะไร และมีกี่หน่วยกิต?",
+      "inferred_domain": "curriculum",
+      "top1_domain": "curriculum",
+      "top5_domain_counts": {
+        "curriculum": 3,
+        "announcements": 1,
+        "regulations": 1
+      },
+      "top1_section_match": true,
+      "top5_majority_section_match": true,
+      "expected_refs": [],
+      "expected_refs_norm": [],
+      "hit_rank": null,
+      "hit@5": false,
+      "hit@10": false,
+      "top_5": [
+        "วศ.บ._วศวกรรมคอมพวเตอร_ปรบปรง.64.txt",
+        "foe10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt",
+        "foe10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt",
+        "ปฏิทินการศึกษา2568.txt",
+        "forms.txt"
+      ]
+    },
+    {
+      "qid": 10,
+      "section": "curriculum",
+      "question": "วิชา CPE 112 คืออะไร และมีกี่หน่วยกิต?",
+      "inferred_domain": "curriculum",
+      "top1_domain": "curriculum",
+      "top5_domain_counts": {
+        "curriculum": 3,
+        "announcements": 1,
+        "regulations": 1
+      },
+      "top1_section_match": true,
+      "top5_majority_section_match": true,
+      "expected_refs": [],
+      "expected_refs_norm": [],
+      "hit_rank": null,
+      "hit@5": false,
+      "hit@10": false,
+      "top_5": [
+        "วศ.บ._วศวกรรมคอมพวเตอร_ปรบปรง.64.txt",
+        "foe10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt",
+        "foe10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt",
+        "academiccalendar2025th.txt",
+        "forms.txt"
+      ]
+    },
+    {
+      "qid": 11,
+      "section": "curriculum",
+      "question": "วิชา CPE 121 คืออะไร และมีกี่หน่วยกิต?",
+      "inferred_domain": "curriculum",
+      "top1_domain": "curriculum",
+      "top5_domain_counts": {
+        "curriculum": 4,
+        "announcements": 1
+      },
+      "top1_section_match": true,
+      "top5_majority_section_match": true,
+      "expected_refs": [],
+      "expected_refs_norm": [],
+      "hit_rank": null,
+      "hit@5": false,
+      "hit@10": false,
+      "top_5": [
+        "วศ.บ._วศวกรรมคอมพวเตอร_ปรบปรง.64.txt",
+        "วศ.บ._วศวกรรมคอมพวเตอร_ปรบปรง.64.txt",
+        "foe10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt",
+        "foe10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt",
+        "academiccalendar2025th.txt"
+      ]
+    },
+    {
+      "qid": 12,
+      "section": "curriculum",
+      "question": "วิชา GEN 121 คืออะไร และมีกี่หน่วยกิต?",
+      "inferred_domain": "curriculum",
+      "top1_domain": "announcements",
+      "top5_domain_counts": {
+        "announcements": 2,
+        "curriculum": 3
+      },
+      "top1_section_match": false,
+      "top5_majority_section_match": true,
+      "expected_refs": [],
+      "expected_refs_norm": [],
+      "hit_rank": null,
+      "hit@5": false,
+      "hit@10": false,
+      "top_5": [
+        "ปฏิทินการศึกษา2568.txt",
+        "ปฏิทินการศึกษา2568.txt",
+        "วศ.บ._วศวกรรมคอมพวเตอร_ปรบปรง.64.txt",
+        "foe10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt",
+        "โครงสร้างหลักสูตรรายวิชาศึกษาทั่วไปมจธ.txt"
+      ]
+    },
+    {
+      "qid": 13,
+      "section": "curriculum",
+      "question": "วิชา LNG 220 คืออะไร และมีกี่หน่วยกิต?",
+      "inferred_domain": "curriculum",
+      "top1_domain": "curriculum",
+      "top5_domain_counts": {
+        "curriculum": 4,
+        "announcements": 1
+      },
+      "top1_section_match": true,
+      "top5_majority_section_match": true,
+      "expected_refs": [],
+      "expected_refs_norm": [],
+      "hit_rank": null,
+      "hit@5": false,
+      "hit@10": false,
+      "top_5": [
+        "วศ.บ._วศวกรรมคอมพวเตอร_ปรบปรง.64.txt",
+        "foe10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt",
+        "foe10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt",
+        "วศ.บ._วศวกรรมคอมพวเตอร_ปรบปรง.64.txt",
+        "ปฏิทินการศึกษา2568.txt"
+      ]
+    },
+    {
+      "qid": 14,
+      "section": "curriculum",
+      "question": "วิชา MTH 102 คืออะไร และมีกี่หน่วยกิต?",
+      "inferred_domain": "curriculum",
+      "top1_domain": "curriculum",
+      "top5_domain_counts": {
+        "curriculum": 2,
+        "announcements": 2,
+        "regulations": 1
+      },
+      "top1_section_match": true,
+      "top5_majority_section_match": false,
+      "expected_refs": [],
+      "expected_refs_norm": [],
+      "hit_rank": null,
+      "hit@5": false,
+      "hit@10": false,
+      "top_5": [
+        "foe10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt",
+        "foe10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt",
+        "ปฏิทินการศึกษา2568.txt",
+        "forms.txt",
+        "ปฏิทินการศึกษา2568.txt"
+      ]
+    },
+    {
+      "qid": 15,
+      "section": "curriculum",
+      "question": "วิชา PHY 104 คืออะไร และมีกี่หน่วยกิต?",
+      "inferred_domain": "curriculum",
+      "top1_domain": "curriculum",
+      "top5_domain_counts": {
+        "curriculum": 3,
+        "announcements": 1,
+        "regulations": 1
+      },
+      "top1_section_match": true,
+      "top5_majority_section_match": true,
+      "expected_refs": [],
+      "expected_refs_norm": [],
+      "hit_rank": null,
+      "hit@5": false,
+      "hit@10": false,
+      "top_5": [
+        "วศ.บ._วศวกรรมคอมพวเตอร_ปรบปรง.64.txt",
+        "foe10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt",
+        "foe10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt",
+        "ปฏิทินการศึกษา2568.txt",
+        "forms.txt"
+      ]
+    },
+    {
+      "qid": 16,
+      "section": "curriculum",
+      "question": "วิชา CPE 222 คืออะไร และมีกี่หน่วยกิต?",
+      "inferred_domain": "curriculum",
+      "top1_domain": "curriculum",
+      "top5_domain_counts": {
+        "curriculum": 4,
+        "announcements": 1
+      },
+      "top1_section_match": true,
+      "top5_majority_section_match": true,
+      "expected_refs": [],
+      "expected_refs_norm": [],
+      "hit_rank": null,
+      "hit@5": false,
+      "hit@10": false,
+      "top_5": [
+        "วศ.บ._วศวกรรมคอมพวเตอร_ปรบปรง.64.txt",
+        "foe10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt",
+        "วศ.บ._วศวกรรมคอมพวเตอร_ปรบปรง.64.txt",
+        "foe10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt",
+        "academiccalendar2025th.txt"
+      ]
+    },
+    {
+      "qid": 17,
+      "section": "curriculum",
+      "question": "วิชา CPE 231 คืออะไร และมีกี่หน่วยกิต?",
+      "inferred_domain": "curriculum",
+      "top1_domain": "curriculum",
+      "top5_domain_counts": {
+        "curriculum": 3,
+        "announcements": 1,
+        "regulations": 1
+      },
+      "top1_section_match": true,
+      "top5_majority_section_match": true,
+      "expected_refs": [],
+      "expected_refs_norm": [],
+      "hit_rank": null,
+      "hit@5": false,
+      "hit@10": false,
+      "top_5": [
+        "วศ.บ._วศวกรรมคอมพวเตอร_ปรบปรง.64.txt",
+        "foe10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt",
+        "foe10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt",
+        "ปฏิทินการศึกษา2568.txt",
+        "forms.txt"
+      ]
+    },
+    {
+      "qid": 18,
+      "section": "curriculum",
+      "question": "วิชา GEN 231 คืออะไร และมีกี่หน่วยกิต?",
+      "inferred_domain": "curriculum",
+      "top1_domain": "announcements",
+      "top5_domain_counts": {
+        "announcements": 2,
+        "curriculum": 3
+      },
+      "top1_section_match": false,
+      "top5_majority_section_match": true,
+      "expected_refs": [],
+      "expected_refs_norm": [],
+      "hit_rank": null,
+      "hit@5": false,
+      "hit@10": false,
+      "top_5": [
+        "ปฏิทินการศึกษา2568.txt",
+        "ปฏิทินการศึกษา2568.txt",
+        "วศ.บ._วศวกรรมคอมพวเตอร_ปรบปรง.64.txt",
+        "foe10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt",
+        "foe10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt"
+      ]
+    },
+    {
+      "qid": 19,
+      "section": "curriculum",
+      "question": "วิชา LNG 223 คืออะไร และมีกี่หน่วยกิต?",
+      "inferred_domain": "curriculum",
+      "top1_domain": "curriculum",
+      "top5_domain_counts": {
+        "curriculum": 5
+      },
+      "top1_section_match": true,
+      "top5_majority_section_match": true,
+      "expected_refs": [],
+      "expected_refs_norm": [],
+      "hit_rank": null,
+      "hit@5": false,
+      "hit@10": false,
+      "top_5": [
+        "วศ.บ._วศวกรรมคอมพวเตอร_ปรบปรง.64.txt",
+        "foe10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt",
+        "วิชาlng2562.txt",
+        "วิชาlng2562.txt",
+        "foe10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt"
+      ]
+    },
+    {
+      "qid": 20,
+      "section": "curriculum",
+      "question": "วิชา MTH 234 คืออะไร และมีกี่หน่วยกิต?",
+      "inferred_domain": "curriculum",
+      "top1_domain": "curriculum",
+      "top5_domain_counts": {
+        "curriculum": 3,
+        "announcements": 1,
+        "regulations": 1
+      },
+      "top1_section_match": true,
+      "top5_majority_section_match": true,
+      "expected_refs": [],
+      "expected_refs_norm": [],
+      "hit_rank": null,
+      "hit@5": false,
+      "hit@10": false,
+      "top_5": [
+        "วศ.บ._วศวกรรมคอมพวเตอร_ปรบปรง.64.txt",
+        "foe10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt",
+        "foe10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt",
+        "academiccalendar2025th.txt",
+        "forms.txt"
+      ]
+    },
+    {
+      "qid": 21,
+      "section": "curriculum",
+      "question": "วิชา CHM 103 คืออะไร และมีกี่หน่วยกิต?",
+      "inferred_domain": "curriculum",
+      "top1_domain": "curriculum",
+      "top5_domain_counts": {
+        "curriculum": 3,
+        "announcements": 1,
+        "regulations": 1
+      },
+      "top1_section_match": true,
+      "top5_majority_section_match": true,
+      "expected_refs": [],
+      "expected_refs_norm": [],
+      "hit_rank": null,
+      "hit@5": false,
+      "hit@10": false,
+      "top_5": [
+        "foe10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt",
+        "foe10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt",
+        "วศ.บ._วศวกรรมคอมพวเตอร_ปรบปรง.64.txt",
+        "academiccalendar2025th.txt",
+        "forms.txt"
+      ]
+    },
+    {
+      "qid": 22,
+      "section": "curriculum",
+      "question": "วิชา CPE 223 คืออะไร และมีกี่หน่วยกิต?",
+      "inferred_domain": "curriculum",
+      "top1_domain": "curriculum",
+      "top5_domain_counts": {
+        "curriculum": 4,
+        "announcements": 1
+      },
+      "top1_section_match": true,
+      "top5_majority_section_match": true,
+      "expected_refs": [],
+      "expected_refs_norm": [],
+      "hit_rank": null,
+      "hit@5": false,
+      "hit@10": false,
+      "top_5": [
+        "วศ.บ._วศวกรรมคอมพวเตอร_ปรบปรง.64.txt",
+        "วศ.บ._วศวกรรมคอมพวเตอร_ปรบปรง.64.txt",
+        "foe10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt",
+        "foe10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt",
+        "academiccalendar2025th.txt"
+      ]
+    },
+    {
+      "qid": 23,
+      "section": "curriculum",
+      "question": "วิชา CPE 232 คืออะไร และมีกี่หน่วยกิต?",
+      "inferred_domain": "curriculum",
+      "top1_domain": "curriculum",
+      "top5_domain_counts": {
+        "curriculum": 3,
+        "announcements": 1,
+        "regulations": 1
+      },
+      "top1_section_match": true,
+      "top5_majority_section_match": true,
+      "expected_refs": [],
+      "expected_refs_norm": [],
+      "hit_rank": null,
+      "hit@5": false,
+      "hit@10": false,
+      "top_5": [
+        "วศ.บ._วศวกรรมคอมพวเตอร_ปรบปรง.64.txt",
+        "foe10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt",
+        "foe10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt",
+        "ปฏิทินการศึกษา2568.txt",
+        "contacts.txt"
+      ]
+    },
+    {
+      "qid": 24,
+      "section": "curriculum",
+      "question": "วิชา CPE 241 คืออะไร และมีกี่หน่วยกิต?",
+      "inferred_domain": "curriculum",
+      "top1_domain": "curriculum",
+      "top5_domain_counts": {
+        "curriculum": 3,
+        "announcements": 1,
+        "regulations": 1
+      },
+      "top1_section_match": true,
+      "top5_majority_section_match": true,
+      "expected_refs": [],
+      "expected_refs_norm": [],
+      "hit_rank": null,
+      "hit@5": false,
+      "hit@10": false,
+      "top_5": [
+        "วศ.บ._วศวกรรมคอมพวเตอร_ปรบปรง.64.txt",
+        "foe10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt",
+        "foe10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt",
+        "ปฏิทินการศึกษา2568.txt",
+        "forms.txt"
+      ]
+    },
+    {
+      "qid": 25,
+      "section": "curriculum",
+      "question": "วิชา GEN 111 คืออะไร และมีกี่หน่วยกิต?",
+      "inferred_domain": "curriculum",
+      "top1_domain": "announcements",
+      "top5_domain_counts": {
+        "announcements": 2,
+        "curriculum": 3
+      },
+      "top1_section_match": false,
+      "top5_majority_section_match": true,
+      "expected_refs": [],
+      "expected_refs_norm": [],
+      "hit_rank": null,
+      "hit@5": false,
+      "hit@10": false,
+      "top_5": [
+        "ปฏิทินการศึกษา2568.txt",
+        "ปฏิทินการศึกษา2568.txt",
+        "วศ.บ._วศวกรรมคอมพวเตอร_ปรบปรง.64.txt",
+        "foe10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt",
+        "foe10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt"
+      ]
+    },
+    {
+      "qid": 26,
+      "section": "curriculum",
+      "question": "วิชา STA 302 คืออะไร และมีกี่หน่วยกิต?",
+      "inferred_domain": "curriculum",
+      "top1_domain": "curriculum",
+      "top5_domain_counts": {
+        "curriculum": 3,
+        "announcements": 1,
+        "regulations": 1
+      },
+      "top1_section_match": true,
+      "top5_majority_section_match": true,
+      "expected_refs": [],
+      "expected_refs_norm": [],
+      "hit_rank": null,
+      "hit@5": false,
+      "hit@10": false,
+      "top_5": [
+        "วศ.บ._วศวกรรมคอมพวเตอร_ปรบปรง.64.txt",
+        "foe10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt",
+        "foe10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt",
+        "ปฏิทินการศึกษา2568.txt",
+        "contacts.txt"
+      ]
+    },
+    {
+      "qid": 27,
+      "section": "curriculum",
+      "question": "วิชา CPE 333 คืออะไร และมีกี่หน่วยกิต?",
+      "inferred_domain": "curriculum",
+      "top1_domain": "curriculum",
+      "top5_domain_counts": {
+        "curriculum": 3,
+        "announcements": 1,
+        "regulations": 1
+      },
+      "top1_section_match": true,
+      "top5_majority_section_match": true,
+      "expected_refs": [],
+      "expected_refs_norm": [],
+      "hit_rank": null,
+      "hit@5": false,
+      "hit@10": false,
+      "top_5": [
+        "วศ.บ._วศวกรรมคอมพวเตอร_ปรบปรง.64.txt",
+        "foe10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt",
+        "foe10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt",
+        "academiccalendar2025th.txt",
+        "forms.txt"
+      ]
+    },
+    {
+      "qid": 28,
+      "section": "curriculum",
+      "question": "วิชา CPE 334 คืออะไร และมีกี่หน่วยกิต?",
+      "inferred_domain": "curriculum",
+      "top1_domain": "curriculum",
+      "top5_domain_counts": {
+        "curriculum": 3,
+        "announcements": 1,
+        "regulations": 1
+      },
+      "top1_section_match": true,
+      "top5_majority_section_match": true,
+      "expected_refs": [],
+      "expected_refs_norm": [],
+      "hit_rank": null,
+      "hit@5": false,
+      "hit@10": false,
+      "top_5": [
+        "foe10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt",
+        "วศ.บ._วศวกรรมคอมพวเตอร_ปรบปรง.64.txt",
+        "foe10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt",
+        "academiccalendar2025th.txt",
+        "forms.txt"
+      ]
+    },
+    {
+      "qid": 29,
+      "section": "curriculum",
+      "question": "วิชา CPE 342 คืออะไร และมีกี่หน่วยกิต?",
+      "inferred_domain": "curriculum",
+      "top1_domain": "curriculum",
+      "top5_domain_counts": {
+        "curriculum": 3,
+        "announcements": 1,
+        "regulations": 1
+      },
+      "top1_section_match": true,
+      "top5_majority_section_match": true,
+      "expected_refs": [],
+      "expected_refs_norm": [],
+      "hit_rank": null,
+      "hit@5": false,
+      "hit@10": false,
+      "top_5": [
+        "foe10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt",
+        "วศ.บ._วศวกรรมคอมพวเตอร_ปรบปรง.64.txt",
+        "foe10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt",
+        "ปฏิทินการศึกษา2568.txt",
+        "forms.txt"
+      ]
+    },
+    {
+      "qid": 30,
+      "section": "curriculum",
+      "question": "วิชา GEN 101 คืออะไร และมีกี่หน่วยกิต?",
+      "inferred_domain": "curriculum",
+      "top1_domain": "announcements",
+      "top5_domain_counts": {
+        "announcements": 2,
+        "curriculum": 3
+      },
+      "top1_section_match": false,
+      "top5_majority_section_match": true,
+      "expected_refs": [],
+      "expected_refs_norm": [],
+      "hit_rank": null,
+      "hit@5": false,
+      "hit@10": false,
+      "top_5": [
+        "ปฏิทินการศึกษา2568.txt",
+        "ปฏิทินการศึกษา2568.txt",
+        "โครงสร้างหลักสูตรรายวิชาศึกษาทั่วไปมจธ.txt",
+        "foe10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt",
+        "foe10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt"
+      ]
+    }
+  ]
+}

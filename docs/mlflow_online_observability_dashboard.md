@@ -99,3 +99,21 @@ Create these panels in your dashboard notebook, wiki, or operational runbook:
 - The online observability run is long-lived and stays in `RUNNING` while the service is up.
 - Metric history should be read from the active run rather than assuming one run per request.
 - Sampled traces are stored separately in MLflow tracing APIs and are useful for request-level drill-down after a dashboard spike.
+
+## Request Logs (Questions/Answers)
+
+If you want to see the *raw question/answer per request* ("what users asked"), it is stored as MLflow artifacts:
+
+- Experiment: `cpe-chat-online-observability`
+- Run: the latest active run (tags `service=rag-service`, `kind=observability`)
+- Artifacts: `requests/requests_*.jsonl`
+
+Each JSONL file contains one or more events (one JSON object per line). By default:
+
+- `question` is always stored (truncated to `MLFLOW_OBS_REQUEST_LOG_MAX_CHARS`)
+- `answer` and `ctx_sources` are stored when `MLFLOW_OBS_REQUEST_LOG_CONTENT=1`
+
+Visibility gotchas:
+
+- Artifacts are flushed periodically (default `MLFLOW_OBS_FLUSH_S=10`), so a new question may take ~10s to appear.
+- Traces are sampled by `MLFLOW_TRACE_SAMPLE_RATE`; if you expect a trace for every request, set it to `1`.

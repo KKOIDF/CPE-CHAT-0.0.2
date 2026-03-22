@@ -31,7 +31,16 @@ export RAG_HOST=0.0.0.0
 export RAG_PORT=8001
 export LLM_ENABLE=1
 export LLM_PROVIDER=typhoon
-export LLM_MODEL=typhoon-instruct
+export LLM_MODEL="${LLM_MODEL:-}"
+
+# Best-effort load LLM_MODEL from repo-level .env if not already set
+if [ -z "${LLM_MODEL:-}" ] && [ -f "$REPO_DIR/.env" ]; then
+	LLM_MODEL="$(grep -E '^LLM_MODEL=' "$REPO_DIR/.env" | tail -n 1 | cut -d= -f2- | tr -d '"' | tr -d "'")"
+	export LLM_MODEL
+fi
+
+# Safe default if still unset
+export LLM_MODEL="${LLM_MODEL:-typhoon-v2.5-30b-a3b-instruct}"
 
 # Best-effort load TYPHOON_API_KEY from repo-level .env if not already set
 if [ -z "${TYPHOON_API_KEY:-}" ] && [ -f "$REPO_DIR/.env" ]; then

@@ -12,6 +12,7 @@ from langchain_core.runnables import RunnableLambda
 from .rag_logic import (
     normalize_question,
     search_query_from_question,
+    extract_lexical_anchors,
     infer_domain,
     fallback_domains_for_domain,
     fallback_min_results,
@@ -669,12 +670,37 @@ def _build_rag_prompt_langchain(question: str, domain: Optional[str] = None) -> 
     if (not has_ref) and _MULTIQUERY_ENABLE and (_MULTIQUERY_ALL or (dom == 'curriculum') or (dom is None)):
         variants = _multiquery_variants(q_display, q_search, dom)
 
+    # Prevent multi-query drift: generated variants must preserve lexical anchors
+    # like clause numbers (ข้อ 12), course codes (CPE123), and key numbers (15, 60).
+    if (not has_ref) and variants:
+        anchors = extract_lexical_anchors(question)
+        if anchors:
+            safe: List[str] = []
+            for v in variants:
+                vl = (v or '').lower()
+                if not vl:
+                    continue
+                vl_compact = re.sub(r"[\s\-_]", "", vl)
+                ok = True
+                for a in anchors:
+                    a2 = (a or '').lower().strip()
+                    if not a2:
+                        continue
+                    a_compact = re.sub(r"[\s\-_]", "", a2)
+                    if a_compact and a_compact not in vl_compact:
+                        ok = False
+                        break
+                if ok:
+                    safe.append(v)
+            variants = safe
+
     # If we have an explicit reference hint, pass the full question down so
     # retrieve_by_domain can apply source allowlisting.
     if has_ref:
         queries = [question]
     else:
-        queries = _dedupe_keep_order([q_search, *variants], cap=1 + len(variants))
+        # Always include original query; cap total queries to avoid drifting.
+        queries = _dedupe_keep_order([q_search, *variants], cap=4)
 
     wants_listy = (
         'LNG' in q_display.upper()

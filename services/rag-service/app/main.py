@@ -20,6 +20,19 @@ from .mlflow_observability import init_mlflow_observability
 
 logger = logging.getLogger("rag-service")
 
+# Ensure timing logs are emitted when enabled.
+if (os.getenv("RAG_TIMING", "0") or "0").strip().lower() in ("1", "true", "yes", "on"):
+    try:
+        logger.setLevel(logging.INFO)
+        # Uvicorn's default logging config may not attach handlers to custom loggers.
+        # Add a simple StreamHandler to ensure [TIMING] lines appear in container logs.
+        if not logger.handlers:
+            _h = logging.StreamHandler()
+            _h.setLevel(logging.INFO)
+            logger.addHandler(_h)
+    except Exception:
+        pass
+
 _USE_LANGCHAIN = os.getenv('RAG_USE_LANGCHAIN', '0') in ('1', 'true', 'True')
 
 # If LangChain is enabled but dependencies are missing, fall back gracefully.
@@ -235,6 +248,23 @@ _STANDALONE_CODE_RE = re.compile(r"^\s*[A-Za-z]{2,6}\s*[- ]?\s*\d{3}\s*$")
 _COURSE_CODE_RE = re.compile(r"\b([A-Za-z]{2,6})\s*[- ]?\s*(\d{3})\b")
 
 
+def _content_to_text(content: object) -> str:
+    """Best-effort conversion of chat message content to plain text."""
+    if content is None:
+        return ''
+    # OpenAI-compatible APIs may send structured content (list of parts).
+    if isinstance(content, list):
+        parts: list[str] = []
+        for p in content:
+            if isinstance(p, dict):
+                if (p.get('type') or '').lower() == 'text' and p.get('text'):
+                    parts.append(str(p.get('text')))
+            else:
+                parts.append(str(p))
+        return ' '.join([x for x in (s.strip() for s in parts) if x]).strip()
+    return str(content).strip()
+
+
 def _latest_course_code_from_messages(messages: list[dict] | None) -> str:
     """Best-effort latest course code mentioned in recent chat (user/assistant)."""
     if not messages:
@@ -274,7 +304,7 @@ def _build_effective_question(messages: list[dict] | None, default_question: str
     user_msgs: list[str] = []
     for m in messages:
         if (m or {}).get('role') == 'user':
-            txt = (m.get('content') or '').strip()
+            txt = _content_to_text((m or {}).get('content'))
             if txt:
                 user_msgs.append(txt)
 
@@ -284,14 +314,21 @@ def _build_effective_question(messages: list[dict] | None, default_question: str
     last = user_msgs[-1]
     prev = user_msgs[-2] if len(user_msgs) >= 2 else ''
 
-    short = len(last) < 25
-    looks_like_placeholder = ('xxx' in last.lower())
+    last_l = last.lower()
+    looks_like_placeholder = ('xxx' in last_l)
     looks_like_new_code = _STANDALONE_CODE_RE.fullmatch(last) is not None
-    looks_like_greeting = any(t in last.lower() for t in ('สวัสดี', 'หวัดดี', 'hello', 'hi'))
+    looks_like_greeting = any(t in last_l for t in ('สวัสดี', 'หวัดดี', 'hello', 'hi'))
     followup_phrases = (
         'ขอรหัส', 'มีวิชาเดียว', 'ไม่เกี่ยว', 'ขออีก', 'หมายถึง', 'อันนี้', 'แบบไหน', 'อันไหน'
     )
-    is_followup = short or looks_like_placeholder or any(p in last for p in followup_phrases)
+
+    # Be conservative: only carry previous turn when the last message clearly
+    # refers to earlier context (coreference/follow-up phrases/placeholder).
+    is_followup = (
+        looks_like_placeholder
+        or _looks_coreference_followup(last)
+        or any(p in last for p in followup_phrases)
+    )
     has_code_in_last = _COURSE_CODE_RE.search(last) is not None
     recent_user_window = user_msgs[-3:] if len(user_msgs) >= 3 else user_msgs
 
@@ -1470,10 +1507,16 @@ def openai_compatible_endpoint(request: dict):
     raw_last_user = ""
     for msg in reversed(messages):
         if msg.get('role') == 'user':
-            raw_last_user = msg.get('content', '')
+            raw_last_user = _content_to_text(msg.get('content', ''))
             break
 
     question = _build_effective_question(messages, raw_last_user)
+
+    if (os.getenv("RAG_TIMING", "0") or "0").strip().lower() in ("1", "true", "yes", "on"):
+        try:
+            logger.info("[EFFECTIVE_Q] %s", (question or '').replace("\n", " | ")[:500])
+        except Exception:
+            pass
 
     with request_timing(
         'v1_chat_completions',

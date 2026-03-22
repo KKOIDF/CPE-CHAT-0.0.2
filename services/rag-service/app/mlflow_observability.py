@@ -148,6 +148,16 @@ class MlflowObservability:
             run = mlflow.start_run(run_name=self._cfg.run_name)
             self._run_id = run.info.run_id
 
+            logging.getLogger(__name__).info(
+                "MLflow observability enabled: tracking_uri=%s experiment=%s run_id=%s request_log_dir=%s request_log_content=%s trace_sample_rate=%s",
+                self._cfg.tracking_uri,
+                self._cfg.experiment,
+                self._run_id,
+                self._cfg.request_log_artifact_dir,
+                int(bool(self._cfg.request_log_content)),
+                self._cfg.trace_sample_rate,
+            )
+
             # Tags help filter.
             mlflow.set_tags(
                 {
