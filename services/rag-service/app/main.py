@@ -1322,23 +1322,69 @@ def _require_citations() -> bool:
         '1', 'true', 'yes', 'on'
     )
 
+
+def _infer_primary_intent(question: str) -> str:
+    q = (question or '').strip().lower()
+    if not q:
+        return 'unknown'
+
+    if any(t in q for t in ('ใครสอน', 'ผู้สอน', 'อาจารย์', 'คนสอน', 'instructor', 'lecturer', 'teacher')):
+        return 'instructor_lookup'
+    if any(t in q for t in ('หน่วยกิต', 'กี่หน่วยกิต', 'credit', 'credits')):
+        return 'credit_lookup'
+    if any(t in q for t in ('บังคับก่อน', 'prerequisite', 'pre-req', 'prereq', 'ต้องผ่าน')):
+        return 'prerequisite_lookup'
+    if any(t in q for t in ('ห้องสอบ', 'คุมสอบ', 'มาสาย', 'ออกจากห้องสอบ', 'ทุจริต', 'อุทธรณ์')):
+        return 'exam_policy'
+    if any(t in q for t in ('ลงทะเบียน', 'เพิ่มถอน', 'ลงเพิ่ม', 'ถอน', 'drop', 'register', 'enroll')):
+        return 'registration_policy'
+    if any(t in q for t in ('วัน', 'วันที่', 'เมื่อไร', 'กำหนด', 'deadline', 'ปฏิทิน', 'calendar')):
+        return 'calendar_deadline'
+    if any(t in q for t in ('หลักสูตร', 'รายวิชา', 'วิชา', 'รหัสวิชา', 'course')):
+        return 'curriculum_course_info'
+    return 'general_info'
+
+
+def _observe_entry_metrics(question: str, requested_domain: str | None, *, use_langchain: bool) -> None:
+    q_clean = (question or '').strip()
+    add_metric('q_len', len(q_clean))
+    add_metric('question', q_clean)
+    add_metric('requested_domain', (requested_domain or '').strip().lower() or 'auto')
+    add_metric('use_langchain', int(bool(use_langchain)))
+    add_metric('intent_primary', _infer_primary_intent(q_clean))
+
+
+def _observe_default_request_metrics(*, structured_eligible: bool) -> None:
+    # Emit explicit zeros so per-request rates can be computed as rolling averages.
+    add_metric('structured_path_eligible', int(bool(structured_eligible)))
+    add_metric('structured_path_hit', 0)
+    add_metric('structured_path_fallback_nonstructured', 0)
+    add_metric('path_langchain_used', 0)
+    add_metric('path_nonstructured_used', 0)
+    add_metric('citation_repair_attempt', 0)
+    add_metric('citation_repair_success', 0)
+    add_metric('fallback_answer_used', 0)
+
 @app.post('/rag/query', response_model=RagResponse)
 def rag_endpoint(req: RagRequest):
     with request_timing('rag_query', endpoint='/rag/query', domain=req.domain):
-        add_metric('q_len', len((req.question or '').strip()))
-        add_metric('question', (req.question or '').strip())
-        add_metric('requested_domain', (req.domain or '').strip().lower() or 'auto')
-        add_metric('use_langchain', int(bool(_USE_LANGCHAIN and _LANGCHAIN_READY and _langchain_rag is not None)))
+        use_langchain = bool(_USE_LANGCHAIN and _LANGCHAIN_READY and _langchain_rag is not None)
+        lc = _langchain_rag
+        _observe_entry_metrics(req.question, req.domain, use_langchain=use_langchain)
+        _observe_default_request_metrics(structured_eligible=False)
 
-        if _USE_LANGCHAIN and _LANGCHAIN_READY and _langchain_rag is not None:
+        if use_langchain and lc is not None:
+            add_metric('path_langchain_used', 1)
             with time_block('langchain_rag'):
-                result = _langchain_rag.rag_query_langchain(req.question, req.domain)
+                result = lc.rag_query_langchain(req.question, req.domain)
         else:
+            add_metric('path_nonstructured_used', 1)
             with time_block('rag_query'):
                 result = rag_query_domain(req.question, req.domain) if req.domain else rag_query(req.question)
 
         add_metric('ctx_n', len(result.get('contexts') or []))
         add_metric('token_est', result.get('token_est', 0))
+        add_metric('token_est_per_question', result.get('token_est', 0))
         add_metric('ctx_sources', ','.join(_context_source_names(result)))
         add_metric('prompt_chars', len(result.get('prompt') or ''))
         return RagResponse(**result)
@@ -1346,18 +1392,25 @@ def rag_endpoint(req: RagRequest):
 @app.post('/rag/answer', response_model=RagAnswerResponse)
 def rag_answer_endpoint(req: RagAnswerRequest):
     with request_timing('rag_answer', endpoint='/rag/answer', domain=req.domain):
-        add_metric('q_len', len((req.question or '').strip()))
-        add_metric('question', (req.question or '').strip())
-        add_metric('requested_domain', (req.domain or '').strip().lower() or 'auto')
+        use_langchain = bool(_USE_LANGCHAIN and _LANGCHAIN_READY and _langchain_rag is not None)
+        lc = _langchain_rag
+        _observe_entry_metrics(req.question, req.domain, use_langchain=use_langchain)
+        structured_eligible = bool(
+            _USE_STRUCTURED_CURRICULUM
+            and (((req.domain or '').strip().lower() == 'curriculum') or req.domain is None)
+        )
+        _observe_default_request_metrics(structured_eligible=structured_eligible)
 
         # Structured curriculum shortcut (deterministic, not top-k dependent)
-        if _USE_STRUCTURED_CURRICULUM and ((req.domain or '').strip().lower() == 'curriculum' or req.domain is None):
+        if structured_eligible:
             with time_block('structured_curriculum'):
                 structured = structured_curriculum_answer(req.question)
             if structured:
                 add_metric('structured_curriculum_hit', 1)
+                add_metric('structured_path_hit', 1)
                 add_metric('ctx_n', 0)
                 add_metric('token_est', 0)
+                add_metric('token_est_per_question', 0)
                 add_metric('ctx_sources', '')
                 add_metric('answer', structured)
                 add_metric('answer_chars', len(structured))
@@ -1368,18 +1421,21 @@ def rag_answer_endpoint(req: RagAnswerRequest):
                     contexts=[],
                     token_est=0,
                 )
+            add_metric('structured_path_fallback_nonstructured', 1)
 
         try:
-            add_metric('use_langchain', int(bool(_USE_LANGCHAIN and _LANGCHAIN_READY and _langchain_rag is not None)))
-            if _USE_LANGCHAIN and _LANGCHAIN_READY and _langchain_rag is not None:
+            if use_langchain and lc is not None:
+                add_metric('path_langchain_used', 1)
                 with time_block('langchain_rag'):
-                    result = _langchain_rag.rag_answer_langchain(req.question, req.domain)
+                    result = lc.rag_answer_langchain(req.question, req.domain)
             else:
+                add_metric('path_nonstructured_used', 1)
                 with time_block('rag_query'):
                     result = rag_query_domain(req.question, req.domain) if req.domain else rag_query(req.question)
         except Exception as e:
             logger.error("/rag/answer failed: %s\n%s", str(e), traceback.format_exc())
             add_metric('error', 1)
+            add_metric('failure_intent', _infer_primary_intent(req.question))
             return RagAnswerResponse(
                 question=req.question,
                 prompt=f"(exception) {type(e).__name__}: {e}",
@@ -1390,6 +1446,7 @@ def rag_answer_endpoint(req: RagAnswerRequest):
 
         add_metric('ctx_n', len(result.get('contexts') or []))
         add_metric('token_est', result.get('token_est', 0))
+        add_metric('token_est_per_question', result.get('token_est', 0))
         add_metric('ctx_sources', ','.join(_context_source_names(result)))
         add_metric('prompt_chars', len(result.get('prompt') or ''))
 
@@ -1452,10 +1509,15 @@ def rag_answer_endpoint(req: RagAnswerRequest):
 
                     # Optionally enforce citations when we have context.
                     if _require_citations() and (result.get('contexts') or []) and answer and not answer.strip().startswith('('):
+                        had_citations_before = _has_citations(answer)
+                        if not had_citations_before:
+                            add_metric('citation_repair_attempt', 1)
                         with time_block('repair_citations_llm'):
                             answer = _repair_answer_with_citations(answer, result.get('prompt') or '')
                         with time_block('sanitize_citations'):
                             answer = _sanitize_answer_citations(answer, result.get('prompt') or '')
+                        if (not had_citations_before) and _has_citations(answer):
+                            add_metric('citation_repair_success', 1)
 
             # If generation is unavailable/disabled, preserve the diagnostic message.
             if not (answer or '').strip().startswith('('):
@@ -1466,6 +1528,10 @@ def rag_answer_endpoint(req: RagAnswerRequest):
                 # If model uses fallback phrase, it must be the entire answer.
                 if _FALLBACK in answer and answer != _FALLBACK:
                     answer = _FALLBACK
+
+        if (answer or '').strip() == _FALLBACK:
+            add_metric('fallback_answer_used', 1)
+            add_metric('failure_intent', _infer_primary_intent(req.question))
 
         add_metric('answer', (answer or '').strip())
         add_metric('answer_chars', len((answer or '').strip()))
@@ -1528,18 +1594,23 @@ def openai_compatible_endpoint(request: dict):
         model=request.get('model', 'typhoon-rag'),
         msg_n=len(messages or []),
     ):
-        add_metric('q_len', len((question or '').strip()))
-        add_metric('question', (question or '').strip())
-        add_metric('requested_domain', (domain or '').strip().lower() or 'auto')
-        add_metric('use_langchain', int(bool(_USE_LANGCHAIN and _LANGCHAIN_READY and _langchain_rag is not None)))
+        use_langchain = bool(_USE_LANGCHAIN and _LANGCHAIN_READY and _langchain_rag is not None)
+        lc = _langchain_rag
+        _observe_entry_metrics(question, domain, use_langchain=use_langchain)
+        structured_eligible = bool(_USE_STRUCTURED_CURRICULUM)
+        _observe_default_request_metrics(structured_eligible=structured_eligible)
 
         # Structured curriculum shortcut for OpenWebUI (works even without retrieval)
-        with time_block('structured_curriculum'):
-            structured = structured_curriculum_answer(question)
+        structured = None
+        if structured_eligible:
+            with time_block('structured_curriculum'):
+                structured = structured_curriculum_answer(question)
         if structured:
             add_metric('structured_curriculum_hit', 1)
+            add_metric('structured_path_hit', 1)
             add_metric('ctx_n', 0)
             add_metric('token_est', 0)
+            add_metric('token_est_per_question', 0)
             add_metric('ctx_sources', '')
             add_metric('answer', structured)
             add_metric('answer_chars', len(structured))
@@ -1559,29 +1630,36 @@ def openai_compatible_endpoint(request: dict):
                 ],
                 "usage": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
             }
+        elif structured_eligible:
+            add_metric('structured_path_fallback_nonstructured', 1)
 
         if not question:
             add_metric('error', 1)
+            add_metric('failure_intent', 'empty_question')
             return {
                 "error": "No user message found in request"
             }
 
         # Get RAG response
         try:
-            if _USE_LANGCHAIN and _LANGCHAIN_READY and _langchain_rag is not None:
+            if use_langchain and lc is not None:
+                add_metric('path_langchain_used', 1)
                 with time_block('langchain_rag'):
-                    result = _langchain_rag.rag_answer_langchain(question, domain)
+                    result = lc.rag_answer_langchain(question, domain)
             else:
+                add_metric('path_nonstructured_used', 1)
                 with time_block('rag_query'):
                     result = rag_query_domain(question, domain) if domain else rag_query(question)
         except Exception as e:
             add_metric('error', 1)
+            add_metric('failure_intent', _infer_primary_intent(question))
             return {
                 "error": f"RAG query failed: {str(e)}"
             }
 
         add_metric('ctx_n', len(result.get('contexts') or []))
         add_metric('token_est', result.get('token_est', 0))
+        add_metric('token_est_per_question', result.get('token_est', 0))
         add_metric('ctx_sources', ','.join(_context_source_names(result)))
         add_metric('prompt_chars', len(result.get('prompt') or ''))
 
@@ -1631,6 +1709,10 @@ def openai_compatible_endpoint(request: dict):
 
             if not (answer or '').strip().startswith('('):
                 answer = _clean_answer_text(answer, strip_citations=True)
+
+        if (answer or '').strip() == _FALLBACK:
+            add_metric('fallback_answer_used', 1)
+            add_metric('failure_intent', _infer_primary_intent(question))
 
         add_metric('answer', (answer or '').strip())
         add_metric('answer_chars', len((answer or '').strip()))

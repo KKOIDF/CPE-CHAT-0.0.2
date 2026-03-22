@@ -230,6 +230,7 @@ _ABSTAIN_RE = re.compile(
     r"ไม่พบข้อความยืนยันโดยตรง|ไม่มีข้อความยืนยันโดยตรง|ไม่ได้กล่าวตรง\s*ๆ"
 )
 _CLARIFY_RE = re.compile(r"ช่วยระบุ|ขอรายละเอียด|หมายถึง|ต้องการ.*(ปี|ภาค|รหัส)|พิมพ์รหัสเต็ม")
+_CITATION_RE = re.compile(r"\[([^\[\]]+?)/(\d+)\]")
 
 
 def _is_abstain(answer: str) -> bool:
@@ -246,6 +247,40 @@ def _is_clarify(answer: str) -> bool:
     if not a:
         return False
     return bool(_CLARIFY_RE.search(a))
+
+
+def _normalize_source_name(src: str) -> str:
+    s = (src or "").strip().replace("\\", "/").split("/")[-1].lower()
+    return s
+
+
+def _relaxed_source_token(src: str) -> str:
+    # Relax matching so minor punctuation/underscore variations still map.
+    return re.sub(r"[\W_]+", "", _normalize_source_name(src), flags=re.UNICODE)
+
+
+def _extract_citation_sources(answer: str) -> List[str]:
+    return [m.group(1).strip() for m in _CITATION_RE.finditer(answer or "")]
+
+
+def _infer_eval_group(row: Dict[str, Any]) -> str:
+    grp = (row.get("eval_group") or row.get("group") or "").strip().lower()
+    if grp:
+        return grp
+    tags = (row.get("tags") or "").strip().lower()
+    domain = (row.get("domain") or "").strip().lower()
+    q = (row.get("question") or "").strip().lower()
+    if "calendar" in tags or "schedule" in tags or "ปฏิทิน" in q:
+        return "announcement_schedule"
+    if "prerequisite" in tags or "course-code" in tags or "รหัส" in q:
+        return "prerequisite_course_code"
+    if "clause" in tags or domain == "regulations":
+        return "regulations_clause_query"
+    if "multi_doc" in tags or "multi-intent" in tags:
+        return "multi_doc_multi_intent"
+    if domain == "curriculum":
+        return "curriculum_fact_lookup"
+    return "uncategorized"
 
 
 @dataclass
@@ -271,6 +306,9 @@ class CaseResult:
     behavior_match: bool
     hallucination: bool
     false_negative: bool
+    eval_group: str
+    citations_found: int
+    citations_valid: bool
     error: str
     trace_id: str
 
@@ -294,6 +332,12 @@ def main() -> int:
     ap.add_argument("--limit", type=int, default=0)
     ap.add_argument("--sim-threshold", type=float, default=0.55)
     ap.add_argument("--default-domain", default="curriculum")
+    ap.add_argument("--require-citations", action="store_true")
+    ap.add_argument("--gate-min-exactness", type=float, default=-1.0)
+    ap.add_argument("--gate-min-citation-validity", type=float, default=-1.0)
+    ap.add_argument("--gate-max-latency-p95", type=float, default=-1.0)
+    ap.add_argument("--gate-required-groups", default="")
+    ap.add_argument("--gate-min-cases-per-group", type=int, default=0)
     args = ap.parse_args()
 
     in_path = Path(args.input)
@@ -325,6 +369,7 @@ def main() -> int:
         expected_answer = (r.get("expected_answer") or "").strip()
         reference_hint = (r.get("reference_hint") or "").strip()
         tags = (r.get("tags") or "").strip()
+        eval_group = _infer_eval_group(r)
 
         answer = ""
         contexts: List[Dict[str, Any]] = []
@@ -342,6 +387,19 @@ def main() -> int:
 
         sources = _sources_from_contexts(contexts)
         sources_top = sources[:8]
+        context_src_strict = {_normalize_source_name(x) for x in sources_top}
+        context_src_relaxed = {_relaxed_source_token(x) for x in sources_top}
+
+        citation_srcs = _extract_citation_sources(answer)
+        citation_srcs_strict = [_normalize_source_name(x) for x in citation_srcs]
+        citation_srcs_relaxed = [_relaxed_source_token(x) for x in citation_srcs]
+        has_citations = len(citation_srcs) > 0
+        valid_citations = False
+        if has_citations:
+            valid_citations = all(
+                (src in context_src_strict) or (r_src in context_src_relaxed)
+                for src, r_src in zip(citation_srcs_strict, citation_srcs_relaxed)
+            )
 
         sim = _seq_ratio(expected_answer, answer) if (expected_answer and answer) else 0.0
         years_j = _jaccard(_extract_years(expected_answer), _extract_years(answer)) if (expected_answer and answer) else 0.0
@@ -389,6 +447,9 @@ def main() -> int:
                 behavior_match=behavior_match,
                 hallucination=hallucination,
                 false_negative=false_negative,
+                eval_group=eval_group,
+                citations_found=len(citation_srcs),
+                citations_valid=(valid_citations and has_citations),
                 error=err,
                 trace_id="",
             )
@@ -436,6 +497,55 @@ def main() -> int:
         if ok_sim and ok_num:
             correct_ans += 1
 
+    answered_cases = [x for x in results if x.predicted_behavior == "ANSWER" and not (x.error or "").strip()]
+    if args.require_citations:
+        citation_valid_cases = [x for x in answered_cases if x.citations_valid]
+    else:
+        # If citations are optional, treat non-citation answers as valid and only reject invalid citation references.
+        citation_valid_cases = [x for x in answered_cases if (x.citations_found == 0) or x.citations_valid]
+    citation_validity_rate = (len(citation_valid_cases) / len(answered_cases)) if answered_cases else 0.0
+
+    group_counts: Dict[str, int] = {}
+    group_exact_numer: Dict[str, int] = {}
+    group_exact_denom: Dict[str, int] = {}
+    group_cite_numer: Dict[str, int] = {}
+    group_cite_denom: Dict[str, int] = {}
+    for x in results:
+        g = x.eval_group or "uncategorized"
+        group_counts[g] = group_counts.get(g, 0) + 1
+        if (x.expected_behavior == "ANSWER") and x.expect_answerable and x.expected_answer:
+            group_exact_denom[g] = group_exact_denom.get(g, 0) + 1
+            ok_sim = x.similarity >= float(args.sim_threshold)
+            ok_num = True
+            if x.answer:
+                exp_nums = set(_extract_numbers(x.expected_answer))
+                ans_nums = set(_extract_numbers(x.answer))
+                if exp_nums:
+                    ok_num = bool(exp_nums & ans_nums)
+            if ok_sim and ok_num:
+                group_exact_numer[g] = group_exact_numer.get(g, 0) + 1
+
+        if x.predicted_behavior == "ANSWER" and not (x.error or "").strip():
+            group_cite_denom[g] = group_cite_denom.get(g, 0) + 1
+            if args.require_citations:
+                cite_ok = x.citations_valid
+            else:
+                cite_ok = (x.citations_found == 0) or x.citations_valid
+            if cite_ok:
+                group_cite_numer[g] = group_cite_numer.get(g, 0) + 1
+
+    group_metrics: Dict[str, Dict[str, float]] = {}
+    for g in sorted(group_counts.keys()):
+        ex_d = group_exact_denom.get(g, 0)
+        ct_d = group_cite_denom.get(g, 0)
+        group_metrics[g] = {
+            "cases": float(group_counts.get(g, 0)),
+            "exactness": (group_exact_numer.get(g, 0) / ex_d) if ex_d else 0.0,
+            "exactness_denom": float(ex_d),
+            "citation_validity": (group_cite_numer.get(g, 0) / ct_d) if ct_d else 0.0,
+            "citation_denom": float(ct_d),
+        }
+
     abstain_correct = sum(
         1
         for x in results
@@ -463,6 +573,7 @@ def main() -> int:
         "false_negative_rate": (false_negs / n_ans) if n_ans else 0.0,
         "answerable_correct_heur": correct_ans,
         "answerable_accuracy_heur": (correct_ans / n_ans_with_expected) if n_ans_with_expected else 0.0,
+        "exactness": (correct_ans / n_ans_with_expected) if n_ans_with_expected else 0.0,
         "answerable_cases_with_expected": n_ans_with_expected,
         "abstain_correct": abstain_correct,
         "abstain_accuracy": (abstain_correct / n_unans) if n_unans else 0.0,
@@ -473,6 +584,9 @@ def main() -> int:
         "latency_ms_p99": _percentile(latency_values, 99),
         "latency_ms_max": max(latency_values) if latency_values else 0.0,
         "contexts_count_avg": (sum(x.contexts_count for x in results) / n_total) if n_total else 0.0,
+        "citation_validity_rate": citation_validity_rate,
+        "answered_cases_for_citation": len(answered_cases),
+        "require_citations": bool(args.require_citations),
         "sim_threshold": float(args.sim_threshold),
     }
 
@@ -485,6 +599,7 @@ def main() -> int:
     payload = {
         "summary": summary,
         "behavior_confusion": behavior_confusion,
+        "group_metrics": group_metrics,
         "cases": [
             {
                 **x.__dict__,
@@ -556,6 +671,17 @@ def main() -> int:
         preds = behavior_confusion.get(exp, {})
         rendered = ", ".join(f"{k}={preds[k]}" for k in sorted(preds.keys()))
         lines.append(f"- {exp}: {rendered}")
+    lines.append("")
+
+    lines.append("## Group Metrics")
+    lines.append("")
+    for g in sorted(group_metrics.keys()):
+        gm = group_metrics[g]
+        lines.append(
+            f"- {g}: cases={int(gm.get('cases', 0))}, "
+            f"exactness={gm.get('exactness', 0.0):.4f} (n={int(gm.get('exactness_denom', 0))}), "
+            f"citation_validity={gm.get('citation_validity', 0.0):.4f} (n={int(gm.get('citation_denom', 0))})"
+        )
     lines.append("")
 
     # Show top hallucination examples
@@ -651,6 +777,7 @@ def main() -> int:
             payload = {
                 "summary": summary,
                 "behavior_confusion": behavior_confusion,
+                "group_metrics": group_metrics,
                 "cases": [
                     {
                         **x.__dict__,
@@ -749,6 +876,51 @@ def main() -> int:
     print(f"Wrote: {out_md}")
     print(f"Wrote: {out_latency_csv}")
     print(json.dumps(summary, ensure_ascii=False, indent=2))
+
+    gate_failures: List[str] = []
+    req_groups = [x.strip().lower() for x in str(args.gate_required_groups or "").split(",") if x.strip()]
+    if req_groups:
+        for g in req_groups:
+            if g not in group_counts:
+                gate_failures.append(f"missing_required_group={g}")
+            elif args.gate_min_cases_per_group > 0 and group_counts.get(g, 0) < int(args.gate_min_cases_per_group):
+                gate_failures.append(
+                    f"insufficient_cases_group={g} have={group_counts.get(g, 0)} need>={int(args.gate_min_cases_per_group)}"
+                )
+
+    exactness_val = float(summary.get("exactness", 0.0))
+    citation_val = float(summary.get("citation_validity_rate", 0.0))
+    p95_val = float(summary.get("latency_ms_p95", 0.0))
+
+    if args.gate_min_exactness >= 0 and exactness_val < float(args.gate_min_exactness):
+        gate_failures.append(
+            f"exactness_below_threshold value={exactness_val:.4f} need>={float(args.gate_min_exactness):.4f}"
+        )
+    if args.gate_min_citation_validity >= 0 and citation_val < float(args.gate_min_citation_validity):
+        gate_failures.append(
+            f"citation_validity_below_threshold value={citation_val:.4f} need>={float(args.gate_min_citation_validity):.4f}"
+        )
+    if args.gate_max_latency_p95 >= 0 and p95_val > float(args.gate_max_latency_p95):
+        gate_failures.append(
+            f"latency_p95_above_threshold value={p95_val:.2f} need<={float(args.gate_max_latency_p95):.2f}"
+        )
+
+    if gate_failures:
+        print("GATE_STATUS: FAIL")
+        for f in gate_failures:
+            print(f"GATE_FAIL: {f}")
+        return 2
+
+    has_gate = any(
+        [
+            args.gate_min_exactness >= 0,
+            args.gate_min_citation_validity >= 0,
+            args.gate_max_latency_p95 >= 0,
+            bool(req_groups),
+        ]
+    )
+    if has_gate:
+        print("GATE_STATUS: PASS")
     return 0
 
 

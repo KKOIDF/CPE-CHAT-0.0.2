@@ -14,6 +14,14 @@ from typing import Any, Deque, Dict, Optional, Tuple
 import uuid
 
 
+_CATEGORICAL_METRIC_KEYS = {
+    "intent_primary",
+    "failure_intent",
+    "requested_domain",
+    "inferred_domain",
+}
+
+
 def _truthy(v: str) -> bool:
     return (v or "").strip().lower() in {"1", "true", "yes", "y", "on"}
 
@@ -73,8 +81,14 @@ class MlflowObservability:
         self._counts: Dict[str, int] = defaultdict(int)
         self._errors: Dict[str, int] = defaultdict(int)
         self._latencies: Dict[str, Deque[float]] = defaultdict(lambda: deque(maxlen=self._cfg.window_n))
+        self._stage_latencies: Dict[str, Dict[str, Deque[float]]] = defaultdict(
+            lambda: defaultdict(lambda: deque(maxlen=self._cfg.window_n))
+        )
         self._metric_sums: Dict[str, Dict[str, float]] = defaultdict(lambda: defaultdict(float))
         self._metric_counts: Dict[str, Dict[str, int]] = defaultdict(lambda: defaultdict(int))
+        self._category_counts: Dict[str, Dict[str, Dict[str, int]]] = defaultdict(
+            lambda: defaultdict(lambda: defaultdict(int))
+        )
         self._last_flush: float = 0.0
 
         self._request_events: Deque[Dict[str, Any]] = deque(maxlen=max(1000, self._cfg.window_n * 2))
@@ -212,9 +226,22 @@ class MlflowObservability:
                 self._errors[endpoint_key] += 1
             if total_ms > 0:
                 self._latencies[endpoint_key].append(total_ms)
+            for stage_name, stage_ms in (timings or {}).items():
+                if not stage_name or stage_name == "total":
+                    continue
+                try:
+                    v = float(stage_ms)
+                except Exception:
+                    continue
+                if v > 0:
+                    self._stage_latencies[endpoint_key][_safe_name(stage_name)].append(v)
             for key, value in (metrics or {}).items():
                 if not key or key in {"question", "answer", "ctx_sources"}:
                     continue
+                if key in _CATEGORICAL_METRIC_KEYS:
+                    sval = str(value).strip()
+                    if sval:
+                        self._category_counts[endpoint_key][_safe_name(key)][_safe_name(sval)] += 1
                 if isinstance(value, bool):
                     numeric = 1.0 if value else 0.0
                 elif isinstance(value, (int, float)):
@@ -263,6 +290,14 @@ class MlflowObservability:
                 "guardrail_triggered": metrics.get("guardrail_triggered"),
                 "q_len": metrics.get("q_len"),
                 "answer_chars": metrics.get("answer_chars"),
+                "intent_primary": metrics.get("intent_primary"),
+                "failure_intent": metrics.get("failure_intent"),
+                "structured_path_hit": metrics.get("structured_path_hit"),
+                "structured_path_eligible": metrics.get("structured_path_eligible"),
+                "path_langchain_used": metrics.get("path_langchain_used"),
+                "path_nonstructured_used": metrics.get("path_nonstructured_used"),
+                "citation_repair_attempt": metrics.get("citation_repair_attempt"),
+                "citation_repair_success": metrics.get("citation_repair_success"),
             }
 
             # Store question always (requirement), with truncation.
@@ -307,6 +342,16 @@ class MlflowObservability:
             counts = dict(self._counts)
             errors = dict(self._errors)
             lats = {k: list(v) for k, v in self._latencies.items()}
+            stage_lats = {
+                ep: {stage: list(vals) for stage, vals in stage_map.items()}
+                for ep, stage_map in self._stage_latencies.items()
+            }
+            metric_sums_all = {ep: dict(vals) for ep, vals in self._metric_sums.items()}
+            metric_counts_all = {ep: dict(vals) for ep, vals in self._metric_counts.items()}
+            category_counts_all = {
+                ep: {k: dict(v) for k, v in key_map.items()}
+                for ep, key_map in self._category_counts.items()
+            }
 
         now = time.time()
         step = int(now)
@@ -337,8 +382,25 @@ class MlflowObservability:
                 err_rate = (e / float(n)) if n else 0.0
                 metrics_to_log[f"error_rate__{ep}"] = float(err_rate)
 
-            metric_sums = self._metric_sums.get(ep) or {}
-            metric_counts = self._metric_counts.get(ep) or {}
+            for stage_name, stage_window in (stage_lats.get(ep) or {}).items():
+                if not stage_window:
+                    continue
+                stage_sorted = sorted(stage_window)
+
+                def stage_pct(p: float) -> float:
+                    idx = int(round((p / 100.0) * (len(stage_sorted) - 1)))
+                    idx = max(0, min(len(stage_sorted) - 1, idx))
+                    return float(stage_sorted[idx])
+
+                metrics_to_log[f"latency_ms_stage_p50__{stage_name}__{ep}"] = stage_pct(50)
+                metrics_to_log[f"latency_ms_stage_p90__{stage_name}__{ep}"] = stage_pct(90)
+                metrics_to_log[f"latency_ms_stage_p99__{stage_name}__{ep}"] = stage_pct(99)
+                metrics_to_log[f"latency_ms_stage_avg__{stage_name}__{ep}"] = float(
+                    sum(stage_window) / len(stage_window)
+                )
+
+            metric_sums = metric_sums_all.get(ep) or {}
+            metric_counts = metric_counts_all.get(ep) or {}
             for key, total_value in metric_sums.items():
                 count_value = int(metric_counts.get(key) or 0)
                 safe_key = _safe_name(key)
@@ -346,6 +408,32 @@ class MlflowObservability:
                     metrics_to_log[f"sum__{safe_key}__{ep}"] = float(total_value)
                 if count_value > 0:
                     metrics_to_log[f"avg__{safe_key}__{ep}"] = float(total_value / count_value)
+
+            # Ready-to-use decision rates.
+            structured_eligible = float(metric_sums.get("structured_path_eligible") or 0.0)
+            structured_hit = float(metric_sums.get("structured_path_hit") or 0.0)
+            structured_fallback = float(metric_sums.get("structured_path_fallback_nonstructured") or 0.0)
+            path_langchain_used = float(metric_sums.get("path_langchain_used") or 0.0)
+            path_nonstructured_used = float(metric_sums.get("path_nonstructured_used") or 0.0)
+            cite_attempt = float(metric_sums.get("citation_repair_attempt") or 0.0)
+            cite_success = float(metric_sums.get("citation_repair_success") or 0.0)
+
+            if structured_eligible > 0:
+                metrics_to_log[f"rate__structured_path_hit__{ep}"] = structured_hit / structured_eligible
+                metrics_to_log[f"rate__structured_path_fallback_nonstructured__{ep}"] = (
+                    structured_fallback / structured_eligible
+                )
+            if n > 0:
+                metrics_to_log[f"rate__path_langchain_used__{ep}"] = path_langchain_used / float(n)
+                metrics_to_log[f"rate__path_nonstructured_used__{ep}"] = path_nonstructured_used / float(n)
+            if cite_attempt > 0:
+                metrics_to_log[f"rate__citation_repair_success__{ep}"] = cite_success / cite_attempt
+
+            # Top categorical signals (intent/domain/failure_intent).
+            for cat_key, cat_vals in (category_counts_all.get(ep) or {}).items():
+                top_vals = sorted(cat_vals.items(), key=lambda kv: kv[1], reverse=True)[:10]
+                for val_key, cnt in top_vals:
+                    metrics_to_log[f"count__{cat_key}__{val_key}__{ep}"] = float(cnt)
 
         # Global rollup (all endpoints).
         total = float(sum(counts.values()))
