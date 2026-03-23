@@ -492,6 +492,15 @@ def main() -> int:
 
     results: list[CaseResult] = []
     total = 0
+    planned_cases = [c for c in cases if isinstance(c, dict)]
+    if args.limit:
+        planned_cases = planned_cases[: int(args.limit)]
+    planned_total = len(planned_cases)
+
+    print(
+        f"[heartbeat] start total_cases={planned_total} base_url={args.base_url} timeout_s={float(args.timeout):.1f}",
+        flush=True,
+    )
 
     for case in cases:
         if args.limit and total >= int(args.limit):
@@ -515,6 +524,12 @@ def main() -> int:
         payload: dict[str, Any] = {"question": question}
         if expected_domain in KNOWN_DOMAINS:
             payload["domain"] = expected_domain
+
+        case_t0 = time.perf_counter()
+        print(
+            f"[heartbeat] case_start idx={total}/{planned_total or total} id={cid} category={category} domain={expected_domain or 'auto'}",
+            flush=True,
+        )
 
         retrieval_data, retrieval_ms, retrieval_err = post_json(
             args.base_url, "/rag/query", payload, timeout_s=float(args.timeout)
@@ -583,6 +598,16 @@ def main() -> int:
             )
         )
 
+        case_ms = (time.perf_counter() - case_t0) * 1000.0
+        print(
+            (
+                f"[heartbeat] case_done idx={total}/{planned_total or total} id={cid} "
+                f"pass={int(total_pass)} err={int(bool(err))} "
+                f"latency_ms={total_ms:.1f} case_ms={case_ms:.1f}"
+            ),
+            flush=True,
+        )
+
     summary = summarize(results)
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
 
@@ -603,8 +628,8 @@ def main() -> int:
     out_json.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
     out_md.write_text(to_markdown(summary, input_path, args.base_url), encoding="utf-8")
 
-    print(f"Wrote JSON: {out_json}")
-    print(f"Wrote MD:   {out_md}")
+    print(f"Wrote JSON: {out_json}", flush=True)
+    print(f"Wrote MD:   {out_md}", flush=True)
 
     if args.baseline_commit:
         short = (args.baseline_commit or "").strip()[:7]
@@ -613,8 +638,8 @@ def main() -> int:
         b_md = Path("reports") / f"baseline_{short}.md"
         b_json.write_text(json.dumps(baseline, ensure_ascii=False, indent=2), encoding="utf-8")
         b_md.write_text(baseline_markdown(baseline), encoding="utf-8")
-        print(f"Wrote baseline JSON: {b_json}")
-        print(f"Wrote baseline MD:   {b_md}")
+        print(f"Wrote baseline JSON: {b_json}", flush=True)
+        print(f"Wrote baseline MD:   {b_md}", flush=True)
 
     if args.compare_baseline:
         baseline_path = Path(args.compare_baseline)
@@ -637,11 +662,11 @@ def main() -> int:
             protected_categories=protected,
         )
         if gate_failures:
-            print("GATE FAILED")
+            print("GATE FAILED", flush=True)
             for line in gate_failures:
-                print(f"- {line}")
+                print(f"- {line}", flush=True)
             return 1
-        print("GATE PASSED")
+        print("GATE PASSED", flush=True)
 
     return 0
 

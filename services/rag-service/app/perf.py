@@ -89,8 +89,19 @@ def request_timing(request_name: str, **initial_metrics: Any) -> Iterator[None]:
             metric_str = " ".join([f"{k}={metrics[k]}" for k in sorted(metrics.keys())])
             if metric_str:
                 logger.info("[TIMING][%s] %s | %s", request_name, timing_str, metric_str)
+                file_msg = f"[TIMING][{request_name}] {timing_str} | {metric_str}"
             else:
                 logger.info("[TIMING][%s] %s", request_name, timing_str)
+                file_msg = f"[TIMING][{request_name}] {timing_str}"
+
+            try:
+                log_dir = os.getenv("DATA_DIR", "/app/data")
+                os.makedirs(log_dir, exist_ok=True)
+                log_file = os.path.join(log_dir, "timing_summary.log")
+                with open(log_file, "a", encoding="utf-8") as f:
+                    f.write(file_msg + "\n")
+            except Exception as e:
+                logger.error("Failed to write timing summary: %s", str(e))
 
         try:
             _TIMINGS.reset(token_t)

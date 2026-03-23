@@ -22,6 +22,7 @@ from .routing import (
 from .retrieval import retrieve_by_domain, retrieve_all_domains, retrieve_multi_document
 from .context_packing import pack_context, pack_context_grouped, est_tokens
 from .prompting import build_prompt
+from .perf import time_block
 from .config import RRF_K, MAX_CONTEXTS
 from .llm import llm_engine
 from .chroma_client import embed_texts, semantic_search_domain
@@ -784,20 +785,21 @@ def _build_rag_prompt_langchain(question: str, domain: Optional[str] = None) -> 
             items = retrieve_all_domains(q)
         return q, items
 
-    if _PARALLEL_ENABLE and len(queries) > 1:
-        workers = max(1, min(12, int(_PARALLEL_WORKERS)))
-        with ThreadPoolExecutor(max_workers=workers) as ex:
-            futs = [ex.submit(_retrieve_one, q) for q in queries]
-            for fut in as_completed(futs):
-                try:
-                    retrieved_lists.append(fut.result())
-                except Exception:
-                    continue
-        order = {q: i for i, q in enumerate(queries)}
-        retrieved_lists.sort(key=lambda x: order.get(x[0], 10**9))
-    else:
-        for q in queries:
-            retrieved_lists.append(_retrieve_one(q))
+    with time_block('vector_search'):
+        if _PARALLEL_ENABLE and len(queries) > 1:
+            workers = max(1, min(12, int(_PARALLEL_WORKERS)))
+            with ThreadPoolExecutor(max_workers=workers) as ex:
+                futs = [ex.submit(_retrieve_one, q) for q in queries]
+                for fut in as_completed(futs):
+                    try:
+                        retrieved_lists.append(fut.result())
+                    except Exception:
+                        continue
+            order = {q: i for i, q in enumerate(queries)}
+            retrieved_lists.sort(key=lambda x: order.get(x[0], 10**9))
+        else:
+            for q in queries:
+                retrieved_lists.append(_retrieve_one(q))
 
     retrieved = _fuse_rrf(retrieved_lists, cap=cap)
     retrieved = _boost_regulations_for_exam_intent(retrieved, q_display)
@@ -812,11 +814,12 @@ def _build_rag_prompt_langchain(question: str, domain: Optional[str] = None) -> 
 
     # Optional rerank (embedding-based) to reduce noise.
     if _RERANK_ENABLE and retrieved and (_RERANK_ALL or (dom == 'curriculum')):
-        try:
-            retrieved = _rerank_by_embedding(q_search, retrieved, topn=_RERANK_TOPN)
-            retrieved = retrieved[:cap]
-        except Exception:
-            pass
+        with time_block('top_k_rerank'):
+            try:
+                retrieved = _rerank_by_embedding(q_search, retrieved, topn=_RERANK_TOPN)
+                retrieved = retrieved[:cap]
+            except Exception:
+                pass
 
     # Optional extractive compression to pack more relevant context.
     if _COMPRESS_ENABLE and retrieved and (_COMPRESS_ALL or (dom == 'curriculum')):
