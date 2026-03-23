@@ -14,6 +14,27 @@ from .structured_curriculum import (
     load_credit_totals_2564,
 )
 
+_COURSE_ALIASES = {
+    "introduction to computer engineering": "CPE100",
+    "computer engineering mathematics": "CPE111",
+    "computer programming": "CPE101",
+    "data structure": "CPE112",
+    "data structures": "CPE112",
+    "discrete mathematics": "CPE211",
+    "algorithm": "CPE213",
+    "algorithms": "CPE213",
+    "operating system": "CPE214",
+    "operating systems": "CPE214",
+    "digital logic": "CPE121",
+    "software engineering": "CPE241",
+    "database system": "CPE231",
+    "database systems": "CPE231",
+    "artificial intelligence": "CPE324",
+    "computer architecture": "CPE223",
+    "computer networks": "CPE314",
+    "computer network": "CPE314",
+}
+
 
 def _extract_prefix_from_question(question: str) -> str | None:
     q = (question or '')
@@ -118,6 +139,15 @@ def structured_curriculum_answer(question: str) -> str | None:
             followup_codes = _codes_in_order(tail)
 
     codes = followup_codes or _codes_in_order(q)
+
+    # English aliases parsing
+    if not codes and not instructor_intent and not (prereq_intent or term_intent):
+        ql_en = re.sub(r"[^a-z0-9\s]", " ", q.lower()).strip()
+        for alias, alias_code in _COURSE_ALIASES.items():
+            if alias in ql_en:
+                codes.append(alias_code)
+                break
+
     if codes and not instructor_intent and not (prereq_intent or term_intent):
         all_courses = load_all_courses_2564()
         # Prefer the latest-mentioned code in the user message to avoid stale-code bleed.

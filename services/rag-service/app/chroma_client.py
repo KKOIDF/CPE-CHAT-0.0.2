@@ -227,11 +227,11 @@ def semantic_search_domain(
             res = collection.query(
                 query_embeddings=[qvec],
                 n_results=top_k,
-                include=['documents', 'metadatas', 'distances'],
+                include=['documents', 'metadatas', 'distances', 'embeddings'],
                 where=where,
             )
         else:
-            res = collection.query(query_embeddings=[qvec], n_results=top_k, include=['documents','metadatas','distances'])
+            res = collection.query(query_embeddings=[qvec], n_results=top_k, include=['documents','metadatas','distances','embeddings'])
     except Exception as e:
         msg = str(e)
         if 'dimension' in msg.lower() or 'dim' in msg.lower():
@@ -245,7 +245,7 @@ def semantic_search_domain(
         # If where-filter isn't supported in this Chroma build, fall back to unfiltered search.
         if where is not None:
             try:
-                res = collection.query(query_embeddings=[qvec], n_results=top_k, include=['documents','metadatas','distances'])
+                res = collection.query(query_embeddings=[qvec], n_results=top_k, include=['documents','metadatas','distances','embeddings'])
             except Exception:
                 raise
         else:
@@ -267,7 +267,8 @@ def semantic_search_domain(
             'chroma_id': raw_id,
             'text': res['documents'][0][i],
             **(res['metadatas'][0][i] or {}),
-            'distance': (res.get('distances') or [[None]])[0][i]
+            'distance': (res.get('distances') or [[None]])[0][i],
+            'embedding': (res.get('embeddings') or [[None]])[0][i]
         })
     # In case the backend didn't apply filtering (or we fell back), enforce allowlist client-side.
     if allow_src:

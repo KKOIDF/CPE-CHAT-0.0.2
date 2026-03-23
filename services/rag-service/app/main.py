@@ -1421,6 +1421,13 @@ def rag_answer_endpoint(req: RagAnswerRequest):
                     contexts=[],
                     token_est=0,
                 )
+            
+            miss_reason = 'no_deterministic_match'
+            if 'ปี' in req.question or 'เทอม' in req.question:
+                miss_reason = 'unsupported_term_query'
+            elif re.search(r'[A-Za-z]{2,6}\s*\d{3}', req.question):
+                miss_reason = 'course_code_not_in_db'
+            add_metric('structured_path_miss_reason', miss_reason)
             add_metric('structured_path_fallback_nonstructured', 1)
 
         try:

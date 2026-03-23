@@ -134,6 +134,8 @@ def infer_domain(question: str) -> str | None:
         return 'regulations'
 
     # Schedule / calendar / registration timing: these usually live in announcements.
+    if any(t in q for t in ('กำหนดการลงทะเบียน', 'ตารางลงทะเบียน', 'ลงทะเบียนเรียนเทอม', 'ลงทะเบียนเทอม')):
+        return 'announcements'
     if any(t in q for t in ('ปฏิทิน', 'กำหนดการ', 'ลงทะเบียน', 'เพิ่ม-ลด', 'เพิ่มลด', 'ช่วง', 'วัน', 'วันที่', 'เมื่อไหร่')):
         return 'announcements'
 

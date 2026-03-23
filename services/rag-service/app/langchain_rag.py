@@ -22,7 +22,7 @@ from .routing import (
 from .retrieval import retrieve_by_domain, retrieve_all_domains, retrieve_multi_document
 from .context_packing import pack_context, pack_context_grouped, est_tokens
 from .prompting import build_prompt
-from .perf import time_block
+from .perf import time_block, add_metric
 from .config import RRF_K, MAX_CONTEXTS
 from .llm import llm_engine
 from .chroma_client import embed_texts, semantic_search_domain
@@ -49,7 +49,7 @@ _PARALLEL_ENABLE = os.getenv('RAG_LC_PARALLEL', '0') in ('1', 'true', 'True')
 _PARALLEL_WORKERS = int(os.getenv('RAG_LC_PARALLEL_WORKERS', '4') or '4')
 
 _RERANK_ENABLE = os.getenv('RAG_LC_RERANK', '0') in ('1', 'true', 'True')
-_RERANK_TOPN = int(os.getenv('RAG_LC_RERANK_TOPN', '24') or '24')
+_RERANK_TOPN = int(os.getenv('RAG_LC_RERANK_TOPN', '8') or '8')
 _RERANK_ALL = os.getenv('RAG_LC_RERANK_ALL', '0') in ('1', 'true', 'True')
 
 _COMPRESS_ENABLE = os.getenv('RAG_LC_COMPRESS', '0') in ('1', 'true', 'True')
@@ -386,9 +386,34 @@ def _rerank_by_embedding(query: str, items: List[Dict], topn: int) -> List[Dict]
     head = items[:n]
     tail = items[n:]
 
+    add_metric('top_k_rerank_n_docs', n)
+    add_metric('top_k_rerank_mode', 'embedding_only')
+
     qvec = embed_texts([query], is_query=True)[0]
-    texts = [(d.get('text') or '') for d in head]
-    dvecs = embed_texts(texts, is_query=False)
+    
+    dvecs = []
+    texts_to_embed = []
+    indices_to_embed = []
+    
+    cached_count = 0
+    for i, d in enumerate(head):
+        emb = d.get('embedding')
+        if emb is not None:
+            dvecs.append(emb)
+            cached_count += 1
+        else:
+            dvecs.append(None)
+            texts_to_embed.append(d.get('text') or '')
+            indices_to_embed.append(i)
+            
+    add_metric('top_k_rerank_used_cached_embeddings', cached_count)
+    if n > 0:
+        add_metric('top_k_rerank_cache_hit_ratio', cached_count / float(n))
+
+    if texts_to_embed:
+        missing_embs = embed_texts(texts_to_embed, is_query=False)
+        for i, emb in zip(indices_to_embed, missing_embs):
+            dvecs[i] = emb
 
     scored: List[Dict] = []
     for d, v in zip(head, dvecs):
@@ -657,13 +682,19 @@ def _build_rag_prompt_langchain(question: str, domain: Optional[str] = None) -> 
     has_ref = bool(_reference_candidates(question)) and strict_ref_hints
 
     dom = (domain or '').strip().lower()
+    initial_dom = dom or 'unknown'
     if not dom:
         # Prefer deterministic heuristic routing first (stable + fast).
         dom = infer_domain(q_display) or ''
+        initial_dom = dom or 'unknown'
         # Use LLM router only when heuristic is unclear.
         if not dom:
             dom = _route_domain_llm(q_display) or ''
+            initial_dom = dom or 'unknown'
     dom = dom or None
+
+    add_metric('routing_domain_initial', initial_dom)
+    add_metric('routing_domain_final', str(dom) if dom else 'auto')
 
     # Multi-document retrieval mode (shared with legacy rag_logic): when enabled,
     # bypass multi-query and use the tuned multi-doc retrieval pipeline.
@@ -814,12 +845,22 @@ def _build_rag_prompt_langchain(question: str, domain: Optional[str] = None) -> 
 
     # Optional rerank (embedding-based) to reduce noise.
     if _RERANK_ENABLE and retrieved and (_RERANK_ALL or (dom == 'curriculum')):
-        with time_block('top_k_rerank'):
-            try:
-                retrieved = _rerank_by_embedding(q_search, retrieved, topn=_RERANK_TOPN)
-                retrieved = retrieved[:cap]
-            except Exception:
-                pass
+        # Mismatch intent skip: if top 3 docs don't match our initial domain intent, skip expensive rerank.
+        mismatch_skip = False
+        if initial_dom and initial_dom != 'unknown':
+            top_domains = [str(d.get('domain') or '').strip().lower() for d in retrieved[:3]]
+            if top_domains and initial_dom not in top_domains:
+                mismatch_skip = True
+
+        if not mismatch_skip:
+            with time_block('top_k_rerank'):
+                try:
+                    retrieved = _rerank_by_embedding(q_search, retrieved, topn=_RERANK_TOPN)
+                    retrieved = retrieved[:cap]
+                except Exception:
+                    pass
+        else:
+            add_metric('top_k_rerank_skipped_mismatch', 1)
 
     # Optional extractive compression to pack more relevant context.
     if _COMPRESS_ENABLE and retrieved and (_COMPRESS_ALL or (dom == 'curriculum')):
