@@ -1514,6 +1514,10 @@ def _observe_default_request_metrics(*, structured_eligible: bool) -> None:
     add_metric('instructor_lookup_exact_code_hit', 0)
     add_metric('instructor_lookup_relation_hit', 0)
     add_metric('instructor_lookup_contact_hit', 0)
+    add_metric('instructor_assignment_candidates_n', 0)
+    add_metric('instructor_assignment_confident', 0)
+    add_metric('instructor_assignment_multi_match', 0)
+    add_metric('instructor_assignment_soft_answer_used', 0)
     add_metric('meta_prompt_isolated', 0)
 
 @app.post('/rag/query', response_model=RagResponse)
@@ -1552,7 +1556,36 @@ def rag_answer_endpoint(req: RagAnswerRequest):
             _USE_STRUCTURED_CURRICULUM
             and (((req.domain or '').strip().lower() == 'curriculum') or req.domain is None)
         )
+        
+        # New Feature: Exam Clause Deterministic Route
+        structured_reg_eligible = bool(
+            (((req.domain or '').strip().lower() == 'regulations') or req.domain is None)
+        )
         _observe_default_request_metrics(structured_eligible=structured_eligible)
+
+        if structured_reg_eligible:
+            with time_block('structured_regulations'):
+                from app.regulations_deterministic import structured_regulations_lookup
+                reg_result = structured_regulations_lookup(req.question)
+            
+            if reg_result.get('answer'):
+                add_metric('structured_regulations_hit', 1)
+                add_metric('structured_path_hit', 1)
+                add_metric('structured_regulations_bypass_langchain', 1)
+                add_metric('use_langchain', 0)
+                add_metric('ctx_n', 0)
+                add_metric('token_est', 0)
+                add_metric('token_est_per_question', 0)
+                add_metric('ctx_sources', '')
+                add_metric('answer', reg_result['answer'])
+                add_metric('answer_chars', len(reg_result['answer']))
+                return RagAnswerResponse(
+                    question=req.question,
+                    prompt='(structured regulations answer)',
+                    answer=reg_result['answer'],
+                    contexts=[],
+                    token_est=0,
+                )
 
         # Structured curriculum shortcut (deterministic, not top-k dependent)
         if structured_eligible:
@@ -1564,6 +1597,10 @@ def rag_answer_endpoint(req: RagAnswerRequest):
             add_metric('instructor_lookup_exact_code_hit', int(structured_result.get('instructor_lookup_exact_code_hit') or 0))
             add_metric('instructor_lookup_relation_hit', int(structured_result.get('instructor_lookup_relation_hit') or 0))
             add_metric('instructor_lookup_contact_hit', int(structured_result.get('instructor_lookup_contact_hit') or 0))
+            add_metric('instructor_assignment_candidates_n', int(structured_result.get('instructor_assignment_candidates_n') or 0))
+            add_metric('instructor_assignment_confident', int(structured_result.get('instructor_assignment_confident') or 0))
+            add_metric('instructor_assignment_multi_match', int(structured_result.get('instructor_assignment_multi_match') or 0))
+            add_metric('instructor_assignment_soft_answer_used', int(structured_result.get('instructor_assignment_soft_answer_used') or 0))
             if structured:
                 add_metric('structured_curriculum_hit', 1)
                 add_metric('structured_path_hit', 1)

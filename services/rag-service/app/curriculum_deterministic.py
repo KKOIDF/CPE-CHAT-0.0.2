@@ -470,6 +470,10 @@ def structured_curriculum_lookup(question: str) -> dict[str, Any]:
                 "instructor_lookup_exact_code_hit": 0,
                 "instructor_lookup_relation_hit": 0,
                 "instructor_lookup_contact_hit": 0,
+                "instructor_assignment_candidates_n": 0,
+                "instructor_assignment_confident": 0,
+                "instructor_assignment_multi_match": 0,
+                "instructor_assignment_soft_answer_used": 0,
             }
 
         # Follow-up-safe: iterate reversed so newest code in question tail is preferred.
@@ -496,21 +500,53 @@ def structured_curriculum_lookup(question: str) -> dict[str, Any]:
                     "instructor_lookup_exact_code_hit": exact_code_hit,
                     "instructor_lookup_relation_hit": int(relation_hit_any),
                     "instructor_lookup_contact_hit": int(contact_hit_any),
+                    "instructor_assignment_candidates_n": 1,
+                    "instructor_assignment_confident": 1,
+                    "instructor_assignment_multi_match": 0,
+                    "instructor_assignment_soft_answer_used": 0,
                 }
 
-            out = [f"- รายวิชา {code_disp} พบชื่อผู้สอนที่เกี่ยวข้องในเอกสารดังนี้"]
+            out = [f"- พบผู้สอนที่เกี่ยวข้องกับรายวิชา {code_disp} ในข้อมูล ได้แก่"]
             for n, cite in pairs[:6]:
-                out.append(f"- {n} [{cite}]")
+                out.append(f"  - {n} [{cite}]")
+            out.append("- แต่เอกสารไม่ยืนยันว่าเป็นผู้สอนประจำในภาคการศึกษานี้")
             return {
                 "answer": "\n".join(out).strip(),
-                "lookup_mode": "instructor_exact_code",
-                "miss_reason": "",
+                "lookup_mode": "instructor_soft",
+                "miss_reason": "multiple_candidates_no_resolution",
                 "instructor_lookup_exact_code_hit": exact_code_hit,
                 "instructor_lookup_relation_hit": int(relation_hit_any),
                 "instructor_lookup_contact_hit": int(contact_hit_any),
+                "instructor_assignment_candidates_n": len(pairs),
+                "instructor_assignment_confident": 0,
+                "instructor_assignment_multi_match": 1,
+                "instructor_assignment_soft_answer_used": 1,
             }
 
-        miss = "no_relation_match" if not relation_hit_any else "no_instructor_assignment"
+        if relation_hit_any:
+            miss = "relation_found_but_no_assignment"
+            ans = "พบเอกสารอ้างอิงรายวิชานี้ แต่ไม่พบชื่อผู้สอนที่ระบุคู่กันอย่างชัดเจน"
+        elif contact_hit_any:
+            miss = "contact_only_no_course_binding"
+            ans = "พบข้อมูลช่องทางการติดต่อ แต่ไม่พบการระบุผู้สอนรายวิชานี้"
+        else:
+            miss = "no_relation_match"
+            ans = None
+        
+        if ans:
+            return {
+                "answer": ans,
+                "lookup_mode": "instructor_soft",
+                "miss_reason": miss,
+                "instructor_lookup_exact_code_hit": exact_code_hit,
+                "instructor_lookup_relation_hit": int(relation_hit_any),
+                "instructor_lookup_contact_hit": int(contact_hit_any),
+                "instructor_assignment_candidates_n": 0,
+                "instructor_assignment_confident": 0,
+                "instructor_assignment_multi_match": 0,
+                "instructor_assignment_soft_answer_used": 1,
+            }
+
         return {
             "answer": None,
             "lookup_mode": "none",
@@ -518,6 +554,10 @@ def structured_curriculum_lookup(question: str) -> dict[str, Any]:
             "instructor_lookup_exact_code_hit": exact_code_hit,
             "instructor_lookup_relation_hit": int(relation_hit_any),
             "instructor_lookup_contact_hit": int(contact_hit_any),
+            "instructor_assignment_candidates_n": 0,
+            "instructor_assignment_confident": 0,
+            "instructor_assignment_multi_match": 0,
+            "instructor_assignment_soft_answer_used": 0,
         }
 
     if codes and not instructor_intent and not (prereq_intent or term_intent):

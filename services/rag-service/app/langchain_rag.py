@@ -25,7 +25,7 @@ from .prompting import build_prompt
 from .perf import time_block, add_metric
 from .config import RRF_K, MAX_CONTEXTS
 from .llm import llm_engine
-from .chroma_client import embed_texts, semantic_search_domain
+from .chroma_client import embed_texts, semantic_search_domain, fetch_embeddings_for_docs
 from .neo4j_client import extract_course_codes
 
 
@@ -389,45 +389,50 @@ def _rerank_by_embedding(query: str, items: List[Dict], topn: int) -> List[Dict]
     add_metric('top_k_rerank_n_docs', n)
     add_metric('top_k_rerank_mode', 'embedding_only')
 
-    qvec = embed_texts([query], is_query=True)[0]
-    
-    dvecs = []
-    texts_to_embed = []
-    indices_to_embed = []
-    
-    cached_count = 0
-    for i, d in enumerate(head):
-        emb = d.get('embedding')
-        if emb is not None:
-            dvecs.append(emb)
-            cached_count += 1
-        else:
-            dvecs.append(None)
-            texts_to_embed.append(d.get('text') or '')
-            indices_to_embed.append(i)
-            
-    add_metric('top_k_rerank_used_cached_embeddings', cached_count)
-    if n > 0:
-        add_metric('top_k_rerank_cache_hit_ratio', cached_count / float(n))
+    with time_block('embedding_fetch_ms'):
+        qvec = embed_texts([query], is_query=True)[0]
+        
+        dvecs = []
+        texts_to_embed = []
+        indices_to_embed = []
+        
+        cached_count = 0
+        for i, d in enumerate(head):
+            emb = d.get('embedding')
+            if emb is not None:
+                dvecs.append(emb)
+                cached_count += 1
+            else:
+                dvecs.append(None)
+                texts_to_embed.append(d.get('text') or '')
+                indices_to_embed.append(i)
+                
+        add_metric('top_k_rerank_used_cached_embeddings', cached_count)
+        if n > 0:
+            add_metric('top_k_rerank_cache_hit_ratio', cached_count / float(n))
 
-    if texts_to_embed:
-        missing_embs = embed_texts(texts_to_embed, is_query=False)
-        for i, emb in zip(indices_to_embed, missing_embs):
-            dvecs[i] = emb
+        if texts_to_embed:
+            missing_embs = embed_texts(texts_to_embed, is_query=False)
+            for i, emb in zip(indices_to_embed, missing_embs):
+                dvecs[i] = emb
 
-    scored: List[Dict] = []
-    for d, v in zip(head, dvecs):
-        # embed_texts already normalizes; dot product is cosine.
-        s = 0.0
-        try:
-            s = float(sum(float(a) * float(b) for a, b in zip(qvec, v)))
-            if math.isnan(s) or math.isinf(s):
-                s = 0.0
-        except Exception:
+    with time_block('embedding_deserialize_ms'):
+        scored: List[Dict] = []
+
+    with time_block('embedding_score_ms'):
+        for d, v in zip(head, dvecs):
+            # embed_texts already normalizes; dot product is cosine.
             s = 0.0
-        scored.append({**d, 'score_rerank': s})
+            try:
+                s = float(sum(float(a) * float(b) for a, b in zip(qvec, v)))
+                if math.isnan(s) or math.isinf(s):
+                    s = 0.0
+            except Exception:
+                s = 0.0
+            scored.append({**d, 'score_rerank': s})
 
-    scored.sort(key=lambda x: (x.get('score_rerank', 0.0), x.get('score_rrf', 0.0)), reverse=True)
+        scored.sort(key=lambda x: (x.get('score_rerank', 0.0), x.get('score_rrf', 0.0)), reverse=True)
+        
     return scored + tail
 
 
@@ -728,8 +733,9 @@ def _build_rag_prompt_langchain(question: str, domain: Optional[str] = None) -> 
         except Exception:
             pass
 
-        ctx, cites = pack_context_grouped(retrieved)
-        prompt = build_prompt(q_display, ctx, cites)
+        with time_block('post_rerank_prompt_ms'):
+            ctx, cites = pack_context_grouped(retrieved)
+            prompt = build_prompt(q_display, ctx, cites)
 
         unique_sources: set[str] = set()
         unique_domains: set[str] = set()
@@ -855,6 +861,7 @@ def _build_rag_prompt_langchain(question: str, domain: Optional[str] = None) -> 
         if not mismatch_skip:
             with time_block('top_k_rerank'):
                 try:
+                    fetch_embeddings_for_docs(retrieved, dom)
                     retrieved = _rerank_by_embedding(q_search, retrieved, topn=_RERANK_TOPN)
                     retrieved = retrieved[:cap]
                 except Exception:
@@ -875,8 +882,9 @@ def _build_rag_prompt_langchain(question: str, domain: Optional[str] = None) -> 
         except Exception:
             pass
 
-    ctx, cites = pack_context(retrieved)
-    prompt = build_prompt(q_display, ctx, cites)
+    with time_block('post_rerank_prompt_ms'):
+        ctx, cites = pack_context(retrieved)
+        prompt = build_prompt(q_display, ctx, cites)
 
     unique_sources: set[str] = set()
     unique_domains: set[str] = set()

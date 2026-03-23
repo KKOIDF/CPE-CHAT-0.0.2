@@ -1257,6 +1257,7 @@ def retrieve_all_domains(
             ],
         },
     )
+    add_metric('retrieval_domain', ','.join(doms) if doms else 'all')
     return final
 
 

@@ -280,3 +280,42 @@ def semantic_search_domain(
                 return ''
         out = [d for d in out if _src_name(d) in allowed_lower]
     return out
+
+def fetch_embeddings_for_docs(docs: List[dict], domain: Optional[str] = None) -> None:
+    """In-place populate d['embedding'] from Chroma for matched texts/doc_ids."""
+    missing = [d for d in docs if d.get('embedding') is None]
+    if not missing:
+        return
+        
+    dom = (domain or os.getenv('CPE_DOMAIN', '')).strip().lower()
+    try:
+        collection = _get_collection_for_domain(dom)
+    except Exception:
+        return
+        
+    sources = list({str(d.get('source', '')).strip() for d in missing if str(d.get('source', '')).strip()})
+    
+    if not sources:
+        return
+        
+    try:
+        if len(sources) == 1:
+            where = {"source": sources[0]}
+        else:
+            where = {"source": {"$in": sources}}
+            
+        res = collection.get(where=where, include=['embeddings', 'documents'])
+        text_map = {}
+        if res and res.get('documents'):
+            for i in range(len(res['documents'])):
+                txt = (res['documents'][i] or '').strip()
+                emb = res['embeddings'][i]
+                if txt:
+                    text_map[txt] = emb
+
+        for d in missing:
+            txt = (d.get('text') or '').strip()
+            if txt and txt in text_map:
+                d['embedding'] = text_map[txt]
+    except Exception:
+        pass
