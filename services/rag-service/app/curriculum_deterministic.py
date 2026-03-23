@@ -257,6 +257,96 @@ def _format_study_plan_answer(question: str, courses: list[Course], source_name:
     return "\n".join(lines).strip()
 
 
+def _lookup_instructors_for_course(code: str) -> tuple[list[tuple[str, str]], bool, bool]:
+    """Return (instructors, relation_hit, contact_hit) for a normalized course code."""
+    code = (code or "").strip().upper()
+    m = re.match(r"^([A-Z]{2,6})\s*(\d{3})$", code)
+    if not m:
+        return [], False, False
+
+    pref = m.group(1)
+    num = m.group(2)
+    db_path = domain_sqlite_path("curriculum")
+
+    dids: list[str] = []
+    seen_ids: set[str] = set()
+    needles = [f"{pref} {num}", f"{pref}{num}", f"รายวิชา: {pref}"]
+    for needle in needles:
+        for did in keyword_search(needle, limit=600, sqlite_path=db_path):
+            if did and did not in seen_ids:
+                dids.append(did)
+                seen_ids.add(did)
+        if len(dids) >= 500:
+            break
+
+    docs = fetch_docs_with_path(dids, sqlite_path=db_path)
+    if not docs:
+        return [], False, False
+
+    code_re = re.compile(rf"\b{re.escape(pref)}\s*[- ]?\s*{re.escape(num)}\b", re.IGNORECASE)
+    title_name_re = re.compile(r"((?:ศ\.ดร\.|รศ\.ดร\.|ผศ\.ดร\.|ดร\.|อ\.)\s*[^\n\[\]]{2,120})")
+    stop_tokens = (
+        'Assoc.', 'Assistant Professor', 'Professor', 'ภาระงานสอน',
+        'ประวัติการศึกษา', 'รายวิชา', 'อนุมัติจากสภา', 'International'
+    )
+    rel_hint_re = re.compile(r"(ผู้สอน|อาจารย์|lecturer|instructor|teacher)", re.IGNORECASE)
+
+    found: list[tuple[str, str]] = []
+    relation_hit = False
+    contact_hit = False
+    for d in docs:
+        txt = str(d.get("text") or "")
+        if not txt:
+            continue
+        src = str(d.get("source") or "").strip() or "curriculum"
+        src_l = src.lower()
+        cite = f"{src}/1"
+
+        if ('contact' in src_l) or ('faculty' in src_l):
+            contact_hit = True
+
+        match_positions = list(code_re.finditer(txt))
+        if not match_positions:
+            continue
+        relation_hit = True
+
+        for m_code in match_positions:
+            s = max(0, m_code.start() - 260)
+            e = min(len(txt), m_code.end() + 560)
+            window = txt[s:e]
+            if (not rel_hint_re.search(window)) and (not contact_hit):
+                continue
+
+            for m_name in title_name_re.finditer(window):
+                raw = (m_name.group(1) or "").strip()
+                if not raw:
+                    continue
+                cleaned = raw
+                for tok in stop_tokens:
+                    pos = cleaned.find(tok)
+                    if pos > 0:
+                        cleaned = cleaned[:pos].strip()
+                cleaned = re.split(r"\s+-\s+|\s+\(|\s+Assoc\.|\s+Professor", cleaned, maxsplit=1)[0].strip()
+                cleaned = cleaned.strip(' -,:;()[]')
+                if len(cleaned) < 6:
+                    continue
+                if not re.search(r"[\u0E00-\u0E7F]", cleaned):
+                    continue
+                found.append((cleaned, cite))
+
+    # Deduplicate while preserving order.
+    uniq: list[tuple[str, str]] = []
+    seen_names: set[str] = set()
+    for name, cite in found:
+        norm = re.sub(r"\s+", "", name)
+        if norm in seen_names:
+            continue
+        seen_names.add(norm)
+        uniq.append((name, cite))
+
+    return uniq[:8], relation_hit, contact_hit
+
+
 def structured_curriculum_lookup(question: str) -> dict[str, Any]:
     """Deterministic curriculum lookup with debug metadata.
 
@@ -360,6 +450,75 @@ def structured_curriculum_lookup(question: str) -> dict[str, Any]:
         matched_code, title_lookup_mode = _find_best_course_code_by_title(q, all_courses)
         if matched_code:
             codes.append(matched_code)
+
+    # Instructor deterministic path: latest entity wins and bypasses generic retrieval.
+    if instructor_intent:
+        relation_hit_any = False
+        contact_hit_any = False
+        exact_code_hit = 0
+
+        if not codes:
+            matched_code, _mode = _find_best_course_code_by_title(q, all_courses)
+            if matched_code:
+                codes.append(matched_code)
+
+        if not codes:
+            return {
+                "answer": None,
+                "lookup_mode": "none",
+                "miss_reason": "no_alias_match",
+                "instructor_lookup_exact_code_hit": 0,
+                "instructor_lookup_relation_hit": 0,
+                "instructor_lookup_contact_hit": 0,
+            }
+
+        # Follow-up-safe: iterate reversed so newest code in question tail is preferred.
+        for code in reversed(codes):
+            key = code.replace("-", "").replace(" ", "").upper()
+            course = all_courses.get(key)
+            code_disp = f"{code[:3]} {code[-3:]}" if len(code.replace(' ', '')) >= 6 else code
+            if course:
+                code_disp = f"{course.prefix} {course.number}"
+                exact_code_hit = 1
+
+            pairs, relation_hit, contact_hit = _lookup_instructors_for_course(code_disp)
+            relation_hit_any = relation_hit_any or relation_hit
+            contact_hit_any = contact_hit_any or contact_hit
+            if not pairs:
+                continue
+
+            if len(pairs) == 1:
+                n, cite = pairs[0]
+                return {
+                    "answer": f"- รายวิชา {code_disp} ระบุผู้สอนเป็น {n} [{cite}]",
+                    "lookup_mode": "instructor_exact_code",
+                    "miss_reason": "",
+                    "instructor_lookup_exact_code_hit": exact_code_hit,
+                    "instructor_lookup_relation_hit": int(relation_hit_any),
+                    "instructor_lookup_contact_hit": int(contact_hit_any),
+                }
+
+            out = [f"- รายวิชา {code_disp} พบชื่อผู้สอนที่เกี่ยวข้องในเอกสารดังนี้"]
+            for n, cite in pairs[:6]:
+                out.append(f"- {n} [{cite}]")
+            return {
+                "answer": "\n".join(out).strip(),
+                "lookup_mode": "instructor_exact_code",
+                "miss_reason": "",
+                "instructor_lookup_exact_code_hit": exact_code_hit,
+                "instructor_lookup_relation_hit": int(relation_hit_any),
+                "instructor_lookup_contact_hit": int(contact_hit_any),
+            }
+
+        miss = "no_relation_match" if not relation_hit_any else "no_instructor_assignment"
+        return {
+            "answer": None,
+            "lookup_mode": "none",
+            "miss_reason": miss,
+            "instructor_lookup_exact_code_hit": exact_code_hit,
+            "instructor_lookup_relation_hit": int(relation_hit_any),
+            "instructor_lookup_contact_hit": int(contact_hit_any),
+        }
 
     if codes and not instructor_intent and not (prereq_intent or term_intent):
         for code in reversed(codes):

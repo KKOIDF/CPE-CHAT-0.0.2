@@ -51,6 +51,7 @@ _USE_STRUCTURED_CURRICULUM = os.getenv('RAG_USE_STRUCTURED_CURRICULUM', '1') in 
 _CITE_CAPTURE_RE = re.compile(r"\[([^\]]+?/\d+)\]")
 _CITE_MATCH_RE = re.compile(r"\[[^\]]+?/\d+\]")
 _BRACKET_RE = re.compile(r"\[[^\]]*\]")
+_INLINE_CITE_RE = re.compile(r"\s*\[[^\]]+?/\d+\]")
 
 
 def _extract_allowed_cites(prompt: str) -> list[str]:
@@ -74,6 +75,13 @@ def _extract_allowed_cites(prompt: str) -> list[str]:
 
 def _has_citations(answer: str) -> bool:
     return bool(_CITE_MATCH_RE.search(answer or ''))
+
+
+def _strip_inline_citations(answer: str) -> str:
+    txt = answer or ''
+    if not txt:
+        return txt
+    return _INLINE_CITE_RE.sub('', txt).strip()
 
 
 def _repair_answer_with_citations(answer: str, prompt: str) -> str:
@@ -245,6 +253,10 @@ _FALLBACK = 'ไม่พบข้อมูลในเอกสาร'
 _STANDALONE_CODE_RE = re.compile(r"^\s*[A-Za-z]{2,6}\s*[- ]?\s*\d{3}\s*$")
 
 _COURSE_CODE_RE = re.compile(r"\b([A-Za-z]{2,6})\s*[- ]?\s*(\d{3})\b")
+_META_FOLLOWUP_TASK_RE = re.compile(
+    r"(?:^|\n)\s*(?:#+\s*)?task\s*:\s*suggest\s*3\s*-\s*5\s*relevant\s*follow-up\s*questions",
+    re.IGNORECASE,
+)
 
 _USER_REQUEST_RE = re.compile(r"<userRequest>\s*(.*?)\s*</userRequest>", re.IGNORECASE | re.DOTALL)
 _NOISE_BLOCK_TAGS = (
@@ -332,6 +344,65 @@ def _latest_course_code_from_messages(messages: list[dict] | None) -> str:
     return ''
 
 
+def _extract_course_codes_from_text(text: str) -> list[str]:
+    vals: list[str] = []
+    for m in _COURSE_CODE_RE.finditer(text or ''):
+        vals.append(f"{(m.group(1) or '').upper()} {(m.group(2) or '')}".strip())
+    return vals
+
+
+def _is_meta_followup_generation_prompt(text: str) -> bool:
+    t = (text or '').strip()
+    if not t:
+        return False
+    if _META_FOLLOWUP_TASK_RE.search(t):
+        return True
+    tl = t.lower()
+    return ('### chat history:' in tl) and ('follow-up questions' in tl)
+
+
+def _analyze_followup_entities(messages: list[dict] | None, effective_question: str) -> dict[str, str | int]:
+    # Defaults keep timing logs column-stable.
+    out: dict[str, str | int] = {
+        'followup_latest_entity': '',
+        'followup_previous_entity': '',
+        'followup_entity_overridden': 0,
+        'followup_entity_conflict': 0,
+    }
+    if not messages:
+        return out
+
+    user_msgs: list[str] = []
+    for m in messages:
+        if (m or {}).get('role') == 'user':
+            txt = _content_to_text((m or {}).get('content'))
+            if txt:
+                user_msgs.append(txt)
+
+    if not user_msgs:
+        return out
+
+    last = user_msgs[-1]
+    prev = user_msgs[-2] if len(user_msgs) >= 2 else ''
+    latest_codes = _extract_course_codes_from_text(last)
+    prev_codes = _extract_course_codes_from_text(prev)
+    latest = latest_codes[-1] if latest_codes else ''
+    previous = prev_codes[-1] if prev_codes else ''
+
+    out['followup_latest_entity'] = latest
+    out['followup_previous_entity'] = previous
+
+    if latest and previous and latest != previous:
+        out['followup_entity_overridden'] = 1
+        eff_codes = _extract_course_codes_from_text(effective_question or '')
+        eff_latest = eff_codes[-1] if eff_codes else ''
+        eff_has_previous = previous in eff_codes
+        if (not eff_latest) or eff_latest != latest or eff_has_previous:
+            out['followup_entity_conflict'] = 1
+
+    return out
+
+
 def _looks_coreference_followup(text: str) -> bool:
     t = (text or '').strip().lower()
     if not t:
@@ -366,6 +437,10 @@ def _build_effective_question(messages: list[dict] | None, default_question: str
     last = user_msgs[-1]
     prev = user_msgs[-2] if len(user_msgs) >= 2 else ''
 
+    # Meta prompts (evaluation/templates) should never enter QA follow-up stitching.
+    if _is_meta_followup_generation_prompt(last):
+        return last
+
     last_l = last.lower()
     looks_like_placeholder = ('xxx' in last_l)
     looks_like_new_code = _STANDALONE_CODE_RE.fullmatch(last) is not None
@@ -382,10 +457,16 @@ def _build_effective_question(messages: list[dict] | None, default_question: str
         or any(p in last for p in followup_phrases)
     )
     has_code_in_last = _COURSE_CODE_RE.search(last) is not None
+    has_code_in_prev = _COURSE_CODE_RE.search(prev) is not None
     recent_user_window = user_msgs[-3:] if len(user_msgs) >= 3 else user_msgs
 
     # Avoid carrying previous turn when user starts a new standalone topic/code.
     if looks_like_new_code or looks_like_greeting:
+        return last
+
+    # Latest entity wins: if user typed a new course code in the last turn,
+    # do not append previous turns that can bleed stale entities.
+    if has_code_in_last:
         return last
 
     # Coreference follow-up (e.g., "ใครสอน", "อันนั้นมีกี่หน่วยกิต"):
@@ -399,7 +480,7 @@ def _build_effective_question(messages: list[dict] | None, default_question: str
             if anchor:
                 return f"{anchor}\nคำถามต่อเนื่อง: {last}".strip()
 
-    if is_followup and prev:
+    if is_followup and prev and not (has_code_in_prev and has_code_in_last):
         return f"{prev}\nคำถามต่อเนื่อง: {last}".strip()
     return last
 
@@ -1426,6 +1507,14 @@ def _observe_default_request_metrics(*, structured_eligible: bool) -> None:
     add_metric('top_k_rerank_cache_hit_ratio', 0.0)
     add_metric('routing_domain_initial', 'auto')
     add_metric('routing_domain_final', 'auto')
+    add_metric('followup_latest_entity', '')
+    add_metric('followup_previous_entity', '')
+    add_metric('followup_entity_overridden', 0)
+    add_metric('followup_entity_conflict', 0)
+    add_metric('instructor_lookup_exact_code_hit', 0)
+    add_metric('instructor_lookup_relation_hit', 0)
+    add_metric('instructor_lookup_contact_hit', 0)
+    add_metric('meta_prompt_isolated', 0)
 
 @app.post('/rag/query', response_model=RagResponse)
 def rag_endpoint(req: RagRequest):
@@ -1470,7 +1559,11 @@ def rag_answer_endpoint(req: RagAnswerRequest):
             with time_block('structured_curriculum'):
                 structured_result = structured_curriculum_lookup(req.question)
             structured = structured_result.get('answer')
+            structured = _strip_inline_citations(str(structured or ''))
             add_metric('curriculum_lookup_mode', structured_result.get('lookup_mode') or 'none')
+            add_metric('instructor_lookup_exact_code_hit', int(structured_result.get('instructor_lookup_exact_code_hit') or 0))
+            add_metric('instructor_lookup_relation_hit', int(structured_result.get('instructor_lookup_relation_hit') or 0))
+            add_metric('instructor_lookup_contact_hit', int(structured_result.get('instructor_lookup_contact_hit') or 0))
             if structured:
                 add_metric('structured_curriculum_hit', 1)
                 add_metric('structured_path_hit', 1)
@@ -1649,6 +1742,7 @@ def openai_compatible_endpoint(request: dict):
             break
 
     question = _sanitize_user_question_text(_build_effective_question(messages, raw_last_user))
+    followup_meta = _analyze_followup_entities(messages, question)
 
     if (os.getenv("RAG_TIMING", "0") or "0").strip().lower() in ("1", "true", "yes", "on"):
         try:
@@ -1668,6 +1762,30 @@ def openai_compatible_endpoint(request: dict):
         _observe_entry_metrics(question, domain, use_langchain=use_langchain)
         structured_eligible = bool(_USE_STRUCTURED_CURRICULUM)
         _observe_default_request_metrics(structured_eligible=structured_eligible)
+        for mk, mv in followup_meta.items():
+            add_metric(mk, mv)
+
+        if _is_meta_followup_generation_prompt(raw_last_user) or _is_meta_followup_generation_prompt(question):
+            add_metric('meta_prompt_isolated', 1)
+            with time_block('llm_generate'):
+                answer = llm_engine.generate(question, messages=messages)
+            answer = _clean_answer_text(answer, strip_citations=True)
+            add_metric('answer', (answer or '').strip())
+            add_metric('answer_chars', len((answer or '').strip()))
+            return {
+                "id": f"chatcpe-{uuid.uuid4().hex[:12]}",
+                "object": "chat.completion",
+                "created": int(time.time()),
+                "model": request.get('model', 'typhoon-rag'),
+                "choices": [
+                    {
+                        "index": 0,
+                        "message": {"role": "assistant", "content": answer},
+                        "finish_reason": "stop",
+                    }
+                ],
+                "usage": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
+            }
 
         # Structured curriculum shortcut for OpenWebUI (works even without retrieval)
         structured = None
@@ -1676,7 +1794,11 @@ def openai_compatible_endpoint(request: dict):
             with time_block('structured_curriculum'):
                 structured_result = structured_curriculum_lookup(question)
             structured = structured_result.get('answer')
+            structured = _strip_inline_citations(str(structured or ''))
             add_metric('curriculum_lookup_mode', structured_result.get('lookup_mode') or 'none')
+            add_metric('instructor_lookup_exact_code_hit', int(structured_result.get('instructor_lookup_exact_code_hit') or 0))
+            add_metric('instructor_lookup_relation_hit', int(structured_result.get('instructor_lookup_relation_hit') or 0))
+            add_metric('instructor_lookup_contact_hit', int(structured_result.get('instructor_lookup_contact_hit') or 0))
         if structured:
             add_metric('structured_curriculum_hit', 1)
             add_metric('structured_path_hit', 1)

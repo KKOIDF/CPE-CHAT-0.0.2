@@ -2196,6 +2196,11 @@ def retrieve_by_domain(
     q_lower = q.lower()
     codes = sorted(extract_course_codes(question))
     target_codes = {_normalize_code_text(c) for c in codes if _normalize_code_text(c)}
+    instructor_markers = (
+        'ใครสอน', 'ผู้สอน', 'อาจารย์', 'สอนวิชา', 'คนสอน', 'ผู้รับผิดชอบวิชา',
+        'instructor', 'teacher', 'lecturer', 'teaches',
+    )
+    instructor_intent = any(m in q_lower for m in instructor_markers)
 
     exact_code_docs: List[Dict] = []
     exact_code_doc_ids: set[str] = set()
@@ -2367,7 +2372,7 @@ def retrieve_by_domain(
         }
         prefixes = [p for p in prefixes if p not in stop]
 
-        wants_prefix_list = bool(prefixes) and any(
+        wants_prefix_list = (not instructor_intent) and bool(prefixes) and any(
             t in (q or '')
             for t in (
                 'หาวิชา', 'หา', 'วิชา', 'รายวิชา', 'มีวิชา', 'รหัสวิชา', 'เลือกเรียน', 'ตัวเลือก'
@@ -2486,18 +2491,7 @@ def retrieve_by_domain(
             ranks[doc_id] = ranks.get(doc_id, 0.0) + 2.5 / (RRF_K + r)
 
     if dom == 'curriculum':
-        teacher_markers = (
-            'ใครสอน',
-            'ผู้สอน',
-            'อาจารย์',
-            'สอนวิชา',
-            'คนสอน',
-            'ผู้รับผิดชอบวิชา',
-            'instructor',
-            'teacher',
-            'teaches',
-        )
-        wants_teacher_for_course = bool(codes) and any(m in q_lower for m in teacher_markers)
+        wants_teacher_for_course = bool(codes) and instructor_intent
         if wants_teacher_for_course:
             try:
                 relation_boost = float(os.getenv('RAG_FACULTY_RELATION_BOOST', '1.2') or '1.2')
