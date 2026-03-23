@@ -48,6 +48,11 @@ if _USE_LANGCHAIN:
 
 _USE_STRUCTURED_CURRICULUM = os.getenv('RAG_USE_STRUCTURED_CURRICULUM', '1') in ('1', 'true', 'True')
 
+# Meta tasks: follow-up generation, title generation, tag generation.
+# These are UX-layer features that add 10-20s of LLM latency per request.
+# Default OFF in production. Set RAG_ENABLE_META_TASKS=1 in dev/demo environments.
+_ENABLE_META_TASKS = os.getenv('RAG_ENABLE_META_TASKS', '0').strip().lower() in ('1', 'true', 'yes', 'on')
+
 _CITE_CAPTURE_RE = re.compile(r"\[([^\]]+?/\d+)\]")
 _CITE_MATCH_RE = re.compile(r"\[[^\]]+?/\d+\]")
 _BRACKET_RE = re.compile(r"\[[^\]]*\]")
@@ -1804,6 +1809,25 @@ def openai_compatible_endpoint(request: dict):
 
         if _is_meta_followup_generation_prompt(raw_last_user) or _is_meta_followup_generation_prompt(question):
             add_metric('meta_prompt_isolated', 1)
+            if not _ENABLE_META_TASKS:
+                # Skip UX meta-tasks in production to avoid wasted LLM latency.
+                empty_answer = ''
+                add_metric('answer', empty_answer)
+                add_metric('answer_chars', 0)
+                return {
+                    "id": f"chatcpe-{uuid.uuid4().hex[:12]}",
+                    "object": "chat.completion",
+                    "created": int(time.time()),
+                    "model": request.get('model', 'typhoon-rag'),
+                    "choices": [
+                        {
+                            "index": 0,
+                            "message": {"role": "assistant", "content": empty_answer},
+                            "finish_reason": "stop",
+                        }
+                    ],
+                    "usage": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
+                }
             with time_block('llm_generate'):
                 answer = llm_engine.generate(question, messages=messages)
             answer = _clean_answer_text(answer, strip_citations=True)

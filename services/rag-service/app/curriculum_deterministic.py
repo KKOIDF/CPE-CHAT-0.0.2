@@ -347,6 +347,52 @@ def _lookup_instructors_for_course(code: str) -> tuple[list[tuple[str, str]], bo
     return uniq[:8], relation_hit, contact_hit
 
 
+def _lookup_nearby_names_for_course(code: str) -> list[str]:
+    """Relaxed version: returns name strings found near a code match without requiring a role keyword.
+    Used for soft-answer fallback to surface possible instructor names.
+    """
+    code = (code or "").strip().upper()
+    m = re.match(r"^([A-Z]{2,6})\s*(\d{3})$", code)
+    if not m:
+        return []
+
+    pref, num = m.group(1), m.group(2)
+    db_path = domain_sqlite_path("curriculum")
+    dids: list[str] = []
+    seen_ids: set[str] = set()
+    for needle in [f"{pref} {num}", f"{pref}{num}"]:
+        for did in keyword_search(needle, limit=300, sqlite_path=db_path):
+            if did and did not in seen_ids:
+                dids.append(did)
+                seen_ids.add(did)
+
+    docs = fetch_docs_with_path(dids, sqlite_path=db_path)
+    code_re = re.compile(rf"\b{re.escape(pref)}\s*[- ]?\s*{re.escape(num)}\b", re.IGNORECASE)
+    title_name_re = re.compile(r"((?:ศ\.ดร\.|รศ\.ดร\.|ผศ\.ดร\.|ดร\.|อ\.)\s*[^\n\[\]]{2,80})")
+    stop_tokens = ("Assoc.", "Assistant Professor", "Professor", "ภาระงานสอน", "ประวัติการศึกษา", "รายวิชา")
+
+    names: list[str] = []
+    seen: set[str] = set()
+    for d in docs:
+        txt = str(d.get("text") or "")
+        for mc in code_re.finditer(txt):
+            s, e = max(0, mc.start() - 200), min(len(txt), mc.end() + 400)
+            for mn in title_name_re.finditer(txt[s:e]):
+                raw = (mn.group(1) or "").strip()
+                for tok in stop_tokens:
+                    pos = raw.find(tok)
+                    if pos > 0:
+                        raw = raw[:pos].strip()
+                raw = re.split(r"\s+-\s+|\s+\(|\s+Assoc\.", raw, maxsplit=1)[0].strip(' -,:;()[]')
+                if len(raw) < 6 or not re.search(r"[\u0E00-\u0E7F]", raw):
+                    continue
+                norm = re.sub(r"\s+", "", raw)
+                if norm not in seen:
+                    seen.add(norm)
+                    names.append(raw)
+    return names[:4]
+
+
 def structured_curriculum_lookup(question: str) -> dict[str, Any]:
     """Deterministic curriculum lookup with debug metadata.
 
@@ -379,10 +425,15 @@ def structured_curriculum_lookup(question: str) -> dict[str, Any]:
             }
 
     # Total-program-credit lookup.
-    if "หน่วยกิต" in q and (
-        any(t in q for t in ("รวมกี่หน่วยกิต", "หน่วยกิตรวมของหลักสูตร", "จำนวนหน่วยกิตรวม", "ตลอดหลักสูตร"))
-        or ("หลักสูตร" in q and any(t in q for t in ("กี่", "ทั้งหมด", "รวม")))
-    ):
+    _credit_q_signals = (
+        "รวมกี่หน่วยกิต", "หน่วยกิตรวมของหลักสูตร", "จำนวนหน่วยกิตรวม", "ตลอดหลักสูตร",
+    )
+    _vit_subjects = ("วิศวะคอม", "วิศวกรรมคอม", "หลักสูตร", "เรียนทั้งหมด", "เรียนรวม")
+    _credit_broad = any(t in q for t in _credit_q_signals) or (
+        any(s in q for s in _vit_subjects)
+        and any(t in q for t in ("กี่", "ทั้งหมด", "รวม"))
+    )
+    if "หน่วยกิต" in q and _credit_broad:
         tot = totals.get("total")
         if tot is not None:
             return {
@@ -525,14 +576,27 @@ def structured_curriculum_lookup(question: str) -> dict[str, Any]:
 
         if relation_hit_any:
             miss = "relation_found_but_no_assignment"
-            ans = "พบเอกสารอ้างอิงรายวิชานี้ แต่ไม่พบชื่อผู้สอนที่ระบุคู่กันอย่างชัดเจน"
+            # Use relaxed lookup to surface nearby names without role-keyword gate
+            all_nearby: list[str] = []
+            for _c in codes:
+                for _n in _lookup_nearby_names_for_course(_c):
+                    if _n not in all_nearby:
+                        all_nearby.append(_n)
+            if all_nearby:
+                names_str = ", ".join(all_nearby[:3])
+                ans = (
+                    f"พบชื่อที่เกี่ยวข้องกับรายวิชานี้ในข้อมูล ได้แก่ {names_str} "
+                    "แต่เอกสารไม่ยืนยันว่าเป็นผู้สอนประจำในภาคการศึกษานี้"
+                )
+            else:
+                ans = "พบเอกสารอ้างอิงรายวิชานี้ แต่ไม่พบชื่อผู้สอนที่ระบุคู่กันอย่างชัดเจน"
         elif contact_hit_any:
             miss = "contact_only_no_course_binding"
             ans = "พบข้อมูลช่องทางการติดต่อ แต่ไม่พบการระบุผู้สอนรายวิชานี้"
         else:
             miss = "no_relation_match"
             ans = None
-        
+
         if ans:
             return {
                 "answer": ans,
@@ -541,7 +605,7 @@ def structured_curriculum_lookup(question: str) -> dict[str, Any]:
                 "instructor_lookup_exact_code_hit": exact_code_hit,
                 "instructor_lookup_relation_hit": int(relation_hit_any),
                 "instructor_lookup_contact_hit": int(contact_hit_any),
-                "instructor_assignment_candidates_n": 0,
+                "instructor_assignment_candidates_n": len(all_nearby) if relation_hit_any else 0,
                 "instructor_assignment_confident": 0,
                 "instructor_assignment_multi_match": 0,
                 "instructor_assignment_soft_answer_used": 1,

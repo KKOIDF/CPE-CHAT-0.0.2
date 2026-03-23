@@ -95,9 +95,18 @@ def request_timing(request_name: str, **initial_metrics: Any) -> Iterator[None]:
                 file_msg = f"[TIMING][{request_name}] {timing_str}"
 
             try:
-                log_dir = os.getenv("DATA_DIR", "/app/data")
-                os.makedirs(log_dir, exist_ok=True)
-                log_file = os.path.join(log_dir, "timing_summary.log")
+                explicit_file = os.getenv("TIMING_SUMMARY_FILE", "").strip()
+                if explicit_file:
+                    log_file = explicit_file
+                    os.makedirs(os.path.dirname(log_file) or ".", exist_ok=True)
+                else:
+                    log_dir = os.getenv("DATA_DIR", "").strip()
+                    if not log_dir:
+                        log_dir = "/app/data"
+                    os.makedirs(log_dir, exist_ok=True)
+                    log_file = os.path.join(log_dir, "timing_summary.log")
+                if not log_file:
+                    raise ValueError("No log file path resolved")
                 with open(log_file, "a", encoding="utf-8") as f:
                     f.write(file_msg + "\n")
             except Exception as e:
