@@ -99,6 +99,9 @@ def infer_domain(question: str) -> str | None:
         'วิชาเลือก',          # elective courses
         'คำอธิบายรายวิชา',    # course description
         'รายวิชา',            # course (if not registrar op)
+        'รหัสวิชา',           # course code lookup
+        'เรียนวิชา',          # year-plan course list phrasing
+        'วิชาอะไรบ้าง',       # list intent phrasing
         'ต้องผ่าน',           # must pass / prerequisite
         'บังคับก่อน',         # prerequisite
         'วิชาบังคับก่อน',     # prerequisite courses
@@ -131,6 +134,14 @@ def infer_domain(question: str) -> str | None:
         'คณะกรรมการกลาง', 'คณะกรรมการสอบ',
     )
     if any(t in q for t in _exam_policy_terms):
+        return 'regulations'
+
+    # Academic status/policy (probation, dismissal, retire) should prefer regulations.
+    _academic_status_terms = (
+        'ติดโปร', 'probation', 'ไทร์', 'retire', 'พ้นสภาพ', 'พ้นสถานภาพ',
+        'เกณฑ์', 'เงื่อนไขพ้นสภาพ', 'ได้ f', 'ได้f', 'เกรด f',
+    )
+    if any(t in ql for t in _academic_status_terms):
         return 'regulations'
 
     # Schedule / calendar / registration timing: these usually live in announcements.

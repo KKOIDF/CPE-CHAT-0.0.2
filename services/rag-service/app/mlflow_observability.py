@@ -19,6 +19,11 @@ _CATEGORICAL_METRIC_KEYS = {
     "failure_intent",
     "requested_domain",
     "inferred_domain",
+    "structured_path_miss_reason",
+    "curriculum_lookup_mode",
+    "top_k_rerank_mode",
+    "routing_domain_initial",
+    "routing_domain_final",
 }
 
 
@@ -294,6 +299,13 @@ class MlflowObservability:
                 "failure_intent": metrics.get("failure_intent"),
                 "structured_path_hit": metrics.get("structured_path_hit"),
                 "structured_path_eligible": metrics.get("structured_path_eligible"),
+                "structured_path_miss_reason": metrics.get("structured_path_miss_reason"),
+                "curriculum_lookup_mode": metrics.get("curriculum_lookup_mode"),
+                "top_k_rerank_n_docs": metrics.get("top_k_rerank_n_docs"),
+                "top_k_rerank_mode": metrics.get("top_k_rerank_mode"),
+                "top_k_rerank_cache_hit_ratio": metrics.get("top_k_rerank_cache_hit_ratio"),
+                "routing_domain_initial": metrics.get("routing_domain_initial"),
+                "routing_domain_final": metrics.get("routing_domain_final"),
                 "path_langchain_used": metrics.get("path_langchain_used"),
                 "path_nonstructured_used": metrics.get("path_nonstructured_used"),
                 "citation_repair_attempt": metrics.get("citation_repair_attempt"),

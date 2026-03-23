@@ -8,7 +8,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Any
-from .orchestration import rag_query, rag_query_domain, structured_curriculum_answer
+from .orchestration import rag_query, rag_query_domain, structured_curriculum_answer, structured_curriculum_lookup
 from .llm import llm_engine
 from .sqlite_client import close_thread_connections
 from .neo4j_client import close_driver
@@ -246,6 +246,58 @@ _STANDALONE_CODE_RE = re.compile(r"^\s*[A-Za-z]{2,6}\s*[- ]?\s*\d{3}\s*$")
 
 _COURSE_CODE_RE = re.compile(r"\b([A-Za-z]{2,6})\s*[- ]?\s*(\d{3})\b")
 
+_USER_REQUEST_RE = re.compile(r"<userRequest>\s*(.*?)\s*</userRequest>", re.IGNORECASE | re.DOTALL)
+_NOISE_BLOCK_TAGS = (
+    'attachments',
+    'context',
+    'editorContext',
+    'reminderInstructions',
+    'environment_info',
+    'workspace_info',
+)
+_NOISE_LINE_HINTS = (
+    'chat customizations index:',
+    'here is a list of instruction files that contain rules',
+    'task: suggest 3-5 relevant follow-up questions',
+    'response must be a json array of strings',
+    'json format: { "follow_ups":',
+    'guidelines:',
+    'output:',
+)
+
+
+def _sanitize_user_question_text(text: str) -> str:
+    """Strip transport wrappers/instruction boilerplate from user question text."""
+    t = (text or '').strip()
+    if not t:
+        return ''
+
+    m = _USER_REQUEST_RE.search(t)
+    if m:
+        t = (m.group(1) or '').strip()
+
+    for tag in _NOISE_BLOCK_TAGS:
+        t = re.sub(rf"<{tag}\\b[^>]*>.*?</{tag}>", " ", t, flags=re.IGNORECASE | re.DOTALL)
+
+    # Drop template/control lines that occasionally leak from chat wrappers.
+    cleaned_lines: list[str] = []
+    for line in t.splitlines():
+        s = line.strip()
+        if not s:
+            cleaned_lines.append('')
+            continue
+        s_l = s.lower()
+        if any(h in s_l for h in _NOISE_LINE_HINTS):
+            continue
+        # Drop pure XML-like wrapper lines (<tag ...>, </tag>).
+        if re.fullmatch(r"</?[^>]+>", s):
+            continue
+        cleaned_lines.append(line)
+
+    t = '\n'.join(cleaned_lines)
+    t = re.sub(r"\n{3,}", "\n\n", t)
+    return t.strip()
+
 
 def _content_to_text(content: object) -> str:
     """Best-effort conversion of chat message content to plain text."""
@@ -260,8 +312,9 @@ def _content_to_text(content: object) -> str:
                     parts.append(str(p.get('text')))
             else:
                 parts.append(str(p))
-        return ' '.join([x for x in (s.strip() for s in parts) if x]).strip()
-    return str(content).strip()
+        joined = ' '.join([x for x in (s.strip() for s in parts) if x]).strip()
+        return _sanitize_user_question_text(joined)
+    return _sanitize_user_question_text(str(content))
 
 
 def _latest_course_code_from_messages(messages: list[dict] | None) -> str:
@@ -1336,6 +1389,8 @@ def _infer_primary_intent(question: str) -> str:
         return 'prerequisite_lookup'
     if any(t in q for t in ('ห้องสอบ', 'คุมสอบ', 'มาสาย', 'ออกจากห้องสอบ', 'ทุจริต', 'อุทธรณ์')):
         return 'exam_policy'
+    if any(t in q for t in ('ติดโปร', 'probation', 'ไทร์', 'retire', 'พ้นสภาพ', 'พ้นสถานภาพ', 'เกรด f', 'ได้ f', 'ได้f')):
+        return 'academic_status_policy'
     if any(t in q for t in ('ลงทะเบียน', 'เพิ่มถอน', 'ลงเพิ่ม', 'ถอน', 'drop', 'register', 'enroll')):
         return 'registration_policy'
     if any(t in q for t in ('วัน', 'วันที่', 'เมื่อไร', 'กำหนด', 'deadline', 'ปฏิทิน', 'calendar')):
@@ -1364,9 +1419,17 @@ def _observe_default_request_metrics(*, structured_eligible: bool) -> None:
     add_metric('citation_repair_attempt', 0)
     add_metric('citation_repair_success', 0)
     add_metric('fallback_answer_used', 0)
+    add_metric('curriculum_lookup_mode', 'none')
+    add_metric('structured_path_miss_reason', '')
+    add_metric('top_k_rerank_n_docs', 0)
+    add_metric('top_k_rerank_mode', 'none')
+    add_metric('top_k_rerank_cache_hit_ratio', 0.0)
+    add_metric('routing_domain_initial', 'auto')
+    add_metric('routing_domain_final', 'auto')
 
 @app.post('/rag/query', response_model=RagResponse)
 def rag_endpoint(req: RagRequest):
+    req.question = _sanitize_user_question_text(req.question)
     with request_timing('rag_query', endpoint='/rag/query', domain=req.domain):
         use_langchain = bool(_USE_LANGCHAIN and _LANGCHAIN_READY and _langchain_rag is not None)
         lc = _langchain_rag
@@ -1391,6 +1454,7 @@ def rag_endpoint(req: RagRequest):
 
 @app.post('/rag/answer', response_model=RagAnswerResponse)
 def rag_answer_endpoint(req: RagAnswerRequest):
+    req.question = _sanitize_user_question_text(req.question)
     with request_timing('rag_answer', endpoint='/rag/answer', domain=req.domain):
         use_langchain = bool(_USE_LANGCHAIN and _LANGCHAIN_READY and _langchain_rag is not None)
         lc = _langchain_rag
@@ -1404,7 +1468,9 @@ def rag_answer_endpoint(req: RagAnswerRequest):
         # Structured curriculum shortcut (deterministic, not top-k dependent)
         if structured_eligible:
             with time_block('structured_curriculum'):
-                structured = structured_curriculum_answer(req.question)
+                structured_result = structured_curriculum_lookup(req.question)
+            structured = structured_result.get('answer')
+            add_metric('curriculum_lookup_mode', structured_result.get('lookup_mode') or 'none')
             if structured:
                 add_metric('structured_curriculum_hit', 1)
                 add_metric('structured_path_hit', 1)
@@ -1422,11 +1488,7 @@ def rag_answer_endpoint(req: RagAnswerRequest):
                     token_est=0,
                 )
             
-            miss_reason = 'no_deterministic_match'
-            if 'ปี' in req.question or 'เทอม' in req.question:
-                miss_reason = 'unsupported_term_query'
-            elif re.search(r'[A-Za-z]{2,6}\s*\d{3}', req.question):
-                miss_reason = 'course_code_not_in_db'
+            miss_reason = str(structured_result.get('miss_reason') or 'no_deterministic_match')
             add_metric('structured_path_miss_reason', miss_reason)
             add_metric('structured_path_fallback_nonstructured', 1)
 
@@ -1586,7 +1648,7 @@ def openai_compatible_endpoint(request: dict):
             raw_last_user = _content_to_text(msg.get('content', ''))
             break
 
-    question = _build_effective_question(messages, raw_last_user)
+    question = _sanitize_user_question_text(_build_effective_question(messages, raw_last_user))
 
     if (os.getenv("RAG_TIMING", "0") or "0").strip().lower() in ("1", "true", "yes", "on"):
         try:
@@ -1609,9 +1671,12 @@ def openai_compatible_endpoint(request: dict):
 
         # Structured curriculum shortcut for OpenWebUI (works even without retrieval)
         structured = None
+        structured_result: dict[str, Any] = {}
         if structured_eligible:
             with time_block('structured_curriculum'):
-                structured = structured_curriculum_answer(question)
+                structured_result = structured_curriculum_lookup(question)
+            structured = structured_result.get('answer')
+            add_metric('curriculum_lookup_mode', structured_result.get('lookup_mode') or 'none')
         if structured:
             add_metric('structured_curriculum_hit', 1)
             add_metric('structured_path_hit', 1)
@@ -1638,6 +1703,7 @@ def openai_compatible_endpoint(request: dict):
                 "usage": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
             }
         elif structured_eligible:
+            add_metric('structured_path_miss_reason', str(structured_result.get('miss_reason') or 'no_deterministic_match'))
             add_metric('structured_path_fallback_nonstructured', 1)
 
         if not question:

@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import re
+from difflib import SequenceMatcher
+from typing import Any
 
 from .normalization import normalize_question
 from .neo4j_client import extract_course_codes
@@ -16,10 +18,14 @@ from .structured_curriculum import (
 
 _COURSE_ALIASES = {
     "introduction to computer engineering": "CPE100",
+    "engineering exploration": "CPE101",
+    "discrete mathematics for computer engineers": "CPE111",
     "computer engineering mathematics": "CPE111",
     "computer programming": "CPE101",
+    "computer programming for engineers": "CPE100",
     "data structure": "CPE112",
     "data structures": "CPE112",
+    "programming with data structures": "CPE112",
     "discrete mathematics": "CPE211",
     "algorithm": "CPE213",
     "algorithms": "CPE213",
@@ -35,95 +41,301 @@ _COURSE_ALIASES = {
     "computer network": "CPE314",
 }
 
+_TITLE_STOPWORDS_EN = {
+    "the", "a", "an", "of", "for", "with", "and", "to", "in", "on",
+    "course", "subject", "code", "what", "which", "is", "are", "about",
+    "please", "tell", "me",
+}
+
 
 def _extract_prefix_from_question(question: str) -> str | None:
-    q = (question or '')
+    q = (question or "")
     # Prefer explicit patterns like LNGxxx / CPExxx
     m = re.search(r"\b([A-Za-z]{2,6})[xX]{2,}\b", q)
     if m:
-        pref = re.sub(r"[xX]+$", "", m.group(1) or '')
+        pref = re.sub(r"[xX]+$", "", m.group(1) or "")
         pref = pref.strip().upper()
         return pref or None
+
     # Or standalone prefix tokens
     toks = [t.upper() for t in re.findall(r"\b[A-Za-z]{2,6}\b", q)]
     if not toks:
         return None
+
     stop = {
-        'AND', 'OR', 'NOT', 'THE', 'THIS', 'THAT', 'WITH', 'FROM', 'WHAT', 'HOW', 'WHY',
-        'CAN', 'COULD', 'SHOULD', 'WANT', 'FIND', 'COURSE', 'COURSES', 'CODE'
+        "AND", "OR", "NOT", "THE", "THIS", "THAT", "WITH", "FROM", "WHAT", "HOW", "WHY",
+        "CAN", "COULD", "SHOULD", "WANT", "FIND", "COURSE", "COURSES", "CODE",
     }
     toks = [t for t in toks if t not in stop]
     return toks[0] if toks else None
 
 
 def _is_prefix_list_question(question: str) -> bool:
-    q = (question or '')
+    q = (question or "")
     ql = q.lower()
-    if 'xxx' in ql:
+    if "xxx" in ql:
         return True
-    return any(t in q for t in ('รหัสวิชา', 'มีวิชาอะไร', 'วิชาอะไรบ้าง', 'รายวิชา', 'ทั้งหมด', 'มีกี่วิชา'))
+    return any(t in q for t in ("รหัสวิชา", "มีวิชาอะไร", "วิชาอะไรบ้าง", "รายวิชา", "ทั้งหมด", "มีกี่วิชา"))
 
 
-def structured_curriculum_answer(question: str) -> str | None:
-    """Deterministic answers for curriculum domain (no top-k dependence)."""
+def _normalize_title_query_en(text: str) -> str:
+    t = (text or "").strip().lower()
+    if not t:
+        return ""
+    t = re.sub(r"[^a-z0-9\s]", " ", t)
+    tokens: list[str] = []
+    for tok in re.split(r"\s+", t):
+        if not tok:
+            continue
+        if tok in _TITLE_STOPWORDS_EN:
+            continue
+        # Keep a lightweight singularization for common plurals.
+        if len(tok) > 3 and tok.endswith("s") and not tok.endswith("ss"):
+            tok = tok[:-1]
+        tokens.append(tok)
+    return " ".join(tokens)
+
+
+def _extract_title_candidate(question: str) -> str:
+    q = (question or "").strip()
+    if not q:
+        return ""
+
+    # Thai patterns: "รหัสวิชาของ <title> คืออะไร"
+    m = re.search(r"รหัสวิช(?:า)?ของ\s*(.+?)\s*(?:คือ|รหัส|ไหม|\?|$)", q, flags=re.IGNORECASE)
+    if m:
+        return (m.group(1) or "").strip()
+
+    # Thai patterns: "<title> รหัสวิชาอะไร"
+    m = re.search(r"(?:วิชา)?\s*(.+?)\s*รหัสวิช(?:า)?(?:อะไร|คืออะไร|คือ)", q, flags=re.IGNORECASE)
+    if m:
+        return (m.group(1) or "").strip()
+
+    ql = q.lower()
+    m = re.search(r"(?:course\s+code\s+of|code\s+of|what\s+is\s+the\s+course\s+code\s+of)\s+(.+)$", ql)
+    if m:
+        return (m.group(1) or "").strip()
+
+    return q
+
+
+def _find_best_course_code_by_title(question: str, all_courses: dict[str, Course]) -> tuple[str | None, str | None]:
+    """Return (course_code, mode) from title matching.
+
+    mode is one of: exact_title, alias_title, fuzzy_title.
+    """
+    if not all_courses:
+        return None, None
+
+    candidate = _extract_title_candidate(question)
+    cand_norm = _normalize_title_query_en(candidate)
+    if not cand_norm:
+        return None, None
+
+    # 1) Alias map first.
+    for alias, alias_code in _COURSE_ALIASES.items():
+        na = _normalize_title_query_en(alias)
+        if na == cand_norm or na in cand_norm:
+            return alias_code, "alias_title"
+
+    # 2) Exact normalized title match from parsed curriculum.
+    title_exact_index: dict[str, str] = {}
+    for code, c in all_courses.items():
+        raw = (c.title_th or "").strip()
+        if not raw:
+            continue
+        candidates = [raw] + re.findall(r"\(([^\)]+)\)", raw)
+        for title in candidates:
+            tn = _normalize_title_query_en(title)
+            if tn:
+                title_exact_index.setdefault(tn, code)
+
+    if cand_norm in title_exact_index:
+        return title_exact_index[cand_norm], "exact_title"
+
+    # 3) Fuzzy token + sequence similarity.
+    cand_tokens = set(cand_norm.split())
+    if not cand_tokens:
+        return None, None
+
+    best_code: str | None = None
+    best_score = 0.0
+    for tn, code in title_exact_index.items():
+        toks = set(tn.split())
+        if not toks:
+            continue
+        inter = len(cand_tokens.intersection(toks))
+        union = len(cand_tokens.union(toks))
+        jacc = (inter / union) if union else 0.0
+        seq = SequenceMatcher(None, cand_norm, tn).ratio()
+        score = 0.65 * jacc + 0.35 * seq
+        if score > best_score:
+            best_score = score
+            best_code = code
+
+    if best_code and best_score >= 0.62:
+        return best_code, "fuzzy_title"
+    return None, None
+
+
+def _extract_year_term(question: str) -> tuple[int | None, int | None]:
+    q = (question or "").strip()
+    year: int | None = None
+    term: int | None = None
+
+    m_year = re.search(r"(?:ชั้นปีที่|ปีที่|ปี)\s*([1-4])", q)
+    if m_year:
+        year = int(m_year.group(1))
+    m_term = re.search(r"(?:ภาคการศึกษาที่|ภาค|เทอม)\s*([1-3])", q)
+    if m_term:
+        term = int(m_term.group(1))
+
+    return year, term
+
+
+def _parse_study_plan_courses(question: str) -> list[Course]:
+    curriculum = load_cpe_curriculum_2564()
+    if not curriculum:
+        return []
+    try:
+        text = curriculum.source_path.read_text(encoding="utf-8", errors="ignore")
+    except Exception:
+        return []
+
+    if "แผนการศึกษา" in text:
+        text = text.split("แผนการศึกษา", 1)[1]
+
+    year, term = _extract_year_term(question)
+    if year is None:
+        return []
+
+    if term is not None:
+        sec_re = re.compile(
+            rf"ชั้นปีที่\s*{year}\s*ภาคการศึกษาที่\s*{term}.*?(?=ชั้นปีที่\s*[1-4]\s*ภาคการศึกษาที่|$)",
+            flags=re.DOTALL,
+        )
+    else:
+        sec_re = re.compile(
+            rf"ชั้นปีที่\s*{year}\s*ภาคการศึกษาที่\s*[1-3].*?(?=ชั้นปีที่\s*[1-4]\s*ภาคการศึกษาที่|$)",
+            flags=re.DOTALL,
+        )
+
+    matches = sec_re.findall(text)
+    if not matches:
+        return []
+
+    bank: dict[str, Course] = {}
+    for chunk in matches:
+        for c in extract_courses_from_text(chunk):
+            bank.setdefault(c.code, c)
+
+    def _k(c: Course) -> tuple[str, int]:
+        try:
+            return (c.prefix, int(c.number))
+        except Exception:
+            return (c.prefix, 9999)
+
+    return sorted(bank.values(), key=_k)
+
+
+def _format_study_plan_answer(question: str, courses: list[Course], source_name: str) -> str | None:
+    if not courses:
+        return None
+    year, term = _extract_year_term(question)
+    if year is None:
+        return None
+
+    if term is not None:
+        hdr = f"ชั้นปีที่ {year} ภาคการศึกษาที่ {term}"
+    else:
+        hdr = f"ชั้นปีที่ {year}"
+
+    lines = [f"รายวิชาที่พบใน {hdr}:"]
+    for c in courses:
+        cred = f" ({c.credits} หน่วยกิต)" if c.credits else ""
+        lines.append(f"- {c.prefix} {c.number} {c.title_th}{cred} [{source_name}/1]")
+    return "\n".join(lines).strip()
+
+
+def structured_curriculum_lookup(question: str) -> dict[str, Any]:
+    """Deterministic curriculum lookup with debug metadata.
+
+    Returns keys:
+      - answer: str | None
+      - lookup_mode: exact_title|alias_title|fuzzy_title|study_plan|exact_code|prefix_list|none
+      - miss_reason: no_exact_match|no_alias_match|no_studyplan_match|ambiguous_match|no_deterministic_match
+    """
     q = normalize_question(question)
-
     totals = load_credit_totals_2564()
     curriculum = load_cpe_curriculum_2564()
-    source_name = curriculum.source_path.name if curriculum else 'FOE10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt'
+    source_name = curriculum.source_path.name if curriculum else "FOE10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt"
 
-    # 0) Category totals lookup from the canonical 2564 curriculum source.
-    if any(t in q for t in ('หมวดวิชาศึกษาทั่วไป', 'วิชาศึกษาทั่วไป', 'ศึกษาทั่วไป')) and 'หน่วยกิต' in q:
-        ge = totals.get('general_education')
+    # Category totals lookup.
+    if any(t in q for t in ("หมวดวิชาศึกษาทั่วไป", "วิชาศึกษาทั่วไป", "ศึกษาทั่วไป")) and "หน่วยกิต" in q:
+        ge = totals.get("general_education")
         if ge is not None:
-            return f"- หมวดวิชาศึกษาทั่วไปต้องศึกษารวม {ge} หน่วยกิต [{source_name}/1]"
+            return {
+                "answer": f"- หมวดวิชาศึกษาทั่วไปต้องศึกษารวม {ge} หน่วยกิต [{source_name}/1]",
+                "lookup_mode": "exact_title",
+                "miss_reason": "",
+            }
 
-        sp = totals.get('specific')
+        sp = totals.get("specific")
         if sp is not None:
-            return f"- หมวดวิชาเฉพาะต้องศึกษารวม {sp} หน่วยกิต [{source_name}/1]"
+            return {
+                "answer": f"- หมวดวิชาเฉพาะต้องศึกษารวม {sp} หน่วยกิต [{source_name}/1]",
+                "lookup_mode": "exact_title",
+                "miss_reason": "",
+            }
 
-    # 0.5) Total-program-credit lookup from the canonical 2564 curriculum source.
-    if 'หน่วยกิต' in q and (
-        any(t in q for t in ('รวมกี่หน่วยกิต', 'หน่วยกิตรวมของหลักสูตร', 'จำนวนหน่วยกิตรวม', 'ตลอดหลักสูตร'))
-        or ('หลักสูตร' in q and any(t in q for t in ('กี่', 'ทั้งหมด', 'รวม')))
+    # Total-program-credit lookup.
+    if "หน่วยกิต" in q and (
+        any(t in q for t in ("รวมกี่หน่วยกิต", "หน่วยกิตรวมของหลักสูตร", "จำนวนหน่วยกิตรวม", "ตลอดหลักสูตร"))
+        or ("หลักสูตร" in q and any(t in q for t in ("กี่", "ทั้งหมด", "รวม")))
     ):
-        tot = totals.get('total')
+        tot = totals.get("total")
         if tot is not None:
-            return (
-                f"- หลักสูตรวิศวกรรมคอมพิวเตอร์ต้องศึกษารวม {tot} หน่วยกิต [{source_name}/1]\n"
-                f"- ข้อความอ้างอิงคือ จำนวนหน่วยกิตรวมตลอดหลักสูตร {tot} หน่วยกิต [{source_name}/1]"
-            )
+            return {
+                "answer": (
+                    f"- หลักสูตรวิศวกรรมคอมพิวเตอร์ต้องศึกษารวม {tot} หน่วยกิต [{source_name}/1]\n"
+                    f"- ข้อความอ้างอิงคือ จำนวนหน่วยกิตรวมตลอดหลักสูตร {tot} หน่วยกิต [{source_name}/1]"
+                ),
+                "lookup_mode": "exact_title",
+                "miss_reason": "",
+            }
 
-    # 0.1) Exact course-code lookup from the canonical 2564 curriculum source.
-    # If the query asks about instructor/teacher, do not force a title+credit answer.
-    instructor_intent = any(t in q for t in ('ใครสอน', 'ผู้สอน', 'อาจารย์', 'คนสอน'))
+    # Study-plan lookup by year/term should short-circuit expensive retrieval.
+    year_hint, _ = _extract_year_term(q)
+    if year_hint is not None and any(t in q for t in ("วิชาอะไร", "วิชาอะไรบ้าง", "เรียนอะไร", "เรียนวิชา")):
+        year_courses = _parse_study_plan_courses(q)
+        year_answer = _format_study_plan_answer(q, year_courses, source_name)
+        if year_answer:
+            return {"answer": year_answer, "lookup_mode": "study_plan", "miss_reason": ""}
+        return {"answer": None, "lookup_mode": "none", "miss_reason": "no_studyplan_match"}
 
-    # If the user asks about prerequisites or where the course appears in the study plan
-    # (term/semester/year), do not shortcut to title+credits; prefer full RAG retrieval.
+    # Exact course-code/title lookups.
+    instructor_intent = any(t in q for t in ("ใครสอน", "ผู้สอน", "อาจารย์", "คนสอน"))
     prereq_intent = any(t in q for t in (
-        'ต้องผ่าน', 'บังคับก่อน', 'วิชาบังคับก่อน', 'ผ่านอะไรก่อน', 'prereq', 'pre-req', 'prerequisite', 'เงื่อนไขก่อน'
+        "ต้องผ่าน", "บังคับก่อน", "วิชาบังคับก่อน", "ผ่านอะไรก่อน", "prereq", "pre-req", "prerequisite", "เงื่อนไขก่อน"
     ))
     term_intent = any(t in q for t in (
-        'เทอม', 'ภาค', 'ภาคการศึกษา', 'semester', 'ปีที่', 'ชั้นปี', 'อยู่ปี', 'เรียนปี'
+        "เทอม", "ภาค", "ภาคการศึกษา", "semester", "ปีที่", "ชั้นปี", "อยู่ปี", "เรียนปี"
     ))
 
-    # When question is composed as:
-    #   "<prev>\nคำถามต่อเนื่อง: <last>"
-    # prioritize course codes from the follow-up segment to avoid stale-code bleed.
     def _codes_in_order(text: str) -> list[str]:
         vals: list[str] = []
-        for m in re.finditer(r"\b([A-Za-z]{2,6})\s*[- ]?\s*(\d{3})\b", text or ''):
+        for m in re.finditer(r"\b([A-Za-z]{2,6})\s*[- ]?\s*(\d{3})\b", text or ""):
             vals.append(f"{(m.group(1) or '').upper()} {(m.group(2) or '')}".strip())
-        # Backward compatibility: merge parser-based extraction too.
-        for c in list(extract_course_codes(text or '')):
-            vals.append((c or '').strip())
+        for c in list(extract_course_codes(text or "")):
+            vals.append((c or "").strip())
+
         out: list[str] = []
         seen: set[str] = set()
         for c in vals:
-            s = (c or '').strip()
+            s = (c or "").strip()
             if not s:
                 continue
-            k = s.replace('-', '').replace(' ', '').upper()
+            k = s.replace("-", "").replace(" ", "").upper()
             if k in seen:
                 continue
             seen.add(k)
@@ -134,65 +346,59 @@ def structured_curriculum_answer(question: str) -> str | None:
     explicit_followup = re.search(r"ค(?:ำ|ํา)ถามต่อเนื่อง\s*:", q) is not None
     if explicit_followup:
         parts = re.split(r"ค(?:ำ|ํา)ถามต่อเนื่อง\s*:", q, maxsplit=1)
-        tail = (parts[1] if len(parts) > 1 else '').strip()
+        tail = (parts[1] if len(parts) > 1 else "").strip()
         if tail:
             followup_codes = _codes_in_order(tail)
 
     codes = followup_codes or _codes_in_order(q)
+    all_courses = load_all_courses_2564()
 
-    # English aliases parsing
-    if not codes and not instructor_intent and not (prereq_intent or term_intent):
-        ql_en = re.sub(r"[^a-z0-9\s]", " ", q.lower()).strip()
-        for alias, alias_code in _COURSE_ALIASES.items():
-            if alias in ql_en:
-                codes.append(alias_code)
-                break
+    # Title-based mapping for explicit code questions.
+    title_lookup_mode: str | None = None
+    code_lookup_intent = any(t in q.lower() for t in ("รหัสวิชา", "รหัสอะไร", "course code", "code of"))
+    if code_lookup_intent and (not codes) and (not instructor_intent) and (not (prereq_intent or term_intent)):
+        matched_code, title_lookup_mode = _find_best_course_code_by_title(q, all_courses)
+        if matched_code:
+            codes.append(matched_code)
 
     if codes and not instructor_intent and not (prereq_intent or term_intent):
-        all_courses = load_all_courses_2564()
-        # Prefer the latest-mentioned code in the user message to avoid stale-code bleed.
         for code in reversed(codes):
-            key = code.replace('-', '').replace(' ', '').upper()
+            key = code.replace("-", "").replace(" ", "").upper()
             course = all_courses.get(key)
             if not course:
                 continue
-            curriculum = load_cpe_curriculum_2564()
-            source_name = curriculum.source_path.name if curriculum else 'FOE10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt'
-            credit_text = f"{course.credits} หน่วยกิต" if course.credits else 'ไม่พบจำนวนหน่วยกิตในข้อความที่ parse ได้'
-            return (
-                f"- วิชา {course.prefix} {course.number} คือ {course.title_th} [{source_name}/1]\n"
-                f"- วิชา {course.prefix} {course.number} มีจำนวน {credit_text} [{source_name}/1]"
-            )
-        # If user explicitly asked a follow-up code and that code isn't in canonical list,
-        # do not fall back to an older code from previous turns.
+            credit_text = f"{course.credits} หน่วยกิต" if course.credits else "ไม่พบจำนวนหน่วยกิตในข้อความที่ parse ได้"
+            return {
+                "answer": (
+                    f"- วิชา {course.prefix} {course.number} คือ {course.title_th} [{source_name}/1]\n"
+                    f"- วิชา {course.prefix} {course.number} มีจำนวน {credit_text} [{source_name}/1]"
+                ),
+                "lookup_mode": (title_lookup_mode or "exact_code"),
+                "miss_reason": "",
+            }
         if explicit_followup and followup_codes:
-            return None
+            return {"answer": None, "lookup_mode": "none", "miss_reason": "no_exact_match"}
 
-    # 1) Full required CPE list (curriculum 2564 study plan)
+    # Full required CPE list.
     required = format_required_cpe_answer(q)
     if required:
-        return required
+        return {"answer": required, "lookup_mode": "study_plan", "miss_reason": ""}
 
-    # 2) List courses under a prefix (e.g., LNGxxx / CPE มีรหัสวิชาอะไรบ้าง)
+    # List courses under a prefix (e.g., LNGxxx / CPE มีรหัสวิชาอะไรบ้าง).
     pref = _extract_prefix_from_question(q)
     if pref and _is_prefix_list_question(q):
-        # Prefer deterministic canonical curriculum list first.
-        all_courses = load_all_courses_2564()
-        from_canonical = [c for c in all_courses.values() if (c.prefix or '').upper() == pref.upper()]
+        from_canonical = [c for c in all_courses.values() if (c.prefix or "").upper() == pref.upper()]
         if from_canonical:
             items = sorted(from_canonical, key=lambda c: int(c.number))
-            curriculum = load_cpe_curriculum_2564()
-            source_name = curriculum.source_path.name if curriculum else 'FOE10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt'
             lines: list[str] = []
             lines.append(f"รหัสวิชา {pref} ที่พบในโดเมนหลักสูตร (curriculum):")
             lines.append(f"- พบทั้งหมด {len(items)} วิชา [{source_name}/1]")
             for c in items:
                 cred = f" ({c.credits} หน่วยกิต)" if c.credits else ""
                 lines.append(f"- {c.prefix} {c.number} {c.title_th}{cred} [{source_name}/1]")
-            return "\n".join(lines).strip()
+            return {"answer": "\n".join(lines).strip(), "lookup_mode": "prefix_list", "miss_reason": ""}
 
-        sqlite_path = domain_sqlite_path('curriculum')
-        # Pull chunks that look like course descriptions first.
+        sqlite_path = domain_sqlite_path("curriculum")
         ids = keyword_search(f"รายวิชา: {pref}", limit=600, sqlite_path=sqlite_path)
         if not ids:
             ids = keyword_search(pref, limit=600, sqlite_path=sqlite_path)
@@ -200,23 +406,28 @@ def structured_curriculum_answer(question: str) -> str | None:
         bank: dict[str, Course] = {}
         sources: list[str] = []
         for d in docs:
-            if d.get('source') and d.get('source') not in sources:
-                sources.append(str(d.get('source')))
-            for c in extract_courses_from_text(d.get('text') or '', prefix_filter=pref):
+            if d.get("source") and d.get("source") not in sources:
+                sources.append(str(d.get("source")))
+            for c in extract_courses_from_text(d.get("text") or "", prefix_filter=pref):
                 bank.setdefault(c.code, c)
 
         if not bank:
-            return None
+            return {"answer": None, "lookup_mode": "none", "miss_reason": "no_alias_match"}
 
         items = sorted(bank.values(), key=lambda c: int(c.number))
-        lines: list[str] = []
-        lines.append(f"รหัสวิชา {pref} ที่พบในโดเมนหลักสูตร (curriculum):")
-        lines.append(f"- พบทั้งหมด {len(items)} วิชา")
+        lines2: list[str] = []
+        lines2.append(f"รหัสวิชา {pref} ที่พบในโดเมนหลักสูตร (curriculum):")
+        lines2.append(f"- พบทั้งหมด {len(items)} วิชา")
         for c in items:
             cred = f" ({c.credits} หน่วยกิต)" if c.credits else ""
-            lines.append(f"- {c.prefix} {c.number} {c.title_th}{cred}")
+            lines2.append(f"- {c.prefix} {c.number} {c.title_th}{cred}")
         if sources:
-            lines.append(f"\nแหล่งอ้างอิง (ตัวอย่าง): {', '.join(sources[:3])}")
-        return "\n".join(lines).strip()
+            lines2.append(f"\nแหล่งอ้างอิง (ตัวอย่าง): {', '.join(sources[:3])}")
+        return {"answer": "\n".join(lines2).strip(), "lookup_mode": "prefix_list", "miss_reason": ""}
 
-    return None
+    return {"answer": None, "lookup_mode": "none", "miss_reason": "no_deterministic_match"}
+
+
+def structured_curriculum_answer(question: str) -> str | None:
+    """Backward-compatible wrapper returning only answer text."""
+    return structured_curriculum_lookup(question).get("answer")

@@ -24,7 +24,7 @@ from .retrieval import (
     retrieve_by_domain as _retrieve_by_domain,
     retrieve_multi_document as _retrieve_multi_document,
 )
-from .curriculum_deterministic import structured_curriculum_answer
+from .curriculum_deterministic import structured_curriculum_answer, structured_curriculum_lookup
 from .rerank import _normalize_source_key
 
 
@@ -104,7 +104,9 @@ def _new_adaptive_state() -> Dict[str, float | int]:
 def rag_query(question: str) -> Dict:
     q_display = normalize_question(question)
     q_search = search_query_from_question(question)
-    dom_inferred = infer_domain(q_display) or _infer_domain_from_reference(question)
+    dom_initial = infer_domain(q_display) or _infer_domain_from_reference(question)
+    dom_inferred = dom_initial
+    add_metric('routing_domain_initial', dom_initial or 'auto')
     ref_allow = _reference_candidates(question)
     strict_ref_hints = (os.getenv('STRICT_REFERENCE_HINTS', '1') or '1').strip().lower() in (
         '1', 'true', 'yes', 'on'
@@ -120,6 +122,7 @@ def rag_query(question: str) -> Dict:
 
     if 'ลาพัก' in q_display:
         add_metric('inferred_domain', 'multi:announcements+regulations')
+        add_metric('routing_domain_final', 'multi:announcements+regulations')
         retrieved = _retrieve_all_domains(q_search, domains=['announcements', 'regulations'])
         adaptive['initial_retrieval_doc_count'] = len(retrieved or [])
         adaptive['initial_top_score'] = _top_retrieval_score(retrieved)
@@ -139,6 +142,7 @@ def rag_query(question: str) -> Dict:
         else:
             dom = dom_inferred
             add_metric('inferred_domain', dom or 'auto')
+            add_metric('routing_domain_final', dom or 'auto')
 
             if dom == 'curriculum' and _CURRICULUM_BYPASS_VECTOR:
                 add_metric('retrieval_curriculum_vector_bypass', 1)
@@ -267,7 +271,9 @@ def rag_query_domain(question: str, domain: str | None) -> Dict:
     q_display = normalize_question(question)
     dom = (domain or '').strip().lower()
     adaptive = _new_adaptive_state()
+    add_metric('routing_domain_initial', dom or 'auto')
     add_metric('inferred_domain', dom or 'auto')
+    add_metric('routing_domain_final', dom or 'auto')
     if dom == 'curriculum' and _CURRICULUM_BYPASS_VECTOR:
         add_metric('curriculum_bypass_vector_triggered', 1)
         adaptive['curriculum_bypass_vector_triggered'] = 1
