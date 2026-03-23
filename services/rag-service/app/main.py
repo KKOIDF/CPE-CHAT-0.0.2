@@ -40,9 +40,9 @@ if _USE_LANGCHAIN:
         from . import langchain_rag as _langchain_rag  # type: ignore
         _LANGCHAIN_READY = True
     except Exception as e:
-        logger.warning(
-            "RAG_USE_LANGCHAIN enabled but LangChain is unavailable (%s). Falling back to built-in RAG.",
-            str(e),
+        logger.debug(
+            "LangChain unavailable (%s) — built-in RAG will be used.",
+            type(e).__name__,
         )
         _USE_LANGCHAIN = False
 
@@ -258,9 +258,24 @@ _FALLBACK = 'ไม่พบข้อมูลในเอกสาร'
 _STANDALONE_CODE_RE = re.compile(r"^\s*[A-Za-z]{2,6}\s*[- ]?\s*\d{3}\s*$")
 
 _COURSE_CODE_RE = re.compile(r"\b([A-Za-z]{2,6})\s*[- ]?\s*(\d{3})\b")
-_META_FOLLOWUP_TASK_RE = re.compile(
-    r"(?:^|\n)\s*(?:#+\s*)?task\s*:\s*suggest\s*3\s*-\s*5\s*relevant\s*follow-up\s*questions",
+# Meta prompt detection: matches all three OpenWebUI UX task types.
+# Pattern covers: follow-up generation, title generation, tag generation.
+_META_TASK_RE = re.compile(
+    r"(?:^|\n)\s*(?:#+\s*)?task\s*:[\s\S]{0,200}?"
+    r"(?:"
+    r"suggest\s*3\s*-\s*5\s*relevant\s*follow-up\s*questions"
+    r"|generate\s+(?:a\s+)?concise[\s,]+3\s*-\s*5\s*word\s*title"
+    r"|generate\s+1\s*-\s*3\s*broad\s*tags"
+    r")",
     re.IGNORECASE,
+)
+# Fallback substring patterns when regex misses due to wrapping whitespace.
+_META_TASK_HINTS = (
+    'task: suggest 3-5 relevant follow-up questions',
+    'generate a concise, 3-5 word title',
+    'generate 1-3 broad tags categorizing',
+    'json format: { "follow_ups":',
+    'response must be a json array of strings',
 )
 
 _USER_REQUEST_RE = re.compile(r"<userRequest>\s*(.*?)\s*</userRequest>", re.IGNORECASE | re.DOTALL)
@@ -278,6 +293,8 @@ _NOISE_LINE_HINTS = (
     'task: suggest 3-5 relevant follow-up questions',
     'response must be a json array of strings',
     'json format: { "follow_ups":',
+    'generate a concise, 3-5 word title',
+    'generate 1-3 broad tags categorizing',
     'guidelines:',
     'output:',
 )
@@ -357,14 +374,21 @@ def _extract_course_codes_from_text(text: str) -> list[str]:
 
 
 def _is_meta_followup_generation_prompt(text: str) -> bool:
+    """Detect any OpenWebUI meta task prompt (follow-up / title / tag generation)."""
     t = (text or '').strip()
     if not t:
         return False
-    if _META_FOLLOWUP_TASK_RE.search(t):
+    if _META_TASK_RE.search(t):
         return True
     tl = t.lower()
+    # Substring fallbacks for prompts with irregular whitespace/formatting.
+    if any(h in tl for h in _META_TASK_HINTS):
+        return True
     return ('### chat history:' in tl) and ('follow-up questions' in tl)
 
+
+# Keep legacy alias so nothing else breaks.
+_is_meta_prompt = _is_meta_followup_generation_prompt
 
 def _analyze_followup_entities(messages: list[dict] | None, effective_question: str) -> dict[str, str | int]:
     # Defaults keep timing logs column-stable.

@@ -109,19 +109,27 @@ def structured_regulations_lookup(question: str) -> dict[str, Any]:
     """Deterministic lookup for regulations domain.
 
     Priority:
-    1. Numbered clause lookup  (ข้อ 12 ...)
-    2. Topic keyword lookup    (ทุจริต, อุทธรณ์, แต่งกาย, ...)
+    0. Multi-intent clause merge  (ข้อ 12 + ข้อ 16 in same query)
+    1. Numbered clause lookup      (single ข้อ N)
+    2. Topic keyword lookup        (ทุจริต, อุทธรณ์, แต่งกาย, ...)
     """
     q = (question or "").strip()
 
-    # Priority 1: Numbered clause
-    m = re.search(r"ข้อ\s*(\d+)", q)
-    if m and any(k in q for k in ("ห้องสอบ", "มาสาย", "สอบ", "ทุจริต", "เข้าสอบ", "ออก", "นาที", "ชั่วโมง")):
-        clause_num = m.group(1)
-        clause_text = fetch_exam_clause(clause_num)
-        if clause_text:
-            ans = f"ระเบียบการสอบ ข้อ {clause_num} กำหนดไว้ดังนี้:\n\n{clause_text}\n\n[rule_exam2560.txt/1]"
-            return {"answer": ans, "lookup_mode": f"exam_clause_{clause_num}", "miss_reason": ""}
+    # Priority 0 + 1: Numbered clause(s) — handle multi-intent in a single response.
+    _exam_keywords = ("ห้องสอบ", "มาสาย", "สอบ", "ทุจริต", "เข้าสอบ", "ออก", "นาที", "ชั่วโมง",
+                      "ข้อ", "ระเบียบ", "กฎ")
+    clause_nums = re.findall(r"ข้อ\s*(\d+)", q)
+    if clause_nums and any(k in q for k in _exam_keywords):
+        rules_text = _read_exam_rules()
+        parts: list[str] = []
+        for clause_num in clause_nums:
+            clause_text = fetch_exam_clause(clause_num) if rules_text else None
+            if clause_text:
+                parts.append(f"ระเบียบการสอบ ข้อ {clause_num} กำหนดไว้ดังนี้:\n\n{clause_text}")
+        if parts:
+            ans = "\n\n---\n\n".join(parts) + "\n\n[rule_exam2560.txt/1]"
+            mode = f"exam_clause_{'_'.join(clause_nums)}" if len(clause_nums) > 1 else f"exam_clause_{clause_nums[0]}"
+            return {"answer": ans, "lookup_mode": mode, "miss_reason": ""}
 
     # Priority 2: Topic-based search
     rules_text = _read_exam_rules()
