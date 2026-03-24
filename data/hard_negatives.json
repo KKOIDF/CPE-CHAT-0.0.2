@@ -1,0 +1,52 @@
+[
+  {
+    "id": "hn_001",
+    "category": "hard_negative_announcement",
+    "question": "เมื่อไหร่จะลงทะเบียนเรียนได้ เปิดระบบวันไหน",
+    "expected_domain": "announcements",
+    "expected_answer_keywords": ["4", "7", "มกราคม"],
+    "expected_source_contains": ["ปฏิทิน", "2568"],
+    "must_not_contain": ["ไม่พบข้อมูล"],
+    "notes": "similar to regulations but asking for schedule"
+  },
+  {
+    "id": "hn_002",
+    "category": "hard_negative_regulation",
+    "question": "ถ้าไม่ได้ลงทะเบียนเรียนตามกำหนดเวลาในปฏิทินจะถูกพ้นสภาพไหม",
+    "expected_domain": "regulations",
+    "expected_answer_keywords": ["พ้นสภาพ", "รักษาสถานภาพ"],
+    "expected_source_contains": ["regulation", "ข้อบังคับ"],
+    "must_not_contain": ["ไม่พบข้อมูล"],
+    "notes": "similar to announcements but asking for policy"
+  },
+  {
+    "id": "hn_003",
+    "category": "hard_negative_curriculum",
+    "question": "วิชาบังคับก่อนของ CPE 342 หาเรียนได้ที่ไหนในปฏิทิน",
+    "expected_domain": "curriculum",
+    "expected_answer_keywords": ["CPE 241"],
+    "expected_source_contains": ["foe10"],
+    "must_not_contain": ["ไม่พบข้อมูล"],
+    "notes": "mentions calendar but targets curriculum"
+  },
+  {
+    "id": "hn_004",
+    "category": "hard_negative_regulation",
+    "question": "ทุจริตในการสอบ CPE 342 จะโดนอะไรบ้าง",
+    "expected_domain": "regulations",
+    "expected_answer_keywords": ["สอบสวน", "ลงโทษ", "กรรมการ"],
+    "expected_source_contains": ["rule_exam2560"],
+    "must_not_contain": ["ไม่พบข้อมูล"],
+    "notes": "mentions course code but asks about cheating policy"
+  },
+  {
+    "id": "hn_005",
+    "category": "hard_negative_announcement",
+    "question": "ต้องจ่ายค่าเทอมวิชาเจนเท่าไหร่",
+    "expected_domain": "announcements",
+    "expected_answer_keywords": ["ค่าธรรมเนียม", "ชำระเงิน"],
+    "expected_source_contains": ["fee", "ค่าธรรมเนียม"],
+    "must_not_contain": ["ไม่พบข้อมูล"],
+    "notes": "mentions GEN (curriculum) but asks for fee (announcements)"
+  }
+]

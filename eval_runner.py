@@ -80,7 +80,7 @@ def retrieval_hit(
     expected_domain: str | None,
     expected_domains_any: list[str],
     expected_source_contains: list[str],
-) -> tuple[bool, bool, bool, list[str], list[str]]:
+) -> tuple[bool, bool, bool, list[str], list[str], float, bool]:
     domains = [str((c or {}).get("domain") or "").strip().lower() for c in contexts or []]
     domain_set = {d for d in domains if d}
 
@@ -107,7 +107,21 @@ def retrieval_hit(
             missing_source_tokens.append(token)
 
     sources_ok = len(missing_source_tokens) == 0
-    return domain_ok and domains_any_ok and sources_ok, domain_ok, sources_ok, sorted(domain_set), missing_source_tokens
+
+    best_rank = 9999
+    expected_toks = [normalize_text(t) for t in expected_source_contains or []]
+    if expected_toks:
+        for i, hs in enumerate(source_haystacks, 1):
+            if all(tok in hs for tok in expected_toks):
+                best_rank = i
+                break
+    else:
+        best_rank = 1
+
+    mrr = 1.0 / best_rank if best_rank != 9999 else 0.0
+    top_1 = (best_rank == 1)
+
+    return domain_ok and domains_any_ok and sources_ok, domain_ok, sources_ok, sorted(domain_set), missing_source_tokens, mrr, top_1
 
 
 def citation_validity(answer: str, contexts: list[dict[str, Any]]) -> tuple[bool, int, int, list[str]]:
@@ -187,6 +201,8 @@ class CaseResult:
     retrieval_source_pass: bool
     retrieval_domains_found: list[str]
     retrieval_missing_source_tokens: list[str]
+    retrieval_mrr: float
+    retrieval_top_1_pass: bool
     citation_validity_pass: bool
     citation_total: int
     citation_valid_count: int
@@ -237,6 +253,8 @@ def summarize(results: list[CaseResult]) -> dict[str, Any]:
 
     answer_hit_rate = sum(1 for r in results if r.answer_hit_pass) / total if total else 0.0
     retrieval_hit_rate = sum(1 for r in results if r.retrieval_hit_pass) / total if total else 0.0
+    retrieval_mrr = statistics.mean([r.retrieval_mrr for r in results]) if total else 0.0
+    retrieval_top_1_rate = sum(1 for r in results if r.retrieval_top_1_pass) / total if total else 0.0
     citation_validity_rate = sum(1 for r in results if r.citation_validity_pass) / total if total else 0.0
     must_not_pass_rate = sum(1 for r in results if r.must_not_contain_pass) / total if total else 0.0
     overall_pass_rate = sum(1 for r in results if r.total_pass) / total if total else 0.0
@@ -258,6 +276,8 @@ def summarize(results: list[CaseResult]) -> dict[str, Any]:
         bucket["overall_pass"] += int(r.total_pass)
         bucket["answer_hit_pass"] += int(r.answer_hit_pass)
         bucket["retrieval_hit_pass"] += int(r.retrieval_hit_pass)
+        bucket["retrieval_mrr_sum"] = bucket.get("retrieval_mrr_sum", 0.0) + r.retrieval_mrr
+        bucket["retrieval_top_1_pass"] = bucket.get("retrieval_top_1_pass", 0) + int(r.retrieval_top_1_pass)
         bucket["citation_validity_pass"] += int(r.citation_validity_pass)
 
     by_category_rates: dict[str, dict[str, float]] = {}
@@ -268,6 +288,8 @@ def summarize(results: list[CaseResult]) -> dict[str, Any]:
             "overall_pass_rate": float(m["overall_pass"]) / n,
             "answer_hit_rate": float(m["answer_hit_pass"]) / n,
             "retrieval_hit_rate": float(m["retrieval_hit_pass"]) / n,
+            "retrieval_mrr": float(m["retrieval_mrr_sum"]) / n,
+            "retrieval_top_1_rate": float(m["retrieval_top_1_pass"]) / n,
             "citation_validity_rate": float(m["citation_validity_pass"]) / n,
         }
 
@@ -315,6 +337,8 @@ def summarize(results: list[CaseResult]) -> dict[str, Any]:
         "overall_pass_rate": overall_pass_rate,
         "answer_hit_rate": answer_hit_rate,
         "retrieval_hit_rate": retrieval_hit_rate,
+        "retrieval_mrr": retrieval_mrr,
+        "retrieval_top_1_rate": retrieval_top_1_rate,
         "citation_validity_rate": citation_validity_rate,
         "must_not_contain_pass_rate": must_not_pass_rate,
         "avg_latency_ms": statistics.mean(lat_total) if lat_total else 0.0,
@@ -340,11 +364,20 @@ def to_markdown(summary: dict[str, Any], input_path: Path, base_url: str) -> str
     lines.append("")
     lines.append(f"- total cases: {summary['total_cases']}")
     lines.append(f"- overall pass rate: {summary['overall_pass_rate']:.4f}")
-    lines.append(f"- answer hit rate: {summary['answer_hit_rate']:.4f}")
-    lines.append(f"- retrieval hit rate: {summary['retrieval_hit_rate']:.4f}")
-    lines.append(f"- citation validity rate: {summary['citation_validity_rate']:.4f}")
-    lines.append(f"- avg latency ms: {summary['avg_latency_ms']:.2f}")
-    lines.append(f"- p95 latency ms: {summary['p95_latency_ms']:.2f}")
+    lines.append("")
+    lines.append("### Retrieval Metrics")
+    lines.append(f"- top-1 hit rate: {summary['retrieval_top_1_rate']:.4f}")
+    lines.append(f"- top-K hit rate: {summary.get('retrieval_hit_rate', 0.0):.4f}")
+    lines.append(f"- mean reciprocal rank (mrr): {summary.get('retrieval_mrr', 0.0):.4f}")
+    lines.append("")
+    lines.append("### Answer Quality Metrics")
+    lines.append(f"- answer keyword hit rate: {summary['answer_hit_rate']:.4f}")
+    lines.append(f"- citation validity (groundedness): {summary['citation_validity_rate']:.4f}")
+    lines.append(f"- must-not contain pass rate: {summary.get('must_not_contain_pass_rate', 0.0):.4f}")
+    lines.append("")
+    lines.append("### Latency Metrics")
+    lines.append(f"- avg total latency ms: {summary['avg_latency_ms']:.2f}")
+    lines.append(f"- p95 total latency ms: {summary['p95_latency_ms']:.2f}")
     lines.append(f"- avg retrieval latency ms: {summary['avg_retrieval_latency_ms']:.2f}")
     lines.append(f"- p95 retrieval latency ms: {summary['p95_retrieval_latency_ms']:.2f}")
     lines.append("")
@@ -549,7 +582,7 @@ def main() -> int:
             list(case.get("expected_answer_keywords") or []),
         )
 
-        retrieval_pass, retrieval_domain_pass, retrieval_source_pass, domains_found, missing_source = retrieval_hit(
+        retrieval_pass, retrieval_domain_pass, retrieval_source_pass, domains_found, missing_source, mrr, top1 = retrieval_hit(
             contexts,
             expected_domain,
             expected_domains_any,
@@ -584,6 +617,8 @@ def main() -> int:
                 retrieval_source_pass=retrieval_source_pass,
                 retrieval_domains_found=domains_found,
                 retrieval_missing_source_tokens=missing_source,
+                retrieval_mrr=mrr,
+                retrieval_top_1_pass=top1,
                 citation_validity_pass=citation_pass,
                 citation_total=citation_total,
                 citation_valid_count=citation_valid,

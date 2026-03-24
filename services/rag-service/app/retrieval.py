@@ -1487,6 +1487,65 @@ def retrieve_by_domain(
             return f"{base_query} {hint_block}".strip()
         return base_query
 
+    def _augment_announcements_query(original_question: str, base_query: str) -> str:
+        """Domain-specific query expansion for announcements.
+        
+        Announcements often use specific vocabulary for schedules, 
+        fees, and calendar events. We append hints to match these.
+        """
+        q = (original_question or '').strip().lower()
+        if not q:
+            return base_query
+
+        hints: list[str] = []
+
+        # Registration periods
+        if ('ลงทะเบียน' in q) or ('เพิ่มลด' in q) or ('เพิ่ม-ลด' in q):
+            hints.extend([
+                'กำหนดการลงทะเบียน', 'ระยะเวลา',
+                'ปฏิทินการศึกษา', 'วันสุดท้าย',
+                'เพิ่ม-ลดรายวิชา'
+            ])
+
+        # Tuition & Fees
+        if ('ค่าเทอม' in q) or ('จ่ายเงิน' in q) or ('ชำระเงิน' in q) or ('ค่าธรรมเนียม' in q):
+            hints.extend([
+                'ชำระเงิน', 'ค่าธรรมเนียมการศึกษา',
+                'ใบแจ้งยอด', 'กำหนดชำระ',
+                'ผ่านธนาคาร'
+            ])
+
+        # Graduation / Degree
+        if ('จบ' in q) or ('รับปริญญา' in q) or ('สำเร็จการศึกษา' in q):
+            hints.extend([
+                'ยื่นคำร้องขอสำเร็จการศึกษา',
+                'ขึ้นทะเบียนบัณฑิต',
+                'กำหนดการ'
+            ])
+
+        # De-dup while preserving order.
+        seen: set[str] = set()
+        compact: list[str] = []
+        for h in hints:
+            s = (h or '').strip()
+            if not s:
+                continue
+            k = s.lower()
+            if k in seen:
+                continue
+            seen.add(k)
+            compact.append(s)
+
+        if not compact:
+            return base_query
+
+        # Keep it short; keyword search benefits from a few clause anchors.
+        compact = compact[:10]
+        hint_block = ' '.join(compact)
+        if hint_block and hint_block not in (base_query or ''):
+            return f"{base_query} {hint_block}".strip()
+        return base_query
+
     def _clip_long_regulations_text(item: Dict, original_question: str) -> Dict:
         """Clip very long regulation texts to a relevant excerpt.
 
@@ -1833,6 +1892,8 @@ def retrieve_by_domain(
         semantic_q = _augment_regulations_query(question, semantic_q)
     elif dom == 'curriculum':
         semantic_q = _augment_curriculum_query(question, semantic_q)
+    elif dom == 'announcements':
+        semantic_q = _augment_announcements_query(question, semantic_q)
 
     anchors = extract_lexical_anchors(keyword_q or question)
 

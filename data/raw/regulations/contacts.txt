@@ -1,0 +1,1456 @@
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: ดร. กฤษณพงศ์ กีรติกร
+โทร: -
+อีเมล: -
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: รศ. ดร.ไกรวุฒิ เกียรติโกมล
+โทร: -
+อีเมล: -
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: รศ. ดร.ศักรินทร์ ภูมิรัตน
+โทร: -
+อีเมล: -
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: รองศาสตราจารย์ ดร.สุวิทย์ แซ่เตีย
+โทร: 02 470 8020-2
+อีเมล: suvit.tia@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: รศ. ดร.สยาม เจริญเสียง
+โทร: 0-2470-8023
+อีเมล: siam.cha@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: ผศ. ดร.ประเสริฐ คันธมานนท์
+โทร: 0 2470 8024
+อีเมล: prasert.kan@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: ดร.กัญญวิมว์ กีรติกร
+โทร: 02 470 8240
+อีเมล: kanyawim.kir@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: ดร. อรรณพ นพรัตน์
+โทร: 02-470-7366
+อีเมล: annop.nop@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: อ.ธนิตสรณ์ จิระพรชัย
+โทร: 0 2470 8010
+อีเมล: thanitsorn.chi@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: ดร.ก้องกาญจน์  วชิรพนัง
+โทร: 0 2470 8027
+อีเมล: kongkarn.vac@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: ผศ. ดร.ภาณุทัต บุญประมุข
+โทร: 0 2470 8027
+อีเมล: panuthat.boo@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: ศ. ดร.เชาวลิต ลิ้มมณีวิจิตร
+โทร: 0 2470 8023
+อีเมล: chaowalit.lim@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: ผศ. ดร. สันติ เจริญพรพัฒนา
+โทร: 0 2470 8026
+อีเมล: santi.cha@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: ผศ. ดร.มารอง ผดุงสิทธิ์
+โทร: 02 470 8024
+อีเมล: marong.pha@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: ผศ. ดร.มณฑิรา นพรัตน์
+โทร: 0 2470 8022
+อีเมล: montira.nop@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: ดร.นคร ศรีสุขุมบวรชัย
+โทร: 0 2470 8168
+อีเมล: nakorn.sri@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: รศ. ดร.ชวิน จันทรเสนาวงศ์
+โทร: 02 470 8026
+อีเมล: chawin.cha@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: คุณทนงค์ ฉายาวัฒนะ
+โทร: -
+อีเมล: -
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: ผศ. ดร.มนัญญา  เพียรเจริญ
+โทร: -
+อีเมล: -
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: รศ. ดร.นิติมา  อัจฉริยะโพธา
+โทร: -
+อีเมล: -
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: ผศ. ดร.ปรัญชลีย์ สมานพิบูรณ์
+โทร: -
+อีเมล: -
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: ผศ. ดร.บุษเกตน์ อินทรปาสาน
+โทร: -
+อีเมล: -
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: คุณสมพร น้อยยาโน
+โทร: -
+อีเมล: -
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: อ.วาสนา เสียงดัง
+โทร: -
+อีเมล: -
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: ผศ. ดร. วิมลศิริ ปรีดาสวัสดิ์
+โทร: -
+อีเมล: -
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: Asst.Prof.Dr. Hong-Ming Ku
+โทร: -
+อีเมล: -
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: ผศ. ดร. เดี่ยว กุลพิรักษ์
+โทร: -
+อีเมล: -
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: รศ. ดร. ยศพงษ์ ลออนวล
+โทร: -
+อีเมล: -
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: ดร.วรรณา เต็มสิริพจน์
+โทร: -
+อีเมล: -
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: ผศ. ดร. ปรีชา เติมสุขสวัสดิ์
+โทร: -
+อีเมล: -
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: ดร.อรกัญญาณี เลี้ยงอิสสระ
+โทร: -
+อีเมล: -
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: รศ. ดร.ชูจิต ตรีรัตนพันธ์
+โทร: -
+อีเมล: -
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: ผศ. ดร.ทัศนีย์วรรณ  ลักษณะโสภิณ
+โทร: -
+อีเมล: -
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: ผศ.นิมิต เหม่งเวหา
+โทร: -
+อีเมล: -
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: ผศ. ดร.ปริยกร ปุสวิโร
+โทร: -
+อีเมล: -
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: ผศ. ดร.ปฏิภาณ แซ่หลิ่ม
+โทร: -
+อีเมล: -
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: ผศ. ดร. วรพจน์ อังกสิทธิ์
+โทร: -
+อีเมล: -
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: รศ. ดร.ทวิช พูลเงิน
+โทร: 02-470-9145
+อีเมล: tawich.pul@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: ผศ. ดร.ไชยา	ดำคำ
+โทร: 02-470-9182
+อีเมล: chaiya.dum@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: รศ. ดร.สุรวุฒิ  ช่วงโชติ
+โทร: 02-470-9017
+อีเมล: surawut.chu@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: รศ. ดร.พรเกษม  จงประดิษฐ์
+โทร: 02-470-9017
+อีเมล: pornkasem.jon@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: ผศ. ดร.ชัยวัฒน์  เอกวัฒน์พานิชย์
+โทร: 02-470-9017
+อีเมล: chaiwat.ekk@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: รศ. ดร.อัศวิน มีชัย
+โทร: 02-470-9220
+อีเมล: asawin.mee@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: ดร.พิจารณ์	จรเสนาะ
+โทร: 02-470-9202
+อีเมล: pijarn.jor@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: ดร.พิเนษฐ์	ศรีโยธา
+โทร: 02-470-9184
+อีเมล: pinet.sri@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: น.ส.สุปรียา อ่อนอิงนอน
+โทร: 02-470-9025
+อีเมล: supreeya.orn@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: ผศ. ดร.สันติธรรม พรหมอ่อน
+โทร: 02-470-9081
+อีเมล: santitham.pro@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: รศ. ดร.ทรงเกียรติ  ภัทรปัทมาวงศ์
+โทร: 0 247 09161
+อีเมล: songkeart.pha@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: รศ. ดร.พจน์  ตั้งงามจิตต์
+โทร: 0 2470 9094
+อีเมล: poj.tan@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: รศ. ดร.ปานจันทร์ ศรีจรูญ
+โทร: 02-470-9220
+อีเมล: panchan.sri@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: ผศ. ดร.อธิกร วงศธนวริศ
+โทร: 02-470-9122
+อีเมล: atikorn.won@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: รศ.ดิลก ศรีประไพ
+โทร: 02-470-9207
+อีเมล: dilok.sri@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: ผศ. ดร.สุเมธ เนติลัดดานนท์
+โทร: 02-470-9031
+อีเมล: sumate.nae@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: ดร.จุลพจน์ จิรวัชรเดช
+โทร: 02-470-9149
+อีเมล: julapot.chi@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: รศ.สุวิช ศิริวัฒนโยธิน
+โทร: 02-470-9242
+อีเมล: suwit.sir@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: ผศ. ดร.อภิชัย ภัทรนันท์
+โทร: 02-470-9079
+อีเมล: apichai.bha@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: ดร.สมพร เพียรสุขมณี
+โทร: 02-470-9679
+อีเมล: somporn.pea@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: รศ. ดร.ตุลา จูฑะรสก
+โทร: 02-470-8801
+อีเมล: tula.jut@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: รศ. ดร.ปริญญา เสงี่ยมสุนทร
+โทร: 02-470-8828
+อีเมล: parinya.san@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: ผศ. ดร.อนวัช พินิจศักดิ์กุล
+โทร: 02-470-8802
+อีเมล: anawat.pin@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: ผศ. ดร.ไตรวิทย์	รัตนโรจน์พงศ์
+โทร: 02-470-9576
+อีเมล: triwit.rat@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: ผศ. ดร.นครินทร์	พัฒนบุญมี
+โทร: 02-470-8929
+อีเมล: nakarin.pat@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: คุณวิราทิพย์	ดามาพงษ์
+โทร: 02-470-8815
+อีเมล: virathip.phe@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: ผศ. ดร.ธีระพล  สลีวงศ์
+โทร: 02-470-8993
+อีเมล: teerapol.sal@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: ดร.เอมอร ศักดิ์แสงวิจิตร
+โทร: 02-470-9555
+อีเมล: aimorn.sak@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: ผศ. ดร.นิยม	กำลังดี
+โทร: 02-470-9575
+อีเมล: niyom.kam@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: ผศ. ดร.วันดี	อ่อนเรียบร้อย
+โทร: 02-470-8862
+อีเมล: wandee.onr@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: รศ.กรวลัย พันธุ์แพ
+โทร: 02-470-8909
+อีเมล: kornvalai.pan@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: รศ. ดร. ธเนศ ธนิตย์ธีรพันธ์
+โทร: 0 2470 8501
+อีเมล: thanes.tha@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: รศ. ดร.คมกฤตย์	 ชมสุวรรณ
+โทร: 02-470-9504
+อีเมล: komkrit.cho@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: รศ. ดร.สุชปา	เนตรประดิษฐ์
+โทร: 02-470-9502
+อีเมล: suchapa.net@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: รศ. ดร.ณรงค์	มั่งคั่ง
+โทร: 02-470-9501
+อีเมล: narong.mun@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: ดร.สมภพ	ปัญญาสมพรรค์
+โทร: 02-470-9505
+อีเมล: sompob.pun@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: รศ. ดร.กุลธิดา	ธรรมวิภัชน์
+โทร: 02-470-8562
+อีเมล: kuntida.tha@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: รศ. ดร.เสกสรรค์	แย้มพินิจ
+โทร: 02-470-8564
+อีเมล: sakesun.yam@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: รศ. ดร.พิชิต	ขจรเดชะ
+โทร: 02-470-8573
+อีเมล: phichito.kaj@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: คุณศุภาพิชญ์ โชติโก
+โทร: 02-470-8502
+อีเมล: supapit.cho@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: ผศ. ดร.ณรงค์ฤทธิ์	วราภรณ์
+โทร: 02-470-9868
+อีเมล: narongrit.war@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: รศ. ดร.วชิรศักดิ์ วานิชชา
+โทร: 02-470-9847
+อีเมล: vajirasak.van@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: ผศ. ดร.อุมาพร	สุภสิทธิเมธี
+โทร: 02-470-9810
+อีเมล: umaporn.sup@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: ผศ. ดร.วรรัตน์	กระทู้
+โทร: 02-470-9826
+อีเมล: worarat.kra@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: ผศ. ดร. ชลเมธ อาปณิกานนท์
+โทร: 02-470-9890
+อีเมล: chonlameth.arp@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: ดร.สยาม แย้มแสงสังข์
+โทร: 02-470-9867
+อีเมล: siam.yam@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: คุณถิรดา ยุกตะนันทน์
+โทร: 02-470-9848
+อีเมล: thirada.yuk@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: ผศ. วราลักษณ์ แผ่นสุวรรณ
+โทร: 02-470-7899
+อีเมล: waraluk.pan@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: ดร.ธีร ธนะมั่น
+โทร: 02-470-7899
+อีเมล: teera.dha@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: ดร.กัญจนีย์ พุทธิเมธี
+โทร: 02-470-7899
+อีเมล: kanjanee.bud@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: ผศ.วลัยรัตน์ เกษมสิน
+โทร: 02-470-7899
+อีเมล: valairatn.gas@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: น.ส.จารุพรรณ รถทอง
+โทร: 02-470-7887
+อีเมล: charupan.rod@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: ผศ. ดร. กูสกานา กูบาฮา
+โทร: 02-470-8633
+อีเมล: kuskana.kub@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: ผศ. ดร. นุชธนา พูลทอง
+โทร: 02-470-8644
+อีเมล: nuchthana.poo@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: ดร.รุ่งโรจน์  สงค์ประกอบ
+โทร: 0 2470 8627
+อีเมล: roongrojana.son@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: ผศ. ดร. พัฒนะ รักความสุข
+โทร: 02-470-8601
+อีเมล: pattana.rak@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: รศ. ดร. อดิศักดิ์  นาถกรณกุล
+โทร: 02-470-8695
+อีเมล: adisak.nat@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: น.ส.กิตติมา ระดิ่งหิน
+โทร: 02-470-8613
+อีเมล: kittima.rad@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: รศ. ดร. วาริช ศรีละออง
+โทร: 02-470-7726
+อีเมล: varit.sri@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: ผศ. ดร.สุดารัตน์	ตรีเพชรกุล
+โทร: 02-470-7556
+อีเมล: sudarut.tri@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: รศ. ดร.กรณ์กนก	อายุสุข
+โทร: 02-470-7758
+อีเมล: kornkanok.ary@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: รศ. ดร.ภาวิณี	ชัยประเสริฐ
+โทร: 02-470-7481
+อีเมล: pawinee.cha@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: ผศ. ดร.กนกวรรณ	พุ่มพุทรา
+โทร: 02-470-7500
+อีเมล: kanokwan.poo@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: ผศ. ดร.ณัตจิรี	จาตุรพิทักษ์กุล
+โทร: 02-470-8752
+อีเมล: natjiree.jat@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: ผศ. ดร.เสาวลักษณ์	เทพสุริวงศ์
+โทร: 02-470-8741
+อีเมล: saowaluck.tep@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: ผศ. ดร.สมพธู หวังทอง
+โทร: 02-470-8702
+อีเมล: sompatu.vun@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: Assoc. Prof. Dr.Richard Giles	Watson Todd
+โทร: 02-470-8792
+อีเมล: richard.tod@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: อาจารย์ปาณเลิศ ศิริวงศ์
+โทร: 02-470-8771
+อีเมล: panalert.sir@mail.kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: คุณสุภาพร	จันทรมณี
+โทร: 02-470-8714
+อีเมล: supaporn.cha@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: รศ. ดร. ทวีศักดิ์ กฤษเจริญ
+โทร: 0 2470 9765
+อีเมล: -
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: นางธนัญชนก พุ่มพวง
+โทร: 02-470-9797
+อีเมล: thananchanok.som@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: ผศ. ดร.สุภชัย วงศ์บุณย์ยง
+โทร: 02-470-9718
+อีเมล: supachai.von@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: นายวุฒิชัย วิศาลคุณา
+โทร: 02-470-9701
+อีเมล: wuttichai.vis@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: น.ส.อนุสรา มีชัย
+โทร: 02-470-8345
+อีเมล: anusara.mee@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: อาจารย์บวรศักดิ์ สกุลเกื้อกูลสุข
+โทร: -
+อีเมล: bawornsak.sak@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: คุณกาญจนา จันทร์วัน
+โทร: 02-470-9691
+อีเมล: kanjana.jan@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: ผศ. ดร. กฤติกา ตันประเสริฐ
+โทร: 02-470-8382
+อีเมล: krittika.tan@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: ดร.แบ๊งค์	งามอรุณโชติ
+โทร: 02-470-7957
+อีเมล: bank.nga@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: ผศ. ดร.บุณยพัต  สุภานิช
+โทร: 02-470-7366
+อีเมล: bunyaphat.sup@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: อ. พิชัย โฆษิตพันธวงศ์
+โทร: 0 2470 8191
+อีเมล: pichai.kos@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: ศ. ดร.สุทัศน์  ลีลาทวีวัฒน์
+โทร: 02-470-9131
+อีเมล: sutat.lee@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: ผศ. ดร. สุธาทิพย์ มณีวงศ์วัฒนา
+โทร: 02-470-8220
+อีเมล: suthathip.man@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: คุณโสภิดา บุญเอนกทรัพย์
+โทร: 02-470-7450
+อีเมล: sopida.boo@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: ศ. ดร.นวดล	เหล่าศิริพจน์
+โทร: 02-470-8309
+อีเมล: navadol.lao@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: ดร.ภัทรชาติ โกมลกิติ
+โทร: 02-470-7993
+อีเมล: -
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: คุณปภันนันท์	สิรีกรอนันต์
+โทร: 02-470-8166, 028729088
+อีเมล: prapannan.sir@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: คุณภิญโญ ยิ่งชัชวาลชัย
+โทร: 02-470-8191
+อีเมล: pinyo.yin@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: ผศ. ดร.ศันสนลักษณ์ รัชฎาวงศ์
+โทร: -
+อีเมล: sansanalak.rac@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: รศ. ดร.เอก	ไชยสวัสดิ์
+โทร: -
+อีเมล: -
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: รศ. ดร.วิวัฒน์ เรืองเลิศปัญญากุล
+โทร: 02 470 8026
+อีเมล: wiwat.rue@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: คุณวิสา แซ่เตีย
+โทร: -
+อีเมล: -
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: ดร.ธีราพร ชัยอรุณดีกุล
+โทร: -
+อีเมล: -
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: คุณฉันทนา ภู่ธราภรณ์
+โทร: -
+อีเมล: -
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: คุณศศิมา ยุวโสภีร์
+โทร: 02-470-8342
+อีเมล: sasima.juw@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: ดร.ปนาลี แทนประสาน
+โทร: 02-470-8093
+อีเมล: panalee.tan@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: คุณกัญญกมล เขียวหวาน
+โทร: 02-470-8469
+อีเมล: kunyakamol.dua@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: คุณสำรวย แซ่เตียว
+โทร: 02-470-8126
+อีเมล: samruay.the@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: คุณสุมนา มณีเพ็ญ
+โทร: 02-470-8132
+อีเมล: sumana.tao@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: คุณกิตติคุณ อางคาสัย
+โทร: 02-470-8420
+อีเมล: kittikun.arn@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: คุณดาริษา สายปลื้มจิตต์
+โทร: 02-470-8067
+อีเมล: darisa.sir@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: คุณจิตรา วงศ์ปัญญานันท์
+โทร: 02-470-8168
+อีเมล: jitra.wong@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: คุณปนัดดา วงสารี
+โทร: 02-470-8474
+อีเมล: panadda.won@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: ดร.อริยา พรหมสุภา
+โทร: 02-470-8365
+อีเมล: ariya.bra@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: คุณอัมพิกา เกตุกราย
+โทร: 02 470 8183
+อีเมล: ampika.kea@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: คุณรัตน์สตา ดำรงจริยาสีห์
+โทร: 02-470-8076
+อีเมล: rathsta.dam@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: คุณสุปรียา   อ่อนอิงนอน
+โทร: 02-470-9025
+อีเมล: supreeya.orn@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: ดร.ปภาพิต หิรัญสิริสวัสดิ์
+โทร: 02-470-9688
+อีเมล: papapit.ing@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: คุณฉัตรชัย มุ่งธัญญา
+โทร: 02-470-8051
+อีเมล: chatchai.moo@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: คุณกิตติณัฐ แก้วทอง
+โทร: 024708293
+อีเมล: kittinut.kae@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: คุณสุทิพา แซ่ตัน
+โทร: 02-470-8323
+อีเมล: sutipa.sae@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: คุณศิรินาฎ ลือชาเชวง
+โทร: 02-470-8136
+อีเมล: sirinath.lue@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: ดร.สุรัตน์ ชุ่มจิตต์
+โทร: 02-470-8360
+อีเมล: surat.chu@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: คุณกมลธร จรัลรัมย์
+โทร: 02-470-8441
+อีเมล: kamonthon.jar@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: คุณปนัดดา พ่วงพี
+โทร: 02-470-8185
+อีเมล: panadda.pua@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: ดร. สันติธรรม พรหมอ่อน
+โทร: 02-470-9373
+อีเมล: santitham.pro@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: ดร. ประพงษ์ ปรีชาประพาฬวงศ์
+โทร: 02-470-9388
+อีเมล: prapong.pre@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: อ. ราชวิชช์ สโรชวิกสิต
+โทร: 02-470-9062
+อีเมล: rajchawit.sar@mail.kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: อ. สนั่น สระแก้ว
+โทร: 02-470-9388
+อีเมล: sanan.sra@mail.kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: ดร. นฤมล วัฒนพงศกร
+โทร: 02-470-9089
+อีเมล: naruemon.wat@mail.kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: ดร. พีรพล ศิริพงศ์วุฒิกร
+โทร: 02-470-9381
+อีเมล: peerapon.sir@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: ดร. ณัฐชา เดชดำรง
+โทร: 02-470-9388
+อีเมล: natasha.dej@mail.kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: ดร. จุมพล พลวิชัย
+โทร: 02-470-9216
+อีเมล: jumpol.ineng@mail.kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: ดร.ทวีชัย นันทวิสุทธิวงศ์
+โทร: 02-470-9388
+อีเมล: taweechai.nunta@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: ดร. บุญเจริญ ศิริเนาวกุล
+โทร: 02-470-9255
+อีเมล: boon@cpe.kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: ดร. บัณฑิต ทิพากร
+โทร: 02-470-9388
+อีเมล: bundit@cpe.kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: ดร. ธำรงรัตน์ อมรรักษา
+โทร: 02-470-9084
+อีเมล: thumrongrat.amo@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: ดร. ณัฐนาถ เหมือนสุวรรณ
+โทร: 02-470-9256
+อีเมล: nuttanart.mua@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: ดร. มารอง ผดุงสิทธิ์
+โทร: 02-470-9372
+อีเมล: marong.pha@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: ดร. สุธาทิพย์ มณีวงศ์วัฒนา
+โทร: 02-470-9253
+อีเมล: suthathip.man@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: ดร. กิตติพงษ์ ปิยะวรรณโณ
+โทร: 02-470-9388
+อีเมล: kittipong.piya@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: ดร. คริษฐา แจ้งสามสี
+โทร: 02-470-9388
+อีเมล: kharittha.jan@mail.kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: ดร. จาตุรนต์ หาญสมบูรณ์
+โทร: 02-470-9080
+อีเมล: jaturon.har@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: ดร. ปริยกร ปุสวิโร
+โทร: 02-470-9388
+อีเมล: priyakorn.pus@mail.kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: ดร. ปิยนิตย์ เอื้ออารีมิตร
+โทร: 02-470-9388
+อีเมล: piyanit.wep@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: ดร. สัญญ์สิริ ธารประดับ
+โทร: 02-470-9388
+อีเมล: sansiri.tarn@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: ดร.บุญฤทธิ์  จันทร์ไกรวัล
+โทร: 02-470-9086
+อีเมล: boonyarit.chang@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: Dr. Aye Hninn Khine
+โทร: 093-479-9685
+อีเมล: aye.hnin@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: Dr. Aung Myo Htut
+โทร: 094-9313677
+อีเมล: aung.myo1@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: Mr. Naveed  Sultan
+โทร: 081-331-8223
+อีเมล: naveed.sult@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: วริศรา ไชยขันธุ์
+โทร: 02-470-9382
+อีเมล: varissara.ean@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: ฤดี ชุติจิรนาท
+โทร: 02-470-9083
+อีเมล: rudee.chu@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: นงค์เยาว์ จำปาหอม
+โทร: 02-470-9388
+อีเมล: Nongyao.jam@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: นิตยา นาโควงค์
+โทร: 02-470-9085
+อีเมล: nittaya.nak@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: ไพฑูรย์ เซาะจอหอ
+โทร: 02-470-9085
+อีเมล: paitoon.soj@kmutt.ac.th
+
+========================================
+SOURCE: kmutt_all_boards
+TYPE: contact
+
+ชื่อ: ภัทรานิษฐ์ ปิตินันท์พงศ์
+โทร: 02-470-9387
+อีเมล: phattharnit.piti@kmutt.ac.th
+
+========================================

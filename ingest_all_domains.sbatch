@@ -31,8 +31,11 @@ if [[ -f "$REPO_ROOT/.venv/bin/activate" ]]; then
 elif [[ -f "$REPO_ROOT/venv/bin/activate" ]]; then
   source "$REPO_ROOT/venv/bin/activate"
 else
-  echo "[ERROR] Virtual environment not found at $REPO_ROOT/.venv or $REPO_ROOT/venv" >&2
-  exit 1
+  echo "[INFO] Remote virtual environment not found. Bootstrapping at $REPO_ROOT/.venv..."
+  python3 -m venv "$REPO_ROOT/.venv"
+  source "$REPO_ROOT/.venv/bin/activate"
+  pip install --upgrade pip
+  pip install -r "$REPO_ROOT/services/ingestion-service/requirements.txt" || true
 fi
 
 echo "=== Python ==="

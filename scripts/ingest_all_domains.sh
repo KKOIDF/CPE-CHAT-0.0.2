@@ -41,7 +41,7 @@ fi
 DOMAINS=("announcements" "regulations" "curriculum")
 
 for d in "${DOMAINS[@]}"; do
-  input="$REPO_ROOT/data/$d"
+  input="$REPO_ROOT/data/raw/$d"
   if [[ ! -d "$input" ]]; then
     echo "[SKIP] $d: missing $input"
     continue
@@ -61,4 +61,9 @@ for d in "${DOMAINS[@]}"; do
 
   echo "[RUN] Ingest domain=$d (files=$count)"
   "$SCRIPT_DIR/ingest_domain.sh" --domain "$d" --input "$input" --output "$REPO_ROOT/data/db/$d"
+
+  # Generate manifest
+  mkdir -p "$REPO_ROOT/indexes"
+  find "$input" -type f -exec sha256sum {} + | sort > "$REPO_ROOT/indexes/${d}_manifest.txt"
+  echo "[DONE] Generated manifest: indexes/${d}_manifest.txt"
 done

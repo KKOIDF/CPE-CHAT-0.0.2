@@ -1,0 +1,168 @@
+SOURCE: kmutt_forms
+TYPE: document
+
+ชื่อเอกสาร: คำร้องทั่วไปGeneral Request Form
+รายละเอียด: ใช้สำหรับยื่นคำร้องทั่วไป เช่น ขอเปลี่ยนข้อมูลส่วนตัว ขอเอกสารเพิ่มเติม หรือดำเนินการอื่นที่ไม่มีแบบฟอร์มเฉพาะ
+ลิงก์: http://regis.kmutt.ac.th/service/form/RO-01.pdf
+
+========================================
+SOURCE: kmutt_forms
+TYPE: document
+
+ชื่อเอกสาร: หนังสือรับรองของผู้ปกครองRecommendation Letter of Parent/Guardian
+รายละเอียด: ใช้ให้ผู้ปกครองรับรองข้อมูลของนักศึกษา เช่น การขอเลื่อนจ่ายค่าเทอม หรือการรับรองกรณีพิเศษ
+ลิงก์: http://regis.kmutt.ac.th/service/form/RO-03.pdf
+
+========================================
+SOURCE: kmutt_forms
+TYPE: document
+
+ชื่อเอกสาร: ใบมอบฉันทะAuthorization Form
+รายละเอียด: ใช้กรณีที่นักศึกษามอบอำนาจให้ผู้อื่นดำเนินการแทน เช่น รับเอกสาร หรือชำระเงินแทน
+ลิงก์: http://regis.kmutt.ac.th/service/form/RO-04.pdf
+
+========================================
+SOURCE: kmutt_forms
+TYPE: document
+
+ชื่อเอกสาร: คำร้องขอคืนเงินค่าลงทะเบียนRequest Form for Registration Reimbursement
+รายละเอียด: ใช้เมื่อมีเหตุผลในการขอคืนเงิน เช่น ถอนรายวิชาในระยะเวลาที่กำหนด หรือยกเลิกรายวิชาเนื่องจากเหตุจำเป็น
+ลิงก์: http://regis.kmutt.ac.th/service/form/RO-08.pdf
+
+========================================
+SOURCE: kmutt_forms
+TYPE: document
+
+ชื่อเอกสาร: แบบ ก.ค. 18
+รายละเอียด: แบบฟอร์มราชการที่ใช้สำหรับเรื่องทางการศึกษาหรือการรับรองต่าง ๆ ที่ต้องใช้ตามระเบียบของกระทรวง
+ลิงก์: https://regis.kmutt.ac.th/service/form/18.pdf
+
+========================================
+SOURCE: kmutt_forms
+TYPE: document
+
+ชื่อเอกสาร: คำร้องขอเลื่อนรับพระราชทานปริญญาบัตรRequest Form for Postponing the Graduation
+รายละเอียด: ใช้เมื่อนักศึกษามีเหตุผลไม่สามารถเข้าร่วมพิธีรับปริญญาได้ ต้องการขอเลื่อนเข้ารับในปีถัดไป
+ลิงก์: http://regis.kmutt.ac.th/service/form/RO-11.pdf
+
+========================================
+SOURCE: kmutt_forms
+TYPE: document
+
+ชื่อเอกสาร: คำร้องขอลาพักการศึกษาRequest Form for Intermission Leave
+รายละเอียด: ใช้ขอหยุดเรียนชั่วคราวในภาคเรียนหนึ่งหรือมากกว่า โดยต้องได้รับอนุมัติจากคณะ
+ลิงก์: https://regis.kmutt.ac.th/service/form/RO-12Updated.pdf
+
+========================================
+SOURCE: kmutt_forms
+TYPE: document
+
+ชื่อเอกสาร: คำร้องขอลาออก ***update**Request Form for Resignation
+รายละเอียด: ใช้เมื่อต้องการลาออกจากการเป็นนักศึกษาอย่างเป็นทางการ
+ลิงก์: https://regis.kmutt.ac.th/service/form/RO-13Updated.pdf
+
+========================================
+SOURCE: kmutt_forms
+TYPE: document
+
+ชื่อเอกสาร: คำร้องขอเปลี่ยนแปลงข้อมูลในทะเบียนประวัติRequest Form for Changing Information in Student Record
+รายละเอียด: ใช้กรณีเปลี่ยนข้อมูลส่วนตัว เช่น ชื่อ–นามสกุล ที่อยู่ หรือข้อมูลติดต่อ
+ลิงก์: http://regis.kmutt.ac.th/service/form/RO-14.pdf
+
+========================================
+SOURCE: kmutt_forms
+TYPE: document
+
+ชื่อเอกสาร: คำร้องขอทำบัตรนักศึกษา มจธ.- ธนาคารกรุงเทพRequest Form for KMUTT-BANGKOK Bank Student Id. Card
+รายละเอียด: ใช้ขอทำบัตรนักศึกษาใหม่ หรือในกรณีที่บัตรสูญหาย/ชำรุด
+ลิงก์: https://regis.kmutt.ac.th/service/form/RO-15_160718.pdf
+
+========================================
+SOURCE: kmutt_forms
+TYPE: document
+
+ชื่อเอกสาร: ขั้นตอนการติดต่อเพื่อทำบัตรบีเฟิสต์ประจำตัวนักศึกษา
+รายละเอียด: คู่มือแนะนำขั้นตอนการติดต่อเพื่อทำบัตรนักศึกษาใหม่กับธนาคารกรุงเทพ
+ลิงก์: https://regis.kmutt.ac.th/service/form/bfirstkmutt_v.1.2_160718.pdf
+
+========================================
+SOURCE: kmutt_forms
+TYPE: document
+
+ชื่อเอกสาร: คำร้องขอลาป่วย/ลากิจRequest Form for Sick/Business Leave
+รายละเอียด: ใช้เมื่อไม่สามารถเข้าเรียนได้ชั่วคราวเนื่องจากป่วยหรือต้องทำธุระส่วนตัว
+ลิงก์: http://regis.kmutt.ac.th/service/form/RO-16.pdf
+
+========================================
+SOURCE: kmutt_forms
+TYPE: document
+
+ชื่อเอกสาร: คำร้องขอลงทะเบียนต่ำกว่า/เกินกว่าหน่วยกิตที่กำหนดRequest Form for Registering Less/More than Required Credits
+รายละเอียด: ใช้เมื่อจำเป็นต้องลงทะเบียนหน่วยกิตต่ำกว่าหรือเกินกว่าที่หลักสูตรกำหนดในภาคเรียนนั้น
+ลิงก์: http://regis.kmutt.ac.th/service/form/RO-18Updated.pdf
+
+========================================
+SOURCE: kmutt_forms
+TYPE: document
+
+ชื่อเอกสาร: คำร้องขอลงทะเบียนในรายวิชาที่มีเวลาสอบซ้อนPermission Form for Registration with Examination Time Conflict
+รายละเอียด: ใช้กรณีรายวิชาที่ต้องการลงทะเบียนมีตารางสอบตรงกัน และต้องการขออนุญาตลงพร้อมกัน
+ลิงก์: http://regis.kmutt.ac.th/service/form/RO-19.pdf
+
+========================================
+SOURCE: kmutt_forms
+TYPE: document
+
+ชื่อเอกสาร: คำร้องขอลงทะเบียนรายวิชานอกหลักสูตรRequest Form for Registration of Non-Requisite Course
+รายละเอียด: ใช้ขอเรียนรายวิชาที่อยู่นอกหลักสูตร เช่น รายวิชาเสริม หรือวิชาเพิ่มเติมจากคณะอื่น
+ลิงก์: http://regis.kmutt.ac.th/service/form/RO-20.pdf
+
+========================================
+SOURCE: kmutt_forms
+TYPE: document
+
+ชื่อเอกสาร: คำร้องขอลงทะเบียนเรียนแบบบุคคลภายนอกRequest Form for Degree Registraion forVisitor
+รายละเอียด: ใช้สำหรับบุคคลภายนอกที่ประสงค์จะลงทะเบียนเรียนรายวิชาของมหาวิทยาลัย
+ลิงก์: http://regis.kmutt.ac.th/service/form/RO-21.pdf
+
+========================================
+SOURCE: kmutt_forms
+TYPE: document
+
+ชื่อเอกสาร: คำร้องขอสมัครสอบโดยไม่ต้องเข้าเรียนRequest Form for Examination without Attending Class
+รายละเอียด: ใช้กรณีพิเศษที่นักศึกษามีสิทธิ์เข้าสอบโดยไม่ต้องเข้าชั้นเรียน เช่น เคยเรียนวิชานั้นมาก่อน
+ลิงก์: http://regis.kmutt.ac.th/service/form/RO-22.pdf
+
+========================================
+SOURCE: kmutt_forms
+TYPE: document
+
+ชื่อเอกสาร: คำร้องขอเปลี่ยน/เทียบรายวิชาเรียนRequest Form for Changing to Equivalent Course
+รายละเอียด: ใช้เมื่อต้องการเทียบรายวิชาที่เคยเรียน หรือเปลี่ยนรายวิชาเทียบเท่าตามหลักสูตรใหม่
+ลิงก์: http://regis.kmutt.ac.th/service/form/RO-23.pdf
+
+========================================
+SOURCE: kmutt_forms
+TYPE: document
+
+ชื่อเอกสาร: ใบลงทะเบียนเรียนRegistration Form
+รายละเอียด: ใช้สำหรับลงทะเบียนเรียนในแต่ละภาคการศึกษาในกรณีพิเศษ (เช่น กรณีระบบออนไลน์มีปัญหา)
+ลิงก์: http://regis.kmutt.ac.th/service/form/RO-25.pdf
+
+========================================
+SOURCE: kmutt_forms
+TYPE: document
+
+ชื่อเอกสาร: ใบลงทะเบียนเพิ่ม-ลด-ถอน เปลี่ยนกลุ่มAdditional, Withdrawal Form
+รายละเอียด: ใช้เมื่อมีการเพิ่ม ลด ถอนรายวิชา หรือเปลี่ยนกลุ่มเรียนภายหลังการลงทะเบียนหลัก
+ลิงก์: http://regis.kmutt.ac.th/service/form/RO-26Updated.pdf
+
+========================================
+SOURCE: kmutt_forms
+TYPE: document
+
+ชื่อเอกสาร: แบบฟอร์มลงเวลาการปฏิบัติงานของนักศึกษาบำเพ็ญประโยชน์
+รายละเอียด: ใช้บันทึกเวลาการปฏิบัติงานของนักศึกษาที่เข้าร่วมกิจกรรมบำเพ็ญประโยชน์
+ลิงก์: http://regis.kmutt.ac.th/service/onlineform/form_service.pdf
+
+========================================

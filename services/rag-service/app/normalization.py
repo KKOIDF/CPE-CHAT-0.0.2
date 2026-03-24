@@ -43,6 +43,26 @@ _COMMON_TYPO_FIXES: list[tuple[str, str]] = [
 ]
 
 
+_COURSE_NAME_SYNONYMS: list[tuple[str, str]] = [
+    ('แคล1', 'Calculus I'),
+    ('แคล 1', 'Calculus I'),
+    ('แคล2', 'Calculus II'),
+    ('แคล 2', 'Calculus II'),
+    ('แคล', 'Calculus'),
+    ('แคลคูลัส', 'Calculus'),
+    ('ฟิสิกส์1', 'Physics I'),
+    ('ฟิสิกส์ 1', 'Physics I'),
+    ('ฟิสิกส์2', 'Physics II'),
+    ('ฟิสิกส์ 2', 'Physics II'),
+    ('ฟิสิกส์', 'Physics'),
+    ('เคมี', 'Chemistry'),
+    ('อิ้ง', 'English'),
+    ('เจน', 'GEN'),
+    ('คอมโปร', 'Computer Programming'),
+    ('ซัมเมอร์', 'ภาคฤดูร้อน'),
+]
+
+
 def normalize_question(question: str) -> str:
     """Normalize user input while keeping it readable for the prompt."""
     q = (question or '').strip()
@@ -64,6 +84,17 @@ def normalize_question(question: str) -> str:
         q = q.replace(src, dst)
     for src, dst in _COMMON_TYPO_FIXES:
         q = q.replace(src, dst)
+    for src, dst in _COURSE_NAME_SYNONYMS:
+        # replace standalone occurrences using word boundaries wouldn't work easily for Thai,
+        # but simple string replace is safe enough for these specific abbreviations.
+        q = q.replace(src, dst)
+
+    # Normalize credits
+    q = re.sub(r"(\d+)\s*(กิต|นก\.|หน่วย)\b", r"\1 หน่วยกิต", q)
+    # Normalize semester/year e.g. "เทอม 1" -> "ภาคการศึกษาที่ 1"
+    q = re.sub(r"(เทอม|ภาค)\s*([123])", r"ภาคการศึกษาที่ \2", q)
+    # Normalize year e.g. "ปี 1", "ปี1" -> "ชั้นปีที่ 1", except if it is followed by 4 digits (e.g. ปี 2568)
+    q = re.sub(r"ปี\s*([12345])(\D|$)", r"ชั้นปีที่ \1\2", q)
 
     # Light bilingual augmentation for better recall (vector/keyword).
     # Keep this readable (only appends a single English hint).
