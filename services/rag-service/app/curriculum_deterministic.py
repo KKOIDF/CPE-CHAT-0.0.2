@@ -445,9 +445,17 @@ def structured_curriculum_lookup(question: str) -> dict[str, Any]:
                 "miss_reason": "",
             }
 
-    # Study-plan lookup by year/term should short-circuit expensive retrieval.
+    # Study-plan lookup by year/term short-circuits expensive retrieval.
+    # Gate: year hint is present AND no specific code/instructor/prereq intent.
+    # Deliberately NOT requiring verb tokens like "เรียนอะไร" so that short queries
+    # like "วิชาปี 1" or "ปี 2 เทอม 2" also hit this deterministic path.
+    _has_code_hint = bool(re.search(r"\b[A-Za-z]{2,6}\s*\d{3}\b", q))
+    _instructor_hint = any(t in q for t in ("ใครสอน", "ผู้สอน", "อาจารย์", "คนสอน"))
+    _prereq_hint = any(t in q for t in (
+        "ต้องผ่าน", "บังคับก่อน", "วิชาบังคับก่อน", "prereq", "prerequisite", "เงื่อนไขก่อน"
+    ))
     year_hint, _ = _extract_year_term(q)
-    if year_hint is not None and any(t in q for t in ("วิชาอะไร", "วิชาอะไรบ้าง", "เรียนอะไร", "เรียนวิชา")):
+    if year_hint is not None and not (_has_code_hint or _instructor_hint or _prereq_hint):
         year_courses = _parse_study_plan_courses(q)
         year_answer = _format_study_plan_answer(q, year_courses, source_name)
         if year_answer:

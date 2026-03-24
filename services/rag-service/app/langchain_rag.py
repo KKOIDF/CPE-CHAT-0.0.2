@@ -389,32 +389,44 @@ def _rerank_by_embedding(query: str, items: List[Dict], topn: int) -> List[Dict]
     add_metric('top_k_rerank_n_docs', n)
     add_metric('top_k_rerank_mode', 'embedding_only')
 
+    # Min fraction of docs that must have embeddings to proceed with rerank.
+    # Below this threshold we skip rerank entirely (avoids CPU re-embedding cost).
+    _RERANK_MIN_COVERAGE = float(os.getenv('RAG_RERANK_MIN_COVERAGE', '0.5') or '0.5')
+
     with time_block('embedding_fetch_ms'):
         qvec = embed_texts([query], is_query=True)[0]
-        
-        dvecs = []
-        texts_to_embed = []
-        indices_to_embed = []
-        
+
+        dvecs: List = [None] * len(head)
         cached_count = 0
+        missing_indices: List[int] = []
+
         for i, d in enumerate(head):
             emb = d.get('embedding')
             if emb is not None:
-                dvecs.append(emb)
+                dvecs[i] = emb
                 cached_count += 1
             else:
-                dvecs.append(None)
-                texts_to_embed.append(d.get('text') or '')
-                indices_to_embed.append(i)
-                
+                missing_indices.append(i)
+
+        missing_n = len(missing_indices)
         add_metric('top_k_rerank_used_cached_embeddings', cached_count)
+        add_metric('embedding_fetch_requested_n', n)
+        add_metric('embedding_fetch_returned_n', cached_count)
+        add_metric('embedding_fetch_missing_n', missing_n)
+        # embedding_fetch_chroma_calls is logged by the caller after fetch_embeddings_for_docs() returns.
         if n > 0:
             add_metric('top_k_rerank_cache_hit_ratio', cached_count / float(n))
 
-        if texts_to_embed:
-            missing_embs = embed_texts(texts_to_embed, is_query=False)
-            for i, emb in zip(indices_to_embed, missing_embs):
-                dvecs[i] = emb
+        # ── Guard: skip rerank if coverage is too low ──────────────────────────
+        # Avoids triggering CPU re-embedding of BGE-M3 which costs ~40s/doc.
+        coverage = cached_count / float(n) if n > 0 else 0.0
+        if coverage < _RERANK_MIN_COVERAGE:
+            add_metric('top_k_rerank_skipped_low_coverage', 1)
+            add_metric('top_k_rerank_coverage', round(coverage, 3))
+            return items  # return original ranking unchanged
+
+        # ── Score only docs that have embeddings; leave missing ones at 0.0 ────
+        # DO NOT call embed_texts() here — that would run BGE-M3 on CPU (~88s).
 
     with time_block('embedding_deserialize_ms'):
         scored: List[Dict] = []
@@ -422,13 +434,16 @@ def _rerank_by_embedding(query: str, items: List[Dict], topn: int) -> List[Dict]
     with time_block('embedding_score_ms'):
         for d, v in zip(head, dvecs):
             # embed_texts already normalizes; dot product is cosine.
+            # v may be None if Chroma had no embedding for this doc
+            # (but coverage was still above threshold for other docs).
             s = 0.0
-            try:
-                s = float(sum(float(a) * float(b) for a, b in zip(qvec, v)))
-                if math.isnan(s) or math.isinf(s):
+            if v is not None:
+                try:
+                    s = float(sum(float(a) * float(b) for a, b in zip(qvec, v)))
+                    if math.isnan(s) or math.isinf(s):
+                        s = 0.0
+                except Exception:
                     s = 0.0
-            except Exception:
-                s = 0.0
             scored.append({**d, 'score_rerank': s})
 
         scored.sort(key=lambda x: (x.get('score_rerank', 0.0), x.get('score_rrf', 0.0)), reverse=True)
@@ -861,7 +876,8 @@ def _build_rag_prompt_langchain(question: str, domain: Optional[str] = None) -> 
         if not mismatch_skip:
             with time_block('top_k_rerank'):
                 try:
-                    fetch_embeddings_for_docs(retrieved, dom)
+                    _chroma_calls = fetch_embeddings_for_docs(retrieved, dom)
+                    add_metric('embedding_fetch_chroma_calls', _chroma_calls)
                     retrieved = _rerank_by_embedding(q_search, retrieved, topn=_RERANK_TOPN)
                     retrieved = retrieved[:cap]
                 except Exception:

@@ -281,41 +281,118 @@ def semantic_search_domain(
         out = [d for d in out if _src_name(d) in allowed_lower]
     return out
 
-def fetch_embeddings_for_docs(docs: List[dict], domain: Optional[str] = None) -> None:
-    """In-place populate d['embedding'] from Chroma for matched texts/doc_ids."""
+def fetch_embeddings_for_docs(docs: List[dict], domain: Optional[str] = None) -> int:
+    """In-place populate d['embedding'] from Chroma for matched texts/doc_ids.
+
+    Matching priority:
+      1. chroma_id (exact Chroma row ID) — most reliable
+      2. doc_id prefix match on chroma_id
+      3. text content match (fallback)
+
+    Returns the number of actual Chroma collection.get() calls made
+    (for metric logging: embedding_fetch_chroma_calls).
+    """
     missing = [d for d in docs if d.get('embedding') is None]
     if not missing:
-        return
-        
+        return 0
+
     dom = (domain or os.getenv('CPE_DOMAIN', '')).strip().lower()
     try:
         collection = _get_collection_for_domain(dom)
     except Exception:
-        return
-        
-    sources = list({str(d.get('source', '')).strip() for d in missing if str(d.get('source', '')).strip()})
-    
+        return 0
+
+    chroma_calls = 0  # count actual collection.get() calls
+    # ── Strategy 1: bulk fetch by chroma_id (most accurate & fast) ─────────
+    chroma_ids_to_fetch = [
+        str(d['chroma_id'])
+        for d in missing
+        if d.get('chroma_id') is not None
+    ]
+
+    filled: set = set()   # track indices filled
+
+    if chroma_ids_to_fetch:
+        try:
+            chroma_calls += 1
+            res = collection.get(
+                ids=chroma_ids_to_fetch,
+                include=['embeddings', 'documents'],
+            )
+            id_emb_map: dict = {}
+            if res and res.get('ids'):
+                for rid, remb in zip(res['ids'], res['embeddings']):
+                    if remb is not None:
+                        id_emb_map[str(rid)] = remb
+
+            for i, d in enumerate(missing):
+                cid = str(d.get('chroma_id') or '')
+                if cid and cid in id_emb_map:
+                    d['embedding'] = id_emb_map[cid]
+                    filled.add(i)
+        except Exception:
+            pass  # fallback to strategy 2/3
+
+    still_missing = [d for i, d in enumerate(missing) if i not in filled]
+    if not still_missing:
+        return chroma_calls
+
+    # ── Strategy 2/3: bulk fetch by source → match by doc_id or text ───────
+    sources = list({
+        str(d.get('source', '')).strip()
+        for d in still_missing
+        if str(d.get('source', '')).strip()
+    })
+
     if not sources:
-        return
-        
+        return chroma_calls
+
     try:
         if len(sources) == 1:
-            where = {"source": sources[0]}
+            where: dict = {"source": sources[0]}
         else:
             where = {"source": {"$in": sources}}
-            
-        res = collection.get(where=where, include=['embeddings', 'documents'])
-        text_map = {}
-        if res and res.get('documents'):
-            for i in range(len(res['documents'])):
-                txt = (res['documents'][i] or '').strip()
-                emb = res['embeddings'][i]
-                if txt:
-                    text_map[txt] = emb
 
-        for d in missing:
+        chroma_calls += 1
+        res2 = collection.get(where=where, include=['embeddings', 'documents', 'metadatas'])
+
+        doc_id_map: dict = {}   # doc_id prefix → embedding
+        text_map: dict = {}     # text content → embedding
+
+        if res2 and res2.get('documents'):
+            ids2 = res2.get('ids') or []
+            for i, (txt, emb) in enumerate(zip(res2['documents'], res2['embeddings'])):
+                if emb is None:
+                    continue
+                # Build doc_id prefix key (strip trailing -<chunk_n>)
+                raw_id = ids2[i] if i < len(ids2) else ''
+                base_id = raw_id
+                try:
+                    head2, tail2 = str(raw_id).rsplit('-', 1)
+                    if len(head2) == 32 and all(c in '0123456789abcdef' for c in head2.lower()) and tail2.isdigit():
+                        base_id = head2
+                except Exception:
+                    pass
+                if base_id and base_id not in doc_id_map:
+                    doc_id_map[base_id] = emb
+                cleaned = (txt or '').strip()
+                if cleaned:
+                    text_map[cleaned] = emb
+
+        for d in still_missing:
+            if d.get('embedding') is not None:
+                continue
+            # Try doc_id match first
+            did = str(d.get('doc_id') or '').strip()
+            if did and did in doc_id_map:
+                d['embedding'] = doc_id_map[did]
+                continue
+            # Fallback: text match
             txt = (d.get('text') or '').strip()
             if txt and txt in text_map:
                 d['embedding'] = text_map[txt]
+
     except Exception:
         pass
+
+    return chroma_calls

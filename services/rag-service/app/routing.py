@@ -109,10 +109,14 @@ def infer_domain(question: str) -> str | None:
         'สาขาวิชา',           # major/branch
         'กลุ่มวิชา',           # course group
         'หมวดวิชา',           # course category
-        'ปีที่',               # year level
+        'ปีที่',               # year level (full form)
         'ชั้นปี',              # academic year/level
         'ภาคการศึกษา',        # semester
         'ต้องมีพื้นฐาน',       # must have foundation
+        # Short-form year queries: "วิชาปี 1", "ปี 2 เทอม 2" etc.
+        'วิชาปี',              # bare year course list
+        'เรียนปี',             # year course list phrasing
+        'ปี 1', 'ปี 2', 'ปี 3', 'ปี 4',  # bare year numbers
     )
 
     # Don't route registrar operations to curriculum
