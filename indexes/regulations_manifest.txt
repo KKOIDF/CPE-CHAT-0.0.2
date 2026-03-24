@@ -1,0 +1,23 @@
+10444dd5ac98c6882012666711337fc911d2981703913d9ee6a2e2a27000e848  /storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations/rule_exam2560.txt
+1fe69ed868ded7a5101e051b7f6d1f8ebf30fbf125aa9f1b76fdb37649504c0e  /storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations/ad_out57.txt
+21bc6c3d02eaceb8ad9f19f359d6d16f21f0984e0a1b60ab2da5b3f0209c2aa6  /storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations/IP2565.txt
+2c2d73748bb3de4a4c278cc078aaa4a9ce87c044917f5644185c5df7c3988852  /storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations/rule_covid2564.txt
+2c69128835bc248c7a7f35551d77622a61f609a597b90412e6efca3047ea848e  /storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations/contacts.txt
+3354fe20145b69ed6f42c01961e85bb7b0a89b644a1c88347197786fcd158ad1  /storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations/OBEM2566update.txt
+3569466928516af3967afb0eeb74b4d066c6bd8aa8b1b5599224b477312f5bee  /storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations/forms.txt
+3efbcae16ef195272246c3846b24fdea21ff1813b72e865180e95b6717a62e2e  /storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations/COVID-19 (2).txt
+71afc10004c726f58550c79a06ff05d0b10ced070e28c90cebae2f2a8b13f573  /storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations/ruleG2568.txt
+74f0ba707c2f7d2474386e160cfda35567aa75e2b88ab366fc32fef76fb3db52  /storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations/2018_06_08_15_10_33.txt
+7e4c579195040d904a5ad112509a1329705df2b79f3c85fb7e22a56ec28c53ef  /storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations/rule2563-2g.txt
+804d1903f1b8d16d9098bb3cdbba272dc11933b71114ed67db08ac4d41c17ec0  /storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations/135.txt
+99a329dcc844cf8bac28866a40b26b741d4eeb27e2abcedf1de3c1656d7396de  /storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations/129.txt
+b0597265dc53053596c7528f2ef1cba4fc6ff780cacff8f065f584dde5a1bbaf  /storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations/discipline2566_fulltext.txt
+b10f74cd01d6ec9641cd6dfd5c9e467cc87f49fd4f1c1314c242dfcbc9874288  /storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations/133.txt
+b4a15117c22abe420aca2e9df7c01bd07a9d53d15b8fbe93c33681a16954a35e  /storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations/privacy2563.txt
+b52191f2e1d1ba8030a55ff28d1e6e74cfa0251b3b26252433307d51efae00fe  /storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations/tf_out.txt
+bdf774bf849d83312137a17b3e7a7acff0585d3f7f32b310a48db17659df7573  /storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations/OBEM.txt
+d01d925f619620b57babc8ba8dbb5cf15cb47cf578fa3123f246081f106016ff  /storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations/celemony2539.txt
+d68dea2a57fb8e9cb93657178bf26570613d12f17d1887b56a4121be93ee0547  /storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations/handbook2562g.txt
+ee485bd1b1ebbe5294eb8babc66d5b605c142c7695ba54506fd421bdde5848e4  /storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations/rule57.txt
+ef097a6724d2f8025d11ebdedc4c6eb5e60fd5daab8d4f75bb4d8758e3123950  /storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations/rule57_2.txt
+fbba422e281aca9c0469957bc1931ccfeca8458bd7e2e7797a23bde4aab94721  /storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations/rule2563-4b.txt

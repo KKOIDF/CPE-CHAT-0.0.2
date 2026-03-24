@@ -1,0 +1,5 @@
+2be3000e5c2ea28462f83d13c6edfcf5197bd7fa7de3cada3d1fea2749360848  /storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/curriculum/โครงสร้างหลักสูตรรายวิชาศึกษาทั่วไป มจธ.txt
+97b8bd0736ccc21d6b731a9a08911a60ff70286250a56ae6508803acc5cfb0a1  /storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/curriculum/SSC.txt
+c5fe1b9c40df074b4a696de17ca012c017f0b76f4b458251f519c36ee8bae5ad  /storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/curriculum/FOE10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt
+cc896ad3d3dc740e93a9e02f853d9338968eea117aefb2ebddb8bd2c82241db2  /storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/curriculum/วศ.บ.-วศวกรรมคอมพวเตอร-ปรบปรง.64.txt
+d0334e222f3dd52a72b431eb841f16a0dcff81e86194da2a6f6f33dde453e4cb  /storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/curriculum/วิชา LNG 2562.txt
