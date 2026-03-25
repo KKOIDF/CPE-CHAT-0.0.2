@@ -401,6 +401,9 @@ def majority_domain_rescue(
 def promote_exact_anchor_hits(items: List[Dict], anchors: List[str], bonus_per_hit: float = 0.18) -> List[Dict]:
     if not items or not anchors:
         return items
+        
+    course_code_anchors = {a.lower() for a in anchors if re.match(r"^[a-zA-Z]{2,6}\d{3}$", a.strip())}
+    
     out: List[Dict] = []
     for d in items:
         blob = ' '.join([
@@ -415,12 +418,23 @@ def promote_exact_anchor_hits(items: List[Dict], anchors: List[str], bonus_per_h
             s = (a or '').strip().lower()
             if not s:
                 continue
+            
+            is_course = s in course_code_anchors
+            hit = False
+            
             if s in blob:
-                bonus += float(bonus_per_hit)
-                continue
-            s2 = re.sub(r"[^0-9a-zก-๙]+", "", s)
-            if s2 and s2 in blob_norm:
-                bonus += float(bonus_per_hit)
+                hit = True
+            else:
+                s2 = re.sub(r"[^0-9a-zก-๙]+", "", s)
+                if s2 and s2 in blob_norm:
+                    hit = True
+                    
+            if hit:
+                # Add a substantial multiplier for exact course code matches to heavily boost to Top-1
+                if is_course:
+                    bonus += float(bonus_per_hit) * 6.0
+                else:
+                    bonus += float(bonus_per_hit)
 
         u = dict(d)
         base = float(u.get('score_rrf') or 0.0)

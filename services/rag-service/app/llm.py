@@ -19,11 +19,109 @@ from .config import (
     TYPHOON_TIMEOUT_S,
 )
 
-import requests
 import os
 import json
 import re
 import time
+import requests
+from .perf import add_metric
+
+class LLMTimeoutError(Exception):
+    def __init__(self, message: str, stage: str):
+        super().__init__(message)
+        self.stage = stage
+
+def _stream_chat_completion(
+    url: str, 
+    headers: Dict[str, str], 
+    payload: Dict[str, Any], 
+    first_token_timeout: float, 
+    overall_timeout: float,
+    max_retries: int = 1,
+    debug: bool = False,
+    provider: str = 'Unknown'
+) -> str:
+    payload['stream'] = True
+    backoff_s = 0.5
+    
+    for attempt in range(max_retries + 1):
+        try:
+            start_t = time.time()
+            if debug:
+                print(f"[{provider}][stream] Attempt {attempt+1}/{max_retries+1}")
+            # First-token connection and read timeout
+            resp = _HTTP.post(url, headers=headers, json=payload, stream=True, timeout=(3.0, first_token_timeout))
+        except requests.exceptions.Timeout:
+            if attempt < max_retries:
+                time.sleep(backoff_s)
+                continue
+            add_metric('llm_retry_count', attempt)
+            raise LLMTimeoutError(f"{provider} network timeout on start", "first_token_network")
+        except Exception as e:
+            if attempt < max_retries:
+                time.sleep(backoff_s)
+                continue
+            add_metric('llm_retry_count', attempt)
+            raise
+            
+        if resp.status_code >= 300:
+            is_transient = (resp.status_code == 429 or 500 <= resp.status_code <= 599)
+            if is_transient and attempt < max_retries:
+                resp.close()
+                time.sleep(backoff_s)
+                continue
+            body = resp.text[:300]
+            resp.close()
+            # Note: The original code handled 400 token bumping for Typhoon, 
+            # but user feedback requests strictly limiting retries to transient errors.
+            add_metric('llm_retry_count', attempt)
+            raise RuntimeError(f"{provider} HTTP {resp.status_code}: {body}")
+            
+        add_metric('llm_retry_count', attempt)
+        
+        # Stream processing
+        first_token_t = None
+        accumulated = []
+        try:
+            for line in resp.iter_lines():
+                curr_t = time.time()
+                if first_token_t is None:
+                    if curr_t - start_t > first_token_timeout:
+                        resp.close()
+                        raise LLMTimeoutError(f"{provider} first-token timeout exceeded {first_token_timeout}s", "first_token")
+                
+                if curr_t - start_t > overall_timeout:
+                    resp.close()
+                    raise LLMTimeoutError(f"{provider} overall timeout exceeded {overall_timeout}s", "overall")
+                    
+                if line:
+                    decoded = line.decode('utf-8')
+                    if decoded.startswith("data: "):
+                        data_str = decoded[6:].strip()
+                        if data_str == "[DONE]":
+                            break
+                        try:
+                            chunk = json.loads(data_str)
+                            choices = chunk.get("choices", [])
+                            if choices:
+                                delta = choices[0].get("delta", {})
+                                content = delta.get("content", "")
+                                if content:
+                                    accumulated.append(content)
+                                    if first_token_t is None:
+                                        first_token_t = time.time()
+                                        add_metric('llm_first_token_ms', int((first_token_t - start_t) * 1000))
+                        except json.JSONDecodeError:
+                            pass
+        finally:
+            resp.close()
+            end_t = time.time()
+            if first_token_t is None:
+                add_metric('llm_first_token_ms', int((end_t - start_t) * 1000))
+            add_metric('llm_total_ms', int((end_t - start_t) * 1000))
+            
+        out = "".join(accumulated).strip()
+        return out or '(empty response)'
 
 try:
     from transformers import AutoTokenizer, AutoModelForCausalLM, pipeline
@@ -152,11 +250,24 @@ class LLMEngine:
             return "(LLM disabled: set LLM_ENABLE=1 to enable generation)"
 
         provider = (LLM_PROVIDER or '').strip().lower()
-        if provider == 'openai' or (provider == '' and (self.model_name or '').startswith('gpt-')):
-            return self._generate_openai(prompt=prompt, messages=messages)
-        
-        if provider == 'typhoon':
-            return self._generate_typhoon(prompt=prompt, messages=messages)
+        try:
+            if provider == 'openai' or (provider == '' and (self.model_name or '').startswith('gpt-')):
+                return self._generate_openai(prompt=prompt, messages=messages)
+            
+            if provider == 'typhoon':
+                return self._generate_typhoon(prompt=prompt, messages=messages)
+        except LLMTimeoutError as e:
+            add_metric('fallback_reason', f"{e.stage}_timeout")
+            add_metric('timeout_stage', e.stage)
+            return "(TIMEOUT_FALLBACK)"
+        except Exception as e:
+            if "LLMTimeoutError" in str(e) or "timeout" in str(e).lower():
+                add_metric('fallback_reason', 'nested_timeout')
+                add_metric('timeout_stage', 'nested')
+                return "(TIMEOUT_FALLBACK)"
+            # Log the exception but do not crash the service if called from legacy orchestrators
+            print(f"[LLM][ERROR] generate failed: {e}")
+            return f"(Error: {e})"
 
         self.load()
         # Pipeline path
@@ -221,6 +332,81 @@ class LLMEngine:
         text = self.tokenizer.decode(gen_ids, skip_special_tokens=True).strip()
         return text or "(empty response)"
 
+    def _stream_and_enforce_timeouts(self, url: str, headers: Dict[str, str], payload: Dict[str, Any], provider_name: str, debug: bool = False) -> str:
+        from .perf import add_metric
+        
+        # Hard limits per user requirements
+        first_token_timeout = float(os.getenv(f'{provider_name.upper()}_FIRST_TOKEN_TIMEOUT_S', '3.0'))
+        overall_timeout = float(os.getenv(f'{provider_name.upper()}_OVERALL_TIMEOUT_S', '15.0'))
+        max_retries = 1
+        
+        for attempt in range(max_retries + 1):
+            start_t = time.time()
+            first_token_ms = -1
+            collected_text = []
+            
+            try:
+                # Use stream=True to get chunks
+                with _HTTP.post(url, headers=headers, json=payload, stream=True, timeout=(first_token_timeout, first_token_timeout)) as resp:
+                    if resp.status_code >= 300:
+                        if resp.status_code in (429, 500, 502, 503, 504) and attempt < max_retries:
+                            time.sleep(0.5)
+                            continue
+                        else:
+                            return f"({provider_name} error {resp.status_code})"
+                    
+                    got_first_token = False
+                    
+                    for line in resp.iter_lines():
+                        if time.time() - start_t > overall_timeout:
+                            add_metric('timeout_stage', 'overall')
+                            raise TimeoutError("overall")
+                            
+                        if not line:
+                            continue
+                        
+                        decoded = line.decode('utf-8')
+                        if decoded.startswith('data: '):
+                            data_str = decoded[6:]
+                            if data_str.strip() == '[DONE]':
+                                break
+                            try:
+                                data = json.loads(data_str)
+                                delta = data.get('choices', [{}])[0].get('delta', {})
+                                content = delta.get('content')
+                                if content:
+                                    if not got_first_token:
+                                        got_first_token = True
+                                        first_token_ms = int((time.time() - start_t) * 1000)
+                                    collected_text.append(content)
+                            except Exception:
+                                pass
+                    
+                    # Success
+                    total_ms = int((time.time() - start_t) * 1000)
+                    add_metric('llm_first_token_ms', first_token_ms if first_token_ms >= 0 else total_ms)
+                    add_metric('llm_total_ms', total_ms)
+                    add_metric('llm_retry_count', attempt)
+                    return "".join(collected_text).strip()
+                    
+            except Exception as e:
+                if str(e) == "overall":
+                    add_metric('llm_retry_count', attempt)
+                    add_metric('fallback_reason', 'overall_timeout')
+                    raise TimeoutError(f"{provider_name} overall timeout exceeded")
+                
+                # Assume first_token delay / network issue
+                if attempt < max_retries:
+                    add_metric('timeout_stage', 'first_token')
+                    time.sleep(0.5)
+                    continue
+                else:
+                    add_metric('llm_retry_count', attempt)
+                    add_metric('fallback_reason', 'first_token_timeout')
+                    raise TimeoutError(f"{provider_name} first-token timeout exceeded")
+                    
+        return "(LLM Generation Failed)"
+
     def _generate_openai(self, prompt: str, messages: Optional[List[Dict[str, str]]] = None) -> str:
         if not OPENAI_API_KEY:
             return "(OpenAI unavailable: set OPENAI_API_KEY)"
@@ -233,105 +419,43 @@ class LLMEngine:
             'Content-Type': 'application/json',
         }
 
-        # For maximum compatibility across OpenAI model families, send a single text input.
-        # Our `prompt` already contains system-style instructions + context.
-        text_input = prompt
-        msgs = [{'role': 'user', 'content': text_input}]
+        msgs = messages or [{'role': 'user', 'content': prompt}]
+        url = f"{base}/chat/completions"
+        payload: Dict[str, Any] = {
+            'model': self.model_name,
+            'messages': msgs,
+            'stream': True,
+        }
 
-        # 1) Try Responses API (newer)
+        if not is_gpt5:
+            payload['temperature'] = LLM_TEMPERATURE
+        else:
+            payload['reasoning_effort'] = 'minimal'
+
+        if is_gpt5:
+            payload['max_completion_tokens'] = LLM_MAX_TOKENS
+        else:
+            payload['max_tokens'] = LLM_MAX_TOKENS
+
+        first_token_timeout = float(os.getenv('OPENAI_FIRST_TOKEN_TIMEOUT_S', '3.0'))
+        overall_timeout = float(os.getenv('OPENAI_OVERALL_TIMEOUT_S', '15.0'))
+        
         try:
-            url = f"{base}/responses"
-            payload: Dict[str, Any] = {
-                'model': self.model_name,
-                'input': text_input,
-                'max_output_tokens': LLM_MAX_TOKENS,
-            }
-            if not is_gpt5:
-                payload['temperature'] = LLM_TEMPERATURE
-            else:
-                # Reduce reasoning so we get visible text within token budget.
-                payload['reasoning'] = {'effort': 'minimal'}
-                payload['text'] = {'format': {'type': 'text'}}
-            resp = _HTTP.post(url, headers=headers, json=payload, timeout=OPENAI_TIMEOUT_S)
-            if debug:
-                print(f"[OpenAI][responses] status={resp.status_code}")
-            if resp.status_code < 300:
-                data = resp.json()
-                # Common fields: output_text (SDK), or output[] content[] text
-                if isinstance(data, dict) and data.get('output_text'):
-                    return str(data.get('output_text')).strip() or '(empty response)'
-                def _collect_texts(obj: Any, acc: List[str]):
-                    if obj is None:
-                        return
-                    if isinstance(obj, str):
-                        return
-                    if isinstance(obj, dict):
-                        t = obj.get('text')
-                        if isinstance(t, str) and t.strip():
-                            acc.append(t)
-                        for v in obj.values():
-                            _collect_texts(v, acc)
-                        return
-                    if isinstance(obj, list):
-                        for v in obj:
-                            _collect_texts(v, acc)
-
-                out_texts: List[str] = []
-                _collect_texts((data or {}).get('output'), out_texts)
-                # De-duplicate while preserving order
-                seen: set[str] = set()
-                uniq: List[str] = []
-                for t in out_texts:
-                    tt = t.strip()
-                    if tt and tt not in seen:
-                        uniq.append(tt)
-                        seen.add(tt)
-                joined = '\n'.join(uniq).strip()
-                if joined:
-                    return joined
-                if debug:
-                    print('[OpenAI][responses] empty parse; raw:', resp.text[:800])
-                # Some models may return reasoning-only or incomplete responses here;
-                # fall back to chat.completions for a plain assistant message.
-                raise RuntimeError('responses_api_empty_output')
-            # If endpoint unsupported, fall through to chat completions.
-        except Exception:
-            pass
-
-        # 2) Fallback to Chat Completions
-        try:
-            url = f"{base}/chat/completions"
-            payload: Dict[str, Any] = {
-                'model': self.model_name,
-                'messages': msgs,
-            }
-
-            if not is_gpt5:
-                payload['temperature'] = LLM_TEMPERATURE
-            else:
-                payload['reasoning_effort'] = 'minimal'
-
-            # Newer OpenAI models (e.g., gpt-5*) require max_completion_tokens.
-            if is_gpt5:
-                payload['max_completion_tokens'] = LLM_MAX_TOKENS
-            else:
-                payload['max_tokens'] = LLM_MAX_TOKENS
-
-            resp = _HTTP.post(url, headers=headers, json=payload, timeout=OPENAI_TIMEOUT_S)
-            if debug:
-                print(f"[OpenAI][chat.completions] status={resp.status_code}")
-            if resp.status_code >= 300:
-                return f"(OpenAI error {resp.status_code}: {resp.text[:300]})"
-            data = resp.json()
-            content = (((data or {}).get('choices') or [{}])[0].get('message') or {}).get('content')
-            out = (content or '').strip()
-            if out:
-                return out
-            if debug:
-                print('[OpenAI][chat.completions] empty content; raw:', resp.text[:800])
-            return '(empty response)'
+            return _stream_chat_completion(
+                url=url,
+                headers=headers,
+                payload=payload,
+                first_token_timeout=first_token_timeout,
+                overall_timeout=overall_timeout,
+                max_retries=1, # strictly 1 retry allowed
+                debug=debug,
+                provider='OpenAI'
+            )
         except Exception as e:
-            return f"(OpenAI request failed: {e})"
+            if not isinstance(e, LLMTimeoutError):
+                add_metric('llm_total_ms', 0)
+                add_metric('llm_first_token_ms', 0)
+            raise e
 
     def _generate_typhoon(self, prompt: str, messages: Optional[List[Dict[str, str]]] = None) -> str:
         if not TYPHOON_API_KEY:
@@ -346,113 +470,39 @@ class LLMEngine:
         }
 
         # Build messages for Typhoon API
-        # If messages are supplied, use them; otherwise use prompt as user message
-        if messages:
-            msgs = messages
-        else:
-            msgs = [{'role': 'user', 'content': prompt}]
+        msgs = messages or [{'role': 'user', 'content': prompt}]
+        url = f"{base}/chat/completions"
 
-        def _parse_token_error(resp_text: str) -> tuple[int, int, int] | None:
-            """Return (prompt_tokens, required, provided) if resp_text matches token-limit error."""
-            try:
-                data = json.loads(resp_text or '')
-                detail = data.get('detail') if isinstance(data, dict) else None
-                if not isinstance(detail, str):
-                    return None
-                m = re.search(
-                    r"prompt_tokens:\s*(\d+).*required:\s*(\d+).*provided:\s*(\d+)",
-                    detail,
-                    flags=re.IGNORECASE,
-                )
-                if not m:
-                    return None
-                return int(m.group(1)), int(m.group(2)), int(m.group(3))
-            except Exception:
-                return None
+        payload: Dict[str, Any] = {
+            'model': self.model_name,
+            'messages': msgs,
+            'temperature': LLM_TEMPERATURE,
+            'max_completion_tokens': LLM_MAX_TOKENS,
+            'max_tokens': LLM_MAX_TOKENS,
+            'top_p': 0.6,
+            'frequency_penalty': 0,
+            'stream': True,
+        }
 
-        def _post(payload: Dict[str, Any]) -> requests.Response:
-            url = f"{base}/chat/completions"
-            return _HTTP.post(url, headers=headers, json=payload, timeout=TYPHOON_TIMEOUT_S)
-
-        def _is_transient_status(status_code: int) -> bool:
-            return status_code == 429 or 500 <= status_code <= 599
-
+        first_token_timeout = float(os.getenv('TYPHOON_FIRST_TOKEN_TIMEOUT_S', '3.0'))
+        overall_timeout = float(os.getenv('TYPHOON_OVERALL_TIMEOUT_S', '15.0'))
+        
         try:
-            payload: Dict[str, Any] = {
-                'model': self.model_name,
-                'messages': msgs,
-                'temperature': LLM_TEMPERATURE,
-                # Typhoon's API enforces max_tokens >= prompt_tokens + 1.
-                # Some deployments accept max_completion_tokens, others only max_tokens.
-                'max_completion_tokens': LLM_MAX_TOKENS,
-                'max_tokens': LLM_MAX_TOKENS,
-                'top_p': 0.6,
-                'frequency_penalty': 0,
-            }
-
-            # Retry transient provider failures (5xx/429) and network errors.
-            max_retries = max(0, int(os.getenv('TYPHOON_RETRIES', '2')))
-            backoff_s = max(0.1, float(os.getenv('TYPHOON_RETRY_BACKOFF_S', '2.0')))
-            resp: Optional[requests.Response] = None
-
-            for attempt in range(max_retries + 1):
-                try:
-                    resp = _post(payload)
-                except Exception as e:
-                    if attempt >= max_retries:
-                        return f"(Typhoon request failed after retries: {e})"
-                    sleep_s = backoff_s * (attempt + 1)
-                    if debug:
-                        print(f"[Typhoon][retry] request exception on attempt {attempt + 1}: {e}; sleeping {sleep_s:.1f}s")
-                    time.sleep(sleep_s)
-                    continue
-
-                if debug:
-                    print(f"[Typhoon][chat.completions] status={resp.status_code} attempt={attempt + 1}/{max_retries + 1}")
-
-                # Auto-retry once when max_tokens is too small for the prompt.
-                if resp.status_code == 400:
-                    parsed = _parse_token_error(resp.text)
-                    if parsed:
-                        _prompt_tokens, required, _provided = parsed
-                        margin = int(os.getenv('TYPHOON_TOKEN_MARGIN', '512'))
-                        cap = int(os.getenv('TYPHOON_MAX_TOKENS_CAP', '8192'))
-                        bumped = min(required + max(1, margin), cap)
-                        if bumped > int(payload.get('max_tokens') or 0):
-                            payload['max_tokens'] = bumped
-                            payload['max_completion_tokens'] = bumped
-                            resp = _post(payload)
-                            if debug:
-                                print(f"[Typhoon][chat.completions] retry status={resp.status_code} (max_tokens={bumped})")
-
-                if resp.status_code < 300:
-                    break
-
-                if not _is_transient_status(resp.status_code) or attempt >= max_retries:
-                    break
-
-                sleep_s = backoff_s * (attempt + 1)
-                if debug:
-                    print(f"[Typhoon][retry] transient status={resp.status_code}; sleeping {sleep_s:.1f}s")
-                time.sleep(sleep_s)
-
-            if resp is None:
-                return "(Typhoon request failed: no response)"
-
-            if resp.status_code >= 300:
-                if _is_transient_status(resp.status_code):
-                    return "(Typhoon unavailable temporarily. Please try again in 30-60 seconds.)"
-                return f"(Typhoon error {resp.status_code}: {resp.text[:300]})"
-            data = resp.json()
-            content = (((data or {}).get('choices') or [{}])[0].get('message') or {}).get('content')
-            out = (content or '').strip()
-            if out:
-                return out
-            if debug:
-                print('[Typhoon][chat.completions] empty content; raw:', resp.text[:800])
-            return '(empty response)'
+            return _stream_chat_completion(
+                url=url,
+                headers=headers,
+                payload=payload,
+                first_token_timeout=first_token_timeout,
+                overall_timeout=overall_timeout,
+                max_retries=1, # strictly 1 retry allowed for transient errors
+                debug=debug,
+                provider='Typhoon'
+            )
         except Exception as e:
-            return f"(Typhoon request failed: {e})"
+            if not isinstance(e, LLMTimeoutError):
+                add_metric('llm_total_ms', 0)
+                add_metric('llm_first_token_ms', 0)
+            raise e
 
 # Singleton
 llm_engine = LLMEngine(LLM_MODEL)

@@ -40,6 +40,15 @@ _COMMON_TYPO_FIXES: list[tuple[str, str]] = [
     ('แผนการเรยน', 'แผนการเรียน'),
     ('ลงทะเบยน', 'ลงทะเบียน'),
     ('ลงทะเบีย', 'ลงทะเบียน'),
+    ('อารัย', 'อะไร'),
+    ('อะรัย', 'อะไร'),
+    ('คับ', 'ครับ'),
+    ('คัฟ', 'ครับ'),
+    ('ปะ', 'ไหม'),
+    ('ป่าว', 'เปล่า'),
+    ('มั้ย', 'ไหม'),
+    ('มั๊ย', 'ไหม'),
+    ('ได้ปะ', 'ได้ไหม'),
 ]
 
 
@@ -88,6 +97,9 @@ def normalize_question(question: str) -> str:
         # replace standalone occurrences using word boundaries wouldn't work easily for Thai,
         # but simple string replace is safe enough for these specific abbreviations.
         q = q.replace(src, dst)
+
+    # Normalize alphanumeric course codes without space: CPE342 -> CPE 342
+    q = re.sub(r"\b([A-Za-z]{2,6})\s*(\d{3})\b", r"\1 \2", q)
 
     # Normalize credits
     q = re.sub(r"(\d+)\s*(กิต|นก\.|หน่วย)\b", r"\1 หน่วยกิต", q)

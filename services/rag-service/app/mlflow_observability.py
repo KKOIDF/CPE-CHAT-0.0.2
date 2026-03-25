@@ -24,6 +24,9 @@ _CATEGORICAL_METRIC_KEYS = {
     "top_k_rerank_mode",
     "routing_domain_initial",
     "routing_domain_final",
+    "structured_regulations_miss_reason",
+    "structured_regulations_source_kind",
+    "structured_curriculum_consistency_guard_mode",
 }
 
 

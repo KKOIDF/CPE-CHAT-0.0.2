@@ -4,7 +4,7 @@ import os
 from typing import Dict
 
 
-def build_prompt(question: str, ctx: str, cites: Dict[int, str]) -> str:
+def build_prompt(question: str, ctx: str, cites: Dict[int, str], intent: str = 'course_info') -> str:
     require_citations = (os.getenv('RAG_REQUIRE_CITATIONS', '0') or '0').strip().lower() in (
         '1', 'true', 'yes', 'on'
     )
@@ -32,6 +32,16 @@ def build_prompt(question: str, ctx: str, cites: Dict[int, str]) -> str:
             "10) หากหลักฐานไม่ครบทุกเงื่อนไข ให้ระบุชัดเจนว่ายังขาดข้อมูลส่วนใด.\n"
         )
 
+    intent_guidance = ""
+    if intent == 'course_info':
+        intent_guidance = "คำถามนี้เกี่ยวกับเนื้อหารายวิชา กรุณาระบุชื่อวิชา (ไทยและอังกฤษถ้ามี) และจำนวนหน่วยกิตให้ครบถ้วนเสมอ\n"
+    elif intent == 'prerequisite':
+        intent_guidance = "คำถามนี้เกี่ยวกับวิชาบังคับก่อน ให้โฟกัสแค่รหัสวิชาที่บังคับก่อนและเงื่อนไขที่เกี่ยวข้อง โดยไม่ต้องอธิบายเนื้อหารายวิชานั้น\n"
+    elif intent == 'regulation':
+        intent_guidance = "คำถามนี้เกี่ยวกับกฎระเบียบ ให้ตอบอ้างอิงระเบียบหรือมาตราอย่างชัดเจน หากมีข้อยกเว้นหรือบทลงโทษ ให้ระบุด้วย\n"
+    elif intent == 'multi_intent':
+        intent_guidance = "คำถามนี้มีหลายประเด็นย่อย ให้ตอบแยกเป็นส่วนๆ ให้ครบทุกประเด็นอย่างชัดเจน\n"
+
     if require_citations:
         instruction = (
             "คุณคือผู้ช่วยของภาควิชาวิศวกรรมคอมพิวเตอร์ ณ มหาวิทยาลัยเทคโนโลยีพระจอมเกล้าธนบุรี ตอบเป็นภาษาไทย.\n"
@@ -45,6 +55,7 @@ def build_prompt(question: str, ctx: str, cites: Dict[int, str]) -> str:
             "7) ห้ามให้ URL/ลิงก์ภายนอก เว้นแต่ URL นั้นปรากฏอยู่ในบริบท.\n"
             "8) เรื่องวัน/วันที่/เดดไลน์: ให้ระบุเฉพาะวันที่ที่มีข้อความยืนยันตรง ๆ ในบริบทเท่านั้น ห้ามอนุมานเดดไลน์จากคำว่า 'ประกาศ ณ วันที่ ...' หรือวันที่ที่ไม่ได้ระบุว่าเป็นกำหนดการ/เส้นตาย.\n"
             f"{multi_doc_guidance}"
+            f"คำแนะนำพิเศษ: {intent_guidance}"
         )
     else:
         instruction = (
@@ -59,6 +70,7 @@ def build_prompt(question: str, ctx: str, cites: Dict[int, str]) -> str:
             "7) ห้ามให้ URL/ลิงก์ภายนอก เว้นแต่ URL นั้นปรากฏอยู่ในบริบท.\n"
             "8) เรื่องวัน/วันที่/เดดไลน์: ให้ระบุเฉพาะวันที่ที่มีข้อความยืนยันตรง ๆ ในบริบทเท่านั้น ห้ามอนุมานเดดไลน์จากคำว่า 'ประกาศ ณ วันที่ ...' หรือวันที่ที่ไม่ได้ระบุว่าเป็นกำหนดการ/เส้นตาย.\n"
             f"{multi_doc_guidance}"
+            f"คำแนะนำพิเศษ: {intent_guidance}"
         )
 
     if require_citations:

@@ -29,6 +29,7 @@ from .routing import (
     infer_domain,
     infer_domain_bias,
     is_multi_doc_question,
+    classify_intent,
 )
 from .rerank import (
     _normalize_source_key,
@@ -71,6 +72,7 @@ __all__ = [
     'infer_domain',
     'infer_domain_bias',
     'is_multi_doc_question',
+    'classify_intent',
     '_normalize_source_key',
     'apply_domain_prior',
     'apply_overbroad_source_penalty',

@@ -1,0 +1,63 @@
+# Regression Eval Summary
+
+Generated: 2026-03-24T23:27:08.117598
+Input: eval_cases.json
+Base URL: http://127.0.0.1:8001
+
+## Headline
+
+- total cases: 40
+- overall pass rate: 0.3750
+
+### Retrieval Metrics
+- top-1 hit rate: 0.4500
+- top-K hit rate: 0.8750
+- mean reciprocal rank (mrr): 0.5692
+
+### Answer Quality Metrics
+- answer keyword hit rate: 0.6750
+- citation validity (groundedness): 0.6000
+- must-not contain pass rate: 1.0000
+
+### Latency Metrics
+- avg total latency ms: 852.92
+- p95 total latency ms: 3888.70
+- avg retrieval latency ms: 2264.13
+- p95 retrieval latency ms: 4636.10
+
+## By Category
+
+- announcements_schedule: total=6, overall=1.0000, answer=1.0000, retrieval=1.0000, citation=1.0000
+- curriculum_fact_lookup: total=10, overall=0.0000, answer=0.8000, retrieval=0.9000, citation=0.0000
+- multi_intent_multi_doc: total=6, overall=0.1667, answer=0.3333, retrieval=0.5000, citation=1.0000
+- prerequisite_course_code: total=8, overall=0.5000, answer=0.5000, retrieval=1.0000, citation=0.6250
+- regulations: total=8, overall=0.5000, answer=0.8750, retrieval=0.8750, citation=0.7500
+- typo_noisy_query: total=2, overall=0.0000, answer=0.0000, retrieval=1.0000, citation=0.5000
+
+## Adaptive Metrics
+
+- retrieval_adaptive_retry_triggered: 0.1750
+- retrieval_adaptive_retry_succeeded: 0.1500
+- retrieval_fallback_all_domains_triggered: 0.0000
+- retrieval_fallback_all_domains_succeeded: 0.0000
+- structured_rescue_triggered: 0.0000
+- structured_rescue_succeeded: 0.0000
+- curriculum_bypass_vector_triggered: 0.4750
+- low_confidence_detected: 0.1750
+- initial_retrieval_doc_count: 2.8750
+- retry_retrieval_doc_count: 0.7000
+- initial_top_score: 0.3277
+- retry_top_score: 0.1202
+
+## Failed Cases Top 10
+
+- multi_005 (multi_intent_multi_doc): coverage=0.00, retrieval=True, citation=True, must_not=True, latency_ms=673.4, error=none
+- prereq_003 (prerequisite_course_code): coverage=0.50, retrieval=True, citation=True, must_not=True, latency_ms=304.9, error=none
+- regulations_005 (regulations): coverage=0.50, retrieval=True, citation=True, must_not=True, latency_ms=761.3, error=none
+- multi_003 (multi_intent_multi_doc): coverage=0.50, retrieval=False, citation=True, must_not=True, latency_ms=3888.7, error=none
+- prereq_001 (prerequisite_course_code): coverage=0.50, retrieval=True, citation=False, must_not=True, latency_ms=100.3, error=none
+- prereq_007 (prerequisite_course_code): coverage=0.50, retrieval=True, citation=False, must_not=True, latency_ms=129.3, error=none
+- curriculum_007 (curriculum_fact_lookup): coverage=0.50, retrieval=True, citation=False, must_not=True, latency_ms=134.6, error=none
+- prereq_008 (prerequisite_course_code): coverage=0.50, retrieval=True, citation=False, must_not=True, latency_ms=161.2, error=none
+- typo_001 (typo_noisy_query): coverage=0.50, retrieval=True, citation=False, must_not=True, latency_ms=177.9, error=none
+- typo_002 (typo_noisy_query): coverage=0.67, retrieval=True, citation=True, must_not=True, latency_ms=466.9, error=none

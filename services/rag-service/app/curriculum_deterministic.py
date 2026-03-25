@@ -5,7 +5,7 @@ from difflib import SequenceMatcher
 from typing import Any
 
 from .normalization import normalize_question
-from .neo4j_client import extract_course_codes
+from .neo4j_client import extract_course_codes, graph_requisite_codes_for_course
 from .sqlite_client import domain_sqlite_path, fetch_docs_with_path, keyword_search
 from .structured_curriculum import (
     Course,
@@ -393,6 +393,136 @@ def _lookup_nearby_names_for_course(code: str) -> list[str]:
     return names[:4]
 
 
+def _lookup_course_from_sqlite(code: str) -> tuple[Course, str] | None:
+    """Best-effort exact course lookup from curriculum SQLite chunks."""
+    k = (code or '').replace('-', '').replace(' ', '').upper()
+    m = re.match(r'^([A-Z]{2,6})(\d{3})$', k)
+    if not m:
+        return None
+    pref, num = m.group(1), m.group(2)
+
+    db_path = domain_sqlite_path('curriculum')
+    dids: list[str] = []
+    seen_ids: set[str] = set()
+    needles = [f'{pref} {num}', f'{pref}{num}', f'รายวิชา: {pref}']
+    for needle in needles:
+        for did in keyword_search(needle, limit=400, sqlite_path=db_path):
+            if did and did not in seen_ids:
+                seen_ids.add(did)
+                dids.append(did)
+        if len(dids) >= 400:
+            break
+
+    docs = fetch_docs_with_path(dids, sqlite_path=db_path)
+    if not docs:
+        return None
+
+    candidates: list[tuple[Course, str]] = []
+    for d in docs:
+        src = str(d.get('source') or '').strip() or 'curriculum_sqlite'
+        txt = str(d.get('text') or '')
+        if not txt:
+            continue
+        parsed = extract_courses_from_text(txt, prefix_filter=pref)
+        for c in parsed:
+            if (c.prefix or '').upper() == pref and (c.number or '') == num:
+                candidates.append((c, src))
+
+    if not candidates:
+        return None
+
+    # Prefer entries that have usable credits and longer titles.
+    candidates.sort(key=lambda x: (int((x[0].credits or 0) > 0), len(x[0].title_th or '')), reverse=True)
+    return candidates[0]
+
+
+def _lookup_prerequisites_from_sqlite(code: str) -> tuple[list[str], str] | None:
+    """Best-effort prerequisite lookup from curriculum SQLite chunks."""
+    k = (code or '').replace('-', '').replace(' ', '').upper()
+    m = re.match(r'^([A-Z]{2,6})(\d{3})$', k)
+    if not m:
+        return None
+    pref, num = m.group(1), m.group(2)
+    target = f"{pref}{num}"
+
+    db_path = domain_sqlite_path('curriculum')
+    dids: list[str] = []
+    seen_ids: set[str] = set()
+    needles = [f'{pref} {num}', f'{pref}{num}', 'วิชาบังคับก่อน', 'prerequisite', 'ต้องผ่าน']
+    for needle in needles:
+        for did in keyword_search(needle, limit=500, sqlite_path=db_path):
+            if did and did not in seen_ids:
+                seen_ids.add(did)
+                dids.append(did)
+        if len(dids) >= 500:
+            break
+
+    docs = fetch_docs_with_path(dids, sqlite_path=db_path)
+    if not docs:
+        return None
+
+    code_re = re.compile(rf"\b{re.escape(pref)}\s*[- ]?\s*{re.escape(num)}\b", re.IGNORECASE)
+    prereq_marker = re.compile(r"(วิชาบังคับก่อน|บังคับก่อน|ต้องผ่าน|prerequisite|pre-req)", re.IGNORECASE)
+    course_code_re = re.compile(r"\b([A-Za-z]{2,6})\s*[- ]?\s*(\d{3})\b")
+
+    for d in docs:
+        src = str(d.get('source') or '').strip() or 'curriculum_sqlite'
+        txt = str(d.get('text') or '')
+        if not txt:
+            continue
+
+        # Negative evidence near the target code.
+        if code_re.search(txt) and re.search(r"(ไม่มีวิชาบังคับก่อน|ไม่มี\s*prerequisite)", txt, re.IGNORECASE):
+            return [], src
+
+        for mc in code_re.finditer(txt):
+            s = max(0, mc.start() - 260)
+            e = min(len(txt), mc.end() + 420)
+            win = txt[s:e]
+            # If marker appears immediately before the target code, this is likely
+            # another course that uses the target as its prerequisite.
+            pre_local = txt[max(0, mc.start() - 64):mc.start()]
+            if prereq_marker.search(pre_local):
+                continue
+
+            # Require prerequisite marker after the course code mention.
+            post_local = txt[mc.end():min(len(txt), mc.end() + 360)]
+            if not prereq_marker.search(post_local):
+                continue
+
+            found: list[str] = []
+            for cm in course_code_re.finditer(win):
+                cp = (cm.group(1) or '').upper()
+                cn = (cm.group(2) or '')
+                v = f"{cp}{cn}"
+                if v == target:
+                    continue
+                disp = f"{cp} {cn}"
+                if disp not in found:
+                    found.append(disp)
+            if found:
+                return found, src
+
+    return None
+
+
+def _lookup_prerequisites_from_graph(code: str) -> tuple[list[str], str] | None:
+    """Fallback prerequisite lookup from graph relations.
+
+    Only used when SQLite cannot provide a deterministic hit, so we preserve
+    precision from explicit text evidence and use graph edges to recover recall.
+    """
+    k = (code or '').replace('-', '').replace(' ', '').upper()
+    m = re.match(r'^([A-Z]{2,6})(\d{3})$', k)
+    if not m:
+        return None
+
+    reqs = graph_requisite_codes_for_course(k, domain='curriculum', kind='prereq', limit=12)
+    if not reqs:
+        return None
+    return reqs, 'curriculum_graph_relation'
+
+
 def structured_curriculum_lookup(question: str) -> dict[str, Any]:
     """Deterministic curriculum lookup with debug metadata.
 
@@ -404,25 +534,54 @@ def structured_curriculum_lookup(question: str) -> dict[str, Any]:
     q = normalize_question(question)
     totals = load_credit_totals_2564()
     curriculum = load_cpe_curriculum_2564()
-    source_name = curriculum.source_path.name if curriculum else "FOE10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt"
+    source_name = curriculum.source_path.name if curriculum else "curriculum_sqlite"
 
     # Category totals lookup.
-    if any(t in q for t in ("หมวดวิชาศึกษาทั่วไป", "วิชาศึกษาทั่วไป", "ศึกษาทั่วไป")) and "หน่วยกิต" in q:
-        ge = totals.get("general_education")
-        if ge is not None:
-            return {
-                "answer": f"- หมวดวิชาศึกษาทั่วไปต้องศึกษารวม {ge} หน่วยกิต [{source_name}/1]",
-                "lookup_mode": "exact_title",
-                "miss_reason": "",
-            }
+    if "หน่วยกิต" in q or "กี่กิต" in q:
+        if any(t in q for t in ("หมวดวิชาศึกษาทั่วไป", "วิชาศึกษาทั่วไป", "ศึกษาทั่วไป")):
+            ge = totals.get("general_education")
+            if ge is not None:
+                return {
+                    "answer": f"- หมวดวิชาศึกษาทั่วไปต้องศึกษารวม {ge} หน่วยกิต [{source_name}/1]",
+                    "lookup_mode": "exact_title",
+                    "miss_reason": "",
+                }
 
-        sp = totals.get("specific")
-        if sp is not None:
-            return {
-                "answer": f"- หมวดวิชาเฉพาะต้องศึกษารวม {sp} หน่วยกิต [{source_name}/1]",
-                "lookup_mode": "exact_title",
-                "miss_reason": "",
-            }
+        if "วิชาเฉพาะ" in q and ("เฉพาะด้าน" not in q):
+            sp = totals.get("specific")
+            if sp is not None:
+                return {
+                    "answer": f"- หมวดวิชาเฉพาะต้องศึกษารวม {sp} หน่วยกิต [{source_name}/1]",
+                    "lookup_mode": "exact_title",
+                    "miss_reason": "",
+                }
+                
+        if "วิชาแกน" in q or "แกนทางวิศวกรรม" in q:
+            core = totals.get("core")
+            if core is not None:
+                return {
+                    "answer": f"- กลุ่มวิชาแกน (วิชาชีพบังคับ) ต้องศึกษารวม {core} หน่วยกิต [{source_name}/1]",
+                    "lookup_mode": "exact_title",
+                    "miss_reason": "",
+                }
+                
+        if "วิชาเฉพาะด้าน" in q or "เฉพาะด้าน" in q:
+            sa = totals.get("specific_area")
+            if sa is not None:
+                return {
+                    "answer": f"- กลุ่มวิชาเฉพาะด้าน (ทั้งบังคับและเลือก) ต้องศึกษารวม {sa} หน่วยกิต [{source_name}/1]",
+                    "lookup_mode": "exact_title",
+                    "miss_reason": "",
+                }
+
+        if "เลือกเสรี" in q:
+            fe = totals.get("free_elective")
+            if fe is not None:
+                return {
+                    "answer": f"- หมวดวิชาเลือกเสรี ต้องศึกษารวม {fe} หน่วยกิต [{source_name}/1]",
+                    "lookup_mode": "exact_title",
+                    "miss_reason": "",
+                }
 
     # Total-program-credit lookup.
     _credit_q_signals = (
@@ -452,7 +611,7 @@ def structured_curriculum_lookup(question: str) -> dict[str, Any]:
     _has_code_hint = bool(re.search(r"\b[A-Za-z]{2,6}\s*\d{3}\b", q))
     _instructor_hint = any(t in q for t in ("ใครสอน", "ผู้สอน", "อาจารย์", "คนสอน"))
     _prereq_hint = any(t in q for t in (
-        "ต้องผ่าน", "บังคับก่อน", "วิชาบังคับก่อน", "prereq", "prerequisite", "เงื่อนไขก่อน"
+        "ต้องผ่าน", "บังคับก่อน", "วิชาบังคับก่อน", "ก่อนเรียน", "พื้นฐาน", "prereq", "prerequisite", "เงื่อนไขก่อน"
     ))
     year_hint, _ = _extract_year_term(q)
     if year_hint is not None and not (_has_code_hint or _instructor_hint or _prereq_hint):
@@ -465,7 +624,7 @@ def structured_curriculum_lookup(question: str) -> dict[str, Any]:
     # Exact course-code/title lookups.
     instructor_intent = any(t in q for t in ("ใครสอน", "ผู้สอน", "อาจารย์", "คนสอน"))
     prereq_intent = any(t in q for t in (
-        "ต้องผ่าน", "บังคับก่อน", "วิชาบังคับก่อน", "ผ่านอะไรก่อน", "prereq", "pre-req", "prerequisite", "เงื่อนไขก่อน"
+        "ต้องผ่าน", "บังคับก่อน", "วิชาบังคับก่อน", "ผ่านอะไรก่อน", "ก่อนเรียน", "พื้นฐาน", "prereq", "pre-req", "prerequisite", "เงื่อนไขก่อน"
     ))
     term_intent = any(t in q for t in (
         "เทอม", "ภาค", "ภาคการศึกษา", "semester", "ปีที่", "ชั้นปี", "อยู่ปี", "เรียนปี"
@@ -502,9 +661,43 @@ def structured_curriculum_lookup(question: str) -> dict[str, Any]:
     codes = followup_codes or _codes_in_order(q)
     all_courses = load_all_courses_2564()
 
+    if prereq_intent and not instructor_intent:
+        if not codes:
+            return {
+                "answer": "โปรดระบุรหัสวิชาที่ต้องการตรวจสอบวิชาบังคับก่อน เช่น CPE 214 ต้องผ่านวิชาอะไร",
+                "lookup_mode": "prereq_clarify",
+                "miss_reason": "no_course_code",
+            }
+
+        for code in reversed(codes):
+            hit = _lookup_prerequisites_from_sqlite(code)
+            if hit is None:
+                hit = _lookup_prerequisites_from_graph(code)
+            if hit is None:
+                continue
+            prereqs, src = hit
+            code_disp = code.replace('-', ' ').upper().strip()
+            if prereqs:
+                return {
+                    "answer": f"- รายวิชา {code_disp} มีวิชาบังคับก่อนคือ {', '.join(prereqs)} [{src}/1]",
+                    "lookup_mode": "prereq_exact",
+                    "miss_reason": "",
+                }
+            return {
+                "answer": f"- รายวิชา {code_disp} ไม่มีวิชาบังคับก่อนตามข้อมูลที่พบ [{src}/1]",
+                "lookup_mode": "prereq_exact",
+                "miss_reason": "",
+            }
+
+        return {
+            "answer": f"- ไม่พบข้อมูลวิชาบังคับก่อนของรายวิชา {codes[-1].replace('-', ' ').upper()} ที่ยืนยันได้จากเอกสาร [{source_name}/1]",
+            "lookup_mode": "prereq_exact_miss",
+            "miss_reason": "prereq_not_found",
+        }
+
     # Title-based mapping for explicit code questions.
     title_lookup_mode: str | None = None
-    code_lookup_intent = any(t in q.lower() for t in ("รหัสวิชา", "รหัสอะไร", "course code", "code of"))
+    code_lookup_intent = any(t in q.lower() for t in ("รหัสวิชา", "รหัสอะไร", "course code", "code of", "คือวิชาอะไร", "กี่หน่วยกิต", "มีกี่หน่วยกิต", "คืออะไร"))
     if code_lookup_intent and (not codes) and (not instructor_intent) and (not (prereq_intent or term_intent)):
         matched_code, title_lookup_mode = _find_best_course_code_by_title(q, all_courses)
         if matched_code:
@@ -632,17 +825,22 @@ def structured_curriculum_lookup(question: str) -> dict[str, Any]:
             "instructor_assignment_soft_answer_used": 0,
         }
 
-    if codes and not instructor_intent and not (prereq_intent or term_intent):
+    if codes and (not instructor_intent) and (not prereq_intent) and (not term_intent):
         for code in reversed(codes):
             key = code.replace("-", "").replace(" ", "").upper()
             course = all_courses.get(key)
+            source_hint = source_name
+            if not course:
+                sqlite_hit = _lookup_course_from_sqlite(code)
+                if sqlite_hit:
+                    course, source_hint = sqlite_hit
             if not course:
                 continue
             credit_text = f"{course.credits} หน่วยกิต" if course.credits else "ไม่พบจำนวนหน่วยกิตในข้อความที่ parse ได้"
             return {
                 "answer": (
-                    f"- วิชา {course.prefix} {course.number} คือ {course.title_th} [{source_name}/1]\n"
-                    f"- วิชา {course.prefix} {course.number} มีจำนวน {credit_text} [{source_name}/1]"
+                    f"- วิชา {course.prefix} {course.number} คือ {course.title_th} [{source_hint}/1]\n"
+                    f"- วิชา {course.prefix} {course.number} มีจำนวน {credit_text} [{source_hint}/1]"
                 ),
                 "lookup_mode": (title_lookup_mode or "exact_code"),
                 "miss_reason": "",

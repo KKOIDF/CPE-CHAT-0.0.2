@@ -264,3 +264,55 @@ def graph_doc_ids_for_requisites(
         print(f"[Neo4j] Connection error in graph_doc_ids_for_requisites, skipping: {e}")
         return []
     return out
+
+
+def graph_requisite_codes_for_course(
+    code: str,
+    domain: str,
+    kind: str = 'prereq',
+    limit: int = 12,
+) -> List[str]:
+    """Return requisite course codes (PREREQ/COREQ) for a single course code.
+
+    This is a high-precision helper for deterministic curriculum answers.
+    """
+    drv = _driver_cached()
+    if not drv:
+        return []
+
+    raw = (code or '').replace('-', '').replace(' ', '').upper()
+    m = re.match(r'^([A-Z]{2,6})(\d{3})$', raw)
+    if not m:
+        return []
+
+    dom = (domain or 'curriculum').strip().lower()
+    rel = 'COREQ' if (kind or '').strip().lower() == 'coreq' else 'PREREQ'
+
+    cypher = (
+        "MATCH (co:Course {code:$code}) "
+        f"MATCH (co)-[:{rel} {{domain:$domain}}]->(req:Course) "
+        "RETURN DISTINCT req.code AS code "
+        "LIMIT $limit"
+    )
+
+    try:
+        with _session(drv) as session:
+            rows = session.run(cypher, code=raw, domain=dom, limit=int(limit))
+            out = [str(r.get('code') or '').strip().upper() for r in rows if r.get('code')]
+    except Exception as e:
+        print(f"[Neo4j] Connection error in graph_requisite_codes_for_course, skipping: {e}")
+        return []
+
+    uniq: List[str] = []
+    seen: Set[str] = set()
+    for item in out:
+        k = item.replace('-', '').replace(' ', '')
+        mm = re.match(r'^([A-Z]{2,6})(\d{3})$', k)
+        if not mm:
+            continue
+        disp = f"{mm.group(1)} {mm.group(2)}"
+        if disp in seen:
+            continue
+        seen.add(disp)
+        uniq.append(disp)
+    return uniq

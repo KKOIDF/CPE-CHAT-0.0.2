@@ -615,8 +615,29 @@ def rag_answer_langchain(question: str, domain: Optional[str] = None) -> Dict[st
     structured: Optional[Dict[str, Any]] = None
     follow_up_question = ''
     if retrieved:
-        raw = _answer_chain().invoke(prompt)  # type: ignore[no-any-return]
-        if _STRUCTURED_ENABLE:
+        from .llm import LLMTimeoutError
+        try:
+            raw = _answer_chain().invoke(prompt)  # type: ignore[no-any-return]
+        except LLMTimeoutError as e:
+            raw = "(TIMEOUT_FALLBACK)"
+            add_metric('fallback_reason', f"{e.stage}_timeout")
+            add_metric('timeout_stage', e.stage)
+        except Exception as e:
+            if "LLMTimeoutError" in str(e) or "timeout" in str(e).lower():
+                raw = "(TIMEOUT_FALLBACK)"
+                add_metric('fallback_reason', 'nested_timeout')
+                add_metric('timeout_stage', 'nested')
+            else:
+                raw = f"เกิดข้อผิดพลาดจาก LLM: {e}"
+            
+        if raw == "(TIMEOUT_FALLBACK)":
+            answer = "ขออภัย ระบบใช้เวลาประมวลผลนานเกินกำหนด โปรดอ้างอิงข้อมูลเบื้องต้นจากเอกสาร:\n"
+            for c in ctx[:2]:
+                txt = (c.get('text') or '').replace('\n', ' ')[:150].strip()
+                cite = (c.get('source') or c.get('doc_id') or 'เอกสาร').split('/')[-1]
+                answer += f"- {txt}... [{cite}]\n"
+            answer = answer.strip()
+        elif _STRUCTURED_ENABLE and "เกิดข้อผิดพลาดจาก LLM" not in raw:
             structured = _safe_json_obj(raw)
             if structured is None:
                 # Best-effort retry: some models ignore JSON-only constraints on first attempt.
@@ -626,8 +647,11 @@ def rag_answer_langchain(question: str, domain: Optional[str] = None) -> Dict[st
                     "กรุณาตอบใหม่อีกครั้ง โดยตอบเป็น JSON object เท่านั้น ห้ามมีข้อความอื่นใดนอกจาก JSON\n"
                     "รูปแบบ: {\"answer\":\"...\",\"follow_up_question\":\"\",\"citations\":[\"source/page\"]}"
                 )
-                raw2 = _answer_chain().invoke(retry_prompt)  # type: ignore[no-any-return]
-                structured = _safe_json_obj(raw2)
+                try:
+                    raw2 = _answer_chain().invoke(retry_prompt)  # type: ignore[no-any-return]
+                    structured = _safe_json_obj(raw2)
+                except Exception:
+                    raw2 = raw
                 if structured is None:
                     # Fall back to raw (first attempt) if still not structured.
                     structured = None
@@ -831,7 +855,7 @@ def _build_rag_prompt_langchain(question: str, domain: Optional[str] = None) -> 
         if dom and not _SEARCH_ALL_DOMAINS:
             items = retrieve_by_domain(q, domain=dom)
             if (not has_ref) and len(items) < fallback_min_results():
-                doms = fallback_domains_for_domain(dom)
+                doms = fallback_domains_for_domain(dom, q_display)
                 items = retrieve_all_domains(q, domains=doms)
         else:
             items = retrieve_all_domains(q)

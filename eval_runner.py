@@ -18,6 +18,12 @@ import requests
 KNOWN_DOMAINS = {"curriculum", "regulations", "announcements"}
 CITATION_RE = re.compile(r"\[([^\[\]/]+?)/(\d+)\]")
 
+DEFAULT_PRODUCTION_CATEGORY_MIN_OVERALL = {
+    "regulations": 0.90,
+    "curriculum_fact_lookup": 0.90,
+    "announcements": 0.75,
+}
+
 
 def normalize_text(text: str) -> str:
     return re.sub(r"\s+", " ", (text or "").strip().lower())
@@ -37,6 +43,23 @@ def percentile(values: list[float], p: float) -> float:
     idx = int(round((p / 100.0) * (len(ordered) - 1)))
     idx = max(0, min(idx, len(ordered) - 1))
     return float(ordered[idx])
+
+
+def parse_category_thresholds(text: str) -> dict[str, float]:
+    out: dict[str, float] = {}
+    for part in str(text or "").split(","):
+        token = part.strip()
+        if not token or "=" not in token:
+            continue
+        name, value = token.split("=", 1)
+        cat = name.strip()
+        if not cat:
+            continue
+        try:
+            out[cat] = float(value.strip())
+        except Exception:
+            continue
+    return out
 
 
 def post_json(base_url: str, endpoint: str, payload: dict[str, Any], timeout_s: float) -> tuple[dict[str, Any], float, str]:
@@ -495,6 +518,56 @@ def apply_gate(
     return failures
 
 
+def apply_production_gate(
+    summary: dict[str, Any],
+    *,
+    min_overall_pass_rate: float,
+    min_answer_hit_rate: float,
+    min_retrieval_hit_rate: float,
+    min_citation_validity_rate: float,
+    min_must_not_contain_pass_rate: float,
+    max_p95_latency_ms: float,
+    max_p95_retrieval_latency_ms: float,
+    category_min_overall_pass_rate: dict[str, float],
+) -> list[str]:
+    failures: list[str] = []
+
+    def _check_min(metric_key: str, threshold: float, label: str) -> None:
+        cur = float(summary.get(metric_key, 0.0))
+        if cur < float(threshold):
+            failures.append(
+                f"{label} below production threshold: current={cur:.4f}, threshold={float(threshold):.4f}"
+            )
+
+    _check_min("overall_pass_rate", min_overall_pass_rate, "overall pass rate")
+    _check_min("answer_hit_rate", min_answer_hit_rate, "answer hit rate")
+    _check_min("retrieval_hit_rate", min_retrieval_hit_rate, "retrieval hit rate")
+    _check_min("citation_validity_rate", min_citation_validity_rate, "citation validity rate")
+    _check_min("must_not_contain_pass_rate", min_must_not_contain_pass_rate, "must-not-contain pass rate")
+
+    cur_p95 = float(summary.get("p95_latency_ms", 0.0))
+    if cur_p95 > float(max_p95_latency_ms):
+        failures.append(
+            f"p95 total latency above production threshold: current={cur_p95:.2f} ms, threshold={float(max_p95_latency_ms):.2f} ms"
+        )
+
+    cur_p95_ret = float(summary.get("p95_retrieval_latency_ms", 0.0))
+    if cur_p95_ret > float(max_p95_retrieval_latency_ms):
+        failures.append(
+            f"p95 retrieval latency above production threshold: current={cur_p95_ret:.2f} ms, threshold={float(max_p95_retrieval_latency_ms):.2f} ms"
+        )
+
+    by_cat = summary.get("by_category") or {}
+    for cat, threshold in sorted((category_min_overall_pass_rate or {}).items()):
+        cur = float(((by_cat.get(cat) or {}).get("overall_pass_rate", 0.0)))
+        if cur < float(threshold):
+            failures.append(
+                f"category overall pass rate below production threshold: {cat} current={cur:.4f}, threshold={float(threshold):.4f}"
+            )
+
+    return failures
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description="Persistent regression evaluator for RAG")
     ap.add_argument("--input", default="eval_cases.json")
@@ -510,6 +583,19 @@ def main() -> int:
     ap.add_argument(
         "--gate-protected-categories",
         default="curriculum_fact_lookup,regulations",
+    )
+    ap.add_argument("--production-gate", action="store_true", help="Enable absolute production gate thresholds")
+    ap.add_argument("--prod-min-overall-pass-rate", type=float, default=0.80)
+    ap.add_argument("--prod-min-answer-hit-rate", type=float, default=0.80)
+    ap.add_argument("--prod-min-retrieval-hit-rate", type=float, default=0.85)
+    ap.add_argument("--prod-min-citation-validity-rate", type=float, default=0.95)
+    ap.add_argument("--prod-min-must-not-contain-pass-rate", type=float, default=0.98)
+    ap.add_argument("--prod-max-p95-latency-ms", type=float, default=7000.0)
+    ap.add_argument("--prod-max-p95-retrieval-latency-ms", type=float, default=2500.0)
+    ap.add_argument(
+        "--prod-category-min-overall-pass-rate",
+        default=",".join(f"{k}={v}" for k, v in DEFAULT_PRODUCTION_CATEGORY_MIN_OVERALL.items()),
+        help="Comma-separated category threshold map, e.g. regulations=0.9,curriculum_fact_lookup=0.9",
     )
     args = ap.parse_args()
 
@@ -554,9 +640,11 @@ def main() -> int:
             if str(x).strip()
         ]
 
-        payload: dict[str, Any] = {"question": question}
+        retrieval_payload: dict[str, Any] = {"question": question}
+        answer_payload: dict[str, Any] = {"question": question, "eval_mode": True}
         if expected_domain in KNOWN_DOMAINS:
-            payload["domain"] = expected_domain
+            retrieval_payload["domain"] = expected_domain
+            answer_payload["domain"] = expected_domain
 
         case_t0 = time.perf_counter()
         print(
@@ -565,10 +653,10 @@ def main() -> int:
         )
 
         retrieval_data, retrieval_ms, retrieval_err = post_json(
-            args.base_url, "/rag/query", payload, timeout_s=float(args.timeout)
+            args.base_url, "/rag/query", retrieval_payload, timeout_s=float(args.timeout)
         )
         answer_data, total_ms, answer_err = post_json(
-            args.base_url, "/rag/answer", payload, timeout_s=float(args.timeout)
+            args.base_url, "/rag/answer", answer_payload, timeout_s=float(args.timeout)
         )
 
         answer = str(answer_data.get("answer") or "").strip()
@@ -676,6 +764,8 @@ def main() -> int:
         print(f"Wrote baseline JSON: {b_json}", flush=True)
         print(f"Wrote baseline MD:   {b_md}", flush=True)
 
+    gate_failures: list[str] = []
+
     if args.compare_baseline:
         baseline_path = Path(args.compare_baseline)
         if not baseline_path.exists():
@@ -688,7 +778,7 @@ def main() -> int:
             for x in str(args.gate_protected_categories).split(",")
             if x.strip()
         ]
-        gate_failures = apply_gate(
+        baseline_gate_failures = apply_gate(
             summary,
             baseline,
             overall_drop_pct=float(args.gate_overall_drop_pct),
@@ -696,12 +786,37 @@ def main() -> int:
             p95_increase_pct=float(args.gate_p95_increase_pct),
             protected_categories=protected,
         )
-        if gate_failures:
+        gate_failures.extend(baseline_gate_failures)
+        if baseline_gate_failures:
             print("GATE FAILED", flush=True)
-            for line in gate_failures:
+            for line in baseline_gate_failures:
                 print(f"- {line}", flush=True)
-            return 1
-        print("GATE PASSED", flush=True)
+        else:
+            print("GATE PASSED", flush=True)
+
+    if args.production_gate:
+        prod_cat_thresholds = parse_category_thresholds(args.prod_category_min_overall_pass_rate)
+        prod_gate_failures = apply_production_gate(
+            summary,
+            min_overall_pass_rate=float(args.prod_min_overall_pass_rate),
+            min_answer_hit_rate=float(args.prod_min_answer_hit_rate),
+            min_retrieval_hit_rate=float(args.prod_min_retrieval_hit_rate),
+            min_citation_validity_rate=float(args.prod_min_citation_validity_rate),
+            min_must_not_contain_pass_rate=float(args.prod_min_must_not_contain_pass_rate),
+            max_p95_latency_ms=float(args.prod_max_p95_latency_ms),
+            max_p95_retrieval_latency_ms=float(args.prod_max_p95_retrieval_latency_ms),
+            category_min_overall_pass_rate=prod_cat_thresholds,
+        )
+        gate_failures.extend(prod_gate_failures)
+        if prod_gate_failures:
+            print("PRODUCTION GATE FAILED", flush=True)
+            for line in prod_gate_failures:
+                print(f"- {line}", flush=True)
+        else:
+            print("PRODUCTION GATE PASSED", flush=True)
+
+    if gate_failures:
+        return 1
 
     return 0
 

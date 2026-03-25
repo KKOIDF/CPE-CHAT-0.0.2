@@ -153,6 +153,13 @@ try:
 except Exception:
     _ROBUST_MIN_SOURCES = 2
 
+_ANNOUNCEMENTS_DISABLE_BROAD_FALLBACK = (os.getenv('RAG_ANNOUNCEMENTS_DISABLE_BROAD_FALLBACK', '1') or '1').strip().lower() in (
+    '1', 'true', 'yes', 'on'
+)
+_ANNOUNCEMENTS_DISABLE_REWRITE_RETRY = (os.getenv('RAG_ANNOUNCEMENTS_DISABLE_REWRITE_RETRY', '1') or '1').strip().lower() in (
+    '1', 'true', 'yes', 'on'
+)
+
 
 def _normalize_source_key(s: str) -> str:
     txt = (s or '').strip().lower()
@@ -529,18 +536,37 @@ def retrieve_multi_document(question: str) -> List[Dict]:
 
     lists: List[List[Dict]] = []
     weights: List[float] = []
+    parent_domain = infer_domain(question)
     for i, sq in enumerate(subqs):
-        # Retrieve wider than normal so we have enough breadth to combine evidence.
-        hits = retrieve_all_domains(
-            sq,
-            k_vec=24,
-            k_kw=40,
-            final_limit=_MULTI_DOC_WIDE_LIMIT,
-            max_per_source=max(_MULTI_DOC_MAX_PER_SOURCE + 1, _MAX_PER_SOURCE),
-            per_domain_limit=_MULTI_DOC_PER_DOMAIN_LIMIT,
-        )
+        subq_domain = infer_domain(sq) or parent_domain
+        if subq_domain in KNOWN_DOMAINS:
+            hits = retrieve_by_domain(sq, subq_domain, k_vec=24, k_kw=40)
+            allow_broad = not (_ANNOUNCEMENTS_DISABLE_BROAD_FALLBACK and subq_domain == 'announcements')
+            if len(hits) < fallback_min_results() and allow_broad:
+                hits = retrieve_all_domains(
+                    sq,
+                    domains=fallback_domains_for_domain(subq_domain, sq),
+                    k_vec=24,
+                    k_kw=40,
+                    final_limit=_MULTI_DOC_WIDE_LIMIT,
+                    max_per_source=max(_MULTI_DOC_MAX_PER_SOURCE + 1, _MAX_PER_SOURCE),
+                    per_domain_limit=_MULTI_DOC_PER_DOMAIN_LIMIT,
+                )
+        else:
+            # Retrieve wider than normal so we have enough breadth to combine evidence.
+            hits = retrieve_all_domains(
+                sq,
+                k_vec=24,
+                k_kw=40,
+                final_limit=_MULTI_DOC_WIDE_LIMIT,
+                max_per_source=max(_MULTI_DOC_MAX_PER_SOURCE + 1, _MAX_PER_SOURCE),
+                per_domain_limit=_MULTI_DOC_PER_DOMAIN_LIMIT,
+            )
         lists.append(hits)
-        weights.append(1.2 if i == 0 else 1.0)
+        if subq_domain in KNOWN_DOMAINS:
+            weights.append(1.35 if i == 0 else 1.1)
+        else:
+            weights.append(1.2 if i == 0 else 1.0)
 
     fused = fuse_rrf_lists(lists, weights=weights)
     anchors = extract_lexical_anchors(question)
@@ -1152,20 +1178,22 @@ def retrieve_all_domains(
     ql = (question or '').strip().lower()
     exam_policy_intent = (
         any(t in ql for t in ('สอบ', 'ห้องสอบ', 'คุมสอบ', 'มาสาย', 'ทุจริต', 'อุทธรณ์'))
-        and any(t in ql for t in ('ได้กี่', 'กี่นาที', 'กี่วัน', 'ระเบียบ', 'ข้อ', 'นโยบาย', 'อนุญาต'))
+        and any(t in ql for t in ('ได้กี่', 'กี่นาที', 'กี่วัน', 'ระเบียบ', 'ข้อ', 'นโยบาย', 'อนุญาต', 'ได้ไหม', 'ได้ปะ', 'ไหม', 'นาที', 'ชั่วโมง', 'ห้าม', 'ผิด', 'รึเปล่า', 'หรือเปล่า', 'อย่างไร'))
     )
     if exam_policy_intent:
         boosted: List[Dict] = []
         for d in merged:
             u = dict(d)
             dom = str(u.get('domain') or '').strip().lower()
-            src = str(u.get('source') or '').strip().lower()
+            src_str = str(u.get('source') or u.get('path') or '').strip().lower()
             score = float(u.get('score_final') or u.get('score_rrf') or 0.0)
             if dom == 'regulations':
                 score += 0.25
-            if ('rule_exam' in src) or ('สอบ' in src and 'ระเบียบ' in src):
+            if ('rule_exam' in src_str) or ('สอบ' in src_str and 'ระเบียบ' in src_str):
                 score += 0.55
-            if src.endswith('forms.txt'):
+            if any(c in src_str for c in ('rule57', 'obem', 'handbook2562', 'discipline')):
+                score -= 0.60
+            if src_str.endswith('forms.txt'):
                 score -= 0.20
             if dom == 'curriculum':
                 score -= 0.20
@@ -1371,7 +1399,7 @@ def retrieve_by_domain(
             hints.extend(['หมวดวิชา', 'กลุ่มวิชา', 'category', 'group'])
 
         # Prerequisite queries
-        if any(t in q for t in ('ต้องผ่าน', 'บังคับก่อน', 'ก่อนเรียน', 'prerequisite')):
+        if any(t in q for t in ('ต้องผ่าน', 'บังคับก่อน', 'ก่อนเรียน', 'เงื่อนไขก่อน', 'ผ่านอะไรก่อน', 'prerequisite', 'pre-req', 'pre requisite')):
             hints.extend(['วิชาบังคับก่อน', 'prerequisite', 'requirement', 'ต้องมีพื้นฐาน'])
 
         # Lecturer queries
@@ -1447,6 +1475,17 @@ def retrieve_by_domain(
                 'เครื่องมือสื่อสาร',
             ])
 
+        # Device/cheat-material handling in exam room.
+        if any(t in q for t in ('โทรศัพท์', 'มือถือ', 'เครื่องมือสื่อสาร', 'โพย', 'ชีท', 'เอกสาร', 'ทุจริต')):
+            hints.extend([
+                'เครื่องมือสื่อสาร',
+                'อุปกรณ์สื่อสาร',
+                'เอกสาร',
+                'ทุจริต',
+                'ข้อ 16',
+                'ข้อ 21',
+            ])
+
         # Central committee term / duties
         if 'คณะกรรมการ' in q and ('กลาง' in q or 'สอบกลาง' in q):
             hints.extend([
@@ -1499,6 +1538,29 @@ def retrieve_by_domain(
 
         hints: list[str] = []
 
+        def _extract_temporal_tokens(text: str) -> list[str]:
+            out: list[str] = []
+            raw = text or ''
+            for m in re.finditer(
+                r"\b\d{1,2}\s*(?:-|ถึง)\s*\d{1,2}\s*(?:มกราคม|กุมภาพันธ์|มีนาคม|เมษายน|พฤษภาคม|มิถุนายน|กรกฎาคม|สิงหาคม|กันยายน|ตุลาคม|พฤศจิกายน|ธันวาคม)\s*(?:25\d{2}|20\d{2})?",
+                raw,
+                flags=re.IGNORECASE,
+            ):
+                out.append(m.group(0).strip())
+            for m in re.finditer(
+                r"(?:ภาค\s*\d\s*/\s*25\d{2}|ภาคการศึกษาที่\s*\d|module\s*\d+|โมดูล\s*\d+|สัปดาห์\s*ที่\s*\d+(?:\s*(?:-|ถึง)\s*\d+)?)",
+                raw,
+                flags=re.IGNORECASE,
+            ):
+                out.append(m.group(0).strip())
+            for m in re.finditer(
+                r"\b\d{1,2}[:\.]\d{2}\s*(?:น\.|นาฬิกา)?\s*(?:-|ถึง)\s*\d{1,2}[:\.]\d{2}",
+                raw,
+                flags=re.IGNORECASE,
+            ):
+                out.append(m.group(0).strip())
+            return out[:8]
+
         # Registration periods
         if ('ลงทะเบียน' in q) or ('เพิ่มลด' in q) or ('เพิ่ม-ลด' in q):
             hints.extend([
@@ -1515,6 +1577,20 @@ def retrieve_by_domain(
                 'ผ่านธนาคาร'
             ])
 
+        # System availability / service-hour questions.
+        if any(t in q for t in ('ระบบเปิด', 'ระบบปิด', 'เปิดให้บริการ', 'ช่วงเวลาใด', 'กี่โมง', 'ถึงกี่โมง', 'maintenance')):
+            hints.extend([
+                'ช่วงเวลาให้บริการ', 'เวลาเปิดระบบ', 'เวลาปิดระบบ',
+                'เปิดให้บริการ', 'ลงทะเบียนออนไลน์', 'ระบบสารสนเทศนักศึกษา'
+            ])
+
+        # Module-week schedule windows.
+        if any(t in q for t in ('โมดูล', 'module', '5 สัปดาห์', 'ช่วงที่')):
+            hints.extend([
+                'โมดูล 5 สัปดาห์', 'กำหนดการช่วงที่', 'สัปดาห์ที่',
+                'เริ่ม', 'สิ้นสุด', 'ปฏิทินการศึกษา'
+            ])
+
         # Graduation / Degree
         if ('จบ' in q) or ('รับปริญญา' in q) or ('สำเร็จการศึกษา' in q):
             hints.extend([
@@ -1522,6 +1598,8 @@ def retrieve_by_domain(
                 'ขึ้นทะเบียนบัณฑิต',
                 'กำหนดการ'
             ])
+
+        hints.extend(_extract_temporal_tokens(original_question or ''))
 
         # De-dup while preserving order.
         seen: set[str] = set()
@@ -1540,7 +1618,7 @@ def retrieve_by_domain(
             return base_query
 
         # Keep it short; keyword search benefits from a few clause anchors.
-        compact = compact[:10]
+        compact = compact[:16]
         hint_block = ' '.join(compact)
         if hint_block and hint_block not in (base_query or ''):
             return f"{base_query} {hint_block}".strip()
@@ -2045,7 +2123,8 @@ def retrieve_by_domain(
             add_metric('retrieval_sem_n', len(sem))
             add_metric('retrieval_kw_n', len(kw_docs))
 
-        if _ROBUST_REWRITE_ON_FAIL and (not strict_ref) and (len(sem) + len(kw_docs) < _ROBUST_MIN_RESULTS):
+        allow_rewrite_retry = not (_ANNOUNCEMENTS_DISABLE_REWRITE_RETRY and dom == 'announcements')
+        if _ROBUST_REWRITE_ON_FAIL and allow_rewrite_retry and (not strict_ref) and (len(sem) + len(kw_docs) < _ROBUST_MIN_RESULTS):
             rewrites = _build_failure_rewrites(question, dom)
             if rewrites:
                 add_metric('retrieval_query_rewrite_attempted', 1)
@@ -2218,7 +2297,8 @@ def retrieve_by_domain(
         add_metric('retrieval_sem_n', len(sem))
         add_metric('retrieval_kw_n', len(kw_docs))
 
-    if _ROBUST_REWRITE_ON_FAIL and (not strict_ref) and (len(sem) + len(kw_docs) < _ROBUST_MIN_RESULTS):
+    allow_rewrite_retry = not (_ANNOUNCEMENTS_DISABLE_REWRITE_RETRY and dom == 'announcements')
+    if _ROBUST_REWRITE_ON_FAIL and allow_rewrite_retry and (not strict_ref) and (len(sem) + len(kw_docs) < _ROBUST_MIN_RESULTS):
         rewrites = _build_failure_rewrites(question, dom)
         if rewrites:
             add_metric('retrieval_query_rewrite_attempted', 1)
@@ -2407,7 +2487,10 @@ def retrieve_by_domain(
                 'บังคับก่อน',
                 'วิชาบังคับก่อน',
                 'ก่อนเรียน',
+                'เงื่อนไขก่อน',
+                'ผ่านอะไรก่อน',
                 'prerequisite',
+                'pre-req',
                 'pre-requisite',
                 'pre requisite',
             )
@@ -2887,7 +2970,7 @@ def rag_query(question: str) -> Dict:
                 # If too few results, widen cautiously to nearby domains first.
                 if (not has_ref) and len(retrieved) < fallback_min_results():
                     add_metric('retrieval_domain_fallback_used', 1)
-                    retrieved = retrieve_all_domains(q_search, domains=fallback_domains_for_domain(dom))
+                    retrieved = retrieve_all_domains(q_search, domains=fallback_domains_for_domain(dom, question))
             else:
                 # Search all domains to avoid wrong-domain misses from router/inference.
                 add_metric('retrieval_all_domains_forced', 1)

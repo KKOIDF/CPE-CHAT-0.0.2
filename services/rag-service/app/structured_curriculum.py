@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import re
+import sqlite3
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
 
 from .config import ROOT_DIR
+from .sqlite_client import domain_sqlite_path
 
 
 @dataclass(frozen=True)
@@ -34,6 +36,7 @@ class CurriculumCPE2564:
 _CACHED_2564: Optional[CurriculumCPE2564] = None
 _CACHED_ALL_COURSES_2564: Optional[dict[str, Course]] = None
 _CACHED_CREDIT_TOTALS_2564: Optional[dict[str, int]] = None
+_CACHED_CURRICULUM_SQLITE_TEXT: Optional[str] = None
 
 
 _COURSE_LINE_RE = re.compile(
@@ -147,6 +150,45 @@ def _find_cpe_2564_source() -> Optional[Path]:
         return None
 
     return None
+
+
+def _load_curriculum_text_from_sqlite(limit_docs: int = 2500) -> str:
+    """Best-effort fallback text from curriculum SQLite chunks.
+
+    Used when the canonical curriculum text file is not available.
+    """
+    global _CACHED_CURRICULUM_SQLITE_TEXT
+    if _CACHED_CURRICULUM_SQLITE_TEXT is not None:
+        return _CACHED_CURRICULUM_SQLITE_TEXT
+
+    db_path = domain_sqlite_path('curriculum')
+    if not db_path:
+        _CACHED_CURRICULUM_SQLITE_TEXT = ''
+        return _CACHED_CURRICULUM_SQLITE_TEXT
+
+    rows: list[str] = []
+    con = None
+    try:
+        con = sqlite3.connect(db_path)
+        cur = con.execute(
+            "SELECT text FROM documents WHERE text IS NOT NULL ORDER BY rowid ASC LIMIT ?",
+            (max(200, int(limit_docs)),),
+        )
+        for row in cur.fetchall():
+            txt = str((row or [''])[0] or '')
+            if txt.strip():
+                rows.append(txt)
+    except Exception:
+        rows = []
+    finally:
+        try:
+            if con is not None:
+                con.close()
+        except Exception:
+            pass
+
+    _CACHED_CURRICULUM_SQLITE_TEXT = "\n\n".join(rows)
+    return _CACHED_CURRICULUM_SQLITE_TEXT
 
 
 def _parse_required_courses_from_study_plan(text: str) -> dict[str, Course]:
@@ -273,13 +315,15 @@ def load_all_courses_2564() -> dict[str, Course]:
         return _CACHED_ALL_COURSES_2564
 
     src = _find_cpe_2564_source()
-    if not src:
-        _CACHED_ALL_COURSES_2564 = {}
-        return _CACHED_ALL_COURSES_2564
-
-    try:
-        text = src.read_text(encoding='utf-8', errors='ignore')
-    except Exception:
+    text = ''
+    if src:
+        try:
+            text = src.read_text(encoding='utf-8', errors='ignore')
+        except Exception:
+            text = ''
+    if not text.strip():
+        text = _load_curriculum_text_from_sqlite()
+    if not text.strip():
         _CACHED_ALL_COURSES_2564 = {}
         return _CACHED_ALL_COURSES_2564
 
@@ -305,18 +349,20 @@ def load_credit_totals_2564() -> dict[str, int]:
         return _CACHED_CREDIT_TOTALS_2564
 
     src = _find_cpe_2564_source()
-    if not src:
-        _CACHED_CREDIT_TOTALS_2564 = {}
-        return _CACHED_CREDIT_TOTALS_2564
-
-    try:
-        text = src.read_text(encoding='utf-8', errors='ignore')
-    except Exception:
+    text = ''
+    if src:
+        try:
+            text = src.read_text(encoding='utf-8', errors='ignore')
+        except Exception:
+            text = ''
+    if not text.strip():
+        text = _load_curriculum_text_from_sqlite()
+    if not text.strip():
         _CACHED_CREDIT_TOTALS_2564 = {}
         return _CACHED_CREDIT_TOTALS_2564
 
     # The totals are near the top of the document; keep parsing small and fast.
-    head = "\n".join((text or "").splitlines()[:250])
+    head = "\n".join((text or "").splitlines()[:900])
 
     def _grab(pattern: str) -> Optional[int]:
         m = re.search(pattern, head)
@@ -330,6 +376,8 @@ def load_credit_totals_2564() -> dict[str, int]:
     totals: dict[str, int] = {}
     ge = _grab(r"หมวดวิชาศึกษาทั่วไป\s+(\d+)\s+หน่วยกิต")
     sp = _grab(r"หมวดวิชาเฉพาะ\s+(\d+)\s+หน่วยกิต")
+    core = _grab(r"วิชาแกน\s+(\d+)\s+หน่วยกิต")
+    spec_area = _grab(r"วิชาเฉพาะด้าน\s+(\d+)\s+หน่วยกิต")
     fe = _grab(r"หมวดวิชาเลือกเสรี\s+(\d+)\s+หน่วยกิต")
     tot = _grab(r"จำนวนหน่วยกิตรวมตลอดหลักสูตร\s+(\d+)\s+หน่วยกิต")
 
@@ -337,6 +385,10 @@ def load_credit_totals_2564() -> dict[str, int]:
         totals['general_education'] = ge
     if sp is not None:
         totals['specific'] = sp
+    if core is not None:
+        totals['core'] = core
+    if spec_area is not None:
+        totals['specific_area'] = spec_area
     if fe is not None:
         totals['free_elective'] = fe
     if tot is not None:

@@ -1,12 +1,45 @@
 from __future__ import annotations
 
-from typing import Dict, List
+from typing import Dict, List, Optional
 import os
 from pathlib import Path
 import re
+from dataclasses import dataclass, field
 
 from .config import KNOWN_DOMAINS, ROOT_DIR
 
+@dataclass
+class RouteDecision:
+    normalized_question: str
+    requested_domain: Optional[str]
+    inferred_domain: Optional[str]
+    effective_domain: Optional[str]
+    primary_intent: str
+    is_multi_intent: bool
+    subqueries: List[str]
+    entities: List[str]
+    structured_eligible: bool
+    structured_kind: str
+    fallback_policy: str
+
+@dataclass
+class ResolutionStrategy:
+    # structured_exact: Must strictly match structure logic, else drop to RAG
+    # structured_fuzzy: Allows partial structure extraction
+    # keyword_only: Just boolean keyword lookups
+    # full_rag: The heavy generative pipeline
+    resolution_path: str  # "structured_exact", "structured_fuzzy", "keyword_only", "full_rag"
+
+def _extract_course_codes_local(text: str) -> List[str]:
+    q = (text or '').strip()
+    out = []
+    seen = set()
+    for m in re.finditer(r"\b([A-Za-z]{2,6})\s*[- ]?\s*(\d{3})\b", q):
+        code = f"{(m.group(1) or '').upper()}{m.group(2) or ''}"
+        if code not in seen:
+            seen.add(code)
+            out.append(code)
+    return out
 
 def is_multi_doc_question(q: str) -> bool:
     """Heuristic: detect questions that likely require combining multiple sources."""
@@ -15,15 +48,24 @@ def is_multi_doc_question(q: str) -> bool:
         return False
 
     # Strong explicit signals.
-    if any(t in ql for t in ('เปรียบเทียบ', 'ต่างกัน', 'เหมือนกัน', 'ทั้ง', 'พร้อมกัน', 'conflict')):
+    if any(t in ql for t in (
+        'เปรียบเทียบ', 'ต่างกัน', 'เหมือนกัน', 'ทั้ง', 'พร้อมกัน', 'conflict',
+        'ตอบพร้อมกันสองเรื่อง', 'ตอบสองเรื่องในคำตอบเดียว', 'ขอสองคำตอบพร้อมกัน', 'สรุปสองเรื่องพร้อมกัน',
+    )):
+        return True
+
+    # Cross-domain intent detection (e.g. curriculum + registrar)
+    curriculum_cues = ('prereq', 'วิชาบังคับก่อน', 'หน่วยกิต', 'หลักสูตร', 'เรียนอะไร', 'อาจารย์')
+    registrar_cues = ('ลงทะเบียน', 'registration', 'สอบ', 'ปฏิทิน', 'เวลา', 'กำหนดการ', 'จ่ายเงิน', 'ค่าเทอม')
+    if any(c in ql for c in curriculum_cues) and any(r in ql for r in registrar_cues):
         return True
 
     # Multiple clauses / intents.
-    signals = (' แล้ว', ' และ', ' รวมถึง', ' พร้อม', ' กรณี', ',', ';')
+    signals = (' แล้ว', ' และ', ' รวมถึง', ' พร้อม', ' กรณี', ',', ';', ':', ' and ', ' กับ ')
     sig_hits = sum(1 for s in signals if s in ql)
 
     qmark_hits = ql.count('?')
-    multi_intent = any(t in ql for t in ('ต้องทำยังไง', 'ทำอย่างไร', 'ขั้นตอน', 'เงื่อนไข', 'ต้องใช้', 'ต้องมี', 'ได้ไหม'))
+    multi_intent = any(t in ql for t in ('ต้องทำยังไง', 'ทำอย่างไร', 'ขั้นตอน', 'เงื่อนไข', 'ต้องใช้', 'ต้องมี', 'ได้ไหม', 'คืออะไร'))
 
     if qmark_hits >= 2:
         return True
@@ -33,6 +75,112 @@ def is_multi_doc_question(q: str) -> bool:
         return True
     return False
 
+def classify_intent(question: str) -> str:
+    """Classify the user intent into one of a unified set of primary intents."""
+    q = (question or '').strip()
+    ql = q.lower()
+
+    if is_multi_doc_question(q):
+        return 'multi_intent'
+
+    if any(t in ql for t in ('ใครสอน', 'ผู้สอน', 'อาจารย์', 'คนสอน', 'instructor', 'lecturer', 'teacher')):
+        return 'instructor_lookup'
+    if any(t in ql for t in ('หน่วยกิต', 'กี่หน่วยกิต', 'credit', 'credits')):
+        return 'credit_lookup'
+    if any(t in ql for t in ('บังคับก่อน', 'ก่อนเรียน', 'พื้นฐาน', 'prerequisite', 'pre-requisite', 'pre requisite', 'pre-req', 'prereq', 'ต้องผ่าน')):
+        return 'prerequisite_lookup'
+
+    _exam_policy_terms = (
+        'ห้องสอบ', 'เข้าห้องสอบ', 'ออกห้องสอบ', 'ออกจากห้องสอบ', 'ออกห้องสอบชั่วคราว',
+        'มาสาย', 'สายเกิน', 'เข้าห้องสอบได้', 'กรรมการคุมสอบ', 'คุมสอบ', 'ทุจริต', 'ส่อ', 'ลงโทษ', 'อุทธรณ์', 'ข้อสอบ', 'วินัย'
+    )
+    if any(t in q for t in _exam_policy_terms):
+        return 'exam_policy'
+
+    _academic_status_terms = (
+        'ติดโปร', 'probation', 'ไทร์', 'retire', 'พ้นสภาพ', 'พ้นสถานภาพ', 'เกรด f', 'ได้ f', 'ได้f'
+    )
+    if any(t in ql for t in _academic_status_terms):
+        return 'academic_status_policy'
+
+    if any(t in ql for t in ('ลงทะเบียน', 'เพิ่มถอน', 'ลงเพิ่ม', 'ถอน', 'drop', 'register', 'enroll')):
+        return 'registration_policy'
+    
+    if any(t in ql for t in ('วัน', 'วันที่', 'เมื่อไร', 'กำหนด', 'deadline', 'ปฏิทิน', 'calendar')):
+        return 'calendar_deadline'
+
+    if any(t in ql for t in ('หลักสูตร', 'รายวิชา', 'วิชา', 'รหัสวิชา', 'course')):
+        return 'curriculum_course_info'
+
+    if any(t in ql for t in ('คำร้อง', 'แบบฟอร์ม', 'ลาออก', 'ลาป่วย', 'ลากิจ', 'ทัณฑ์บน')):
+        return 'regulation_forms'
+
+    if any(t in ql for t in ('ประกาศ', 'announcement')):
+        return 'announcement'
+
+    if len(q) < 5 and not re.search(r"[A-Za-z0-9ก-๙]", q):
+        return 'noisy_query'
+
+    return 'general_info'
+
+def analyze_route(question: str, requested_domain: Optional[str] = None) -> RouteDecision:
+    """Analyze query to understand intent, extract entities, and populate RouteDecision schema."""
+    q = (question or '').strip()
+    primary_intent = classify_intent(q)
+    inferred = infer_domain(q)
+    
+    # Domain override rule for prerequisites
+    if primary_intent == 'prerequisite_lookup' and requested_domain != 'curriculum':
+        effective_domain = 'curriculum'
+    else:
+        effective_domain = requested_domain or inferred or 'auto'
+
+    is_multi = primary_intent == 'multi_intent' or is_multi_doc_question(q)
+    subqs = decompose_question(q) if is_multi else []
+    entities = _extract_course_codes_local(q)
+    
+    # Structured Eligibility evaluation
+    use_structured_curriculum = (os.getenv('RAG_USE_STRUCTURED_CURRICULUM', '0') or '0').strip().lower() in ('1', 'true', 'yes', 'on')
+    
+    curric_eligible = use_structured_curriculum and (effective_domain in ('curriculum', 'auto')) and primary_intent in (
+        'instructor_lookup', 'credit_lookup', 'prerequisite_lookup', 'curriculum_course_info'
+    )
+    
+    reg_eligible = effective_domain in ('regulations', 'auto') and primary_intent in ('exam_policy', 'academic_status_policy')
+    
+    structured_eligible = curric_eligible or reg_eligible
+    structured_kind = 'curriculum' if curric_eligible else ('regulations' if reg_eligible else 'none')
+    
+    # Fallback policy for retrieval strictness
+    fallback_policy = 'strict' if primary_intent in ('exam_policy', 'registration_policy') else 'broad'
+    
+    return RouteDecision(
+        normalized_question=q,
+        requested_domain=requested_domain,
+        inferred_domain=inferred,
+        effective_domain=effective_domain,
+        primary_intent=primary_intent,
+        is_multi_intent=is_multi,
+        subqueries=subqs,
+        entities=entities,
+        structured_eligible=structured_eligible,
+        structured_kind=structured_kind,
+        fallback_policy=fallback_policy
+    )
+
+def select_resolution_strategy(decision: RouteDecision) -> ResolutionStrategy:
+    """Determine the optimal resolution path based on intent and constraints."""
+    if decision.is_multi_intent:
+        return ResolutionStrategy(resolution_path="full_rag")
+
+    if decision.structured_eligible:
+        # Factual lookups must succeed completely (exact schema requirements)
+        if decision.primary_intent in ('credit_lookup', 'prerequisite_lookup', 'instructor_lookup', 'exam_policy'):
+            return ResolutionStrategy(resolution_path="structured_exact")
+        else:
+            return ResolutionStrategy(resolution_path="structured_fuzzy")
+
+    return ResolutionStrategy(resolution_path="full_rag")
 
 def decompose_question(q: str, max_parts: int = 3) -> List[str]:
     """Split multi-clause questions into a small set of sub-questions."""
@@ -40,11 +188,18 @@ def decompose_question(q: str, max_parts: int = 3) -> List[str]:
     if not raw:
         return []
 
+    raw = re.sub(
+        r"^(?:ตอบพร้อมกันสองเรื่อง|ตอบสองเรื่องในคำตอบเดียว|ขอสองคำตอบพร้อมกัน|สรุปสองเรื่องพร้อมกัน|ตอบพร้อมกัน|สรุปสองเรื่อง)\s*:?\s*",
+        '',
+        raw,
+        flags=re.IGNORECASE,
+    ).strip()
+
     # Keep the original question first (important for global intent).
     parts: List[str] = [raw]
 
     # Split on common Thai connectors. Avoid exploding into too many sub-questions.
-    segs = re.split(r"\s*(?:แล้ว|และ|รวมถึง|พร้อมกับ|พร้อม|กรณี|\/|\,|\;)+\s*", raw)
+    segs = re.split(r"\s*(?:แล้ว|และ|รวมถึง|พร้อมกับ|พร้อม|กรณี|\/|\,|\;|:)+\s*", raw)
     for s in segs:
         ss = (s or '').strip()
         if not ss:
@@ -133,6 +288,7 @@ def infer_domain(question: str) -> str | None:
     # Exam-policy / discipline questions should go to regulations even if they contain time words.
     _exam_policy_terms = (
         'ห้องสอบ', 'เข้าห้องสอบ', 'ออกห้องสอบ', 'ออกจากห้องสอบ', 'ออกห้องสอบชั่วคราว',
+        'มาสาย', 'สายเกิน', 'เข้าห้องสอบได้', 'เข้าห้องสอบได้ไหม', 'เข้าห้องสอบได้ปะ',
         'กรรมการคุมสอบ', 'คุมสอบ', 'ข้อสอบ', 'กระดาษคำตอบ', 'สมุดคำตอบ',
         'ทุจริต', 'ส่อ', 'ลงโทษ', 'บทลงโทษ', 'อุทธรณ์', 'คำอุทธรณ์',
         'คณะกรรมการกลาง', 'คณะกรรมการสอบ',
@@ -206,12 +362,19 @@ def infer_domain_bias(question: str) -> str | None:
     return None
 
 
-def fallback_domains_for_domain(primary: str | None) -> list[str] | None:
+def fallback_domains_for_domain(primary: str | None, question: str | None = None) -> list[str] | None:
     """Prefer nearby domains before widening retrieval across everything."""
     p = (primary or '').strip().lower()
+    q = (question or '').strip().lower()
+    exam_policy_intent = (
+        any(t in q for t in ('สอบ', 'ห้องสอบ', 'คุมสอบ', 'มาสาย', 'สายเกิน', 'ทุจริต', 'อุทธรณ์', 'ข้อ 12', 'ข้อ 15', 'ข้อ 16', 'ข้อ 28'))
+        and any(t in q for t in ('ระเบียบ', 'ข้อ', 'ได้ไหม', 'ได้ปะ', 'อย่างไร', 'นาที', 'ชั่วโมง', 'ชั่วคราว', 'อุทธรณ์'))
+    )
     if p == 'announcements':
         return ['announcements', 'regulations']
     if p == 'regulations':
+        if exam_policy_intent:
+            return ['regulations']
         return ['regulations', 'announcements']
     if p == 'curriculum':
         return ['curriculum', 'announcements']
