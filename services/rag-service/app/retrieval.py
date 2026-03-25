@@ -32,6 +32,7 @@ from .routing import (
     _filter_chunks_by_reference,
     _infer_domain_from_reference,
     _reference_candidates,
+    classify_intent,
     decompose_question,
     fallback_domains_for_domain,
     fallback_min_results,
@@ -95,6 +96,14 @@ try:
     _MULTI_DOC_CHUNKS_PER_DOC = max(1, int(os.getenv('RAG_MULTI_DOC_CHUNKS_PER_DOC', '3') or '3'))
 except Exception:
     _MULTI_DOC_CHUNKS_PER_DOC = 3
+try:
+    _MULTI_INTENT_FACT_MAX_DOCS_PER_SUBQ = max(1, int(os.getenv('RAG_MULTI_INTENT_FACT_MAX_DOCS_PER_SUBQ', '2') or '2'))
+except Exception:
+    _MULTI_INTENT_FACT_MAX_DOCS_PER_SUBQ = 2
+try:
+    _MULTI_INTENT_FACT_MAX_TOTAL_DOCS = max(2, int(os.getenv('RAG_MULTI_INTENT_FACT_MAX_TOTAL_DOCS', '4') or '4'))
+except Exception:
+    _MULTI_INTENT_FACT_MAX_TOTAL_DOCS = 4
 
 try:
     _HYBRID_SEMANTIC_WEIGHT = float(os.getenv('RAG_HYBRID_SEMANTIC_WEIGHT', '1.0') or '1.0')
@@ -537,6 +546,14 @@ def retrieve_multi_document(question: str) -> List[Dict]:
     lists: List[List[Dict]] = []
     weights: List[float] = []
     parent_domain = infer_domain(question)
+    fact_intents = {'exam_policy', 'academic_status_policy', 'registration_policy', 'regulation_forms'}
+    subq_intents = [classify_intent(sq) for sq in subqs]
+    is_regulations_fact_multi = (
+        parent_domain == 'regulations'
+        and bool(subq_intents)
+        and all(i in fact_intents for i in subq_intents)
+    )
+    per_subq_limit = _MULTI_INTENT_FACT_MAX_DOCS_PER_SUBQ if is_regulations_fact_multi else None
     for i, sq in enumerate(subqs):
         subq_domain = infer_domain(sq) or parent_domain
         if subq_domain in KNOWN_DOMAINS:
@@ -562,6 +579,8 @@ def retrieve_multi_document(question: str) -> List[Dict]:
                 max_per_source=max(_MULTI_DOC_MAX_PER_SOURCE + 1, _MAX_PER_SOURCE),
                 per_domain_limit=_MULTI_DOC_PER_DOMAIN_LIMIT,
             )
+        if per_subq_limit is not None and len(hits) > per_subq_limit:
+            hits = hits[:per_subq_limit]
         lists.append(hits)
         if subq_domain in KNOWN_DOMAINS:
             weights.append(1.35 if i == 0 else 1.1)
@@ -640,11 +659,15 @@ def retrieve_multi_document(question: str) -> List[Dict]:
         pass
 
     # Diversity + min-sources for final contexts.
+    final_limit = _MULTI_DOC_FINAL_LIMIT
+    if is_regulations_fact_multi:
+        final_limit = min(final_limit, _MULTI_INTENT_FACT_MAX_TOTAL_DOCS)
+
     final = ensure_min_sources(
         doc_selected,
         min_sources=_MULTI_DOC_MIN_SOURCES,
         max_per_source=_MULTI_DOC_MAX_PER_SOURCE,
-        limit=_MULTI_DOC_FINAL_LIMIT,
+        limit=final_limit,
     )
 
     # Regulations-specific: when the question includes multiple exam-room intents,
@@ -742,6 +765,7 @@ def retrieve_multi_document(question: str) -> List[Dict]:
 
     add_metric('multi_doc_used', 1)
     add_metric('multi_doc_subq_n', len(subqs))
+    add_metric('multi_doc_subq_cap', int(per_subq_limit or 0))
     add_metric('multi_doc_fused_n', len(fused))
     add_metric('multi_doc_final_n', len(final))
     _log_retrieval(
@@ -1475,8 +1499,21 @@ def retrieve_by_domain(
                 'เครื่องมือสื่อสาร',
             ])
 
+        # Intermission leave / leave-form queries.
+        if any(t in q for t in ('ใบลา', 'เอกสารใบลา', 'คำร้องลา', 'ลาพัก', 'ลาพักการศึกษา', 'พักการเรียน', 'intermission')):
+            hints.extend([
+                'คำร้องขอลาพักการศึกษา',
+                'Request Form for Intermission Leave',
+                'RO-12',
+                'regis.kmutt.ac.th/service/form',
+                'ขออนุมัติจากคณะ',
+            ])
+
         # Device/cheat-material handling in exam room.
-        if any(t in q for t in ('โทรศัพท์', 'มือถือ', 'เครื่องมือสื่อสาร', 'โพย', 'ชีท', 'เอกสาร', 'ทุจริต')):
+        if (
+            any(t in q for t in ('โทรศัพท์', 'มือถือ', 'เครื่องมือสื่อสาร', 'โพย', 'ชีท', 'ทุจริต'))
+            or ('เอกสาร' in q and any(t in q for t in ('สอบ', 'ห้องสอบ', 'ทุจริต', 'โพย')))
+        ):
             hints.extend([
                 'เครื่องมือสื่อสาร',
                 'อุปกรณ์สื่อสาร',

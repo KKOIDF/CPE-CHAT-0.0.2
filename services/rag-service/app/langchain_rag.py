@@ -632,9 +632,10 @@ def rag_answer_langchain(question: str, domain: Optional[str] = None) -> Dict[st
             
         if raw == "(TIMEOUT_FALLBACK)":
             answer = "ขออภัย ระบบใช้เวลาประมวลผลนานเกินกำหนด โปรดอ้างอิงข้อมูลเบื้องต้นจากเอกสาร:\n"
-            for c in ctx[:2]:
-                txt = (c.get('text') or '').replace('\n', ' ')[:150].strip()
-                cite = (c.get('source') or c.get('doc_id') or 'เอกสาร').split('/')[-1]
+            for c in (retrieved or [])[:2]:
+                row = c if isinstance(c, dict) else {'text': str(c), 'source': ''}
+                txt = str(row.get('text') or '').replace('\n', ' ')[:150].strip()
+                cite = str(row.get('source') or row.get('doc_id') or 'เอกสาร').split('/')[-1]
                 answer += f"- {txt}... [{cite}]\n"
             answer = answer.strip()
         elif _STRUCTURED_ENABLE and "เกิดข้อผิดพลาดจาก LLM" not in raw:

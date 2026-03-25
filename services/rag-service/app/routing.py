@@ -32,8 +32,10 @@ class ResolutionStrategy:
     # structured_fuzzy: Allows partial structure extraction
     # keyword_only: Just boolean keyword lookups
     # multi_intent_split: Split into subqueries and merge answers/contexts
+    # multi_intent_structured_or_extract: Multi-intent regulations fact lookup via deterministic/extractive path
+    # structured_regulation_form: Deterministic regulations form lookup
     # full_rag: The heavy generative pipeline
-    resolution_path: str  # "structured_exact", "structured_fuzzy", "keyword_only", "multi_intent_split", "full_rag"
+    resolution_path: str  # "structured_exact", "structured_fuzzy", "keyword_only", "multi_intent_split", "multi_intent_structured_or_extract", "structured_regulation_form", "full_rag"
 
 def _extract_course_codes_local(text: str) -> List[str]:
     q = (text or '').strip()
@@ -158,7 +160,13 @@ def analyze_route(question: str, requested_domain: Optional[str] = None) -> Rout
         'instructor_lookup', 'credit_lookup', 'prerequisite_lookup', 'curriculum_course_info'
     )
     
-    reg_eligible = effective_domain in ('regulations', 'auto') and primary_intent in ('exam_policy', 'academic_status_policy')
+    structured_regulation_intents = {
+        'exam_policy',
+        'academic_status_policy',
+        'registration_policy',
+        'regulation_forms',
+    }
+    reg_eligible = effective_domain in ('regulations', 'auto') and primary_intent in structured_regulation_intents
     
     structured_eligible = curric_eligible or reg_eligible
     structured_kind = 'curriculum' if curric_eligible else ('regulations' if reg_eligible else 'none')
@@ -176,7 +184,15 @@ def analyze_route(question: str, requested_domain: Optional[str] = None) -> Rout
 
     requires_clause_anchor = bool(re.search(r"ข้อ\s*[๐-๙0-9]+(?:\.[๐-๙0-9]+)?", q))
     needs_exact_schema = primary_intent in ('credit_lookup', 'prerequisite_lookup', 'instructor_lookup', 'exam_policy')
-    timeout_policy = 'generous' if is_multi else ('fast' if needs_exact_schema else 'normal')
+    is_regulations_multi_fact = (
+        is_multi
+        and (effective_domain in ('regulations', 'auto'))
+        and primary_intent in ('multi_intent', 'exam_policy', 'academic_status_policy', 'registration_policy')
+    )
+    if is_regulations_multi_fact:
+        timeout_policy = 'strict_multi_extract'
+    else:
+        timeout_policy = 'generous' if is_multi else ('fast' if needs_exact_schema else 'normal')
     
     # Fallback policy for retrieval strictness
     fallback_policy = 'strict' if primary_intent in ('exam_policy', 'registration_policy') else 'broad'
@@ -201,7 +217,22 @@ def analyze_route(question: str, requested_domain: Optional[str] = None) -> Rout
 
 def select_resolution_strategy(decision: RouteDecision) -> ResolutionStrategy:
     """Determine the optimal resolution path based on intent and constraints."""
+    if decision.primary_intent == 'regulation_forms' and decision.structured_kind == 'regulations':
+        return ResolutionStrategy(resolution_path="structured_regulation_form")
+
     if decision.is_multi_intent:
+        fact_intents = {
+            'exam_policy',
+            'academic_status_policy',
+            'registration_policy',
+            'regulation_forms',
+        }
+        subqs = decompose_question(decision.normalized_question, max_parts=3)
+        if subqs:
+            subq_domains = [(infer_domain(sq) or decision.effective_domain or '').strip().lower() for sq in subqs]
+            subq_intents = [classify_intent(sq) for sq in subqs]
+            if all(d == 'regulations' for d in subq_domains) and all(i in fact_intents for i in subq_intents):
+                return ResolutionStrategy(resolution_path="multi_intent_structured_or_extract")
         return ResolutionStrategy(resolution_path="multi_intent_split")
 
     if decision.structured_eligible:
@@ -348,7 +379,7 @@ def infer_domain(question: str) -> str | None:
             return 'announcements'
         return 'regulations'
 
-    if any(t in q for t in ('คำร้อง', 'แบบฟอร์ม', 'RO-', 'ลาออก', 'ลาป่วย', 'ลากิจ', 'ทัณฑ์บน', 'วินัย', 'ตัดคะแนนความประพฤติ', 'สอบซ้อน', 'เข้าสอบ')):
+    if any(t in q for t in ('คำร้อง', 'แบบฟอร์ม', 'RO-', 'ใบลา', 'เอกสารใบลา', 'ลาออก', 'ลาป่วย', 'ลากิจ', 'ทัณฑ์บน', 'วินัย', 'ตัดคะแนนความประพฤติ', 'สอบซ้อน', 'เข้าสอบ')):
         return 'regulations'
 
     # Announcements signals.

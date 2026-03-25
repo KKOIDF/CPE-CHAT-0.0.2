@@ -411,6 +411,14 @@ class MlflowObservability:
                 ep: {k: dict(v) for k, v in key_map.items()}
                 for ep, key_map in self._category_counts.items()
             }
+            sessions_snapshot = {
+                k: _SessionAgg(
+                    turns=int(v.turns),
+                    cumulative_ms=float(v.cumulative_ms),
+                    last_seen_ts=float(v.last_seen_ts),
+                )
+                for k, v in self._sessions.items()
+            }
 
         now = time.time()
         step = int(now)
@@ -421,6 +429,21 @@ class MlflowObservability:
             metrics_to_log[f"requests_total__{ep}"] = float(n)
             e = float(errors.get(ep, 0))
             metrics_to_log[f"errors_total__{ep}"] = e
+
+            # Session-level visibility for chat analytics in MLflow metrics.
+            ep_sessions: list[_SessionAgg] = []
+            ep_prefix = f"{ep}::"
+            for session_key, session_agg in sessions_snapshot.items():
+                if session_key.startswith(ep_prefix):
+                    ep_sessions.append(session_agg)
+            if ep_sessions:
+                metrics_to_log[f"sessions_active__{ep}"] = float(len(ep_sessions))
+                metrics_to_log[f"session_turns_avg__{ep}"] = float(
+                    sum(s.turns for s in ep_sessions) / float(len(ep_sessions))
+                )
+                metrics_to_log[f"session_turns_max__{ep}"] = float(
+                    max(s.turns for s in ep_sessions)
+                )
 
             window = lats.get(ep) or []
             if window:
@@ -574,6 +597,7 @@ class MlflowObservability:
                 "error": bool(error),
                 "total_ms": float(timings.get("total") or 0.0),
                 "request_total_ms": float(timings.get("total") or 0.0),
+                "session_id": str(metrics.get("session_id") or ""),
                 "session_cumulative_ms": float(metrics.get("session_cumulative_ms") or 0.0),
                 "session_turn_index": int(metrics.get("session_turn_index") or 0),
                 "domain": metrics.get("domain"),
@@ -609,12 +633,19 @@ class MlflowObservability:
                     attrs[attr_key] = _redact_text(json.dumps(value, ensure_ascii=False), self._cfg.trace_max_chars)
 
             # Deprecated but currently functional; OK for minimal tracing.
+            trace_tags = {
+                "service": "rag-service",
+                "endpoint": _safe_name(endpoint),
+            }
+            if metrics.get("session_id"):
+                trace_tags["session_id"] = _redact_text(str(metrics.get("session_id")), 128)
+
             tf.log_trace(
                 name="llm_request",
                 request=req_obj,
                 response=resp_obj,
                 attributes={k: v for k, v in attrs.items() if v is not None},
-                tags={"service": "rag-service"},
+                tags=trace_tags,
                 execution_time_ms=int(
                     round(
                         float(metrics.get("session_cumulative_ms") or 0.0)

@@ -551,6 +551,30 @@ def _content_to_text(content: object) -> str:
     return _sanitize_user_question_text(str(content))
 
 
+def _coerce_chat_messages(messages: object) -> list[dict[str, Any]]:
+    """Normalize mixed chat payloads into dict messages.
+
+    Some clients occasionally send non-dict message items (for example raw
+    strings). Convert those into minimal user messages so downstream `.get()`
+    access stays safe.
+    """
+    if not isinstance(messages, list):
+        return []
+
+    normalized: list[dict[str, Any]] = []
+    for m in messages:
+        if isinstance(m, dict):
+            normalized.append(m)
+            continue
+        if m is None:
+            continue
+        txt = _content_to_text(m)
+        if not txt:
+            continue
+        normalized.append({'role': 'user', 'content': txt})
+    return normalized
+
+
 def _extract_session_id_from_request(payload: dict[str, Any] | None) -> str:
     """Best-effort extraction of a stable session identifier from request payload."""
     if not isinstance(payload, dict):
@@ -595,10 +619,11 @@ def _extract_session_id_from_request(payload: dict[str, Any] | None) -> str:
 
 
 def _latest_course_code_from_messages(messages: list[dict] | None) -> str:
-    if not messages:
+    normalized = _coerce_chat_messages(messages)
+    if not normalized:
         return ''
-    for m in reversed(messages):
-        txt = str((m or {}).get('content') or '').strip()
+    for m in reversed(normalized):
+        txt = _content_to_text(m.get('content'))
         if not txt:
             continue
         mm = _COURSE_CODE_RE.search(txt)
@@ -640,13 +665,14 @@ def _analyze_followup_entities(messages: list[dict] | None, effective_question: 
         'followup_entity_overridden': 0,
         'followup_entity_conflict': 0,
     }
-    if not messages:
+    normalized = _coerce_chat_messages(messages)
+    if not normalized:
         return out
 
     user_msgs: list[str] = []
-    for m in messages:
-        if (m or {}).get('role') == 'user':
-            txt = _content_to_text((m or {}).get('content'))
+    for m in normalized:
+        if (m.get('role') or '').strip().lower() == 'user':
+            txt = _content_to_text(m.get('content'))
             if txt:
                 user_msgs.append(txt)
 
@@ -692,13 +718,14 @@ def _build_effective_question(messages: list[dict] | None, default_question: str
     OpenWebUI often sends multiple turns, but this service previously used only the
     last user message, causing follow-ups like "มีวิชาเดียวหรอ" to lose intent.
     """
-    if not messages:
+    normalized = _coerce_chat_messages(messages)
+    if not normalized:
         return (default_question or '').strip()
 
     user_msgs: list[str] = []
-    for m in messages:
-        if (m or {}).get('role') == 'user':
-            txt = _content_to_text((m or {}).get('content'))
+    for m in normalized:
+        if (m.get('role') or '').strip().lower() == 'user':
+            txt = _content_to_text(m.get('content'))
             if txt:
                 user_msgs.append(txt)
 
@@ -743,7 +770,7 @@ def _build_effective_question(messages: list[dict] | None, default_question: str
     # Coreference follow-up (e.g., "ใครสอน", "อันนั้นมีกี่หน่วยกิต"):
     # recover the latest mentioned course code/topic from recent turns.
     if _looks_coreference_followup(last) and not has_code_in_last:
-        code = _latest_course_code_from_messages(messages)
+        code = _latest_course_code_from_messages(normalized)
         if code:
             return f"บริบทก่อนหน้า: {code}\nคำถามต่อเนื่อง: {last}".strip()
         if recent_user_window:
@@ -1542,7 +1569,19 @@ def _try_extract_withdraw_w_dates(prompt: str, question: str | None = None) -> s
 
 def _try_extract_intermission_leave(prompt: str, question: str | None = None) -> str | None:
     q = (question or '').strip().lower()
-    if q and not any(t in q for t in ('ลาพัก', 'ลาพักการเรียน', 'ลาพักการศึกษา', 'intermission', 'พักการเรียน')):
+    if q and not any(
+        t in q
+        for t in (
+            'ลาพัก',
+            'ลาพักการเรียน',
+            'ลาพักการศึกษา',
+            'intermission',
+            'พักการเรียน',
+            'ใบลา',
+            'เอกสารใบลา',
+            'คำร้องลา',
+        )
+    ):
         return None
 
     blocks = _extract_ctx_blocks(prompt)
@@ -1644,6 +1683,14 @@ def _try_extract_intermission_leave(prompt: str, question: str | None = None) ->
         form_url = line_url
         form_line = ("ต้องใช้คำร้องขอลาพักการศึกษา (Request Form for Intermission Leave)", line_cite)
 
+    # Fallback for short generic requests (e.g., "ขอเอกสารใบลา") where retrieval
+    # may fetch leave-policy context but miss the exact RO-12 line.
+    if (not form_line) and q and any(t in q for t in ('ใบลา', 'เอกสารใบลา', 'คำร้องลา')):
+        p_l = (prompt or '').lower()
+        if ('ลาพักการศึกษา' in (prompt or '')) or ('intermission leave' in p_l) or ('source: kmutt_forms' in p_l):
+            form_url = 'https://regis.kmutt.ac.th/service/form/RO-12Updated.pdf'
+            form_line = ("ต้องใช้คำร้องขอลาพักการศึกษา (RO-12)", "")
+
     if not policy_line and not approval_hint and not form_line:
         return None
 
@@ -1654,9 +1701,15 @@ def _try_extract_intermission_leave(prompt: str, question: str | None = None) ->
         out.append(f"- {approval_hint[0]} [{approval_hint[1]}]")
     if form_line:
         if form_url:
-            out.append(f"- {form_line[0]}: {form_url} [{form_line[1]}]")
+            if form_line[1]:
+                out.append(f"- {form_line[0]}: {form_url} [{form_line[1]}]")
+            else:
+                out.append(f"- {form_line[0]}: {form_url}")
         else:
-            out.append(f"- {form_line[0]} [{form_line[1]}]")
+            if form_line[1]:
+                out.append(f"- {form_line[0]} [{form_line[1]}]")
+            else:
+                out.append(f"- {form_line[0]}")
     return "\n".join(out).strip()
 
 
@@ -2518,7 +2571,12 @@ def rag_endpoint(req: RagRequest):
         add_metric('prompt_chars', len(result.get('prompt') or ''))
         return RagResponse(**result)
 
-def _process_multi_intent(question: str, domain: str | None = None) -> tuple[str, list, int] | None:
+def _process_multi_intent(
+    question: str,
+    domain: str | None = None,
+    *,
+    prefer_extractive: bool = False,
+) -> tuple[str, list, int] | None:
     from .routing import is_multi_doc_question, decompose_question, infer_domain
 
     def _has_forced_multi_pattern(q: str) -> bool:
@@ -2704,7 +2762,7 @@ def _process_multi_intent(question: str, domain: str | None = None) -> tuple[str
         if ans:
             sq_contexts.extend(_contexts_from_answer_citations(ans, default_domain=sq_domain or domain))
             sq_contexts.extend(_intent_alias_contexts(sq, default_domain=sq_domain or domain))
-            if sq_domain in KNOWN_DOMAINS:
+            if (not prefer_extractive) and sq_domain in KNOWN_DOMAINS:
                 try:
                     enrich = rag_query_domain(sq, sq_domain)
                     enrich_ctx = _normalize_contexts_for_eval(enrich.get('contexts') or [], default_domain=sq_domain)
@@ -2716,47 +2774,63 @@ def _process_multi_intent(question: str, domain: str | None = None) -> tuple[str
                 all_contexts.extend(sq_contexts)
                 
         if not ans:
-            if _should_use_regulations_strict_fallback(sq, sq_domain):
-                add_metric('structured_regulations_strict_mode', 1)
+            if prefer_extractive and sq_domain in (None, 'regulations'):
                 res = rag_query_domain(sq, 'regulations')
+                sq_prompt = str(res.get('prompt') or '')
+                if res.get('contexts'):
+                    norm_ctx = _normalize_contexts_for_eval(res['contexts'], default_domain='regulations')
+                    all_contexts.extend(norm_ctx)
+                    total_tokens += res.get('token_est', 0)
+                    sq_contexts.extend(norm_ctx)
+                ans = (
+                    _try_extract_exam_late_entry_rule(sq_prompt, question=sq)
+                    or _try_extract_exam_temp_leave_rule(sq_prompt, question=sq)
+                    or _try_extract_exam_exit_rule(sq_prompt, question=sq)
+                    or _try_extract_intermission_leave(sq_prompt, question=sq)
+                    or "ไม่พบข้อมูลที่เกี่ยวข้อง"
+                )
             else:
-                if use_langchain_subq and lc_subq is not None:
-                    with time_block('langchain_rag'):
-                        res = lc_subq.rag_query_langchain(sq, sq_domain)
+                if _should_use_regulations_strict_fallback(sq, sq_domain):
+                    add_metric('structured_regulations_strict_mode', 1)
+                    res = rag_query_domain(sq, 'regulations')
                 else:
-                    res = rag_query_domain(sq, sq_domain) if sq_domain else rag_query(sq)
+                    if use_langchain_subq and lc_subq is not None:
+                        with time_block('langchain_rag'):
+                            res = lc_subq.rag_query_langchain(sq, sq_domain)
+                    else:
+                        res = rag_query_domain(sq, sq_domain) if sq_domain else rag_query(sq)
 
-                # Rescue pass for multi-intent subqueries: if domain-locked retrieval is thin,
-                # retry once in auto mode to recover cross-domain evidence.
-                allow_broad_rescue = not (
-                    sq_domain == 'announcements'
-                    or sq_intent in ('registration_policy', 'calendar_deadline')
-                )
-                if allow_broad_rescue and sq_domain in KNOWN_DOMAINS and len(res.get('contexts') or []) < 2:
-                    add_metric('retrieval_fallback_all_domains_triggered', 1)
-                    rescue = rag_query(sq)
-                    if len(rescue.get('contexts') or []) > len(res.get('contexts') or []):
-                        add_metric('retrieval_fallback_all_domains_succeeded', 1)
-                        res = rescue
-            sq_prompt = str(res.get('prompt') or '')
-            if res.get('contexts'):
-                norm_ctx = _normalize_contexts_for_eval(res['contexts'], default_domain=sq_domain or domain)
-                all_contexts.extend(norm_ctx)
-                total_tokens += res.get('token_est', 0)
-                sq_contexts.extend(norm_ctx)
-                extracted_announce_time = _try_extract_announcements_temporal_answer(
-                    sq_prompt,
-                    sq,
-                    domain=sq_domain,
-                )
-                if extracted_announce_time:
-                    ans = extracted_announce_time
+                    # Rescue pass for multi-intent subqueries: if domain-locked retrieval is thin,
+                    # retry once in auto mode to recover cross-domain evidence.
+                    allow_broad_rescue = not (
+                        sq_domain == 'announcements'
+                        or sq_intent in ('registration_policy', 'calendar_deadline')
+                    )
+                    if allow_broad_rescue and sq_domain in KNOWN_DOMAINS and len(res.get('contexts') or []) < 2:
+                        add_metric('retrieval_fallback_all_domains_triggered', 1)
+                        rescue = rag_query(sq)
+                        if len(rescue.get('contexts') or []) > len(res.get('contexts') or []):
+                            add_metric('retrieval_fallback_all_domains_succeeded', 1)
+                            res = rescue
+                sq_prompt = str(res.get('prompt') or '')
+                if res.get('contexts'):
+                    norm_ctx = _normalize_contexts_for_eval(res['contexts'], default_domain=sq_domain or domain)
+                    all_contexts.extend(norm_ctx)
+                    total_tokens += res.get('token_est', 0)
+                    sq_contexts.extend(norm_ctx)
+                    extracted_announce_time = _try_extract_announcements_temporal_answer(
+                        sq_prompt,
+                        sq,
+                        domain=sq_domain,
+                    )
+                    if extracted_announce_time:
+                        ans = extracted_announce_time
+                    else:
+                        sys_msg = { 'role': 'system', 'content': 'ตอบคำถามอย่างกระชับและตรงไปตรงมาตามข้อมูลที่ให้มาเท่านั้น' }
+                        usr_msg = { 'role': 'user', 'content': res['prompt'] }
+                        ans = llm_engine.generate(res['prompt'], messages=[sys_msg, usr_msg])
                 else:
-                    sys_msg = { 'role': 'system', 'content': 'ตอบคำถามอย่างกระชับและตรงไปตรงมาตามข้อมูลที่ให้มาเท่านั้น' }
-                    usr_msg = { 'role': 'user', 'content': res['prompt'] }
-                    ans = llm_engine.generate(res['prompt'], messages=[sys_msg, usr_msg])
-            else:
-                ans = "ไม่พบข้อมูลที่เกี่ยวข้อง"
+                    ans = "ไม่พบข้อมูลที่เกี่ยวข้อง"
 
         if ans and not sq_contexts:
             sq_contexts.extend(_contexts_from_answer_citations(str(ans), default_domain=sq_domain or domain))
@@ -2824,10 +2898,11 @@ def run_multi_intent_path(
     effective_domain: str | None,
     *,
     require_citations: bool,
+    prefer_extractive: bool = False,
 ) -> dict[str, Any] | None:
     if not question:
         return None
-    multi_result = _process_multi_intent(question, effective_domain)
+    multi_result = _process_multi_intent(question, effective_domain, prefer_extractive=prefer_extractive)
     if not multi_result:
         return None
     merged_ans, all_ctx, t_est = multi_result
@@ -3064,11 +3139,12 @@ def rag_answer_endpoint(req: RagAnswerRequest):
 
         # Multi-intent shared path
         multi_payload = None
-        if strategy.resolution_path == 'multi_intent_split':
+        if strategy.resolution_path in ('multi_intent_split', 'multi_intent_structured_or_extract'):
             multi_payload = run_multi_intent_path(
                 req.question,
                 decision.effective_domain,
                 require_citations=require_citations,
+                prefer_extractive=(strategy.resolution_path == 'multi_intent_structured_or_extract'),
             )
         if multi_payload:
             merged_ans = str(multi_payload.get('answer') or '')
@@ -3346,15 +3422,18 @@ def openai_compatible_endpoint(request: dict):
     """OpenAI API compatible endpoint for OpenWeb-UI integration."""
     import time
     import uuid
-    
-    messages = request.get('messages', [])
+
+    if not isinstance(request, dict):
+        request = {}
+
+    messages = _coerce_chat_messages(request.get('messages', []))
     domain = request.get('domain', None)  # Custom parameter for domain selection
     session_id = _extract_session_id_from_request(request)
     
     # Extract question from chat history (keep follow-up context)
     raw_last_user = ""
     for msg in reversed(messages):
-        if msg.get('role') == 'user':
+        if (msg.get('role') or '').strip().lower() == 'user':
             raw_last_user = _content_to_text(msg.get('content', ''))
             break
 
@@ -3428,29 +3507,14 @@ def openai_compatible_endpoint(request: dict):
                 "usage": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
             }
 
-        strict_reg_fallback = _should_use_regulations_strict_fallback(question, domain)
-        if strict_reg_fallback:
-            add_metric('structured_regulations_strict_mode', 1)
-            add_metric('path_nonstructured_used', 1)
-            with time_block('rag_query'):
-                result = rag_query_domain(question, 'regulations')
-        else:
-            if use_langchain and lc is not None:
-                add_metric('path_langchain_used', 1)
-                with time_block('langchain_rag'):
-                    result = lc.rag_answer_langchain(question, domain)
-            else:
-                add_metric('path_nonstructured_used', 1)
-                with time_block('rag_query'):
-                    result = rag_query_domain(question, domain) if domain else rag_query(question)
-
         # Multi-intent shared path
         multi_payload = None
-        if strategy.resolution_path == 'multi_intent_split':
+        if strategy.resolution_path in ('multi_intent_split', 'multi_intent_structured_or_extract'):
             multi_payload = run_multi_intent_path(
                 question,
                 decision.effective_domain,
                 require_citations=False,
+                prefer_extractive=(strategy.resolution_path == 'multi_intent_structured_or_extract'),
             )
         if multi_payload:
             merged_ans = str(multi_payload.get('answer') or '')

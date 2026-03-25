@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Dict, List
+from typing import Any, Dict, List
 import os
 import re
 
@@ -50,6 +50,36 @@ except Exception:
 
 
 _INLINE_CITE_CAPTURE_RE = re.compile(r"\[([^\]]+?)/(\d+)\]")
+
+
+def _row_as_dict(item: Any) -> Dict[str, Any]:
+    """Coerce retrieval rows to dicts so downstream .get() access is always safe."""
+    if isinstance(item, dict):
+        return item
+    if item is None:
+        return {}
+    txt = str(item).strip()
+    if not txt:
+        return {}
+    # Keep lightweight fields so packers/metrics can still operate.
+    return {
+        'text': txt,
+        'source': txt,
+        'path': txt,
+    }
+
+
+def _coerce_retrieved_rows(items: Any) -> List[Dict[str, Any]]:
+    if items is None:
+        return []
+    if not isinstance(items, list):
+        items = [items]
+    out: List[Dict[str, Any]] = []
+    for it in items:
+        row = _row_as_dict(it)
+        if row:
+            out.append(row)
+    return out
 
 
 def _structured_rows_from_answer(answer: str, domain: str) -> List[Dict]:
@@ -121,6 +151,7 @@ def filter_contexts_by_clause(items: List[Dict], clause_id: str | None) -> List[
     clause_pat = re.compile(rf"ข้อ\s*{re.escape(c)}(?:\b|\s|\.|:)", re.IGNORECASE)
     out: List[Dict] = []
     for it in (items or []):
+        it = _row_as_dict(it)
         txt = str(it.get('text') or '')
         src = str(it.get('source') or '')
         path = str(it.get('path') or '')
@@ -143,6 +174,7 @@ def filter_contexts_by_clause(items: List[Dict], clause_id: str | None) -> List[
 def _top_retrieval_score(items: List[Dict]) -> float:
     top = 0.0
     for it in (items or []):
+        it = _row_as_dict(it)
         try:
             s = float(it.get('score_final') or it.get('score_rrf') or 0.0)
         except Exception:
@@ -174,6 +206,26 @@ def _is_low_confidence(items: List[Dict]) -> bool:
     if len(items or []) < _MIN_DOCS_FOR_CONFIDENT:
         return True
     return _top_retrieval_score(items) < _LOW_SCORE_THRESHOLD
+
+
+def _is_anchored_regulations_query(question: str, domain: str | None) -> bool:
+    dom = (domain or '').strip().lower()
+    if dom != 'regulations':
+        return False
+    q = (question or '').strip().lower()
+    if not q:
+        return False
+    if bool(re.search(r"ข้อ\s*[๐-๙0-9]+(?:\.[๐-๙0-9]+)?", question or '')):
+        return True
+    exam_late_anchor = (
+        ('สอบ' in q or 'ห้องสอบ' in q)
+        and ('มาสาย' in q or 'สาย' in q or 'เข้าห้องสอบ' in q)
+    )
+    exam_temp_leave_anchor = (
+        ('สอบ' in q or 'ห้องสอบ' in q)
+        and (('ชั่วคราว' in q) or ('ออกจากห้องสอบชั่วคราว' in q) or ('ออกห้องสอบชั่วคราว' in q))
+    )
+    return exam_late_anchor or exam_temp_leave_anchor
 
 
 def _new_adaptive_state() -> Dict[str, float | int]:
@@ -268,7 +320,8 @@ def rag_query(question: str) -> Dict:
                 add_metric('low_confidence_detected', 1)
                 adaptive['low_confidence_detected'] = 1
 
-            if _ADAPTIVE_ORCHESTRATION and (not has_ref) and _is_low_confidence(retrieved):
+            skip_adaptive_retry = _is_anchored_regulations_query(question, dom)
+            if _ADAPTIVE_ORCHESTRATION and (not has_ref) and _is_low_confidence(retrieved) and (not skip_adaptive_retry):
                 add_metric('retrieval_adaptive_retry_triggered', 1)
                 adaptive['retrieval_adaptive_retry_triggered'] = 1
                 retry_q = _expand_query_for_retry(question, dom)
@@ -300,15 +353,19 @@ def rag_query(question: str) -> Dict:
                         adaptive['retrieval_adaptive_retry_succeeded'] = 1
                         retrieved = retrieved_retry
 
+            if skip_adaptive_retry:
+                add_metric('retrieval_adaptive_retry_skipped_anchor', 1)
+
             if fallback_used and retrieved:
                 add_metric('retrieval_fallback_all_domains_succeeded', 1)
                 adaptive['retrieval_fallback_all_domains_succeeded'] = 1
 
-    retrieved = _filter_chunks_by_reference(retrieved, question, strict=has_ref)
+    retrieved = _coerce_retrieved_rows(retrieved)
+    retrieved = _coerce_retrieved_rows(_filter_chunks_by_reference(retrieved, question, strict=has_ref))
 
     target_clause = extract_clause_id(question)
     if target_clause and (dom_inferred in ('regulations', None) or 'ข้อ' in (question or '')):
-        retrieved = filter_contexts_by_clause(retrieved, target_clause)
+        retrieved = _coerce_retrieved_rows(filter_contexts_by_clause(retrieved, target_clause))
     
     # Restrict to Top-3 for latency optimization
     if retrieved and len(retrieved) > 3:
@@ -392,7 +449,8 @@ def rag_query_domain(question: str, domain: str | None) -> Dict:
         add_metric('low_confidence_detected', 1)
         adaptive['low_confidence_detected'] = 1
 
-    if _ADAPTIVE_ORCHESTRATION and _is_low_confidence(retrieved):
+    skip_adaptive_retry = _is_anchored_regulations_query(question, dom)
+    if _ADAPTIVE_ORCHESTRATION and _is_low_confidence(retrieved) and (not skip_adaptive_retry):
         add_metric('retrieval_adaptive_retry_triggered', 1)
         adaptive['retrieval_adaptive_retry_triggered'] = 1
         retry_q = _expand_query_for_retry(question, dom)
@@ -407,19 +465,24 @@ def rag_query_domain(question: str, domain: str | None) -> Dict:
             add_metric('retrieval_adaptive_retry_succeeded', 1)
             adaptive['retrieval_adaptive_retry_succeeded'] = 1
             retrieved = retrieved_retry
+    elif skip_adaptive_retry:
+        add_metric('retrieval_adaptive_retry_skipped_anchor', 1)
 
     strict_ref_hints = (os.getenv('STRICT_REFERENCE_HINTS', '1') or '1').strip().lower() in (
         '1', 'true', 'yes', 'on'
     )
-    retrieved = _filter_chunks_by_reference(
-        retrieved,
-        question,
-        strict=bool(_reference_candidates(question)) and strict_ref_hints,
+    retrieved = _coerce_retrieved_rows(retrieved)
+    retrieved = _coerce_retrieved_rows(
+        _filter_chunks_by_reference(
+            retrieved,
+            question,
+            strict=bool(_reference_candidates(question)) and strict_ref_hints,
+        )
     )
 
     target_clause = extract_clause_id(question)
     if target_clause and dom == 'regulations':
-        retrieved = filter_contexts_by_clause(retrieved, target_clause)
+        retrieved = _coerce_retrieved_rows(filter_contexts_by_clause(retrieved, target_clause))
     
     # Restrict to Top-3 for latency optimization
     if retrieved and len(retrieved) > 3:

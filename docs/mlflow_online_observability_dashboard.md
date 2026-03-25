@@ -25,6 +25,7 @@ Use these metric groups for the main dashboard:
 - Structured path metrics: `rate__structured_path_hit__rag_answer`, `rate__structured_path_fallback_nonstructured__rag_answer`
 - Citation repair metrics: `rate__citation_repair_success__rag_answer`, `sum__citation_repair_attempt__rag_answer`
 - Path fallback rates: `rate__path_langchain_used__rag_answer`, `rate__path_nonstructured_used__rag_answer`
+- Session activity: `sessions_active__v1_chat_completions`, `session_turns_avg__v1_chat_completions`, `session_turns_max__v1_chat_completions`
 - Top failure intents (examples): `count__failure_intent__exam_policy__rag_answer`, `count__failure_intent__calendar_deadline__rag_answer`
 
 ## Dashboard Formulas
@@ -115,6 +116,22 @@ Create these panels in your dashboard notebook, wiki, or operational runbook:
 - The online observability run is long-lived and stays in `RUNNING` while the service is up.
 - Metric history should be read from the active run rather than assuming one run per request.
 - Sampled traces are stored separately in MLflow tracing APIs and are useful for request-level drill-down after a dashboard spike.
+
+## Chat Sessions In MLflow
+
+When tracing is enabled, each trace now includes `session_id` as a trace tag and attribute.
+
+How to inspect sessions:
+
+- Open MLflow Traces for the same experiment.
+- Filter with tags such as `service=rag-service`, optionally `endpoint=v1_chat_completions`.
+- Group/filter by `session_id` to inspect one chat thread across multiple turns.
+
+Session metrics are also available in the long-lived observability run:
+
+- `sessions_active__v1_chat_completions`: number of active chat sessions in memory window
+- `session_turns_avg__v1_chat_completions`: average turns per active session
+- `session_turns_max__v1_chat_completions`: max turns in a single active session
 
 ## Request Logs (Questions/Answers)
 

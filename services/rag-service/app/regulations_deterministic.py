@@ -17,6 +17,68 @@ _TRUSTED_EXAM_SOURCE_PATTERNS = (
 )
 
 
+_FORM_REGISTRY: list[dict[str, Any]] = [
+    {
+        'form_code': 'RO-12',
+        'title': 'คำร้องขอลาพักการศึกษา (Request Form for Intermission Leave)',
+        'url': 'https://regis.kmutt.ac.th/service/form/RO-12Updated.pdf',
+        'source': 'forms.txt/1',
+        'aliases': (
+            'ลาพัก',
+            'ลาพักการศึกษา',
+            'พักการศึกษา',
+            'intermission',
+            'intermission leave',
+        ),
+    },
+    {
+        'form_code': 'FORM-DIRECTORY',
+        'title': 'ฟอร์มคำร้องงานทะเบียนนักศึกษา',
+        'url': 'https://regis.kmutt.ac.th/service/form/',
+        'source': 'forms.txt/1',
+        'aliases': (
+            'ใบลา',
+            'ใบลากิจ',
+            'ลากิจ',
+            'ลาป่วย',
+            'ลาป่วยลากิจ',
+            'คำร้องลา',
+            'เอกสารใบลา',
+        ),
+    },
+]
+
+
+def lookup_regulation_form(question: str) -> dict[str, Any] | None:
+    q = (question or '').strip().lower()
+    if not q:
+        return None
+
+    for item in _FORM_REGISTRY:
+        aliases = tuple(str(a or '').strip().lower() for a in (item.get('aliases') or ()))
+        if not aliases:
+            continue
+        if any(a and a in q for a in aliases):
+            title = str(item.get('title') or '').strip()
+            url = str(item.get('url') or '').strip()
+            source = str(item.get('source') or 'forms.txt/1').strip()
+            form_code = str(item.get('form_code') or '').strip()
+            if not title or not url:
+                return {
+                    'answer': None,
+                    'lookup_mode': 'form_lookup',
+                    'miss_reason': 'missing_url',
+                }
+            return {
+                'answer': f"- ต้องใช้{title}: {url} [{source}]",
+                'lookup_mode': 'form_lookup',
+                'miss_reason': '',
+                'form_code': form_code,
+                'form_source': source,
+            }
+    return None
+
+
 def _normalize_clause_token(token: str) -> str:
     t = (token or "").strip().translate(_THAI_DIGIT_TRANS)
     return t
@@ -279,6 +341,15 @@ def structured_regulations_lookup(question: str) -> dict[str, Any]:
     2. Topic keyword lookup        (ทุจริต, อุทธรณ์, แต่งกาย, ...)
     """
     q = (question or "").strip()
+
+    form_hit = lookup_regulation_form(q)
+    if form_hit:
+        out = dict(form_hit)
+        out['rules_source_ready'] = 1
+        out['rules_files_n'] = 1
+        out['rules_source_kind'] = 'form_registry'
+        return out
+
     source = exam_rules_source_status()
     rules_text = _read_exam_rules() if source["ready"] else ""
 
@@ -286,7 +357,7 @@ def structured_regulations_lookup(question: str) -> dict[str, Any]:
         return _with_source_meta({
             "answer": None,
             "lookup_mode": "none",
-            "miss_reason": "rules_source_unavailable",
+            "miss_reason": "form_registry_unavailable",
         }, source)
 
     def _exam_phrase_lookup(q_str: str) -> dict[str, Any] | None:
