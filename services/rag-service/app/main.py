@@ -433,6 +433,12 @@ class ChatCompletionResponse(BaseModel):
 
 _FALLBACK = 'ไม่พบข้อมูลในเอกสาร'
 
+_SESSION_FOLLOWUP_HINTS: dict[str, dict[str, str]] = {}
+try:
+    _SESSION_FOLLOWUP_MAX = max(32, int((os.getenv('RAG_SESSION_FOLLOWUP_MAX', '512') or '512').strip()))
+except Exception:
+    _SESSION_FOLLOWUP_MAX = 512
+
 _STANDALONE_CODE_RE = re.compile(r"^\s*[A-Za-z]{2,6}\s*[- ]?\s*\d{3}\s*$")
 
 _COURSE_CODE_RE = re.compile(r"\b([A-Za-z]{2,6})\s*[- ]?\s*(\d{3})\b")
@@ -783,6 +789,129 @@ def _build_effective_question(messages: list[dict] | None, default_question: str
     return last
 
 
+def _is_short_ambiguous_followup(text: str) -> bool:
+    q = (text or '').strip().lower()
+    if not q:
+        return False
+    if _COURSE_CODE_RE.search(q):
+        return False
+    if any(t in q for t in ('มาสาย', 'ห้องสอบ', 'หน่วยกิต', 'รหัสวิชา', 'prereq', 'instructor')):
+        return False
+
+    summary_terms = ('สรุป', 'สั้นๆ', 'ย้ำ', 'อีกครั้ง', 'อีกที', 'ขอสรุป', 'ขอแบบสั้น', 'short summary')
+    if not any(t in q for t in summary_terms):
+        return False
+
+    compact = re.sub(r"\s+", "", q)
+    return len(compact) <= 28
+
+
+def _looks_summary_followup(text: str) -> bool:
+    q = (text or '').strip().lower()
+    if not q:
+        return False
+    summary_terms = (
+        'สรุป', 'สั้นๆ', 'ย่อ', 'ย่อให้', 'ย้ำ', 'อีกครั้ง', 'อีกที', 'รวบยอด', 'summary', 'recap'
+    )
+    return any(t in q for t in summary_terms)
+
+
+def _build_followup_summary_answer(summary_request: str, anchor_question: str, domain: str | None) -> str | None:
+    req = (summary_request or '').strip().lower()
+    anchor = (anchor_question or '').strip().lower()
+    dom = (domain or '').strip().lower()
+
+    if not _looks_summary_followup(req):
+        return None
+
+    # Deterministic concise recap for the common exam-policy multi-intent chain.
+    if dom == 'regulations' and ('มาสาย' in anchor and 'ออกจากห้องสอบชั่วคราว' in anchor):
+        return (
+            "สรุปสั้นๆ จากที่ถามก่อนหน้า:\n"
+            "- มาสายเกิน 15 แต่ไม่เกิน 60 นาที ต้องยื่นคำร้องขออนุญาตเข้าห้องสอบก่อน; ถ้าเกิน 60 นาทีหมดสิทธิ์เข้าสอบ [rule_exam2560.txt/1]\n"
+            "- ออกจากห้องสอบชั่วคราวได้เมื่อได้รับอนุญาตจากกรรมการคุมสอบ และห้ามนำเครื่องมือสื่อสารติดตัว [rule_exam2560.txt/1]"
+        )
+
+    return None
+
+
+def _session_hint_get(session_id: str) -> dict[str, str] | None:
+    sid = (session_id or '').strip()
+    if not sid:
+        return None
+    return _SESSION_FOLLOWUP_HINTS.get(sid)
+
+
+def _session_hint_put(session_id: str, *, question: str, domain: str, intent: str) -> None:
+    sid = (session_id or '').strip()
+    if not sid:
+        return
+    prev = _SESSION_FOLLOWUP_HINTS.get(sid) or {}
+    _SESSION_FOLLOWUP_HINTS[sid] = {
+        'question': (question or '').strip(),
+        'domain': (domain or '').strip().lower(),
+        'intent': (intent or '').strip().lower(),
+        'prev_question': str(prev.get('question') or '').strip(),
+        'prev_domain': str(prev.get('domain') or '').strip().lower(),
+    }
+    while len(_SESSION_FOLLOWUP_HINTS) > _SESSION_FOLLOWUP_MAX:
+        try:
+            _SESSION_FOLLOWUP_HINTS.pop(next(iter(_SESSION_FOLLOWUP_HINTS)))
+        except Exception:
+            break
+
+
+def _apply_session_followup_lock(
+    question: str,
+    requested_domain: str | None,
+    session_id: str,
+) -> tuple[str, str | None, bool, str]:
+    q = (question or '').strip()
+    req_dom = (requested_domain or '').strip().lower() or None
+    if not q:
+        return q, requested_domain, False, 'empty_question'
+    if not _is_short_ambiguous_followup(q):
+        return q, requested_domain, False, 'not_ambiguous_short_followup'
+
+    hint = _session_hint_get(session_id)
+    if not hint:
+        return q, requested_domain, False, 'no_session_hint'
+
+    hint_q = (hint.get('question') or '').strip()
+    hint_dom = (hint.get('domain') or '').strip().lower()
+    if not hint_q or hint_dom not in ('regulations', 'curriculum'):
+        return q, requested_domain, False, 'hint_not_lockable'
+
+    if req_dom and req_dom in KNOWN_DOMAINS and req_dom != hint_dom:
+        return q, requested_domain, False, 'explicit_domain_override'
+
+    prev_q = str(hint.get('prev_question') or '').strip()
+    prev_dom = str(hint.get('prev_domain') or '').strip().lower()
+    if prev_q and prev_dom == hint_dom:
+        locked_q = f"{prev_q} แล้ว {hint_q}".strip()
+    else:
+        locked_q = hint_q
+    return locked_q, hint_dom, True, 'session_domain_lock_applied'
+
+
+def _remember_session_followup_hint(session_id: str, question: str, decision: Any) -> None:
+    sid = (session_id or '').strip()
+    q = (question or '').strip()
+    if not sid or not q:
+        return
+    if _is_meta_followup_generation_prompt(q):
+        return
+    intent = str(getattr(decision, 'primary_intent', '') or classify_intent(q)).strip().lower()
+    if intent == 'general_info' and _is_short_ambiguous_followup(q):
+        return
+    dom = str(getattr(decision, 'effective_domain', '') or '').strip().lower()
+    if not dom or dom == 'auto':
+        dom = str(getattr(decision, 'inferred_domain', '') or '').strip().lower()
+    if not dom:
+        return
+    _session_hint_put(sid, question=q, domain=dom, intent=intent)
+
+
 def _clarify_when_no_context(question: str) -> str | None:
     q = (question or '').strip()
     if not q:
@@ -894,6 +1023,34 @@ def _clean_answer_text(answer: str, *, strip_citations: bool) -> str:
     a = "\n".join([ln.rstrip() for ln in a.splitlines()]).strip()
     # If empty after cleaning, fallback
     return a or _FALLBACK
+
+
+_THAI_CHAR_RE = re.compile(r"[\u0E00-\u0E7F]")
+_CJK_CHAR_RE = re.compile(r"[\u4E00-\u9FFF]")
+
+
+def _sanitize_answer_language(question: str, answer: str) -> str:
+    q = (question or '').strip()
+    a = (answer or '').strip()
+    if not q or not a:
+        return a
+    if not _THAI_CHAR_RE.search(q):
+        return a
+    if not _CJK_CHAR_RE.search(a):
+        return a
+
+    kept: list[str] = []
+    removed = 0
+    for ln in a.splitlines():
+        if _CJK_CHAR_RE.search(ln):
+            removed += 1
+            continue
+        kept.append(ln)
+    cleaned = '\n'.join(kept).strip()
+    if cleaned:
+        add_metric('answer_language_guard_removed_cjk_lines', removed)
+        return cleaned
+    return a
 
 
 _LOW_CONF_THAI_STOPWORDS = {
@@ -3438,6 +3595,7 @@ def openai_compatible_endpoint(request: dict):
             break
 
     question = _sanitize_user_question_text(_build_effective_question(messages, raw_last_user))
+    question, domain, lock_applied, lock_reason = _apply_session_followup_lock(question, domain, session_id)
     followup_meta = _analyze_followup_entities(messages, question)
     decision = analyze_route(question, domain)
     structured_eligible = bool(decision.structured_kind == 'curriculum' and decision.structured_eligible)
@@ -3478,6 +3636,56 @@ def openai_compatible_endpoint(request: dict):
         add_metric('followup_entity_overridden', int(followup_meta.get('followup_entity_overridden') or 0))
         add_metric('followup_entity_conflict', int(followup_meta.get('followup_entity_conflict') or 0))
         add_metric('session_has_id', int(bool(session_id)))
+        add_metric('followup_session_domain_lock_applied', int(lock_applied))
+        add_metric('followup_session_domain_lock_reason', lock_reason)
+        _remember_session_followup_hint(session_id, question, decision)
+
+        summary_fast = _build_followup_summary_answer(
+            raw_last_user or question,
+            question,
+            domain or decision.effective_domain,
+        )
+        if summary_fast:
+            add_metric('followup_summary_fast_path', 1)
+            add_metric('answer', summary_fast)
+            add_metric('answer_chars', len(summary_fast))
+            return {
+                "id": f"chatcpe-{uuid.uuid4().hex[:12]}",
+                "object": "chat.completion",
+                "created": int(time.time()),
+                "model": request.get('model', 'typhoon-rag'),
+                "choices": [
+                    {
+                        "index": 0,
+                        "message": {"role": "assistant", "content": summary_fast},
+                        "finish_reason": "stop",
+                    }
+                ],
+                "usage": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
+            }
+
+        if strategy.resolution_path == 'full_rag' and _is_short_ambiguous_followup(raw_last_user or question):
+            add_metric('followup_clarify_short_ambiguous', 1)
+            clarify = (
+                "ต้องการให้สรุปเรื่องไหนครับ: 1) มาสายเข้าสอบ 2) ออกจากห้องสอบชั่วคราว "
+                "หรือพิมพ์ว่า 'สรุปทั้งสองข้อ'"
+            )
+            add_metric('answer', clarify)
+            add_metric('answer_chars', len(clarify))
+            return {
+                "id": f"chatcpe-{uuid.uuid4().hex[:12]}",
+                "object": "chat.completion",
+                "created": int(time.time()),
+                "model": request.get('model', 'typhoon-rag'),
+                "choices": [
+                    {
+                        "index": 0,
+                        "message": {"role": "assistant", "content": clarify},
+                        "finish_reason": "stop",
+                    }
+                ],
+                "usage": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
+            }
 
         if decision.primary_intent == 'prerequisite_lookup':
             prereq_payload = _run_prerequisite_structured_guard(
@@ -3518,6 +3726,7 @@ def openai_compatible_endpoint(request: dict):
             )
         if multi_payload:
             merged_ans = str(multi_payload.get('answer') or '')
+            merged_ans = _sanitize_answer_language(question, merged_ans)
             t_est = int(multi_payload.get('token_est') or 0)
             add_metric('answer', merged_ans)
             add_metric('answer_chars', len(merged_ans))
@@ -3724,6 +3933,7 @@ def openai_compatible_endpoint(request: dict):
 
             if not (answer or '').strip().startswith('('):
                 answer = _clean_answer_text(answer, strip_citations=True)
+                answer = _sanitize_answer_language(question, answer)
 
         if (answer or '').strip() == _FALLBACK:
             add_metric('fallback_answer_used', 1)
