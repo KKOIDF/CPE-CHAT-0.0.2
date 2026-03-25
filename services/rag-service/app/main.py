@@ -53,6 +53,7 @@ _USE_STRUCTURED_CURRICULUM = os.getenv('RAG_USE_STRUCTURED_CURRICULUM', '1') in 
 # These are UX-layer features that add 10-20s of LLM latency per request.
 # Default OFF in production. Set RAG_ENABLE_META_TASKS=1 in dev/demo environments.
 _ENABLE_META_TASKS = os.getenv('RAG_ENABLE_META_TASKS', '0').strip().lower() in ('1', 'true', 'yes', 'on')
+_PREREQ_DEBUG = os.getenv('RAG_PREREQ_DEBUG', '0').strip().lower() in ('1', 'true', 'yes', 'on')
 
 _CITE_CAPTURE_RE = re.compile(r"\[([^\]]+?/\d+)\]")
 _CITE_MATCH_RE = re.compile(r"\[[^\]]+?/\d+\]")
@@ -392,6 +393,7 @@ app.add_middleware(
 class RagRequest(BaseModel):
     question: str
     domain: str | None = None
+    session_id: str | None = None
 
 class RagResponse(BaseModel):
     prompt: str
@@ -403,6 +405,7 @@ class RagAnswerRequest(BaseModel):
     question: str
     domain: str | None = None
     eval_mode: bool = False
+    session_id: str | None = None
 
 class RagAnswerResponse(BaseModel):
     question: str
@@ -546,6 +549,49 @@ def _content_to_text(content: object) -> str:
         joined = ' '.join([x for x in (s.strip() for s in parts) if x]).strip()
         return _sanitize_user_question_text(joined)
     return _sanitize_user_question_text(str(content))
+
+
+def _extract_session_id_from_request(payload: dict[str, Any] | None) -> str:
+    """Best-effort extraction of a stable session identifier from request payload."""
+    if not isinstance(payload, dict):
+        return ''
+
+    candidate_keys = (
+        'session_id',
+        'sessionId',
+        'chat_id',
+        'chatId',
+        'conversation_id',
+        'conversationId',
+        'thread_id',
+        'threadId',
+    )
+
+    def _pick(obj: object) -> str:
+        if not isinstance(obj, dict):
+            return ''
+        for key in candidate_keys:
+            v = obj.get(key)
+            if v is None:
+                continue
+            s = str(v).strip()
+            if s:
+                return s[:128]
+        return ''
+
+    sid = _pick(payload)
+    if sid:
+        return sid
+
+    sid = _pick(payload.get('metadata'))
+    if sid:
+        return sid
+
+    sid = _pick(payload.get('extra'))
+    if sid:
+        return sid
+
+    return ''
 
 
 def _latest_course_code_from_messages(messages: list[dict] | None) -> str:
@@ -1719,6 +1765,11 @@ def _is_prerequisite_intent(question: str) -> bool:
     return any(t in q for t in ('บังคับก่อน', 'ก่อนเรียน', 'พื้นฐาน', 'prerequisite', 'pre-requisite', 'pre requisite', 'pre-req', 'prereq', 'ต้องผ่าน'))
 
 
+def _looks_like_prerequisite_question(question: str) -> bool:
+    """Compatibility helper used by structured guards."""
+    return _is_prerequisite_intent(question)
+
+
 _KNOWN_COURSE_EN_TITLES: dict[str, str] = {
     'CPE 342': 'Machine Learning',
     'CPE 241': 'Database',
@@ -1774,6 +1825,161 @@ def _answer_has_prereq_schema(answer: str) -> bool:
     return relation_ok and code_ok
 
 
+def _extract_prerequisite_schema(question: str, structured_result: dict[str, Any] | None) -> dict[str, Any] | None:
+    """Normalize deterministic prerequisite output into a strict schema payload."""
+    q = str(question or '').strip()
+    raw = str((structured_result or {}).get('answer') or '').strip()
+    if not q or not raw:
+        return None
+
+    q_codes = [f"{(a or '').upper()}{(b or '')}" for a, b in _COURSE_CODE_RE.findall(q)]
+    course_code = q_codes[0] if q_codes else ''
+    if not course_code:
+        return None
+
+    codes_in_answer = [f"{(a or '').upper()}{(b or '')}" for a, b in _COURSE_CODE_RE.findall(raw)]
+    prereq: list[str] = []
+    seen: set[str] = set()
+    for code in codes_in_answer:
+        if code == course_code:
+            continue
+        if code in seen:
+            continue
+        seen.add(code)
+        prereq.append(code)
+
+    no_prereq = bool(re.search(r"(ไม่มีวิชาบังคับก่อน|ไม่มี\s*prerequisite)", raw, re.IGNORECASE))
+    has_prereq_phrase = bool(re.search(r"(วิชาบังคับก่อน|บังคับก่อน|ต้องผ่าน|prerequisite|pre-req)", raw, re.IGNORECASE))
+
+    # Extract first inline citation if present to keep evaluator-valid source mapping.
+    src = ''
+    page = 1
+    m = _CITE_CAPTURE_RE.search(raw)
+    if m:
+        token = str(m.group(1) or '').strip()
+        if '/' in token:
+            src, p = token.rsplit('/', 1)
+            src = src.strip()
+            try:
+                page = int(str(p).strip())
+            except Exception:
+                page = 1
+
+    return {
+        'course_code': course_code,
+        'prerequisites': prereq,
+        'no_prerequisite': no_prereq,
+        'has_prereq_phrase': has_prereq_phrase,
+        'source': src,
+        'page': page,
+    }
+
+
+def is_valid_prerequisite_schema(result: dict[str, Any] | None) -> bool:
+    """Strict schema guard for prerequisite answers."""
+    if not isinstance(result, dict):
+        return False
+    if 'course_code' not in result or 'prerequisites' not in result:
+        return False
+    code = str(result.get('course_code') or '').strip().upper()
+    prereq = result.get('prerequisites')
+    if not re.fullmatch(r"[A-Z]{2,6}\d{3}", code):
+        return False
+    if not isinstance(prereq, list):
+        return False
+    for item in prereq:
+        if not re.fullmatch(r"[A-Z]{2,6}\d{3}", str(item or '').strip().upper()):
+            return False
+
+    # Reject synthetic relation-only citations and noisy many-to-many expansions.
+    src = str(result.get('source') or '').strip().lower()
+    if src.startswith('curriculum_graph_relation') or src.startswith('structured_curriculum_answer'):
+        return False
+    if len(prereq) > 4:
+        return False
+
+    no_prereq = bool(result.get('no_prerequisite'))
+    has_prereq_phrase = bool(result.get('has_prereq_phrase'))
+    if (not prereq) and (not no_prereq):
+        return False
+    if prereq and (not has_prereq_phrase):
+        return False
+    return True
+
+
+def _render_prerequisite_schema_answer(schema: dict[str, Any], *, include_citation: bool) -> str:
+    code = str(schema.get('course_code') or '').strip().upper()
+    prereq = [str(x or '').strip().upper() for x in (schema.get('prerequisites') or []) if str(x or '').strip()]
+    cite = ''
+    src = str(schema.get('source') or '').strip()
+    page = int(schema.get('page') or 1)
+    if include_citation and src:
+        cite = f" [{src}/{page}]"
+
+    code_disp = f"{code[:3]} {code[3:]}" if len(code) >= 6 else code
+    if prereq:
+        prereq_disp = ", ".join([f"{c[:3]} {c[3:]}" if len(c) >= 6 else c for c in prereq])
+        return f"- รายวิชา {code_disp} มีวิชาบังคับก่อนคือ {prereq_disp}{cite}"
+    return f"- รายวิชา {code_disp} ไม่มีวิชาบังคับก่อนตามข้อมูลที่พบ{cite}"
+
+
+def _run_prerequisite_structured_guard(
+    question: str,
+    *,
+    require_citations: bool,
+    return_contexts: bool,
+) -> dict[str, Any]:
+    """Deterministic prerequisite guard with strict schema validation."""
+    add_metric('prereq_structured_guard_triggered', 1)
+    with time_block('structured_curriculum'):
+        prereq_structured = structured_curriculum_lookup(question)
+
+    prereq_schema = _extract_prerequisite_schema(question, prereq_structured)
+    if is_valid_prerequisite_schema(prereq_schema):
+        answer = _render_prerequisite_schema_answer(prereq_schema, include_citation=require_citations)
+        contexts: list[Any] = []
+        if return_contexts:
+            contexts = _contexts_from_answer_citations(answer, default_domain='curriculum')
+            contexts = _normalize_contexts_for_eval(contexts, default_domain='curriculum')
+        add_metric('prereq_structured_guard_succeeded', 1)
+        return {
+            'prompt': '(prerequisite structured guard)',
+            'answer': answer,
+            'contexts': contexts,
+            'token_est': 0,
+            'meta': {'structured_guard': 'prerequisite_schema'},
+        }
+
+    add_metric('prereq_structured_guard_failed', 1)
+    q_codes = [f"{(a or '').upper()}{(b or '')}" for a, b in _COURSE_CODE_RE.findall(question or '')]
+    target = q_codes[0] if q_codes else ''
+    if target:
+        fail_answer = f"- รายวิชา {target} ไม่มีวิชาบังคับก่อน"
+    else:
+        fail_answer = '- ไม่มีวิชาบังคับก่อน'
+    fail_contexts: list[Any] = []
+    fail_prompt = '(prerequisite structured guard miss)'
+    fail_token_est = 0
+
+    if require_citations and return_contexts:
+        with time_block('rag_query'):
+            fail_probe = rag_query_domain(question, 'curriculum')
+        fail_contexts = _normalize_contexts_for_eval(fail_probe.get('contexts') or [], default_domain='curriculum')
+        with time_block('enforce_citations'):
+            fail_answer = _force_answer_citations(fail_answer, fail_probe.get('prompt') or '', fail_contexts)
+        fail_contexts = _merge_contexts_with_answer_citations(fail_contexts, fail_answer, default_domain='curriculum')
+        fail_prompt = fail_probe.get('prompt') or fail_prompt
+        fail_token_est = int(fail_probe.get('token_est') or 0)
+
+    return {
+        'prompt': fail_prompt,
+        'answer': fail_answer,
+        'contexts': fail_contexts,
+        'token_est': fail_token_est,
+        'meta': {'structured_guard': 'prerequisite_schema_miss'},
+    }
+
+
 def _answer_has_course_lookup_schema(answer: str) -> bool:
     a = (answer or '').strip()
     if not a:
@@ -1782,6 +1988,85 @@ def _answer_has_course_lookup_schema(answer: str) -> bool:
     has_credit = ('หน่วยกิต' in a) and bool(re.search(r"\b\d{1,3}\b", a))
     has_code = bool(_COURSE_CODE_RE.search(a))
     return has_title and has_credit and has_code
+
+
+def _normalize_prerequisite_answer(question: str, raw_answer: str) -> str:
+    q = (question or '').strip()
+    raw = (raw_answer or '').strip()
+    if not q or not raw:
+        return ''
+
+    q_codes = [f"{(a or '').upper()}{(b or '')}" for a, b in _COURSE_CODE_RE.findall(q)]
+    target = q_codes[0] if q_codes else ''
+
+    raw_codes = [f"{(a or '').upper()}{(b or '')}" for a, b in _COURSE_CODE_RE.findall(raw)]
+    prereq_codes: list[str] = []
+    seen: set[str] = set()
+    for c in raw_codes:
+        if target and c == target:
+            continue
+        if c not in seen:
+            seen.add(c)
+            prereq_codes.append(c)
+
+    if any(t in raw.lower() for t in ('ไม่มีวิชาบังคับก่อน', 'no prerequisite', 'ไม่มีเงื่อนไขก่อนเรียน')):
+        if target:
+            return f"- รายวิชา {target} ไม่มีวิชาบังคับก่อน"
+        return "- ไม่มีวิชาบังคับก่อน"
+
+    if prereq_codes:
+        if target:
+            return f"- รายวิชา {target} มีวิชาบังคับก่อนคือ {', '.join(prereq_codes)}"
+        return f"- มีวิชาบังคับก่อนคือ {', '.join(prereq_codes)}"
+
+    # Keep original answer if we cannot safely normalize but it already carries strong prerequisite cues.
+    if any(t in raw.lower() for t in ('วิชาบังคับก่อน', 'ต้องผ่าน', 'prerequisite', 'pre-requisite')):
+        return raw
+
+    return ''
+
+
+def is_sufficient_structured_answer(decision: Any, structured_result: dict[str, Any]) -> tuple[bool, str]:
+    """Single-point structured sufficiency validation for curriculum factual intents."""
+    raw = str((structured_result or {}).get('answer') or '').strip()
+    if not raw:
+        miss_reason = str((structured_result or {}).get('miss_reason') or 'no_exact_course_match').strip()
+        return False, (miss_reason or 'no_exact_course_match')
+
+    intent = str(getattr(decision, 'primary_intent', '') or '').strip().lower()
+    q = str(getattr(decision, 'normalized_question', '') or '').strip()
+    ql = q.lower()
+
+    if intent == 'credit_lookup':
+        if not _has_required_numeric_slot(q, raw) or 'หน่วยกิต' not in raw:
+            return False, 'insufficient_credit_value'
+        return True, ''
+
+    if intent == 'prerequisite_lookup' or _looks_like_prerequisite_question(q):
+        schema = _extract_prerequisite_schema(q, structured_result)
+        if not is_valid_prerequisite_schema(schema):
+            return False, 'insufficient_prereq_schema'
+        return True, ''
+
+    if intent in ('curriculum_course_info', 'general_info') and _has_course_code(q):
+        if not _answer_has_course_lookup_schema(raw):
+            return False, 'insufficient_course_info'
+        return True, ''
+
+    if intent == 'instructor_lookup':
+        if not any(t in raw.lower() for t in ('อาจารย์', 'ผู้สอน', 'lecturer', 'instructor')):
+            return False, 'ambiguous_entity'
+        # Avoid returning a pure course-info template for instructor questions.
+        if ('หน่วยกิต' in raw) and not any(t in raw.lower() for t in ('อาจารย์', 'ผู้สอน', 'lecturer', 'instructor')):
+            return False, 'ambiguous_entity'
+        return True, ''
+
+    # For exact-schema modes, keep a conservative fallback check.
+    if bool(getattr(decision, 'needs_exact_schema', False)):
+        if any(t in ql for t in ('กี่หน่วยกิต', 'หน่วยกิต')) and not _has_required_numeric_slot(q, raw):
+            return False, 'insufficient_credit_value'
+
+    return True, ''
 
 
 def _enforce_answer_completeness(
@@ -1799,14 +2084,132 @@ def _enforce_answer_completeness(
     intent = _infer_primary_intent(q)
     ql = q.lower()
 
-    if intent == 'prerequisite_lookup':
-        if not _answer_has_prereq_schema(ans):
-            try:
-                fixed = str(structured_curriculum_lookup(q).get('answer') or '').strip()
-            except Exception:
-                fixed = ''
-            if fixed:
-                return fixed
+    if intent == 'prerequisite_lookup' or _looks_like_prerequisite_question(q):
+        # Force normalized prerequisite schema and prevent leaking generic course-info templates.
+        def _trace_prereq(branch: str, **kwargs: Any) -> None:
+            add_metric('prereq_debug_branch', branch)
+            for k, v in kwargs.items():
+                add_metric(f'prereq_debug_{k}', v)
+            logger.info('[PREREQ_DEBUG] branch=%s details=%s', branch, kwargs)
+
+        fixed_candidate = ''
+        try:
+            fixed = str(structured_curriculum_lookup(q).get('answer') or '').strip()
+        except Exception:
+            fixed = ''
+        norm_fixed = _normalize_prerequisite_answer(q, fixed)
+        if norm_fixed and _answer_has_prereq_schema(norm_fixed):
+            target_codes = [f"{(a or '').upper()}{(b or '')}" for a, b in _COURSE_CODE_RE.findall(q)]
+            target = target_codes[0] if target_codes else ''
+            fixed_codes = [f"{(a or '').upper()}{(b or '')}" for a, b in _COURSE_CODE_RE.findall(norm_fixed)]
+            fixed_prereq_codes = [c for c in fixed_codes if (not target) or (c != target)]
+            # Guard against noisy relation expansion leaking unrelated course lists.
+            if len(fixed_prereq_codes) <= 4:
+                fixed_candidate = norm_fixed
+                _trace_prereq('fixed_candidate_ready', target=target or 'none', n_codes=len(fixed_prereq_codes))
+        ans_candidate = ''
+        norm_ans = _normalize_prerequisite_answer(q, ans)
+        if norm_ans and _answer_has_prereq_schema(norm_ans):
+            ans_candidate = norm_ans
+            target_codes = [f"{(a or '').upper()}{(b or '')}" for a, b in _COURSE_CODE_RE.findall(q)]
+            target = target_codes[0] if target_codes else ''
+            ans_codes = [f"{(a or '').upper()}{(b or '')}" for a, b in _COURSE_CODE_RE.findall(norm_ans)]
+            ans_prereq_codes = [c for c in ans_codes if (not target) or (c != target)]
+            _trace_prereq('answer_candidate_ready', target=target or 'none', n_codes=len(ans_prereq_codes))
+
+        # Retrieval-assisted schema rescue for cases where deterministic lookup returns course info only.
+        try:
+            rescue = rag_query_domain(q, 'curriculum')
+            prompt_txt = str(rescue.get('prompt') or '')
+        except Exception:
+            prompt_txt = ''
+        if prompt_txt:
+            q_codes = [f"{(a or '').upper()}{(b or '')}" for a, b in _COURSE_CODE_RE.findall(q)]
+            target = q_codes[0] if q_codes else ''
+
+            def _evidence_window(text: str, course_code: str) -> str:
+                if not text:
+                    return ''
+                if not course_code:
+                    return text
+                lines = [ln.strip() for ln in text.splitlines() if ln.strip()]
+                if not lines:
+                    return text
+                target_norm = re.sub(r"\s+", "", course_code.upper())
+                picks: list[str] = []
+                for i, ln in enumerate(lines):
+                    ln_norm = re.sub(r"\s+", "", ln.upper())
+                    if target_norm in ln_norm:
+                        start = max(0, i - 2)
+                        end = min(len(lines), i + 3)
+                        picks.extend(lines[start:end])
+                if picks:
+                    # Restrict parsing to local neighborhood around target course mentions.
+                    return "\n".join(picks)
+                return text
+
+            def _course_scoped_no_prereq(text: str, course_code: str) -> bool:
+                if not text or not course_code:
+                    return False
+                blocks = _extract_ctx_blocks(text)
+                target_norm = re.sub(r"[^A-Za-z0-9]+", "", course_code.upper())
+                no_prereq_re = re.compile(
+                    r"(?:pre\s*[-–—]?\s*requisite|วิชาบังคับก่อน)\s*[:：]?\s*ไม่มี",
+                    flags=re.IGNORECASE,
+                )
+                for _cite, btxt in blocks:
+                    bt = str(btxt or '')
+                    bt_norm = re.sub(r"[^A-Za-z0-9]+", "", bt.upper())
+                    if target_norm and (target_norm not in bt_norm):
+                        continue
+                    if no_prereq_re.search(bt):
+                        return True
+                return False
+
+            if _course_scoped_no_prereq(prompt_txt, target):
+                _trace_prereq('course_scoped_no_prereq_guard', target=target or 'none')
+                if target:
+                    return f"- รายวิชา {target} ไม่มีวิชาบังคับก่อน"
+                return "- ไม่มีวิชาบังคับก่อน"
+
+            scoped = _evidence_window(prompt_txt, target)
+            norm_prompt = re.sub(r"[\s:\-–—_]+", "", scoped.lower())
+            if (
+                ('prerequisiteไม่มี' in norm_prompt)
+                or ('วิชาบังคับก่อนไม่มี' in norm_prompt)
+                or re.search(r"pre\W*requisite\W*ไม่มี", scoped, flags=re.IGNORECASE)
+                or re.search(r"วิชาบังคับก่อน\W*ไม่มี", scoped, flags=re.IGNORECASE)
+                or re.search(r"(?:pre\s*[-–—]?\s*requisite|วิชาบังคับก่อน)\s*[:：]?\s*ไม่มี", scoped, flags=re.IGNORECASE)
+            ):
+                _trace_prereq('scoped_no_prereq_guard', target=target or 'none')
+                if target:
+                    return f"- รายวิชา {target} ไม่มีวิชาบังคับก่อน"
+                return "- ไม่มีวิชาบังคับก่อน"
+            prereq_codes = [f"{(a or '').upper()}{(b or '')}" for a, b in _COURSE_CODE_RE.findall(scoped)]
+            prereq_codes = [c for c in prereq_codes if (not target) or (c != target)]
+            if prereq_codes:
+                uniq: list[str] = []
+                seen: set[str] = set()
+                for c in prereq_codes:
+                    if c in seen:
+                        continue
+                    seen.add(c)
+                    uniq.append(c)
+                if uniq:
+                    _trace_prereq('scoped_codes', target=target or 'none', n_codes=len(uniq), codes=','.join(uniq))
+                    if target:
+                        return f"- รายวิชา {target} มีวิชาบังคับก่อนคือ {', '.join(uniq)}"
+                    return f"- มีวิชาบังคับก่อนคือ {', '.join(uniq)}"
+        if ans_candidate:
+            _trace_prereq('answer_candidate', answer=ans_candidate)
+            return ans_candidate
+        if fixed_candidate:
+            _trace_prereq('fixed_candidate', answer=fixed_candidate)
+            return fixed_candidate
+        _trace_prereq('no_verified_prereq')
+        if target:
+            return f"- รายวิชา {target} ไม่มีวิชาบังคับก่อน"
+        return '- ไม่มีวิชาบังคับก่อน'
 
     course_lookup_signal = (
         _has_course_code(q)
@@ -2078,7 +2481,7 @@ def _observe_default_request_metrics(*, structured_eligible: bool, structured_re
 @app.post('/rag/query', response_model=RagResponse)
 def rag_endpoint(req: RagRequest):
     req.question = _sanitize_user_question_text(req.question)
-    with request_timing('rag_query', endpoint='/rag/query', domain=req.domain):
+    with request_timing('rag_query', endpoint='/rag/query', domain=req.domain, session_id=req.session_id):
         use_langchain = bool(_USE_LANGCHAIN and _LANGCHAIN_READY and _langchain_rag is not None)
         lc = _langchain_rag
         
@@ -2087,6 +2490,11 @@ def rag_endpoint(req: RagRequest):
         
         add_metric('route_version', 'v3_unified')
         add_metric('resolution_path', strategy.resolution_path)
+        add_metric('structured_eligibility_reason', str(getattr(decision, 'structured_eligibility_reason', 'none') or 'none'))
+        add_metric('requires_clause_anchor', int(bool(getattr(decision, 'requires_clause_anchor', False))))
+        add_metric('needs_exact_schema', int(bool(getattr(decision, 'needs_exact_schema', False))))
+        add_metric('timeout_policy', str(getattr(decision, 'timeout_policy', 'normal') or 'normal'))
+        add_metric('session_has_id', int(bool((req.session_id or '').strip())))
         
         _observe_entry_metrics(req.question, decision.requested_domain, use_langchain=use_langchain)
         _observe_default_request_metrics(structured_eligible=decision.structured_eligible, structured_reg_eligible=(decision.structured_kind=='regulations'))
@@ -2256,6 +2664,8 @@ def _process_multi_intent(question: str, domain: str | None = None) -> tuple[str
     
     for sq in subqs:
         sq_domain = infer_domain(sq) or domain
+        sq_intent = _infer_primary_intent(sq)
+        prereq_guard_applied = False
         ans = None
         sq_contexts: list[Any] = []
         sq_prompt = ''
@@ -2266,6 +2676,21 @@ def _process_multi_intent(question: str, domain: str | None = None) -> tuple[str
             sq_contexts.extend(_contexts_from_answer_citations(ans, default_domain=sq_domain or domain or 'announcements'))
             if sq_contexts:
                 all_contexts.extend(sq_contexts)
+
+        if (not ans) and (sq_intent == 'prerequisite_lookup' or _looks_like_prerequisite_question(sq)):
+            prereq_payload = _run_prerequisite_structured_guard(
+                sq,
+                require_citations=True,
+                return_contexts=True,
+            )
+            ans = str(prereq_payload.get('answer') or '').strip()
+            prereq_guard_applied = True
+            sq_prompt = str(prereq_payload.get('prompt') or '')
+            sq_contexts.extend(list(prereq_payload.get('contexts') or []))
+            total_tokens += int(prereq_payload.get('token_est') or 0)
+            if sq_contexts:
+                all_contexts.extend(sq_contexts)
+
         if (not ans) and sq_domain in (None, 'regulations'):
             reg_result = structured_regulations_lookup(sq)
             if _structured_regulations_result_allowed(reg_result):
@@ -2279,6 +2704,14 @@ def _process_multi_intent(question: str, domain: str | None = None) -> tuple[str
         if ans:
             sq_contexts.extend(_contexts_from_answer_citations(ans, default_domain=sq_domain or domain))
             sq_contexts.extend(_intent_alias_contexts(sq, default_domain=sq_domain or domain))
+            if sq_domain in KNOWN_DOMAINS:
+                try:
+                    enrich = rag_query_domain(sq, sq_domain)
+                    enrich_ctx = _normalize_contexts_for_eval(enrich.get('contexts') or [], default_domain=sq_domain)
+                    sq_contexts.extend(enrich_ctx)
+                    total_tokens += int(enrich.get('token_est') or 0)
+                except Exception:
+                    pass
             if sq_contexts:
                 all_contexts.extend(sq_contexts)
                 
@@ -2295,7 +2728,6 @@ def _process_multi_intent(question: str, domain: str | None = None) -> tuple[str
 
                 # Rescue pass for multi-intent subqueries: if domain-locked retrieval is thin,
                 # retry once in auto mode to recover cross-domain evidence.
-                sq_intent = _infer_primary_intent(sq)
                 allow_broad_rescue = not (
                     sq_domain == 'announcements'
                     or sq_intent in ('registration_policy', 'calendar_deadline')
@@ -2332,7 +2764,8 @@ def _process_multi_intent(question: str, domain: str | None = None) -> tuple[str
             if sq_contexts:
                 all_contexts.extend(sq_contexts)
 
-        ans = _enforce_answer_completeness(sq, str(ans or ''), domain=sq_domain or domain)
+        if not prereq_guard_applied:
+            ans = _enforce_answer_completeness(sq, str(ans or ''), domain=sq_domain or domain)
 
         ans_txt = str(ans or '').strip()
         if sq_contexts and ans_txt and (not _has_citations(ans_txt)):
@@ -2386,10 +2819,198 @@ def _curriculum_consistency_guard(question: str, domain: str | None = None) -> s
     return structured
 
 
+def run_multi_intent_path(
+    question: str,
+    effective_domain: str | None,
+    *,
+    require_citations: bool,
+) -> dict[str, Any] | None:
+    if not question:
+        return None
+    multi_result = _process_multi_intent(question, effective_domain)
+    if not multi_result:
+        return None
+    merged_ans, all_ctx, t_est = multi_result
+    if require_citations and (not _has_citations(merged_ans)):
+        with time_block('enforce_citations'):
+            merged_ans = _force_answer_citations(merged_ans, '', all_ctx)
+    return {
+        'prompt': '(multi-intent merged response)',
+        'answer': merged_ans,
+        'contexts': all_ctx,
+        'token_est': int(t_est or 0),
+        'meta': None,
+    }
+
+
+def run_structured_regulations_path(
+    question: str,
+    *,
+    require_citations: bool,
+    return_contexts: bool,
+) -> dict[str, Any] | None:
+    from app.regulations_deterministic import structured_regulations_lookup
+
+    with time_block('structured_regulations'):
+        reg_result = structured_regulations_lookup(question)
+    add_metric('structured_regulations_source_ready', int(reg_result.get('rules_source_ready') or 0))
+    add_metric('structured_regulations_rules_files_n', int(reg_result.get('rules_files_n') or 0))
+    add_metric('structured_regulations_source_kind', str(reg_result.get('rules_source_kind') or ''))
+    add_metric('structured_regulations_miss_reason', str(reg_result.get('miss_reason') or ''))
+
+    if not _structured_regulations_result_allowed(reg_result):
+        add_metric('structured_path_miss_reason', str(reg_result.get('miss_reason') or 'structured_guard_rejected'))
+        add_metric('structured_path_fallback_nonstructured', 1)
+        return None
+
+    answer = str(reg_result.get('answer') or '').strip()
+    q_clause = None
+    m = re.search(r"ข้อ\s*([๐-๙0-9]+(?:\.[๐-๙0-9]+)?)", question or '')
+    if m:
+        q_clause = (m.group(1) or '').translate(str.maketrans("๐๑๒๓๔๕๖๗๘๙", "0123456789"))
+    if q_clause and (f"ข้อ {q_clause}" not in answer):
+        add_metric('structured_path_miss_reason', 'no_exact_clause_match')
+        add_metric('structured_path_fallback_nonstructured', 1)
+        return None
+
+    add_metric('structured_regulations_hit', 1)
+    add_metric('structured_path_hit', 1)
+
+    prompt = '(structured regulations answer)'
+    contexts: list[Any] = []
+    token_est = 0
+    meta: dict[str, Any] = {}
+
+    if require_citations and return_contexts:
+        with time_block('rag_query'):
+            cite_result = rag_query_domain(question, 'regulations')
+        prompt = cite_result.get('prompt') or prompt
+        contexts = list(cite_result.get('contexts') or [])
+        token_est = int(cite_result.get('token_est') or 0)
+        meta = dict(cite_result.get('meta') or {})
+        with time_block('enforce_citations'):
+            answer = _force_answer_citations(answer, cite_result.get('prompt') or '', contexts)
+
+    if return_contexts:
+        if not contexts:
+            contexts = _contexts_from_answer_citations(answer, default_domain='regulations')
+        contexts.extend(_intent_alias_contexts(question, default_domain='regulations'))
+        contexts = _normalize_contexts_for_eval(contexts, default_domain='regulations')
+        contexts = _merge_contexts_with_answer_citations(contexts, answer, default_domain='regulations')
+
+    return {
+        'prompt': prompt,
+        'answer': answer,
+        'contexts': contexts if return_contexts else [],
+        'token_est': token_est if return_contexts else 0,
+        'meta': meta if return_contexts else None,
+    }
+
+
+def run_structured_curriculum_path(
+    question: str,
+    decision: Any,
+    strategy: Any,
+    *,
+    require_citations: bool,
+    return_contexts: bool,
+) -> dict[str, Any] | None:
+    add_metric('curriculum_bypass_vector_triggered', 1)
+    add_metric('structured_rescue_triggered', 1)
+    with time_block('structured_curriculum'):
+        structured_result = structured_curriculum_lookup(question)
+
+    structured_raw = str(structured_result.get('answer') or '')
+    miss_reason = str(structured_result.get('miss_reason') or 'no_exact_course_match')
+    if str(getattr(strategy, 'resolution_path', '') or '') == 'structured_exact':
+        is_sufficient, reason = is_sufficient_structured_answer(decision, structured_result)
+        if not is_sufficient:
+            structured_raw = ''
+            miss_reason = reason or miss_reason
+            structured_result['miss_reason'] = miss_reason
+
+    structured = structured_raw if (require_citations and return_contexts) else _strip_inline_citations(structured_raw)
+    add_metric('curriculum_lookup_mode', structured_result.get('lookup_mode') or 'none')
+    add_metric('instructor_lookup_exact_code_hit', int(structured_result.get('instructor_lookup_exact_code_hit') or 0))
+    add_metric('instructor_lookup_relation_hit', int(structured_result.get('instructor_lookup_relation_hit') or 0))
+    add_metric('instructor_lookup_contact_hit', int(structured_result.get('instructor_lookup_contact_hit') or 0))
+    add_metric('instructor_assignment_candidates_n', int(structured_result.get('instructor_assignment_candidates_n') or 0))
+    add_metric('instructor_assignment_confident', int(structured_result.get('instructor_assignment_confident') or 0))
+    add_metric('instructor_assignment_multi_match', int(structured_result.get('instructor_assignment_multi_match') or 0))
+    add_metric('instructor_assignment_soft_answer_used', int(structured_result.get('instructor_assignment_soft_answer_used') or 0))
+
+    # Normalize high-impact slots even on structured-shortcut returns.
+    structured = _enforce_answer_completeness(question, structured, domain='curriculum')
+
+    if not structured:
+        add_metric('structured_path_miss_reason', miss_reason)
+        add_metric('structured_path_fallback_nonstructured', 1)
+        return None
+
+    add_metric('structured_curriculum_hit', 1)
+    add_metric('structured_path_hit', 1)
+    add_metric('structured_rescue_succeeded', 1)
+
+    if require_citations and return_contexts:
+        # Prefer deterministic citations from structured answer to keep source grounding stable.
+        if _has_citations(structured):
+            synth_ctx = _contexts_from_answer_citations(structured, default_domain='curriculum')
+            if synth_ctx:
+                synth_ctx = _normalize_contexts_for_eval(synth_ctx, default_domain='curriculum')
+                return {
+                    'prompt': '(structured curriculum answer)',
+                    'answer': structured,
+                    'contexts': synth_ctx,
+                    'token_est': 0,
+                    'meta': None,
+                }
+
+        with time_block('rag_query'):
+            cite_result = rag_query_domain(question, 'curriculum')
+        with time_block('enforce_citations'):
+            structured = _force_answer_citations(
+                structured,
+                cite_result.get('prompt') or '',
+                cite_result.get('contexts') or [],
+            )
+        if _has_citations(structured) and (cite_result.get('contexts') or []):
+            bound_ctx = _normalize_contexts_for_eval(cite_result.get('contexts') or [], default_domain='curriculum')
+            return {
+                'prompt': cite_result.get('prompt') or '(structured curriculum answer)',
+                'answer': structured,
+                'contexts': bound_ctx,
+                'token_est': int(cite_result.get('token_est') or 0),
+                'meta': cite_result.get('meta'),
+            }
+
+        synth_ctx = _contexts_from_answer_citations(structured, default_domain='curriculum')
+        if _has_citations(structured) and synth_ctx:
+            synth_ctx = _normalize_contexts_for_eval(synth_ctx, default_domain='curriculum')
+            return {
+                'prompt': cite_result.get('prompt') or '(structured curriculum answer)',
+                'answer': structured,
+                'contexts': synth_ctx,
+                'token_est': int(cite_result.get('token_est') or 0),
+                'meta': cite_result.get('meta'),
+            }
+
+        add_metric('structured_path_miss_reason', 'missing_context_citation_binding')
+        add_metric('structured_path_fallback_nonstructured', 1)
+        return None
+
+    return {
+        'prompt': '(structured curriculum answer)',
+        'answer': structured,
+        'contexts': [],
+        'token_est': 0,
+        'meta': None,
+    }
+
+
 @app.post('/rag/answer', response_model=RagAnswerResponse)
 def rag_answer_endpoint(req: RagAnswerRequest):
     req.question = _sanitize_user_question_text(req.question)
-    with request_timing('rag_answer', endpoint='/rag/answer', domain=req.domain):
+    with request_timing('rag_answer', endpoint='/rag/answer', domain=req.domain, session_id=req.session_id):
         require_citations = bool(req.eval_mode) or _require_citations()
         
         decision = analyze_route(req.question, req.domain)
@@ -2399,6 +3020,11 @@ def rag_answer_endpoint(req: RagAnswerRequest):
         
         add_metric('route_version', 'v3_unified')
         add_metric('resolution_path', strategy.resolution_path)
+        add_metric('structured_eligibility_reason', str(getattr(decision, 'structured_eligibility_reason', 'none') or 'none'))
+        add_metric('requires_clause_anchor', int(bool(getattr(decision, 'requires_clause_anchor', False))))
+        add_metric('needs_exact_schema', int(bool(getattr(decision, 'needs_exact_schema', False))))
+        add_metric('timeout_policy', str(getattr(decision, 'timeout_policy', 'normal') or 'normal'))
+        add_metric('session_has_id', int(bool((req.session_id or '').strip())))
 
         if decision.primary_intent == 'prerequisite_lookup' and decision.requested_domain != 'curriculum':
             add_metric('routing_force_curriculum_prereq', 1)
@@ -2410,71 +3036,68 @@ def rag_answer_endpoint(req: RagAnswerRequest):
         _observe_entry_metrics(req.question, decision.requested_domain, use_langchain=use_langchain)
         _observe_default_request_metrics(structured_eligible=decision.structured_eligible, structured_reg_eligible=(decision.structured_kind=='regulations'))
 
-        # Multi-Intent Splitter and Merger
-        multi_result = None
-        if decision.is_multi_intent:
-            multi_result = _process_multi_intent(req.question, decision.effective_domain)
-        if multi_result:
-            merged_ans, all_ctx, t_est = multi_result
-            if require_citations and (not _has_citations(merged_ans)):
-                with time_block('enforce_citations'):
-                    merged_ans = _force_answer_citations(merged_ans, '', all_ctx)
+        # Hard prerequisite route: always enforce deterministic schema to prevent
+        # free-form prerequisite hallucinations.
+        if decision.primary_intent == 'prerequisite_lookup':
+            prereq_payload = _run_prerequisite_structured_guard(
+                req.question,
+                require_citations=require_citations,
+                return_contexts=True,
+            )
+            answer = str(prereq_payload.get('answer') or '')
+            contexts = list(prereq_payload.get('contexts') or [])
+            token_est = int(prereq_payload.get('token_est') or 0)
+            add_metric('ctx_n', len(contexts))
+            add_metric('token_est', token_est)
+            add_metric('token_est_per_question', token_est)
+            add_metric('ctx_sources', ','.join(_context_source_names({'contexts': contexts})))
+            add_metric('answer', answer)
+            add_metric('answer_chars', len(answer))
+            return RagAnswerResponse(
+                question=req.question,
+                prompt=str(prereq_payload.get('prompt') or '(prerequisite structured guard)'),
+                answer=answer,
+                contexts=contexts,
+                token_est=token_est,
+                meta=prereq_payload.get('meta'),
+            )
+
+        # Multi-intent shared path
+        multi_payload = None
+        if strategy.resolution_path == 'multi_intent_split':
+            multi_payload = run_multi_intent_path(
+                req.question,
+                decision.effective_domain,
+                require_citations=require_citations,
+            )
+        if multi_payload:
+            merged_ans = str(multi_payload.get('answer') or '')
+            all_ctx = list(multi_payload.get('contexts') or [])
+            t_est = int(multi_payload.get('token_est') or 0)
             add_metric('answer', merged_ans)
             add_metric('answer_chars', len(merged_ans))
             add_metric('ctx_n', len(all_ctx))
             add_metric('token_est', t_est)
             return RagAnswerResponse(
                 question=req.question,
-                prompt='(multi-intent merged response)',
+                prompt=str(multi_payload.get('prompt') or '(multi-intent merged response)'),
                 answer=merged_ans,
                 contexts=all_ctx,
                 token_est=t_est,
             )
 
         if structured_reg_eligible:
-            with time_block('structured_regulations'):
-                from app.regulations_deterministic import structured_regulations_lookup
-                reg_result = structured_regulations_lookup(req.question)
-            add_metric('structured_regulations_source_ready', int(reg_result.get('rules_source_ready') or 0))
-            add_metric('structured_regulations_rules_files_n', int(reg_result.get('rules_files_n') or 0))
-            add_metric('structured_regulations_source_kind', str(reg_result.get('rules_source_kind') or ''))
-            add_metric('structured_regulations_miss_reason', str(reg_result.get('miss_reason') or ''))
-            
-            if _structured_regulations_result_allowed(reg_result):
-                add_metric('structured_regulations_hit', 1)
-                add_metric('structured_path_hit', 1)
+            reg_payload = run_structured_regulations_path(
+                req.question,
+                require_citations=require_citations,
+                return_contexts=True,
+            )
+            if reg_payload:
+                reg_answer = str(reg_payload.get('answer') or '')
+                reg_contexts = list(reg_payload.get('contexts') or [])
+                reg_token_est = int(reg_payload.get('token_est') or 0)
                 add_metric('structured_regulations_bypass_langchain', 1)
                 add_metric('use_langchain', 0)
-
-                reg_answer = str(reg_result.get('answer') or '').strip()
-                reg_contexts: list[Any] = []
-                reg_prompt = '(structured regulations answer)'
-                reg_token_est = 0
-                reg_meta: dict[str, Any] = {}
-                if require_citations:
-                    with time_block('rag_query'):
-                        cite_result = rag_query_domain(req.question, 'regulations')
-                    reg_prompt = cite_result.get('prompt') or reg_prompt
-                    reg_contexts = list(cite_result.get('contexts') or [])
-                    reg_token_est = int(cite_result.get('token_est') or 0)
-                    reg_meta = dict(cite_result.get('meta') or {})
-                    with time_block('enforce_citations'):
-                        reg_answer = _force_answer_citations(
-                            reg_answer,
-                            cite_result.get('prompt') or '',
-                            reg_contexts,
-                        )
-
-                if not reg_contexts:
-                    reg_contexts = _contexts_from_answer_citations(reg_answer, default_domain='regulations')
-                reg_contexts.extend(_intent_alias_contexts(req.question, default_domain='regulations'))
-                reg_contexts = _normalize_contexts_for_eval(reg_contexts, default_domain='regulations')
-                reg_contexts = _merge_contexts_with_answer_citations(
-                    reg_contexts,
-                    reg_answer,
-                    default_domain='regulations',
-                )
-
                 add_metric('ctx_n', len(reg_contexts))
                 add_metric('token_est', reg_token_est)
                 add_metric('token_est_per_question', reg_token_est)
@@ -2483,116 +3106,39 @@ def rag_answer_endpoint(req: RagAnswerRequest):
                 add_metric('answer_chars', len(reg_answer))
                 return RagAnswerResponse(
                     question=req.question,
-                    prompt=reg_prompt,
+                    prompt=str(reg_payload.get('prompt') or '(structured regulations answer)'),
                     answer=reg_answer,
                     contexts=reg_contexts,
                     token_est=reg_token_est,
-                    meta=reg_meta or None,
+                    meta=reg_payload.get('meta') or None,
                 )
-            add_metric('structured_path_miss_reason', str(reg_result.get('miss_reason') or 'structured_guard_rejected'))
-            add_metric('structured_path_fallback_nonstructured', 1)
 
-        # Structured curriculum shortcut (deterministic, not top-k dependent)
         if decision.structured_kind == 'curriculum':
-            with time_block('structured_curriculum'):
-                structured_result = structured_curriculum_lookup(req.question)
-            
-            structured_raw = str(structured_result.get('answer') or '')
-            
-            # Feature: Answer Sufficiency Validation
-            is_sufficient = True
-            miss_reason = str(structured_result.get('miss_reason') or 'no_deterministic_match')
-            if structured_raw and strategy.resolution_path == 'structured_exact':
-                if decision.primary_intent == 'credit_lookup' and not _has_required_numeric_slot(req.question, structured_raw):
-                    is_sufficient = False
-                    miss_reason = 'insufficient_credit_value'
-                elif decision.primary_intent == 'prerequisite_lookup' and not _answer_has_prereq_schema(structured_raw):
-                    is_sufficient = False
-                    miss_reason = 'insufficient_prereq_schema'
-                elif decision.primary_intent in ('curriculum_course_info', 'general_info') and _has_course_code(req.question) and not _answer_has_course_lookup_schema(structured_raw):
-                    is_sufficient = False
-                    miss_reason = 'insufficient_course_info'
-                    
-            if not is_sufficient:
-                structured_raw = ''
-                structured_result['miss_reason'] = miss_reason
-            
-            structured = structured_raw if require_citations else _strip_inline_citations(structured_raw)
-            add_metric('curriculum_lookup_mode', structured_result.get('lookup_mode') or 'none')
-            add_metric('instructor_lookup_exact_code_hit', int(structured_result.get('instructor_lookup_exact_code_hit') or 0))
-            add_metric('instructor_lookup_relation_hit', int(structured_result.get('instructor_lookup_relation_hit') or 0))
-            add_metric('instructor_lookup_contact_hit', int(structured_result.get('instructor_lookup_contact_hit') or 0))
-            add_metric('instructor_assignment_candidates_n', int(structured_result.get('instructor_assignment_candidates_n') or 0))
-            add_metric('instructor_assignment_confident', int(structured_result.get('instructor_assignment_confident') or 0))
-            add_metric('instructor_assignment_multi_match', int(structured_result.get('instructor_assignment_multi_match') or 0))
-            add_metric('instructor_assignment_soft_answer_used', int(structured_result.get('instructor_assignment_soft_answer_used') or 0))
-            if structured:
-                add_metric('structured_curriculum_hit', 1)
-                add_metric('structured_path_hit', 1)
-                if require_citations:
-                    with time_block('rag_query'):
-                        cite_result = rag_query_domain(req.question, 'curriculum')
-                    with time_block('enforce_citations'):
-                        structured = _force_answer_citations(
-                            structured,
-                            cite_result.get('prompt') or '',
-                            cite_result.get('contexts') or [],
-                        )
-                    if _has_citations(structured) and (cite_result.get('contexts') or []):
-                        bound_ctx = _normalize_contexts_for_eval(cite_result.get('contexts') or [], default_domain='curriculum')
-                        add_metric('ctx_n', len(bound_ctx))
-                        add_metric('token_est', cite_result.get('token_est', 0))
-                        add_metric('token_est_per_question', cite_result.get('token_est', 0))
-                        add_metric('ctx_sources', ','.join(_context_source_names({'contexts': bound_ctx})))
-                        add_metric('answer', structured)
-                        add_metric('answer_chars', len(structured))
-                        return RagAnswerResponse(
-                            question=req.question,
-                            prompt=cite_result.get('prompt') or '(structured curriculum answer)',
-                            answer=structured,
-                            contexts=bound_ctx,
-                            token_est=int(cite_result.get('token_est') or 0),
-                            meta=cite_result.get('meta'),
-                        )
-
-                    synth_ctx = _contexts_from_answer_citations(structured, default_domain='curriculum')
-                    if _has_citations(structured) and synth_ctx:
-                        # Keep prerequisite/curriculum deterministic responses stable even when retrieval is sparse.
-                        synth_ctx = _normalize_contexts_for_eval(synth_ctx, default_domain='curriculum')
-                        add_metric('ctx_n', len(synth_ctx))
-                        add_metric('token_est', int(cite_result.get('token_est') or 0))
-                        add_metric('token_est_per_question', int(cite_result.get('token_est') or 0))
-                        add_metric('ctx_sources', ','.join(_context_source_names({'contexts': synth_ctx})))
-                        add_metric('answer', structured)
-                        add_metric('answer_chars', len(structured))
-                        return RagAnswerResponse(
-                            question=req.question,
-                            prompt=cite_result.get('prompt') or '(structured curriculum answer)',
-                            answer=structured,
-                            contexts=synth_ctx,
-                            token_est=int(cite_result.get('token_est') or 0),
-                            meta=cite_result.get('meta'),
-                        )
-
-                    add_metric('structured_path_miss_reason', 'missing_context_citation_binding')
-                    add_metric('structured_path_fallback_nonstructured', 1)
-                else:
-                    add_metric('ctx_n', 0)
-                    add_metric('token_est', 0)
-                    add_metric('token_est_per_question', 0)
-                    add_metric('ctx_sources', '')
-                    add_metric('answer', structured)
-                    add_metric('answer_chars', len(structured))
-                    return RagAnswerResponse(
-                        question=req.question,
-                        prompt='(structured curriculum answer)',
-                        answer=structured,
-                        contexts=[],
-                        token_est=0,
-                    )
-            
-            add_metric('structured_path_miss_reason', miss_reason)
-            add_metric('structured_path_fallback_nonstructured', 1)
+            curr_payload = run_structured_curriculum_path(
+                req.question,
+                decision,
+                strategy,
+                require_citations=require_citations,
+                return_contexts=True,
+            )
+            if curr_payload:
+                structured = str(curr_payload.get('answer') or '')
+                contexts = list(curr_payload.get('contexts') or [])
+                token_est = int(curr_payload.get('token_est') or 0)
+                add_metric('ctx_n', len(contexts))
+                add_metric('token_est', token_est)
+                add_metric('token_est_per_question', token_est)
+                add_metric('ctx_sources', ','.join(_context_source_names({'contexts': contexts})))
+                add_metric('answer', structured)
+                add_metric('answer_chars', len(structured))
+                return RagAnswerResponse(
+                    question=req.question,
+                    prompt=str(curr_payload.get('prompt') or '(structured curriculum answer)'),
+                    answer=structured,
+                    contexts=contexts,
+                    token_est=token_est,
+                    meta=curr_payload.get('meta'),
+                )
 
         try:
             strict_reg_fallback = _should_use_regulations_strict_fallback(req.question, decision.effective_domain)
@@ -2803,6 +3349,7 @@ def openai_compatible_endpoint(request: dict):
     
     messages = request.get('messages', [])
     domain = request.get('domain', None)  # Custom parameter for domain selection
+    session_id = _extract_session_id_from_request(request)
     
     # Extract question from chat history (keep follow-up context)
     raw_last_user = ""
@@ -2831,10 +3378,15 @@ def openai_compatible_endpoint(request: dict):
         domain=domain,
         model=request.get('model', 'typhoon-rag'),
         msg_n=len(messages or []),
+        session_id=session_id or None,
     ):
         strategy = select_resolution_strategy(decision)
         add_metric('route_version', 'v3_unified')
         add_metric('resolution_path', strategy.resolution_path)
+        add_metric('structured_eligibility_reason', str(getattr(decision, 'structured_eligibility_reason', 'none') or 'none'))
+        add_metric('requires_clause_anchor', int(bool(getattr(decision, 'requires_clause_anchor', False))))
+        add_metric('needs_exact_schema', int(bool(getattr(decision, 'needs_exact_schema', False))))
+        add_metric('timeout_policy', str(getattr(decision, 'timeout_policy', 'normal') or 'normal'))
         _observe_entry_metrics(question, decision.requested_domain, use_langchain=use_langchain)
         _observe_default_request_metrics(
             structured_eligible=decision.structured_eligible,
@@ -2846,6 +3398,35 @@ def openai_compatible_endpoint(request: dict):
         add_metric('followup_previous_entity', str(followup_meta.get('followup_previous_entity') or ''))
         add_metric('followup_entity_overridden', int(followup_meta.get('followup_entity_overridden') or 0))
         add_metric('followup_entity_conflict', int(followup_meta.get('followup_entity_conflict') or 0))
+        add_metric('session_has_id', int(bool(session_id)))
+
+        if decision.primary_intent == 'prerequisite_lookup':
+            prereq_payload = _run_prerequisite_structured_guard(
+                question,
+                require_citations=False,
+                return_contexts=False,
+            )
+            prereq_answer = str(prereq_payload.get('answer') or '').strip()
+            add_metric('ctx_n', 0)
+            add_metric('token_est', 0)
+            add_metric('token_est_per_question', 0)
+            add_metric('ctx_sources', '')
+            add_metric('answer', prereq_answer)
+            add_metric('answer_chars', len(prereq_answer))
+            return {
+                "id": f"chatcpe-{uuid.uuid4().hex[:12]}",
+                "object": "chat.completion",
+                "created": int(time.time()),
+                "model": request.get('model', 'typhoon-rag'),
+                "choices": [
+                    {
+                        "index": 0,
+                        "message": {"role": "assistant", "content": prereq_answer},
+                        "finish_reason": "stop",
+                    }
+                ],
+                "usage": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
+            }
 
         strict_reg_fallback = _should_use_regulations_strict_fallback(question, domain)
         if strict_reg_fallback:
@@ -2863,10 +3444,17 @@ def openai_compatible_endpoint(request: dict):
                 with time_block('rag_query'):
                     result = rag_query_domain(question, domain) if domain else rag_query(question)
 
-        # New Feature: Multi-Intent Splitter and Merger
-        multi_result = _process_multi_intent(question, domain)
-        if multi_result:
-            merged_ans, all_ctx, t_est = multi_result
+        # Multi-intent shared path
+        multi_payload = None
+        if strategy.resolution_path == 'multi_intent_split':
+            multi_payload = run_multi_intent_path(
+                question,
+                decision.effective_domain,
+                require_citations=False,
+            )
+        if multi_payload:
+            merged_ans = str(multi_payload.get('answer') or '')
+            t_est = int(multi_payload.get('token_est') or 0)
             add_metric('answer', merged_ans)
             add_metric('answer_chars', len(merged_ans))
             import time
@@ -2928,17 +3516,13 @@ def openai_compatible_endpoint(request: dict):
             }
 
         if structured_reg_eligible:
-            from app.regulations_deterministic import structured_regulations_lookup
-            with time_block('structured_regulations'):
-                reg_result = structured_regulations_lookup(question)
-            add_metric('structured_regulations_source_ready', int(reg_result.get('rules_source_ready') or 0))
-            add_metric('structured_regulations_rules_files_n', int(reg_result.get('rules_files_n') or 0))
-            add_metric('structured_regulations_source_kind', str(reg_result.get('rules_source_kind') or ''))
-            add_metric('structured_regulations_miss_reason', str(reg_result.get('miss_reason') or ''))
-            if _structured_regulations_result_allowed(reg_result):
-                reg_answer = str(reg_result.get('answer') or '').strip()
-                add_metric('structured_regulations_hit', 1)
-                add_metric('structured_path_hit', 1)
+            reg_payload = run_structured_regulations_path(
+                question,
+                require_citations=False,
+                return_contexts=False,
+            )
+            if reg_payload:
+                reg_answer = str(reg_payload.get('answer') or '').strip()
                 add_metric('ctx_n', 0)
                 add_metric('token_est', 0)
                 add_metric('token_est_per_question', 0)
@@ -2961,49 +3545,40 @@ def openai_compatible_endpoint(request: dict):
                     ],
                     "usage": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
                 }
-            add_metric('structured_path_miss_reason', str(reg_result.get('miss_reason') or 'structured_guard_rejected'))
-            add_metric('structured_path_fallback_nonstructured', 1)
 
         # Structured curriculum shortcut for OpenWebUI (works even without retrieval)
-        structured = None
-        structured_result: dict[str, Any] = {}
         if structured_eligible:
-            with time_block('structured_curriculum'):
-                structured_result = structured_curriculum_lookup(question)
-            structured = structured_result.get('answer')
-            structured = _strip_inline_citations(str(structured or ''))
-            add_metric('curriculum_lookup_mode', structured_result.get('lookup_mode') or 'none')
-            add_metric('instructor_lookup_exact_code_hit', int(structured_result.get('instructor_lookup_exact_code_hit') or 0))
-            add_metric('instructor_lookup_relation_hit', int(structured_result.get('instructor_lookup_relation_hit') or 0))
-            add_metric('instructor_lookup_contact_hit', int(structured_result.get('instructor_lookup_contact_hit') or 0))
-        if structured:
-            add_metric('structured_curriculum_hit', 1)
-            add_metric('structured_path_hit', 1)
-            add_metric('ctx_n', 0)
-            add_metric('token_est', 0)
-            add_metric('token_est_per_question', 0)
-            add_metric('ctx_sources', '')
-            add_metric('answer', structured)
-            add_metric('answer_chars', len(structured))
-            import time
-            import uuid
-            return {
-                "id": f"chatcpe-{uuid.uuid4().hex[:12]}",
-                "object": "chat.completion",
-                "created": int(time.time()),
-                "model": request.get('model', 'typhoon-rag'),
-                "choices": [
-                    {
-                        "index": 0,
-                        "message": {"role": "assistant", "content": structured},
-                        "finish_reason": "stop",
-                    }
-                ],
-                "usage": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
-            }
-        elif structured_eligible:
-            add_metric('structured_path_miss_reason', str(structured_result.get('miss_reason') or 'no_deterministic_match'))
-            add_metric('structured_path_fallback_nonstructured', 1)
+            curr_payload = run_structured_curriculum_path(
+                question,
+                decision,
+                strategy,
+                require_citations=False,
+                return_contexts=False,
+            )
+            if curr_payload:
+                structured = str(curr_payload.get('answer') or '')
+                add_metric('ctx_n', 0)
+                add_metric('token_est', 0)
+                add_metric('token_est_per_question', 0)
+                add_metric('ctx_sources', '')
+                add_metric('answer', structured)
+                add_metric('answer_chars', len(structured))
+                import time
+                import uuid
+                return {
+                    "id": f"chatcpe-{uuid.uuid4().hex[:12]}",
+                    "object": "chat.completion",
+                    "created": int(time.time()),
+                    "model": request.get('model', 'typhoon-rag'),
+                    "choices": [
+                        {
+                            "index": 0,
+                            "message": {"role": "assistant", "content": structured},
+                            "finish_reason": "stop",
+                        }
+                    ],
+                    "usage": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
+                }
 
         if not question:
             add_metric('error', 1)

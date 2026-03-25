@@ -26,6 +26,56 @@ import time
 import requests
 from .perf import add_metric
 
+
+def _estimate_tokens(text: str) -> int:
+    # Conservative estimator: Thai prompts are often tokenized much denser than 4-char/token.
+    return max(1, len(text or ''))
+
+
+def _estimate_messages_tokens(messages: List[Dict[str, str]]) -> int:
+    total = 0
+    for m in (messages or []):
+        total += _estimate_tokens(str(m.get('content') or '')) + 4
+    return max(1, total)
+
+
+def _trim_messages_to_budget(messages: List[Dict[str, str]], max_prompt_tokens: int) -> List[Dict[str, str]]:
+    """Trim oversized user content conservatively to fit prompt-token budget."""
+    msgs = [dict(m or {}) for m in (messages or [])]
+    if _estimate_messages_tokens(msgs) <= max_prompt_tokens:
+        return msgs
+
+    for i in range(len(msgs) - 1, -1, -1):
+        role = str(msgs[i].get('role') or '')
+        if role != 'user':
+            continue
+        content = str(msgs[i].get('content') or '')
+        if not content:
+            continue
+        over = _estimate_messages_tokens(msgs) - max_prompt_tokens
+        remove_chars = max(100, over * 5)
+        if len(content) > remove_chars:
+            msgs[i]['content'] = content[: max(200, len(content) - remove_chars)]
+            add_metric('prompt_trim_attempted', 1)
+            if _estimate_messages_tokens(msgs) <= max_prompt_tokens:
+                add_metric('prompt_trim_succeeded', 1)
+                return msgs
+
+    # Hard fallback: cap the final user message if still too large.
+    if msgs:
+        last = msgs[-1]
+        last_content = str(last.get('content') or '')
+        if last_content:
+            max_chars = max(400, max_prompt_tokens * 4)
+            last['content'] = last_content[:max_chars]
+            msgs[-1] = last
+            add_metric('prompt_trim_attempted', 1)
+            if _estimate_messages_tokens(msgs) <= max_prompt_tokens:
+                add_metric('prompt_trim_succeeded', 1)
+            else:
+                add_metric('prompt_trim_failed', 1)
+    return msgs
+
 class LLMTimeoutError(Exception):
     def __init__(self, message: str, stage: str):
         super().__init__(message)
@@ -420,6 +470,13 @@ class LLMEngine:
         }
 
         msgs = messages or [{'role': 'user', 'content': prompt}]
+        model_limit = int(os.getenv('LLM_MODEL_CONTEXT_LIMIT', '8192') or '8192')
+        reserve_output = max(64, int(os.getenv('LLM_OUTPUT_RESERVE_TOKENS', '256') or '256'))
+        prompt_tokens = _estimate_messages_tokens(msgs)
+        if prompt_tokens + reserve_output > model_limit:
+            add_metric('prompt_oversized_guard_triggered', 1)
+            msgs = _trim_messages_to_budget(msgs, max(512, model_limit - reserve_output))
+            prompt_tokens = _estimate_messages_tokens(msgs)
         url = f"{base}/chat/completions"
         payload: Dict[str, Any] = {
             'model': self.model_name,
@@ -471,14 +528,26 @@ class LLMEngine:
 
         # Build messages for Typhoon API
         msgs = messages or [{'role': 'user', 'content': prompt}]
+        model_limit = int(os.getenv('LLM_MODEL_CONTEXT_LIMIT', '8192') or '8192')
+        reserve_output = max(64, int(os.getenv('LLM_OUTPUT_RESERVE_TOKENS', '256') or '256'))
+        completion_tokens = max(1, int(LLM_MAX_TOKENS or 1))
+        prompt_tokens = _estimate_messages_tokens(msgs)
+
+        if prompt_tokens + reserve_output > model_limit:
+            add_metric('prompt_oversized_guard_triggered', 1)
+            msgs = _trim_messages_to_budget(msgs, max(512, model_limit - reserve_output))
+            prompt_tokens = _estimate_messages_tokens(msgs)
+
+        # Typhoon can validate against total tokens; keep max_tokens above prompt+1.
+        safe_total_max_tokens = max(prompt_tokens + 1, prompt_tokens + completion_tokens)
         url = f"{base}/chat/completions"
 
         payload: Dict[str, Any] = {
             'model': self.model_name,
             'messages': msgs,
             'temperature': LLM_TEMPERATURE,
-            'max_completion_tokens': LLM_MAX_TOKENS,
-            'max_tokens': LLM_MAX_TOKENS,
+            'max_completion_tokens': completion_tokens,
+            'max_tokens': safe_total_max_tokens,
             'top_p': 0.6,
             'frequency_penalty': 0,
             'stream': True,

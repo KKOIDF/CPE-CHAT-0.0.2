@@ -134,20 +134,24 @@ def _find_cpe_2564_source() -> Optional[Path]:
         except Exception:
             pass
 
-    # Default location in this repo.
-    p = ROOT_DIR / 'data' / 'curriculum' / 'FOE10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt'
-    if p.exists():
-        return p
+    # Default locations in this repo.
+    default_paths = (
+        ROOT_DIR / 'data' / 'curriculum' / 'FOE10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt',
+        ROOT_DIR / 'data' / 'raw' / 'curriculum' / 'FOE10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt',
+    )
+    for p in default_paths:
+        if p.exists():
+            return p
 
-    # Best-effort: find a matching file name under data/curriculum.
-    cur_dir = ROOT_DIR / 'data' / 'curriculum'
-    try:
-        for cand in cur_dir.glob('**/*2564*.txt'):
-            name = cand.name
-            if 'วิศวกรรมคอมพิวเตอร์' in name and 'FOE10' in name:
-                return cand
-    except Exception:
-        return None
+    # Best-effort: find a matching file name under known curriculum folders.
+    for cur_dir in (ROOT_DIR / 'data' / 'curriculum', ROOT_DIR / 'data' / 'raw' / 'curriculum'):
+        try:
+            for cand in cur_dir.glob('**/*2564*.txt'):
+                name = cand.name
+                if 'วิศวกรรมคอมพิวเตอร์' in name and 'FOE10' in name:
+                    return cand
+        except Exception:
+            continue
 
     return None
 

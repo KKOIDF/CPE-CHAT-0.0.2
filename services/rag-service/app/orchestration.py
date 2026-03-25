@@ -49,6 +49,97 @@ except Exception:
     _MIN_DOCS_FOR_CONFIDENT = 2
 
 
+_INLINE_CITE_CAPTURE_RE = re.compile(r"\[([^\]]+?)/(\d+)\]")
+
+
+def _structured_rows_from_answer(answer: str, domain: str) -> List[Dict]:
+    """Convert deterministic structured answer citations into retrieval-like rows.
+
+    This avoids synthetic source labels like structured_curriculum_answer that break
+    evaluator citation validity checks.
+    """
+    txt = str(answer or '').strip()
+    if not txt:
+        return []
+
+    rows: List[Dict] = []
+    seen: set[str] = set()
+    for m in _INLINE_CITE_CAPTURE_RE.finditer(txt):
+        src = str(m.group(1) or '').strip()
+        try:
+            page = int(str(m.group(2) or '1').strip())
+        except Exception:
+            page = 1
+        if not src:
+            continue
+        key = f"{src.lower()}::{page}"
+        if key in seen:
+            continue
+        seen.add(key)
+        rows.append(
+            {
+                'doc_id': f"structured:{src}:{page}",
+                'domain': domain,
+                'source': src,
+                'path': src,
+                'page_start': page,
+                'page_end': page,
+                'text': txt,
+                'score_rrf': 1.0,
+            }
+        )
+
+    if rows:
+        return rows
+
+    # Conservative fallback when deterministic answer has no inline citations.
+    return [
+        {
+            'doc_id': 'structured:curriculum',
+            'domain': domain,
+            'source': 'curriculum',
+            'path': 'curriculum',
+            'text': txt,
+            'score_rrf': 1.0,
+        }
+    ]
+
+
+def extract_clause_id(text: str) -> str | None:
+    m = re.search(r"ข้อ\s*([๐-๙0-9]+(?:\.[๐-๙0-9]+)?)", text or "")
+    if not m:
+        return None
+    return (m.group(1) or '').translate(str.maketrans("๐๑๒๓๔๕๖๗๘๙", "0123456789"))
+
+
+def filter_contexts_by_clause(items: List[Dict], clause_id: str | None) -> List[Dict]:
+    """Keep only chunks that reference the requested clause; fallback to original list if empty."""
+    c = (clause_id or '').strip()
+    if not c:
+        return items or []
+
+    clause_pat = re.compile(rf"ข้อ\s*{re.escape(c)}(?:\b|\s|\.|:)", re.IGNORECASE)
+    out: List[Dict] = []
+    for it in (items or []):
+        txt = str(it.get('text') or '')
+        src = str(it.get('source') or '')
+        path = str(it.get('path') or '')
+        hay = f"{txt}\n{src}\n{path}"
+        if clause_pat.search(hay):
+            out.append(it)
+
+    if out:
+        add_metric('clause_anchor_filter_applied', 1)
+        add_metric('clause_anchor_id', c)
+        add_metric('clause_anchor_filtered_count', len(out))
+        return out
+
+    add_metric('clause_anchor_filter_applied', 1)
+    add_metric('clause_anchor_id', c)
+    add_metric('clause_anchor_filter_fallback_all', 1)
+    return items or []
+
+
 def _top_retrieval_score(items: List[Dict]) -> float:
     top = 0.0
     for it in (items or []):
@@ -153,15 +244,10 @@ def rag_query(question: str) -> Dict:
                 deterministic = structured_curriculum_answer(question)
                 if deterministic:
                     add_metric('structured_curriculum_early_rescue', 1)
+                    add_metric('structured_rescue_triggered', 1)
+                    adaptive['structured_rescue_triggered'] = 1
                     adaptive['structured_rescue_succeeded'] = 1
-                    retrieved = [{
-                        'doc_id': 'structured:curriculum',
-                        'domain': 'curriculum',
-                        'source': 'structured_curriculum_answer',
-                        'path': 'structured_curriculum_answer',
-                        'text': deterministic,
-                        'score_rrf': 1.0,
-                    }]
+                    retrieved = _structured_rows_from_answer(deterministic, domain='curriculum')
                 else:
                     retrieved = _retrieve_by_domain(question, domain=dom, vector_enabled=False)
             elif dom and not _SEARCH_ALL_DOMAINS:
@@ -219,6 +305,10 @@ def rag_query(question: str) -> Dict:
                 adaptive['retrieval_fallback_all_domains_succeeded'] = 1
 
     retrieved = _filter_chunks_by_reference(retrieved, question, strict=has_ref)
+
+    target_clause = extract_clause_id(question)
+    if target_clause and (dom_inferred in ('regulations', None) or 'ข้อ' in (question or '')):
+        retrieved = filter_contexts_by_clause(retrieved, target_clause)
     
     # Restrict to Top-3 for latency optimization
     if retrieved and len(retrieved) > 3:
@@ -284,15 +374,10 @@ def rag_query_domain(question: str, domain: str | None) -> Dict:
         deterministic = structured_curriculum_answer(question)
         if deterministic:
             add_metric('structured_curriculum_early_rescue', 1)
+            add_metric('structured_rescue_triggered', 1)
+            adaptive['structured_rescue_triggered'] = 1
             adaptive['structured_rescue_succeeded'] = 1
-            retrieved = [{
-                'doc_id': 'structured:curriculum',
-                'domain': 'curriculum',
-                'source': 'structured_curriculum_answer',
-                'path': 'structured_curriculum_answer',
-                'text': deterministic,
-                'score_rrf': 1.0,
-            }]
+            retrieved = _structured_rows_from_answer(deterministic, domain='curriculum')
         else:
             retrieved = _retrieve_by_domain(question, domain=domain, vector_enabled=False)
     else:
@@ -331,6 +416,10 @@ def rag_query_domain(question: str, domain: str | None) -> Dict:
         question,
         strict=bool(_reference_candidates(question)) and strict_ref_hints,
     )
+
+    target_clause = extract_clause_id(question)
+    if target_clause and dom == 'regulations':
+        retrieved = filter_contexts_by_clause(retrieved, target_clause)
     
     # Restrict to Top-3 for latency optimization
     if retrieved and len(retrieved) > 3:

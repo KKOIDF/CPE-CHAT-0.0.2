@@ -20,15 +20,20 @@ class RouteDecision:
     entities: List[str]
     structured_eligible: bool
     structured_kind: str
-    fallback_policy: str
+    structured_eligibility_reason: str = 'none'
+    requires_clause_anchor: bool = False
+    needs_exact_schema: bool = False
+    timeout_policy: str = 'normal'
+    fallback_policy: str = 'broad'
 
 @dataclass
 class ResolutionStrategy:
     # structured_exact: Must strictly match structure logic, else drop to RAG
     # structured_fuzzy: Allows partial structure extraction
     # keyword_only: Just boolean keyword lookups
+    # multi_intent_split: Split into subqueries and merge answers/contexts
     # full_rag: The heavy generative pipeline
-    resolution_path: str  # "structured_exact", "structured_fuzzy", "keyword_only", "full_rag"
+    resolution_path: str  # "structured_exact", "structured_fuzzy", "keyword_only", "multi_intent_split", "full_rag"
 
 def _extract_course_codes_local(text: str) -> List[str]:
     q = (text or '').strip()
@@ -105,6 +110,13 @@ def classify_intent(question: str) -> str:
 
     if any(t in ql for t in ('ลงทะเบียน', 'เพิ่มถอน', 'ลงเพิ่ม', 'ถอน', 'drop', 'register', 'enroll')):
         return 'registration_policy'
+
+    # Study-plan style questions (e.g., "ปี 1 เรียนอะไรบ้าง") should be
+    # treated as curriculum lookup so they can use deterministic routing.
+    year_hint = re.search(r"(?:ชั้นปีที่|ปีที่|ปี)\s*[1-4]", q) is not None
+    study_plan_hint = any(t in q for t in ('เรียนอะไร', 'เรียนอะไรบ้าง', 'วิชาอะไร', 'รายวิชา', 'ภาคการศึกษา', 'เทอม'))
+    if year_hint and study_plan_hint:
+        return 'curriculum_course_info'
     
     if any(t in ql for t in ('วัน', 'วันที่', 'เมื่อไร', 'กำหนด', 'deadline', 'ปฏิทิน', 'calendar')):
         return 'calendar_deadline'
@@ -140,7 +152,7 @@ def analyze_route(question: str, requested_domain: Optional[str] = None) -> Rout
     entities = _extract_course_codes_local(q)
     
     # Structured Eligibility evaluation
-    use_structured_curriculum = (os.getenv('RAG_USE_STRUCTURED_CURRICULUM', '0') or '0').strip().lower() in ('1', 'true', 'yes', 'on')
+    use_structured_curriculum = (os.getenv('RAG_USE_STRUCTURED_CURRICULUM', '1') or '1').strip().lower() in ('1', 'true', 'yes', 'on')
     
     curric_eligible = use_structured_curriculum and (effective_domain in ('curriculum', 'auto')) and primary_intent in (
         'instructor_lookup', 'credit_lookup', 'prerequisite_lookup', 'curriculum_course_info'
@@ -150,6 +162,21 @@ def analyze_route(question: str, requested_domain: Optional[str] = None) -> Rout
     
     structured_eligible = curric_eligible or reg_eligible
     structured_kind = 'curriculum' if curric_eligible else ('regulations' if reg_eligible else 'none')
+
+    if structured_eligible:
+        structured_eligibility_reason = 'qualified'
+    elif not use_structured_curriculum and primary_intent in (
+        'instructor_lookup', 'credit_lookup', 'prerequisite_lookup', 'curriculum_course_info'
+    ):
+        structured_eligibility_reason = 'env_disabled'
+    elif effective_domain not in ('curriculum', 'regulations', 'auto'):
+        structured_eligibility_reason = 'domain_mismatch'
+    else:
+        structured_eligibility_reason = 'intent_mismatch'
+
+    requires_clause_anchor = bool(re.search(r"ข้อ\s*[๐-๙0-9]+(?:\.[๐-๙0-9]+)?", q))
+    needs_exact_schema = primary_intent in ('credit_lookup', 'prerequisite_lookup', 'instructor_lookup', 'exam_policy')
+    timeout_policy = 'generous' if is_multi else ('fast' if needs_exact_schema else 'normal')
     
     # Fallback policy for retrieval strictness
     fallback_policy = 'strict' if primary_intent in ('exam_policy', 'registration_policy') else 'broad'
@@ -165,13 +192,17 @@ def analyze_route(question: str, requested_domain: Optional[str] = None) -> Rout
         entities=entities,
         structured_eligible=structured_eligible,
         structured_kind=structured_kind,
+        structured_eligibility_reason=structured_eligibility_reason,
+        requires_clause_anchor=requires_clause_anchor,
+        needs_exact_schema=needs_exact_schema,
+        timeout_policy=timeout_policy,
         fallback_policy=fallback_policy
     )
 
 def select_resolution_strategy(decision: RouteDecision) -> ResolutionStrategy:
     """Determine the optimal resolution path based on intent and constraints."""
     if decision.is_multi_intent:
-        return ResolutionStrategy(resolution_path="full_rag")
+        return ResolutionStrategy(resolution_path="multi_intent_split")
 
     if decision.structured_eligible:
         # Factual lookups must succeed completely (exact schema requirements)

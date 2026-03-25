@@ -66,6 +66,13 @@ class _Cfg:
     request_log_artifact_dir: str
 
 
+@dataclass
+class _SessionAgg:
+    turns: int = 0
+    cumulative_ms: float = 0.0
+    last_seen_ts: float = 0.0
+
+
 class MlflowObservability:
     """Opt-in MLflow observability for rag-service.
 
@@ -101,6 +108,9 @@ class MlflowObservability:
 
         self._request_events: Deque[Dict[str, Any]] = deque(maxlen=max(1000, self._cfg.window_n * 2))
         self._dropped_request_events: int = 0
+        self._sessions: Dict[str, _SessionAgg] = {}
+        self._session_ttl_s: float = max(60.0, float(os.getenv("MLFLOW_OBS_SESSION_TTL_S", "3600") or "3600"))
+        self._session_max_n: int = max(100, int(os.getenv("MLFLOW_OBS_SESSION_MAX_N", "5000") or "5000"))
 
     @staticmethod
     def _load_cfg() -> _Cfg:
@@ -217,6 +227,7 @@ class MlflowObservability:
 
         endpoint = str(metrics.get("endpoint") or request_name or "unknown")
         endpoint_key = _safe_name(endpoint)
+        session_id = self._extract_session_id(metrics)
 
         total_ms = float(timings.get("total") or 0.0)
 
@@ -228,7 +239,28 @@ class MlflowObservability:
         if ans.strip().startswith("(exception)"):
             error = 1
 
+        session_turn_index = 0
+        session_cumulative_ms = 0.0
+
         with self._lock:
+            now_ts = time.time()
+            if session_id:
+                self._gc_sessions_locked(now_ts)
+                session_key = f"{endpoint_key}::{session_id}"
+                agg = self._sessions.get(session_key)
+                if agg is None:
+                    if len(self._sessions) >= self._session_max_n:
+                        oldest_key = min(self._sessions.items(), key=lambda kv: kv[1].last_seen_ts)[0]
+                        self._sessions.pop(oldest_key, None)
+                    agg = _SessionAgg(last_seen_ts=now_ts)
+                    self._sessions[session_key] = agg
+                agg.turns += 1
+                if total_ms > 0:
+                    agg.cumulative_ms += total_ms
+                agg.last_seen_ts = now_ts
+                session_turn_index = agg.turns
+                session_cumulative_ms = agg.cumulative_ms
+
             self._counts[endpoint_key] += 1
             if error:
                 self._errors[endpoint_key] += 1
@@ -258,6 +290,15 @@ class MlflowObservability:
                     continue
                 self._metric_sums[endpoint_key][key] += numeric
                 self._metric_counts[endpoint_key][key] += 1
+
+        if session_id:
+            try:
+                metrics = dict(metrics or {})
+                metrics["session_id"] = session_id
+                metrics["session_turn_index"] = int(session_turn_index)
+                metrics["session_cumulative_ms"] = float(session_cumulative_ms)
+            except Exception:
+                pass
 
         # Per-request event logging (every question).
         if self._cfg.request_log_enabled:
@@ -289,6 +330,9 @@ class MlflowObservability:
                 "request_name": request_name,
                 "error": bool(error),
                 "total_ms": float(timings.get("total") or 0.0),
+                "session_id": metrics.get("session_id"),
+                "session_turn_index": metrics.get("session_turn_index"),
+                "session_cumulative_ms": metrics.get("session_cumulative_ms"),
                 "domain": metrics.get("domain"),
                 "requested_domain": metrics.get("requested_domain"),
                 "model": metrics.get("model"),
@@ -529,6 +573,9 @@ class MlflowObservability:
                 "request_name": request_name,
                 "error": bool(error),
                 "total_ms": float(timings.get("total") or 0.0),
+                "request_total_ms": float(timings.get("total") or 0.0),
+                "session_cumulative_ms": float(metrics.get("session_cumulative_ms") or 0.0),
+                "session_turn_index": int(metrics.get("session_turn_index") or 0),
                 "domain": metrics.get("domain"),
                 "model": metrics.get("model"),
                 "provider": metrics.get("provider"),
@@ -568,10 +615,38 @@ class MlflowObservability:
                 response=resp_obj,
                 attributes={k: v for k, v in attrs.items() if v is not None},
                 tags={"service": "rag-service"},
-                execution_time_ms=int(float(timings.get("total") or 0.0)),
+                execution_time_ms=int(
+                    round(
+                        float(metrics.get("session_cumulative_ms") or 0.0)
+                        or float(timings.get("total") or 0.0)
+                    )
+                ),
             )
         except Exception:
             return
+
+    @staticmethod
+    def _extract_session_id(metrics: Dict[str, Any]) -> str:
+        if not isinstance(metrics, dict):
+            return ""
+        for key in ("session_id", "sessionId", "chat_id", "chatId", "conversation_id", "thread_id"):
+            v = metrics.get(key)
+            if v is None:
+                continue
+            s = str(v).strip()
+            if s:
+                return s[:128]
+        return ""
+
+    def _gc_sessions_locked(self, now_ts: float) -> None:
+        if not self._sessions:
+            return
+        stale_keys = [
+            k for k, v in self._sessions.items()
+            if (now_ts - float(v.last_seen_ts or 0.0)) > self._session_ttl_s
+        ]
+        for k in stale_keys:
+            self._sessions.pop(k, None)
 
 
 _OBS: Optional[MlflowObservability] = None
