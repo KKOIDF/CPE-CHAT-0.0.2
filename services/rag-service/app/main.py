@@ -1053,6 +1053,126 @@ def _sanitize_answer_language(question: str, answer: str) -> str:
     return a
 
 
+def _finalize_user_answer_text(question: str, answer: str) -> str:
+    """Normalize user-visible answers for chat UX: no source citations."""
+    cleaned = _clean_answer_text(answer, strip_citations=True)
+    return _sanitize_answer_language(question, cleaned)
+
+
+_ABSTAIN_PHRASES = (
+    'ไม่พบข้อความยืนยัน',
+    'ไม่ได้ระบุชัดเจน',
+    'ไม่มีข้อความยืนยันโดยตรง',
+    'บริบทไม่ได้กล่าวตรง',
+    'เอกสารไม่ได้กล่าวตรง',
+    'ไม่สามารถยืนยันได้จากเอกสาร',
+)
+
+
+def _is_abstain_line(text: str) -> bool:
+    t = (text or '').strip().lower()
+    if not t:
+        return False
+    if any(p in t for p in _ABSTAIN_PHRASES):
+        return True
+    return (
+        ('เอกสาร' in t and ('ไม่ได้กล่าว' in t or 'ไม่ยืนยัน' in t))
+        or ('บริบท' in t and ('ไม่ได้กล่าว' in t or 'ไม่ยืนยัน' in t))
+    )
+
+
+def _has_fact_signal(text: str) -> bool:
+    t = (text or '').strip()
+    if not t:
+        return False
+    if bool(re.search(r"\b[A-Za-z]{2,6}\s*[- ]?\s*\d{3}\b", t)):
+        return True
+    if bool(re.search(r"\b\d+\b", t)) and any(k in t for k in ('หน่วยกิต', 'ปี', 'ภาคการศึกษา', 'ครั้งที่')):
+        return True
+    return any(k in t for k in (
+        'คือ', 'ได้แก่', 'ไม่มีวิชาบังคับก่อน', 'มีวิชาบังคับก่อน', 'ใช่', 'ไม่ใช่', 'รับเฉพาะ',
+    ))
+
+
+def _strip_spurious_abstain_phrases(answer: str) -> str:
+    a = (answer or '').strip()
+    if not a:
+        return a
+    if not any(p in a for p in _ABSTAIN_PHRASES):
+        return a
+
+    lines = [ln.rstrip() for ln in a.splitlines()]
+    kept = [ln for ln in lines if ln.strip() and (not _is_abstain_line(ln))]
+
+    if kept and any(_has_fact_signal(ln) for ln in kept):
+        cleaned = '\n'.join(kept).strip()
+        cleaned = re.sub(
+            r"\s*(แต่)?\s*(ไม่พบข้อความยืนยัน|ไม่ได้ระบุชัดเจน|ไม่มีข้อความยืนยันโดยตรง|บริบทไม่ได้กล่าวตรง\s*ๆ?|เอกสารไม่ได้กล่าวตรง\s*ๆ?|ไม่สามารถยืนยันได้จากเอกสาร)\s*$",
+            '',
+            cleaned,
+        ).strip()
+        if cleaned:
+            add_metric('answer_abstain_phrase_stripped', 1)
+            return cleaned
+    return a
+
+
+def _has_core_answer(answer: str) -> bool:
+    a = (answer or '').strip()
+    if not a:
+        return False
+    if _has_fact_signal(a):
+        return True
+    core_markers = (
+        'คือ', 'มี', 'เป็น', 'ได้แก่', 'หน่วยกิต', 'ปี', 'Bachelor', 'รหัส',
+    )
+    return any(m in a for m in core_markers)
+
+
+def _strip_false_abstain(answer: str) -> str:
+    a = (answer or '').strip()
+    if not a:
+        return a
+    if not _has_core_answer(a):
+        return a
+
+    lines = []
+    for line in a.splitlines():
+        if ('คำตอบแยกตาม' in line) or line.strip().startswith('ประเด็นที่ '):
+            continue
+        if _is_abstain_line(line):
+            continue
+        lines.append(line)
+    out = "\n".join([ln for ln in lines if ln.strip()]).strip()
+    return out or a
+
+
+def _is_single_fact_question(question: str) -> bool:
+    q = (question or '').strip().lower()
+    if not q:
+        return False
+    single_fact_terms = (
+        'คืออะไร', 'กี่ปี', 'กี่หน่วยกิต', 'ชื่อเต็ม', 'รหัส', 'ครั้งที่เท่าไร', 'วันที่เท่าไร',
+    )
+    return any(t in q for t in single_fact_terms)
+
+
+def _compress_to_single_line(answer: str) -> str:
+    a = (answer or '').strip()
+    if not a:
+        return a
+    lines = [ln.strip() for ln in a.splitlines() if ln.strip()]
+    if not lines:
+        return a
+
+    for ln in lines:
+        if _is_abstain_line(ln):
+            continue
+        # Keep the first informative line; preserve citation if present.
+        return re.sub(r"^[-*]\s*", "", ln).strip()
+    return re.sub(r"^[-*]\s*", "", lines[0]).strip()
+
+
 _LOW_CONF_THAI_STOPWORDS = {
     'อะไร', 'อย่างไร', 'หรือ', 'และ', 'ของ', 'ใน', 'ที่', 'ได้', 'ไหม', 'บ้าง', 'จาก', 'ให้', 'กับ',
     'เรื่อง', 'เกี่ยวกับ', 'ข้อมูล', 'เอกสาร', 'ระบุ', 'ถาม', 'ตอบ', 'หน่อย', 'ครับ', 'ค่ะ', 'คะ',
@@ -2780,12 +2900,13 @@ def _process_multi_intent(
         )
 
     def _render_multi_answer(main_q: str, rows: list[tuple[str, str]], *, unanswered_count: int = 0) -> str:
-        lines: list[str] = [f"คำตอบแยกตาม {len(rows)} ประเด็นจากคำถาม: {main_q}"]
-        if unanswered_count > 0:
-            lines.append(f"หมายเหตุ: มี {unanswered_count} ประเด็นที่ยังไม่พบข้อความยืนยันโดยตรงจากเอกสาร")
-        for idx, (sq, ans) in enumerate(rows, start=1):
-            lines.append(f"\nประเด็นที่ {idx}: {sq}")
-            lines.append(ans.strip() if ans else "ไม่พบข้อมูลที่ยืนยันได้จากเอกสาร")
+        # Keep multi-intent output terse; avoid wrapper prose that hurts exactness.
+        lines: list[str] = []
+        for _sq, ans in rows:
+            payload = (ans or '').strip()
+            if not payload:
+                continue
+            lines.append(payload)
         return "\n".join(lines).strip()
 
     def _normalize_subquery(text: str) -> str:
@@ -2998,7 +3119,7 @@ def _process_multi_intent(
         if not prereq_guard_applied:
             ans = _enforce_answer_completeness(sq, str(ans or ''), domain=sq_domain or domain)
 
-        ans_txt = str(ans or '').strip()
+        ans_txt = _strip_false_abstain(_strip_spurious_abstain_phrases(str(ans or '').strip()))
         if sq_contexts and ans_txt and (not _has_citations(ans_txt)):
             ans_txt = _force_answer_citations(ans_txt, sq_prompt, sq_contexts)
         if not _is_no_data_answer(ans_txt):
@@ -3016,6 +3137,8 @@ def _process_multi_intent(
         return None
 
     merged = _render_multi_answer(question, answers, unanswered_count=max(0, len(subqs) - answered_count))
+    if 'คำตอบแยกตาม' in merged:
+        merged = merged.replace('คำตอบแยกตาม', '').strip()
     all_contexts = _merge_contexts_with_answer_citations(all_contexts, merged, default_domain=domain)
     return merged, all_contexts, total_tokens
 
@@ -3096,6 +3219,7 @@ def run_structured_regulations_path(
         return None
 
     answer = str(reg_result.get('answer') or '').strip()
+    answer = _strip_spurious_abstain_phrases(answer)
     q_clause = None
     m = re.search(r"ข้อ\s*([๐-๙0-9]+(?:\.[๐-๙0-9]+)?)", question or '')
     if m:
@@ -3173,6 +3297,7 @@ def run_structured_curriculum_path(
 
     # Normalize high-impact slots even on structured-shortcut returns.
     structured = _enforce_answer_completeness(question, structured, domain='curriculum')
+    structured = _strip_spurious_abstain_phrases(structured)
 
     if not structured:
         add_metric('structured_path_miss_reason', miss_reason)
@@ -3292,6 +3417,41 @@ def rag_answer_endpoint(req: RagAnswerRequest):
                 contexts=contexts,
                 token_est=token_est,
                 meta=prereq_payload.get('meta'),
+            )
+
+        # Hard claim-verification route: abstain if deterministic verifier has no support,
+        # to avoid fact-card hallucinations for yes/no traps.
+        if decision.primary_intent == 'claim_verification':
+            claim_payload = run_structured_curriculum_path(
+                req.question,
+                decision,
+                strategy,
+                require_citations=require_citations,
+                return_contexts=True,
+            )
+            if claim_payload:
+                answer = str(claim_payload.get('answer') or '').strip()
+                answer = _strip_false_abstain(_strip_spurious_abstain_phrases(answer))
+                if _is_single_fact_question(req.question):
+                    answer = _compress_to_single_line(answer)
+                contexts = list(claim_payload.get('contexts') or [])
+                token_est = int(claim_payload.get('token_est') or 0)
+                return RagAnswerResponse(
+                    question=req.question,
+                    prompt=str(claim_payload.get('prompt') or '(claim verification)'),
+                    answer=answer,
+                    contexts=contexts,
+                    token_est=token_est,
+                    meta=claim_payload.get('meta'),
+                )
+            abstain = 'ไม่พบข้อมูลที่ยืนยันได้จากเอกสารสำหรับคำถามแบบใช่หรือไม่'
+            return RagAnswerResponse(
+                question=req.question,
+                prompt='(claim verification miss)',
+                answer=abstain,
+                contexts=[],
+                token_est=0,
+                meta={'structured_guard': 'claim_verification_miss'},
             )
 
         # Multi-intent shared path
@@ -3422,7 +3582,7 @@ def rag_answer_endpoint(req: RagAnswerRequest):
         add_metric('prompt_chars', len(result.get('prompt') or ''))
 
         # Build chat style messages for models that support it
-        system_msg = { 'role': 'system', 'content': 'คุณคือผู้ช่วยของภาควิชาวิศวกรรมคอมพิวเตอร์ ใช้เฉพาะข้อมูลในบริบทเท่านั้น ตอบโดยตรงและชัดเจน ห้ามให้ลิงก์/URL ภายนอก เว้นแต่ปรากฏอยู่ในบริบท หากคำถามกำกวมให้ถามกลับ 1 คำถามสั้น ๆ เพื่อขอรายละเอียดที่จำเป็น หากไม่พบคำตอบแบบชัดเจน ให้สรุปเท่าที่สรุปได้จากบริบท และระบุว่าเอกสารไม่ได้กล่าวตรง ๆ หรือไม่มีข้อความยืนยันโดยตรง' }
+        system_msg = { 'role': 'system', 'content': 'คุณคือผู้ช่วยของภาควิชาวิศวกรรมคอมพิวเตอร์ ใช้เฉพาะข้อมูลในบริบทเท่านั้น ตอบโดยตรงและชัดเจน ห้ามให้ลิงก์/URL ภายนอก เว้นแต่ปรากฏอยู่ในบริบท หากคำถามกำกวมให้ถามกลับ 1 คำถามสั้น ๆ เพื่อขอรายละเอียดที่จำเป็น หากมีหลักฐานครบให้ตอบตรง ๆ และไม่ต้องเติมข้อความปฏิเสธท้ายคำตอบ' }
         user_msg = { 'role': 'user', 'content': result['prompt'] }
 
         # Hard guardrails: if no context, never hallucinate.
@@ -3498,6 +3658,9 @@ def rag_answer_endpoint(req: RagAnswerRequest):
                         answer or '',
                         domain=effective_domain,
                     )
+                    answer = _strip_false_abstain(_strip_spurious_abstain_phrases(answer or ''))
+                    if _is_single_fact_question(req.question):
+                        answer = _compress_to_single_line(answer)
 
                     # Optionally enforce citations when we have context.
                     if require_citations and (result.get('contexts') or []) and answer and not answer.strip().startswith('('):
@@ -3646,6 +3809,7 @@ def openai_compatible_endpoint(request: dict):
             domain or decision.effective_domain,
         )
         if summary_fast:
+            summary_fast = _finalize_user_answer_text(question, summary_fast)
             add_metric('followup_summary_fast_path', 1)
             add_metric('answer', summary_fast)
             add_metric('answer_chars', len(summary_fast))
@@ -3670,6 +3834,7 @@ def openai_compatible_endpoint(request: dict):
                 "ต้องการให้สรุปเรื่องไหนครับ: 1) มาสายเข้าสอบ 2) ออกจากห้องสอบชั่วคราว "
                 "หรือพิมพ์ว่า 'สรุปทั้งสองข้อ'"
             )
+            clarify = _finalize_user_answer_text(question, clarify)
             add_metric('answer', clarify)
             add_metric('answer_chars', len(clarify))
             return {
@@ -3693,7 +3858,7 @@ def openai_compatible_endpoint(request: dict):
                 require_citations=False,
                 return_contexts=False,
             )
-            prereq_answer = str(prereq_payload.get('answer') or '').strip()
+            prereq_answer = _finalize_user_answer_text(question, str(prereq_payload.get('answer') or ''))
             add_metric('ctx_n', 0)
             add_metric('token_est', 0)
             add_metric('token_est_per_question', 0)
@@ -3725,8 +3890,7 @@ def openai_compatible_endpoint(request: dict):
                 prefer_extractive=(strategy.resolution_path == 'multi_intent_structured_or_extract'),
             )
         if multi_payload:
-            merged_ans = str(multi_payload.get('answer') or '')
-            merged_ans = _sanitize_answer_language(question, merged_ans)
+            merged_ans = _finalize_user_answer_text(question, str(multi_payload.get('answer') or ''))
             t_est = int(multi_payload.get('token_est') or 0)
             add_metric('answer', merged_ans)
             add_metric('answer_chars', len(merged_ans))
@@ -3768,9 +3932,43 @@ def openai_compatible_endpoint(request: dict):
                     ],
                     "usage": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
                 }
+
+        if decision.primary_intent == 'claim_verification':
+            claim_payload = run_structured_curriculum_path(
+                question,
+                decision,
+                strategy,
+                require_citations=False,
+                return_contexts=False,
+            )
+            if claim_payload:
+                claim_answer = _finalize_user_answer_text(
+                    question,
+                    _compress_to_single_line(
+                        _strip_false_abstain(_strip_spurious_abstain_phrases(str(claim_payload.get('answer') or '')))
+                    ),
+                )
+            else:
+                claim_answer = 'ไม่พบข้อมูลที่ยืนยันได้จากเอกสารสำหรับคำถามแบบใช่หรือไม่'
+            add_metric('answer', claim_answer)
+            add_metric('answer_chars', len(claim_answer))
+            return {
+                "id": f"chatcpe-{uuid.uuid4().hex[:12]}",
+                "object": "chat.completion",
+                "created": int(time.time()),
+                "model": request.get('model', 'typhoon-rag'),
+                "choices": [
+                    {
+                        "index": 0,
+                        "message": {"role": "assistant", "content": claim_answer},
+                        "finish_reason": "stop",
+                    }
+                ],
+                "usage": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
+            }
             with time_block('llm_generate'):
                 answer = llm_engine.generate(question, messages=messages)
-            answer = _clean_answer_text(answer, strip_citations=True)
+            answer = _finalize_user_answer_text(question, answer)
             add_metric('answer', (answer or '').strip())
             add_metric('answer_chars', len((answer or '').strip()))
             return {
@@ -3795,7 +3993,7 @@ def openai_compatible_endpoint(request: dict):
                 return_contexts=False,
             )
             if reg_payload:
-                reg_answer = str(reg_payload.get('answer') or '').strip()
+                reg_answer = _finalize_user_answer_text(question, str(reg_payload.get('answer') or ''))
                 add_metric('ctx_n', 0)
                 add_metric('token_est', 0)
                 add_metric('token_est_per_question', 0)
@@ -3829,7 +4027,7 @@ def openai_compatible_endpoint(request: dict):
                 return_contexts=False,
             )
             if curr_payload:
-                structured = str(curr_payload.get('answer') or '')
+                structured = _finalize_user_answer_text(question, str(curr_payload.get('answer') or ''))
                 add_metric('ctx_n', 0)
                 add_metric('token_est', 0)
                 add_metric('token_est_per_question', 0)
@@ -3884,7 +4082,7 @@ def openai_compatible_endpoint(request: dict):
         add_metric('prompt_chars', len(result.get('prompt') or ''))
 
         # Build system message for RAG context (clean answers, no forced citations)
-        system_msg = { 'role': 'system', 'content': 'คุณคือผู้ช่วยของภาควิชาวิศวกรรมคอมพิวเตอร์ ใช้เฉพาะข้อมูลในบริบทเท่านั้น ตอบโดยตรงและชัดเจน ห้ามคัดลอกบริบททั้งก้อน ห้ามให้ลิงก์/URL ภายนอก เว้นแต่ปรากฏอยู่ในบริบท หากคำถามกำกวมให้ถามกลับ 1 คำถามสั้น ๆ เพื่อขอรายละเอียดที่จำเป็น หากไม่พบคำตอบแบบชัดเจน ให้สรุปเท่าที่สรุปได้จากบริบท และระบุว่าเอกสารไม่ได้กล่าวตรง ๆ หรือไม่มีข้อความยืนยันโดยตรง' }
+        system_msg = { 'role': 'system', 'content': 'คุณคือผู้ช่วยของภาควิชาวิศวกรรมคอมพิวเตอร์ ใช้เฉพาะข้อมูลในบริบทเท่านั้น ตอบโดยตรงและชัดเจน ห้ามคัดลอกบริบททั้งก้อน ห้ามให้ลิงก์/URL ภายนอก เว้นแต่ปรากฏอยู่ในบริบท หากคำถามกำกวมให้ถามกลับ 1 คำถามสั้น ๆ เพื่อขอรายละเอียดที่จำเป็น หากมีหลักฐานครบให้ตอบตรง ๆ และไม่ต้องเติมข้อความปฏิเสธท้ายคำตอบ' }
         user_msg = { 'role': 'user', 'content': result['prompt'] }
 
         # Generate answer
@@ -3932,8 +4130,10 @@ def openai_compatible_endpoint(request: dict):
                                                 answer = llm_engine.generate(result['prompt'], messages=[system_msg, user_msg])
 
             if not (answer or '').strip().startswith('('):
-                answer = _clean_answer_text(answer, strip_citations=True)
-                answer = _sanitize_answer_language(question, answer)
+                answer = _strip_false_abstain(_strip_spurious_abstain_phrases(answer))
+                if _is_single_fact_question(question):
+                    answer = _compress_to_single_line(answer)
+                answer = _finalize_user_answer_text(question, answer)
 
         if (answer or '').strip() == _FALLBACK:
             add_metric('fallback_answer_used', 1)

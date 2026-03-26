@@ -48,10 +48,37 @@ def _extract_course_codes_local(text: str) -> List[str]:
             out.append(code)
     return out
 
+
+def _is_claim_verification_question(question: str) -> bool:
+    q = (question or '').strip().lower()
+    if not q:
+        return False
+    claim_markers = (
+        'ใช่หรือไม่', 'จริงหรือไม่', 'หรือไม่', 'ถูกต้องหรือไม่', 'ใช่ไหม', 'ใช่มั้ย', 'จริงไหม',
+    )
+    if not any(m in q for m in claim_markers):
+        return False
+    has_subject_signal = bool(re.search(r"\b[a-z]{2,6}\s*[- ]?\s*\d{3}\b", q)) or any(
+        t in q for t in ('วิชาบังคับก่อน', 'วิชาบังคับ', 'วิชาเลือก', 'หมวด')
+    )
+    return has_subject_signal
+
 def is_multi_doc_question(q: str) -> bool:
     """Heuristic: detect questions that likely require combining multiple sources."""
     ql = (q or '').strip().lower()
     if not ql:
+        return False
+
+    # Treat compact curriculum two-slot factual asks as single-intent.
+    if ('หลักสูตร' in ql) and (('ระดับ' in ql and 'กี่ปี' in ql) or ('ครั้งที่' in ql and 'วันที่' in ql)):
+        return False
+
+    # Year/term credit aggregation is deterministic curriculum math, not true multi-intent.
+    if (
+        re.search(r"(?:ชั้นปีที่|ปีที่|ปี)\s*[1-4]", ql)
+        and ('หน่วยกิต' in ql)
+        and any(t in ql for t in ('รวม', 'ทั้งหมด', 'ทั้ง 2 ภาค', 'ทั้งสองภาค'))
+    ):
         return False
 
     # Strong explicit signals.
@@ -86,6 +113,9 @@ def classify_intent(question: str) -> str:
     """Classify the user intent into one of a unified set of primary intents."""
     q = (question or '').strip()
     ql = q.lower()
+
+    if _is_claim_verification_question(q):
+        return 'claim_verification'
 
     if is_multi_doc_question(q):
         return 'multi_intent'
@@ -157,7 +187,7 @@ def analyze_route(question: str, requested_domain: Optional[str] = None) -> Rout
     use_structured_curriculum = (os.getenv('RAG_USE_STRUCTURED_CURRICULUM', '1') or '1').strip().lower() in ('1', 'true', 'yes', 'on')
     
     curric_eligible = use_structured_curriculum and (effective_domain in ('curriculum', 'auto')) and primary_intent in (
-        'instructor_lookup', 'credit_lookup', 'prerequisite_lookup', 'curriculum_course_info'
+        'instructor_lookup', 'credit_lookup', 'prerequisite_lookup', 'curriculum_course_info', 'claim_verification'
     )
     
     structured_regulation_intents = {
@@ -183,7 +213,7 @@ def analyze_route(question: str, requested_domain: Optional[str] = None) -> Rout
         structured_eligibility_reason = 'intent_mismatch'
 
     requires_clause_anchor = bool(re.search(r"ข้อ\s*[๐-๙0-9]+(?:\.[๐-๙0-9]+)?", q))
-    needs_exact_schema = primary_intent in ('credit_lookup', 'prerequisite_lookup', 'instructor_lookup', 'exam_policy')
+    needs_exact_schema = primary_intent in ('credit_lookup', 'prerequisite_lookup', 'instructor_lookup', 'exam_policy', 'claim_verification')
     is_regulations_multi_fact = (
         is_multi
         and (effective_domain in ('regulations', 'auto'))
@@ -237,7 +267,7 @@ def select_resolution_strategy(decision: RouteDecision) -> ResolutionStrategy:
 
     if decision.structured_eligible:
         # Factual lookups must succeed completely (exact schema requirements)
-        if decision.primary_intent in ('credit_lookup', 'prerequisite_lookup', 'instructor_lookup', 'exam_policy'):
+        if decision.primary_intent in ('credit_lookup', 'prerequisite_lookup', 'instructor_lookup', 'exam_policy', 'claim_verification'):
             return ResolutionStrategy(resolution_path="structured_exact")
         else:
             return ResolutionStrategy(resolution_path="structured_fuzzy")

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+import sqlite3
 from difflib import SequenceMatcher
 from typing import Any
 
@@ -15,6 +16,32 @@ from .structured_curriculum import (
     load_cpe_curriculum_2564,
     load_credit_totals_2564,
 )
+
+
+_CLAIM_MARKERS = (
+    'ใช่หรือไม่', 'จริงหรือไม่', 'หรือไม่', 'ถูกต้องหรือไม่', 'ใช่ไหม', 'ใช่มั้ย', 'จริงไหม',
+)
+
+_ABSTAINISH_MARKERS = (
+    'ไม่พบข้อความยืนยัน', 'ไม่ได้ระบุชัดเจน', 'ไม่มีข้อความยืนยัน', 'บริบทไม่ได้กล่าวตรง',
+)
+
+_PROGRAM_FIELD_ALIASES: dict[str, tuple[str, ...]] = {
+    'program_code': ('รหัสหลักสูตร', 'รหัสของหลักสูตร', 'program code'),
+    'degree_name_en': ('ชื่อเต็มภาษาอังกฤษของปริญญา', 'ชื่อปริญญาภาษาอังกฤษ', 'degree name english'),
+    'degree_name_th': ('ชื่อเต็มภาษาไทยของปริญญา', 'ชื่อปริญญาภาษาไทย'),
+    'degree_abbr_en': ('ชื่อย่อภาษาอังกฤษ', 'degree abbreviation english'),
+    'degree_abbr_th': ('ชื่อย่อภาษาไทย', 'degree abbreviation thai'),
+    'program_level': ('ระดับหลักสูตร', 'ระดับการศึกษา', 'ปริญญาตรี'),
+    'study_years': ('กี่ปี', 'ระยะเวลาเรียน', 'ใช้เวลาเรียน', 'study years'),
+    'student_group': ('รับนักศึกษา', 'กลุ่มใด', 'รับเฉพาะนักศึกษาไทย', 'admission target', 'student group'),
+    'language_of_instruction': ('ภาษาในการเรียนการสอน', 'ใช้ภาษาอังกฤษเป็นหลักไหม', 'ภาษาไทยเป็นหลักไหม', 'language of instruction'),
+    'revised_from_program': ('ปรับปรุงจากหลักสูตร', 'ปรับปรุงจาก', 'revised from'),
+    'council_approval_meeting_no': ('อนุมัติสภา', 'ครั้งที่', 'meeting no'),
+    'council_approval_date': ('วันที่อนุมัติ', 'approval date', 'วันที่สภาอนุมัติ'),
+}
+
+_PROGRAM_META_CACHE: dict[str, str] | None = None
 
 _COURSE_ALIASES = {
     "introduction to computer engineering": "CPE100",
@@ -523,6 +550,495 @@ def _lookup_prerequisites_from_graph(code: str) -> tuple[list[str], str] | None:
     return reqs, 'curriculum_graph_relation'
 
 
+def _load_curriculum_reference_text() -> str:
+    curriculum = load_cpe_curriculum_2564()
+    if curriculum:
+        try:
+            txt = curriculum.source_path.read_text(encoding='utf-8', errors='ignore')
+            if txt.strip():
+                return txt
+        except Exception:
+            pass
+
+    # SQLite fallback for curriculum-level metadata questions.
+    db_path = domain_sqlite_path('curriculum')
+    if db_path:
+        con = None
+        rows: list[str] = []
+        try:
+            con = sqlite3.connect(db_path)
+            cur = con.execute(
+                "SELECT source, text FROM documents WHERE text IS NOT NULL ORDER BY rowid ASC LIMIT 2500"
+            )
+            for src, txt in cur.fetchall():
+                s = str(src or '').lower()
+                t = str(txt or '')
+                if not t.strip():
+                    continue
+                # Prefer FOE curriculum documents and chunks carrying core program metadata cues.
+                if (
+                    ('foe10' in s)
+                    or ('วศ' in s and 'คอมพิวเตอร์' in s)
+                    or any(k in t for k in (
+                        'รหัสหลักสูตร', 'ชื่อปริญญา', 'ชื่อย่อ', 'รับเฉพาะนักศึกษาไทย',
+                        'อนุมัติจากสภา', 'ปรับปรุง พ.ศ.', 'ภาษาในการเรียนการสอน',
+                    ))
+                ):
+                    rows.append(t)
+        except Exception:
+            rows = []
+        finally:
+            try:
+                if con is not None:
+                    con.close()
+            except Exception:
+                pass
+        if rows:
+            return "\n\n".join(rows)
+
+    all_courses = load_all_courses_2564()
+    if all_courses:
+        return ''
+    return ''
+
+
+def _extract_program_metadata() -> dict[str, str]:
+    global _PROGRAM_META_CACHE
+    if _PROGRAM_META_CACHE is not None:
+        return _PROGRAM_META_CACHE
+
+    text = _load_curriculum_reference_text()
+    out: dict[str, str] = {}
+    if not text.strip():
+        _PROGRAM_META_CACHE = out
+        return out
+
+    def _grab(pattern: str, flags: int = 0) -> str:
+        m = re.search(pattern, text, flags)
+        if not m:
+            return ''
+        return re.sub(r"\s+", ' ', str(m.group(1) or '').strip())
+
+    out['program_code'] = _grab(r"รหัสหลักสูตร[^\d]{0,20}(\d{7})")
+    out['degree_name_th'] = _grab(r"ชื่อปริญญาและสาขาวิชา\s*:?\s*ภาษาไทย\s*:?\s*([^\n]+)")
+
+    degree_en = _grab(r"ชื่อปริญญาและสาขาวิชา\s*:?\s*ภาษาอังกฤษ\s*:?\s*([^\n]+)")
+    if not degree_en:
+        degree_en = _grab(r"(Bachelor of Engineering\s*\([^\n\)]*Computer Engineering[^\n\)]*\))", re.IGNORECASE)
+    # Default to Thai program identity unless question explicitly asks international.
+    if degree_en and ('international' in degree_en.lower()):
+        non_intl = _grab(r"(Bachelor of Engineering\s*\(Computer Engineering\))", re.IGNORECASE)
+        if non_intl:
+            degree_en = non_intl
+    out['degree_name_en'] = degree_en
+
+    out['degree_abbr_th'] = _grab(r"ชื่อย่อ\s*:?\s*ภาษาไทย\s*:?\s*([^\n]+)")
+    out['degree_abbr_en'] = _grab(r"ชื่อย่อ\s*:?\s*ภาษาอังกฤษ\s*:?\s*([^\n]+)")
+
+    if 'ปริญญาตรี' in text:
+        out['program_level'] = 'หลักสูตรปริญญาตรี'
+    study_years = _grab(r"(?:ระยะเวลา(?:การศึกษา|เรียน)|ใช้เวลาศึกษา|ใช้เวลาเรียน)[^\d]{0,40}(\d)\s*ปี")
+    if study_years:
+        out['study_years'] = study_years
+
+    if re.search(r"รับเฉพาะ\s*นักศึกษาไทย", text):
+        out['student_group'] = 'รับเฉพาะนักศึกษาไทย'
+        out['admission_target'] = out['student_group']
+
+    lang = _grab(r"ภาษา(?:ที่ใช้)?ในการเรียนการสอน[^\n]{0,120}")
+    if not lang:
+        if ('ภาษาไทย' in text) and ('ภาษาอังกฤษ' in text):
+            lang = 'ภาษาไทยเป็นหลัก และมีบางรายวิชาใช้ภาษาอังกฤษ'
+        elif 'ภาษาไทย' in text:
+            lang = 'ภาษาไทยเป็นหลัก'
+    out['language_of_instruction'] = lang
+
+    revised = _grab(r"ปรับปรุงจากหลักสูตร[^\n]{0,80}(พ\.ศ\.\s*\d{4})")
+    if revised:
+        out['revised_from_program'] = revised
+
+    meeting = _grab(r"(?:สภามหาวิทยาลัย|สภา\s*มจธ\.)[^\n]{0,80}ครั้งที่\s*(\d+)")
+    if meeting:
+        out['council_approval_meeting_no'] = meeting
+    approval_date = _grab(r"(?:สภามหาวิทยาลัย|สภา\s*มจธ\.)[^\n]{0,120}วันที่\s*([^\n]+)")
+    if approval_date:
+        out['council_approval_date'] = approval_date
+
+    _PROGRAM_META_CACHE = {k: v for k, v in out.items() if str(v or '').strip()}
+    return _PROGRAM_META_CACHE
+
+
+def _program_metadata_answer(question: str, source_name: str) -> str | None:
+    q = (question or '').strip()
+    if not q:
+        return None
+    ql = q.lower()
+    if re.search(r"\b[A-Za-z]{2,6}\s*[- ]?\s*\d{3}\b", q):
+        return None
+
+    meta = _extract_program_metadata()
+    if not meta:
+        return None
+
+    def _get(key: str) -> str:
+        return str(meta.get(key) or '').strip()
+
+    # Combined concise shape for exactness on level+years style asks.
+    if any(t in q for t in ('ระดับใด', 'กี่ปี', 'ระดับหลักสูตร')):
+        lvl = _get('program_level')
+        yrs = _get('study_years')
+        if lvl and yrs:
+            return f"- {lvl} {yrs} ปี [{source_name}/1]"
+
+    if any(a in q for a in _PROGRAM_FIELD_ALIASES['program_code']):
+        v = _get('program_code')
+        if v:
+            return f"- รหัสหลักสูตรคือ {v} [{source_name}/1]"
+
+    if any(a in q for a in _PROGRAM_FIELD_ALIASES['degree_name_en']) and ('international' not in ql):
+        v = _get('degree_name_en')
+        if v:
+            return f"- ชื่อปริญญาภาษาอังกฤษคือ {v} [{source_name}/1]"
+
+    if any(a in q for a in _PROGRAM_FIELD_ALIASES['degree_name_th']):
+        v = _get('degree_name_th')
+        if v:
+            return f"- ชื่อปริญญาภาษาไทยคือ {v} [{source_name}/1]"
+
+    if any(a in q for a in _PROGRAM_FIELD_ALIASES['student_group']):
+        v = _get('student_group') or _get('admission_target')
+        if v:
+            return f"- {v} [{source_name}/1]"
+
+    if any(a in q for a in _PROGRAM_FIELD_ALIASES['language_of_instruction']):
+        v = _get('language_of_instruction')
+        if v:
+            return f"- ภาษาในการเรียนการสอน: {v} [{source_name}/1]"
+
+    if any(a in q for a in _PROGRAM_FIELD_ALIASES['revised_from_program']):
+        v = _get('revised_from_program')
+        if v:
+            return f"- ปรับปรุงจากหลักสูตร {v} [{source_name}/1]"
+
+    if any(a in q for a in _PROGRAM_FIELD_ALIASES['council_approval_meeting_no']):
+        v = _get('council_approval_meeting_no')
+        if v:
+            return f"- อนุมัติโดยสภามหาวิทยาลัยครั้งที่ {v} [{source_name}/1]"
+
+    if any(a in q for a in _PROGRAM_FIELD_ALIASES['council_approval_date']):
+        v = _get('council_approval_date')
+        if v:
+            return f"- วันที่อนุมัติ: {v} [{source_name}/1]"
+
+    return None
+
+
+def _extract_claim_codes(question: str) -> list[str]:
+    out: list[str] = []
+    seen: set[str] = set()
+    for m in re.finditer(r"\b([A-Za-z]{2,6})\s*[- ]?\s*(\d{3})\b", question or ''):
+        code = f"{(m.group(1) or '').upper()}{(m.group(2) or '')}"
+        if code in seen:
+            continue
+        seen.add(code)
+        out.append(code)
+    return out
+
+
+def _lookup_course_group_from_sqlite(code: str) -> tuple[str | None, str | None]:
+    hit = _lookup_course_from_sqlite(code)
+    if not hit:
+        return None, None
+    _, src = hit
+
+    db_path = domain_sqlite_path('curriculum')
+    k = (code or '').replace('-', '').replace(' ', '').upper()
+    m = re.match(r'^([A-Z]{2,6})(\d{3})$', k)
+    if not m:
+        return None, None
+    pref, num = m.group(1), m.group(2)
+    dids = keyword_search(f'{pref} {num}', limit=300, sqlite_path=db_path)
+    docs = fetch_docs_with_path(dids, sqlite_path=db_path)
+    for d in docs:
+        txt = str(d.get('text') or '')
+        if not txt:
+            continue
+        if re.search(r"วิชาชีพเลือก|วิชาเลือก", txt):
+            return 'elective', str(d.get('source') or src or '').strip()
+        if re.search(r"วิชาชีพบังคับ|วิชาบังคับ", txt):
+            return 'required', str(d.get('source') or src or '').strip()
+    return None, src
+
+
+def _extract_asserted_number(question: str) -> int | None:
+    q = (question or '').strip()
+    if not q:
+        return None
+    m = re.search(r"(\d{1,3})\s*หน่วยกิต", q)
+    if m:
+        try:
+            return int(m.group(1))
+        except Exception:
+            return None
+    m2 = re.search(r"(\d{1,3})\s*ข้อ", q)
+    if m2:
+        try:
+            return int(m2.group(1))
+        except Exception:
+            return None
+    return None
+
+
+def _resolve_course_by_code(code: str) -> tuple[Course | None, str | None]:
+    key = (code or '').replace('-', '').replace(' ', '').upper()
+    if not key:
+        return None, None
+    all_courses = load_all_courses_2564()
+    if key in all_courses:
+        return all_courses.get(key), None
+    hit = _lookup_course_from_sqlite(key)
+    if hit:
+        c, src = hit
+        return c, src
+    return None, None
+
+
+def _find_course_year_term(code: str) -> tuple[int | None, int | None]:
+    norm = (code or '').replace('-', '').replace(' ', '').upper()
+    if not re.match(r'^[A-Z]{2,6}\d{3}$', norm):
+        return None, None
+    for year in range(1, 5):
+        for term in (1, 2, 3):
+            q = f"ชั้นปีที่ {year} ภาคการศึกษาที่ {term}"
+            for c in _parse_study_plan_courses(q):
+                if f"{c.prefix}{c.number}".upper() == norm:
+                    return year, term
+    return None, None
+
+
+def _classify_curriculum_question_type(question: str) -> str:
+    q = (question or '').strip().lower()
+    if not q:
+        return 'unknown'
+
+    if any(t in q for t in _CLAIM_MARKERS):
+        return 'claim_verification'
+    if any(t in q for t in ('ผลลัพธ์การเรียนรู้', 'learning outcome', 'learning outcomes')):
+        return 'learning_outcomes_count'
+    if any(t in q for t in ('cefr',)):
+        return 'cefr'
+    if any(t in q for t in ('เกรด', 'grading')):
+        return 'grading'
+    if any(t in q for t in ('บังคับก่อน', 'prerequisite', 'pre-req', 'prereq', 'ต้องผ่าน')):
+        return 'prerequisite'
+    if any(t in q for t in ('รวมกันได้เท่าไร', 'รวมกี่หน่วยกิต', 'รวมทั้งหมด', 'ทั้ง 2 ภาค', 'ทั้งสองภาค')) and ('หน่วยกิต' in q):
+        return 'sum_credits'
+    if any(t in q for t in ('ชั้นปีที่', 'ปีที่', 'ภาคการศึกษา')) and ('หน่วยกิต' in q):
+        return 'sum_credits'
+    if any(t in q for t in ('ชื่อเต็ม', 'รหัสหลักสูตร', 'รับนักศึกษา', 'ภาษาในการเรียนการสอน', 'ปรับปรุงจากหลักสูตร')):
+        return 'program_metadata'
+    if any(t in q for t in ('กี่หน่วยกิต', 'หน่วยกิต')):
+        return 'credit'
+    return 'course_title'
+
+
+def _sum_credits_answer(question: str, source_name: str, totals: dict[str, int]) -> str | None:
+    q = (question or '').strip().lower()
+    if ('หน่วยกิต' not in q):
+        return None
+
+    # Curriculum-structure aggregation: GE + specific + free elective vs total.
+    if any(t in q for t in ('หมวดวิชาศึกษาทั่วไป', 'หมวดวิชาเฉพาะ', 'หมวดวิชาเลือกเสรี')) and ('รวม' in q):
+        ge = totals.get('general_education')
+        sp = totals.get('specific')
+        fe = totals.get('free_elective')
+        tot = totals.get('total')
+        if None in (ge, sp, fe, tot):
+            return None
+        calc = int(ge or 0) + int(sp or 0) + int(fe or 0)
+        verdict = 'ตรงกัน' if calc == int(tot or 0) else 'ไม่ตรงกัน'
+        return (
+            f"- รวมหน่วยกิตจากหมวดวิชาศึกษาทั่วไป + หมวดวิชาเฉพาะ + หมวดวิชาเลือกเสรี ได้ {calc} หน่วยกิต [{source_name}/1]\n"
+            f"- จำนวนหน่วยกิตรวมที่หลักสูตรกำหนดคือ {int(tot or 0)} หน่วยกิต และ{verdict} [{source_name}/1]"
+        )
+
+    # Year sum across both terms.
+    ym = re.search(r"(?:ชั้นปีที่|ปีที่|ปี)\s*([1-4])", q)
+    if ym and any(t in q for t in ('ทั้ง 2 ภาค', 'ทั้งสองภาค', 'ทั้งหมด', 'รวม')):
+        year = int(ym.group(1))
+        c1 = _parse_study_plan_courses(f"ชั้นปีที่ {year} ภาคการศึกษาที่ 1")
+        c2 = _parse_study_plan_courses(f"ชั้นปีที่ {year} ภาคการศึกษาที่ 2")
+        if c1 or c2:
+            s1 = sum(int(c.credits or 0) for c in c1)
+            s2 = sum(int(c.credits or 0) for c in c2)
+            total = s1 + s2
+            return (
+                f"- ชั้นปีที่ {year} ภาคการศึกษาที่ 1 มี {s1} หน่วยกิต และภาคการศึกษาที่ 2 มี {s2} หน่วยกิต [{source_name}/1]\n"
+                f"- รวมทั้งปีเป็น {total} หน่วยกิต [{source_name}/1]"
+            )
+    return None
+
+
+def _claim_verification_answer(question: str, source_name: str) -> str | None:
+    q = (question or '').strip()
+    ql = q.lower()
+    if not q or not any(m in ql for m in _CLAIM_MARKERS):
+        return None
+
+    codes = _extract_claim_codes(q)
+    qtype = _classify_curriculum_question_type(q)
+    meta = _extract_program_metadata()
+
+    # Claims on outcomes/complex fields require dedicated sources; avoid wrong fact-card fallback.
+    if qtype == 'learning_outcomes_count':
+        return None
+
+    # Program-level claim verification (no course code required).
+    if not codes:
+        src_name = source_name
+        ql = q.lower()
+
+        # Group-credit claim verification in GE structure.
+        ge_group_credits = {
+            'สุขพลานามัย': 1,
+            'วิชาสุขพลานามัย': 1,
+            'กลุ่มวิชาบังคับ': 25,
+            'วิชาบังคับเลือก': 6,
+            'หมวดวิชาศึกษาทั่วไป': 31,
+        }
+        asserted_num = _extract_asserted_number(q)
+        if asserted_num is not None:
+            for key, actual_num in ge_group_credits.items():
+                if key in q:
+                    if asserted_num == actual_num:
+                        return f"- ใช่ [{src_name}/1]\n- {key} มี {actual_num} หน่วยกิต [{src_name}/1]"
+                    return f"- ไม่ใช่ [{src_name}/1]\n- {key} มี {actual_num} หน่วยกิต [{src_name}/1]"
+
+        if ('รหัสหลักสูตร' in q) and meta.get('program_code'):
+            actual = str(meta.get('program_code') or '').strip()
+            m = re.search(r"(\d{7})", q)
+            if m:
+                asserted = m.group(1)
+                if asserted == actual:
+                    return f"- ใช่ [{src_name}/1]\n- รหัสหลักสูตรคือ {actual} [{src_name}/1]"
+                return f"- ไม่ใช่ [{src_name}/1]\n- รหัสหลักสูตรคือ {actual} [{src_name}/1]"
+
+        if ('ครั้งที่' in q) and meta.get('council_approval_meeting_no'):
+            actual = str(meta.get('council_approval_meeting_no') or '').strip()
+            m = re.search(r"ครั้งที่\s*(\d+)", q)
+            if m:
+                asserted = m.group(1)
+                if asserted == actual:
+                    return f"- ใช่ [{src_name}/1]\n- หลักสูตรอนุมัติครั้งที่ {actual} [{src_name}/1]"
+                return f"- ไม่ใช่ [{src_name}/1]\n- หลักสูตรอนุมัติครั้งที่ {actual} [{src_name}/1]"
+
+        if any(t in q for t in ('ใช้ภาษาอังกฤษเป็นหลัก', 'ภาษาอังกฤษเป็นหลัก')) and meta.get('language_of_instruction'):
+            lang = str(meta.get('language_of_instruction') or '').strip()
+            is_english_primary = ('ภาษาอังกฤษเป็นหลัก' in lang) and ('ภาษาไทยเป็นหลัก' not in lang)
+            if is_english_primary:
+                return f"- ใช่ [{src_name}/1]\n- ภาษาในการเรียนการสอน: {lang} [{src_name}/1]"
+            return f"- ไม่ใช่ [{src_name}/1]\n- ภาษาในการเรียนการสอน: {lang} [{src_name}/1]"
+
+        if ('รับทั้งนักศึกษาไทยและนักศึกษาต่างชาติ' in ql) and meta.get('student_group'):
+            student_group = str(meta.get('student_group') or '').strip()
+            both = ('ไทย' in student_group) and ('ต่างชาติ' in student_group)
+            if both:
+                return f"- ใช่ [{src_name}/1]\n- กลุ่มนักศึกษา: {student_group} [{src_name}/1]"
+            return f"- ไม่ใช่ [{src_name}/1]\n- กลุ่มนักศึกษา: {student_group} [{src_name}/1]"
+
+        if ('international program' in ql or 'หลักสูตรนานาชาติ' in ql) and meta.get('degree_name_en'):
+            degree_en = str(meta.get('degree_name_en') or '').strip()
+            is_intl = 'international' in degree_en.lower()
+            if is_intl:
+                return f"- ใช่ [{src_name}/1]\n- ชื่อปริญญาภาษาอังกฤษคือ {degree_en} [{src_name}/1]"
+            return f"- ไม่ใช่ [{src_name}/1]\n- ชื่อปริญญาภาษาอังกฤษคือ {degree_en} [{src_name}/1]"
+
+        return None
+
+    subject = codes[0]
+    asserted = codes[1] if len(codes) > 1 else ''
+    subject_disp = f"{subject[:3]} {subject[3:]}" if len(subject) >= 6 else subject
+
+    # Credit claim verification for explicit course code questions.
+    asserted_num = _extract_asserted_number(q)
+    if asserted_num is not None and ('หน่วยกิต' in q):
+        course, src_hit = _resolve_course_by_code(subject)
+        if course and int(course.credits or 0) > 0:
+            src_name = (src_hit or source_name or 'curriculum').strip()
+            actual = int(course.credits or 0)
+            if asserted_num == actual:
+                return f"- ใช่ [{src_name}/1]\n- วิชา {subject_disp} มี {actual} หน่วยกิต [{src_name}/1]"
+            return f"- ไม่ใช่ [{src_name}/1]\n- วิชา {subject_disp} มี {actual} หน่วยกิต [{src_name}/1]"
+
+    # Year/semester claim verification for explicit course code questions.
+    if any(t in q for t in ('ชั้นปี', 'ปีที่', 'ภาคการศึกษา', 'เทอม')):
+        y_act, t_act = _find_course_year_term(subject)
+        if y_act is not None and t_act is not None:
+            y_m = re.search(r"(?:ชั้นปีที่|ปีที่|ปี)\s*([1-4])", q)
+            t_m = re.search(r"(?:ภาคการศึกษาที่|ภาค|เทอม)\s*([1-3])", q)
+            y_as = int(y_m.group(1)) if y_m else None
+            t_as = int(t_m.group(1)) if t_m else None
+            if (y_as is not None) and (t_as is not None):
+                if y_as == y_act and t_as == t_act:
+                    return f"- ใช่ [{source_name}/1]\n- วิชา {subject_disp} เปิดสอนในชั้นปีที่ {y_act} ภาคการศึกษาที่ {t_act} [{source_name}/1]"
+                return f"- ไม่ใช่ [{source_name}/1]\n- วิชา {subject_disp} เปิดสอนในชั้นปีที่ {y_act} ภาคการศึกษาที่ {t_act} [{source_name}/1]"
+
+    if any(t in q for t in ('บังคับก่อน', 'ต้องผ่าน', 'prereq', 'prerequisite')):
+        hit = _lookup_prerequisites_from_sqlite(subject)
+        # Claim verification must use explicit text-backed evidence to avoid
+        # overconfident answers on noisy/implicit graph relations.
+        if hit is None:
+            return None
+
+        prereqs, src = hit
+        src_name = (src or source_name or 'curriculum').strip()
+        norm_prereq = [p.replace(' ', '').upper() for p in prereqs]
+        asserted_norm = asserted.replace(' ', '').upper()
+
+        if asserted:
+            asserted_disp = f"{asserted[:3]} {asserted[3:]}" if len(asserted) >= 6 else asserted
+            if not prereqs:
+                return (
+                    f"- ไม่ใช่ [{src_name}/1]\n"
+                    f"- รายวิชา {subject_disp} ไม่มีวิชาบังคับก่อน ดังนั้นไม่ได้บังคับก่อนด้วย {asserted_disp} [{src_name}/1]"
+                )
+            if asserted_norm in norm_prereq:
+                return (
+                    f"- ใช่ [{src_name}/1]\n"
+                    f"- รายวิชา {subject_disp} มีวิชาบังคับก่อนรวม {', '.join(prereqs)} [{src_name}/1]"
+                )
+            return (
+                f"- ไม่ใช่ [{src_name}/1]\n"
+                f"- รายวิชา {subject_disp} มีวิชาบังคับก่อนคือ {', '.join(prereqs)} [{src_name}/1]"
+            )
+
+        if prereqs:
+            return (
+                f"- ใช่ [{src_name}/1]\n"
+                f"- รายวิชา {subject_disp} มีวิชาบังคับก่อนคือ {', '.join(prereqs)} [{src_name}/1]"
+            )
+        return (
+            f"- ไม่ใช่ [{src_name}/1]\n"
+            f"- รายวิชา {subject_disp} ไม่มีวิชาบังคับก่อน [{src_name}/1]"
+        )
+
+    if any(t in q for t in ('วิชาบังคับ', 'วิชาเลือก')):
+        group, src = _lookup_course_group_from_sqlite(subject)
+        if not group:
+            return None
+        src_name = (src or source_name or 'curriculum').strip()
+        asks_required = 'วิชาบังคับ' in q
+        is_required = group == 'required'
+        verdict = 'ใช่' if (asks_required and is_required) or ((not asks_required) and (not is_required)) else 'ไม่ใช่'
+        group_th = 'วิชาบังคับ' if is_required else 'วิชาเลือก'
+        return (
+            f"- {verdict} [{src_name}/1]\n"
+            f"- รายวิชา {subject_disp} อยู่ในหมวด{group_th} [{src_name}/1]"
+        )
+
+    return None
+
+
 def structured_curriculum_lookup(question: str) -> dict[str, Any]:
     """Deterministic curriculum lookup with debug metadata.
 
@@ -535,6 +1051,39 @@ def structured_curriculum_lookup(question: str) -> dict[str, Any]:
     totals = load_credit_totals_2564()
     curriculum = load_cpe_curriculum_2564()
     source_name = curriculum.source_path.name if curriculum else "curriculum_sqlite"
+    qtype = _classify_curriculum_question_type(q)
+
+    if qtype == 'sum_credits':
+        sum_answer = _sum_credits_answer(q, source_name, totals)
+        if sum_answer:
+            return {
+                "answer": sum_answer,
+                "lookup_mode": "sum_credits",
+                "miss_reason": "",
+            }
+
+    if qtype == 'claim_verification':
+        claim_answer = _claim_verification_answer(q, source_name)
+        if claim_answer:
+            return {
+                "answer": claim_answer,
+                "lookup_mode": "claim_verification",
+                "miss_reason": "",
+            }
+        # Do not fall through to generic fact-card answers for unresolved yes/no claims.
+        return {
+            "answer": None,
+            "lookup_mode": "claim_verification",
+            "miss_reason": "claim_not_supported",
+        }
+
+    program_answer = _program_metadata_answer(q, source_name)
+    if program_answer:
+        return {
+            "answer": program_answer,
+            "lookup_mode": "program_metadata",
+            "miss_reason": "",
+        }
 
     # Category totals lookup.
     if "หน่วยกิต" in q or "กี่กิต" in q:

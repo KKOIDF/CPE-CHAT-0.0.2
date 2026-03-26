@@ -352,6 +352,7 @@ def structured_regulations_lookup(question: str) -> dict[str, Any]:
 
     source = exam_rules_source_status()
     rules_text = _read_exam_rules() if source["ready"] else ""
+    clause_nums = _extract_clause_tokens(q)
 
     if not source["ready"]:
         return _with_source_meta({
@@ -464,13 +465,7 @@ def structured_regulations_lookup(question: str) -> dict[str, Any]:
 
         return None
 
-    # Priority 0: Exact phrasing matches (e.g. natural language policy questions)
-    phrase_match = _exam_phrase_lookup(q)
-    if phrase_match:
-        return _with_source_meta(phrase_match, source)
-
-    # Priority 0 + 1: Numbered clause(s) — handle multi-intent in a single response.
-    clause_nums = _extract_clause_tokens(q)
+    # Priority 0: Numbered clause(s) must be anchored strictly to asked clause.
     if clause_nums and _has_exam_policy_signal(q):
         parts: list[str] = []
         for clause_num in clause_nums:
@@ -485,6 +480,16 @@ def structured_regulations_lookup(question: str) -> dict[str, Any]:
                 "lookup_mode": mode,
                 "miss_reason": "",
             }, source)
+        return _with_source_meta({
+            "answer": None,
+            "lookup_mode": "none",
+            "miss_reason": "no_exact_clause_match",
+        }, source)
+
+    # Priority 1: Exact phrasing matches (e.g. natural language policy questions)
+    phrase_match = _exam_phrase_lookup(q)
+    if phrase_match:
+        return _with_source_meta(phrase_match, source)
 
     # Priority 2: Topic-based search
     if rules_text:

@@ -1,0 +1,6 @@
+id,domain,expected_behavior,predicted_behavior,latency_ms,contexts_count,behavior_match,hallucination,false_negative,trace_id
+,curriculum,ANSWER,ABSTAIN,12373.117,5,0,0,1,
+,curriculum,ANSWER,ABSTAIN,9582.036,5,0,0,1,
+,curriculum,ANSWER,ANSWER,7892.009,5,1,0,0,
+,curriculum,ANSWER,ANSWER,5017.700,5,1,0,0,
+,curriculum,ANSWER,ANSWER,3786.714,5,1,0,0,
