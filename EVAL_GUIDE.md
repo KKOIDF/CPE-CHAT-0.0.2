@@ -29,6 +29,65 @@ python3 eval_runner.py --input eval_cases.json --compare-baseline reports/baseli
 ```
 If your new code falls behind the baseline MRR or hit rates, the script returns a non-zero exit code.
 
+## Per-Question Schema (eval_cases.json)
+`eval_runner.py` now supports richer metadata per question for thesis-style evaluation.
+
+Required core fields (existing):
+- `id`
+- `category`
+- `question`
+- `expected_domain`
+- `expected_answer_keywords`
+- `expected_source_contains`
+
+Optional fields (new):
+- `reference_answer`: canonical/ground-truth answer text
+- `domain`: explicit question domain override (for domain-level breakdown)
+- `expected_answerable`: `true/false`
+- `difficulty`: `easy|medium|hard`
+- `question_type` (or `reasoning_type`): e.g. `factual|procedural|multi-hop`
+- `human_correctness_score`: 1-5
+- `human_completeness_score`: 1-5
+- `human_clarity_score`: 1-5
+- `human_hallucination`: `true/false`
+
+Example:
+```json
+{
+	"id": "curriculum_001",
+	"category": "curriculum_fact_lookup",
+	"question": "CPE 342 คือวิชาอะไร",
+	"expected_domain": "curriculum",
+	"domain": "curriculum",
+	"expected_answer_keywords": ["CPE 342", "Machine Learning"],
+	"expected_source_contains": ["foe10", "curriculum"],
+	"reference_answer": "CPE 342 คือวิชา Machine Learning ...",
+	"expected_answerable": true,
+	"difficulty": "medium",
+	"question_type": "factual",
+	"human_correctness_score": 5,
+	"human_completeness_score": 4,
+	"human_clarity_score": 4,
+	"human_hallucination": false
+}
+```
+
+## Output Coverage
+`reports/eval_runner_*.json` now includes per-case fields for:
+- retrieval top-1/top-3/top-5 pass
+- best rank + MRR
+- top retrieved contexts with similarity scores (`retrieval_top_contexts`)
+- generation latency (derived from total - retrieval)
+- answer quality labels/scores and computed quality average
+- auto error tags for analysis (`retrieve_not_found`, `context_conflict`, etc.)
+
+Summary metrics now include:
+- Retrieval: Top-1/Top-3/Top-5 hit rate, MRR, by-domain breakdown
+- Answer quality: average quality score, `% correct`, `% hallucination`, `% answerable handled correctly`
+- Latency: average/median/p95 for retrieval, generation, total
+- Coverage: counts by domain, difficulty, question type
+- Error analysis: tag counts + failed case examples (up to 20)
+
 ## Reproducible Ingestion
 The ingestion pipeline strictly enforces a separation between source facts and database clusters. To re-index the RAG system from data files gracefully:
 ```bash

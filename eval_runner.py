@@ -45,6 +45,99 @@ def percentile(values: list[float], p: float) -> float:
     return float(ordered[idx])
 
 
+def to_bool_or_none(value: Any) -> bool | None:
+    if value is None:
+        return None
+    if isinstance(value, bool):
+        return value
+    text = str(value).strip().lower()
+    if text in {"1", "true", "yes", "y", "on"}:
+        return True
+    if text in {"0", "false", "no", "n", "off"}:
+        return False
+    return None
+
+
+def first_non_empty_str(*values: Any) -> str:
+    for v in values:
+        s = str(v or "").strip()
+        if s:
+            return s
+    return ""
+
+
+def context_similarity_score(ctx: dict[str, Any]) -> float | None:
+    for key in ("score", "similarity", "similarity_score", "rerank_score", "vector_score"):
+        try:
+            raw = (ctx or {}).get(key)
+            if raw is None:
+                continue
+            return float(raw)
+        except Exception:
+            continue
+    return None
+
+
+def top_context_rows(contexts: list[dict[str, Any]], k: int = 5) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+    for i, ctx in enumerate(contexts[: max(1, int(k))], start=1):
+        src = first_non_empty_str((ctx or {}).get("source"), (ctx or {}).get("path"), (ctx or {}).get("doc_id"))
+        rows.append(
+            {
+                "rank": i,
+                "source": src,
+                "domain": str((ctx or {}).get("domain") or "").strip().lower() or None,
+                "similarity_score": context_similarity_score(ctx),
+            }
+        )
+    return rows
+
+
+def detect_system_abstain(answer: str) -> bool:
+    txt = normalize_text(answer)
+    if not txt:
+        return True
+    abstain_phrases = [
+        "ไม่พบข้อมูล",
+        "ไม่สามารถยืนยัน",
+        "ไม่มีข้อมูล",
+        "ไม่ทราบ",
+        "insufficient information",
+    ]
+    return any(p in txt for p in abstain_phrases)
+
+
+def case_error_tags(
+    *,
+    error: str,
+    retrieval_hit_pass: bool,
+    retrieval_domain_pass: bool,
+    retrieval_source_pass: bool,
+    answer_hit_pass: bool,
+    citation_validity_pass: bool,
+    must_not_contain_pass: bool,
+    human_hallucination: bool | None,
+) -> list[str]:
+    tags: list[str] = []
+    if error:
+        tags.append("runtime_error")
+    if not retrieval_hit_pass:
+        if not retrieval_source_pass:
+            tags.append("retrieve_not_found")
+        if not retrieval_domain_pass:
+            tags.append("answer_out_of_domain")
+    if retrieval_hit_pass and not answer_hit_pass:
+        tags.append("retrieve_found_but_answer_incomplete")
+    if not citation_validity_pass:
+        tags.append("context_conflict")
+    if (human_hallucination is True) or (not must_not_contain_pass):
+        tags.append("hallucination")
+    if not tags:
+        tags.append("pass_or_unclassified")
+    # Keep stable order while removing duplicates.
+    return list(dict.fromkeys(tags))
+
+
 def parse_category_thresholds(text: str) -> dict[str, float]:
     out: dict[str, float] = {}
     for part in str(text or "").split(","):
@@ -103,7 +196,7 @@ def retrieval_hit(
     expected_domain: str | None,
     expected_domains_any: list[str],
     expected_source_contains: list[str],
-) -> tuple[bool, bool, bool, list[str], list[str], float, bool]:
+) -> tuple[bool, bool, bool, list[str], list[str], float, bool, int | None]:
     domains = [str((c or {}).get("domain") or "").strip().lower() for c in contexts or []]
     domain_set = {d for d in domains if d}
 
@@ -143,8 +236,9 @@ def retrieval_hit(
 
     mrr = 1.0 / best_rank if best_rank != 9999 else 0.0
     top_1 = (best_rank == 1)
+    out_rank = None if best_rank == 9999 else best_rank
 
-    return domain_ok and domains_any_ok and sources_ok, domain_ok, sources_ok, sorted(domain_set), missing_source_tokens, mrr, top_1
+    return domain_ok and domains_any_ok and sources_ok, domain_ok, sources_ok, sorted(domain_set), missing_source_tokens, mrr, top_1, out_rank
 
 
 def citation_validity(answer: str, contexts: list[dict[str, Any]]) -> tuple[bool, int, int, list[str]]:
@@ -212,6 +306,13 @@ class CaseResult:
     id: str
     category: str
     question: str
+    question_domain: str | None
+    expected_source_contains: list[str]
+    expected_answer_keywords: list[str]
+    reference_answer: str | None
+    expected_answerable: bool | None
+    difficulty: str | None
+    question_type: str | None
     expected_domain: str | None
     expected_domains_any: list[str]
     answer: str
@@ -225,7 +326,11 @@ class CaseResult:
     retrieval_domains_found: list[str]
     retrieval_missing_source_tokens: list[str]
     retrieval_mrr: float
+    retrieval_best_rank: int | None
     retrieval_top_1_pass: bool
+    retrieval_top_3_pass: bool
+    retrieval_top_5_pass: bool
+    retrieval_top_contexts: list[dict[str, Any]]
     citation_validity_pass: bool
     citation_total: int
     citation_valid_count: int
@@ -234,8 +339,16 @@ class CaseResult:
     total_pass: bool
     total_latency_ms: float
     retrieval_latency_ms: float
+    generation_latency_ms: float
     contexts_count: int
     error: str
+    human_correctness_score: float | None
+    human_completeness_score: float | None
+    human_clarity_score: float | None
+    human_hallucination: bool | None
+    answerable_handled_correctly: bool | None
+    quality_score_avg: float | None
+    error_tags: list[str]
     adaptive: dict[str, Any]
 
 
@@ -273,16 +386,59 @@ def summarize(results: list[CaseResult]) -> dict[str, Any]:
     total = len(results)
     lat_total = [r.total_latency_ms for r in results if r.total_latency_ms > 0]
     lat_ret = [r.retrieval_latency_ms for r in results if r.retrieval_latency_ms > 0]
+    lat_gen = [r.generation_latency_ms for r in results if r.generation_latency_ms > 0]
 
     answer_hit_rate = sum(1 for r in results if r.answer_hit_pass) / total if total else 0.0
     retrieval_hit_rate = sum(1 for r in results if r.retrieval_hit_pass) / total if total else 0.0
     retrieval_mrr = statistics.mean([r.retrieval_mrr for r in results]) if total else 0.0
     retrieval_top_1_rate = sum(1 for r in results if r.retrieval_top_1_pass) / total if total else 0.0
+    retrieval_top_3_rate = sum(1 for r in results if r.retrieval_top_3_pass) / total if total else 0.0
+    retrieval_top_5_rate = sum(1 for r in results if r.retrieval_top_5_pass) / total if total else 0.0
     citation_validity_rate = sum(1 for r in results if r.citation_validity_pass) / total if total else 0.0
     must_not_pass_rate = sum(1 for r in results if r.must_not_contain_pass) / total if total else 0.0
     overall_pass_rate = sum(1 for r in results if r.total_pass) / total if total else 0.0
 
+    # Quality metrics (prefer human labels when provided)
+    quality_rows = [r for r in results if r.quality_score_avg is not None]
+    avg_quality_score = (
+        statistics.mean([float(r.quality_score_avg) for r in quality_rows]) if quality_rows else 0.0
+    )
+
+    correctness_rows = [r for r in results if r.human_correctness_score is not None]
+    pct_correct_answers = (
+        sum(1 for r in correctness_rows if float(r.human_correctness_score or 0.0) >= 4.0) / len(correctness_rows)
+        if correctness_rows
+        else answer_hit_rate
+    )
+
+    hallucination_rows = [r for r in results if r.human_hallucination is not None]
+    pct_hallucination = (
+        sum(1 for r in hallucination_rows if r.human_hallucination is True) / len(hallucination_rows)
+        if hallucination_rows
+        else (1.0 - must_not_pass_rate)
+    )
+
+    answerable_rows = [r for r in results if r.answerable_handled_correctly is not None]
+    pct_answerable_handled_correctly = (
+        sum(1 for r in answerable_rows if r.answerable_handled_correctly) / len(answerable_rows)
+        if answerable_rows
+        else 0.0
+    )
+
+    # Coverage metrics
+    coverage_by_domain: dict[str, int] = {}
+    coverage_by_difficulty: dict[str, int] = {}
+    coverage_by_question_type: dict[str, int] = {}
+    for r in results:
+        dom = r.question_domain or "unknown"
+        coverage_by_domain[dom] = coverage_by_domain.get(dom, 0) + 1
+        diff = r.difficulty or "unspecified"
+        coverage_by_difficulty[diff] = coverage_by_difficulty.get(diff, 0) + 1
+        qtype = r.question_type or "unspecified"
+        coverage_by_question_type[qtype] = coverage_by_question_type.get(qtype, 0) + 1
+
     by_category: dict[str, dict[str, Any]] = {}
+    by_domain: dict[str, dict[str, Any]] = {}
     for r in results:
         cat = r.category
         bucket = by_category.setdefault(
@@ -292,16 +448,41 @@ def summarize(results: list[CaseResult]) -> dict[str, Any]:
                 "overall_pass": 0,
                 "answer_hit_pass": 0,
                 "retrieval_hit_pass": 0,
+                "retrieval_top_1_pass": 0,
+                "retrieval_top_3_pass": 0,
+                "retrieval_top_5_pass": 0,
                 "citation_validity_pass": 0,
+                "retrieval_mrr_sum": 0.0,
             },
         )
         bucket["total"] += 1
         bucket["overall_pass"] += int(r.total_pass)
         bucket["answer_hit_pass"] += int(r.answer_hit_pass)
         bucket["retrieval_hit_pass"] += int(r.retrieval_hit_pass)
-        bucket["retrieval_mrr_sum"] = bucket.get("retrieval_mrr_sum", 0.0) + r.retrieval_mrr
-        bucket["retrieval_top_1_pass"] = bucket.get("retrieval_top_1_pass", 0) + int(r.retrieval_top_1_pass)
+        bucket["retrieval_top_1_pass"] += int(r.retrieval_top_1_pass)
+        bucket["retrieval_top_3_pass"] += int(r.retrieval_top_3_pass)
+        bucket["retrieval_top_5_pass"] += int(r.retrieval_top_5_pass)
+        bucket["retrieval_mrr_sum"] += r.retrieval_mrr
         bucket["citation_validity_pass"] += int(r.citation_validity_pass)
+
+        dom = r.question_domain or "unknown"
+        dom_bucket = by_domain.setdefault(
+            dom,
+            {
+                "total": 0,
+                "top1": 0,
+                "top3": 0,
+                "top5": 0,
+                "mrr_sum": 0.0,
+                "retrieval_hit": 0,
+            },
+        )
+        dom_bucket["total"] += 1
+        dom_bucket["top1"] += int(r.retrieval_top_1_pass)
+        dom_bucket["top3"] += int(r.retrieval_top_3_pass)
+        dom_bucket["top5"] += int(r.retrieval_top_5_pass)
+        dom_bucket["mrr_sum"] += r.retrieval_mrr
+        dom_bucket["retrieval_hit"] += int(r.retrieval_hit_pass)
 
     by_category_rates: dict[str, dict[str, float]] = {}
     for cat, m in by_category.items():
@@ -311,9 +492,23 @@ def summarize(results: list[CaseResult]) -> dict[str, Any]:
             "overall_pass_rate": float(m["overall_pass"]) / n,
             "answer_hit_rate": float(m["answer_hit_pass"]) / n,
             "retrieval_hit_rate": float(m["retrieval_hit_pass"]) / n,
-            "retrieval_mrr": float(m["retrieval_mrr_sum"]) / n,
             "retrieval_top_1_rate": float(m["retrieval_top_1_pass"]) / n,
+            "retrieval_top_3_rate": float(m["retrieval_top_3_pass"]) / n,
+            "retrieval_top_5_rate": float(m["retrieval_top_5_pass"]) / n,
+            "retrieval_mrr": float(m["retrieval_mrr_sum"]) / n,
             "citation_validity_rate": float(m["citation_validity_pass"]) / n,
+        }
+
+    by_domain_rates: dict[str, dict[str, float]] = {}
+    for dom, m in by_domain.items():
+        n = max(1, int(m["total"]))
+        by_domain_rates[dom] = {
+            "total": float(m["total"]),
+            "retrieval_hit_rate": float(m["retrieval_hit"]) / n,
+            "retrieval_top_1_rate": float(m["top1"]) / n,
+            "retrieval_top_3_rate": float(m["top3"]) / n,
+            "retrieval_top_5_rate": float(m["top5"]) / n,
+            "retrieval_mrr": float(m["mrr_sum"]) / n,
         }
 
     adaptive_acc = default_adaptive()
@@ -339,14 +534,21 @@ def summarize(results: list[CaseResult]) -> dict[str, Any]:
         ),
     )
 
+    tag_counts: dict[str, int] = {}
+    for r in results:
+        for t in r.error_tags:
+            tag_counts[t] = tag_counts.get(t, 0) + 1
+
     top_failed = []
-    for f in failures_sorted[:10]:
+    for f in failures_sorted[:20]:
         top_failed.append(
             {
                 "id": f.id,
                 "category": f.category,
+                "domain": f.question_domain,
                 "question": f.question,
                 "error": f.error,
+                "error_tags": f.error_tags,
                 "answer_hit_coverage": f.answer_hit_coverage,
                 "retrieval_hit_pass": f.retrieval_hit_pass,
                 "citation_validity_pass": f.citation_validity_pass,
@@ -362,15 +564,34 @@ def summarize(results: list[CaseResult]) -> dict[str, Any]:
         "retrieval_hit_rate": retrieval_hit_rate,
         "retrieval_mrr": retrieval_mrr,
         "retrieval_top_1_rate": retrieval_top_1_rate,
+        "retrieval_top_3_rate": retrieval_top_3_rate,
+        "retrieval_top_5_rate": retrieval_top_5_rate,
         "citation_validity_rate": citation_validity_rate,
         "must_not_contain_pass_rate": must_not_pass_rate,
+        "avg_quality_score": avg_quality_score,
+        "pct_correct_answers": pct_correct_answers,
+        "pct_hallucination": pct_hallucination,
+        "pct_answerable_handled_correctly": pct_answerable_handled_correctly,
         "avg_latency_ms": statistics.mean(lat_total) if lat_total else 0.0,
+        "median_latency_ms": statistics.median(lat_total) if lat_total else 0.0,
         "p95_latency_ms": percentile(lat_total, 95),
         "avg_retrieval_latency_ms": statistics.mean(lat_ret) if lat_ret else 0.0,
+        "median_retrieval_latency_ms": statistics.median(lat_ret) if lat_ret else 0.0,
         "p95_retrieval_latency_ms": percentile(lat_ret, 95),
+        "avg_generation_latency_ms": statistics.mean(lat_gen) if lat_gen else 0.0,
+        "median_generation_latency_ms": statistics.median(lat_gen) if lat_gen else 0.0,
+        "p95_generation_latency_ms": percentile(lat_gen, 95),
+        "coverage": {
+            "total_questions": total,
+            "questions_by_domain": dict(sorted(coverage_by_domain.items())),
+            "questions_by_difficulty": dict(sorted(coverage_by_difficulty.items())),
+            "questions_by_question_type": dict(sorted(coverage_by_question_type.items())),
+        },
         "by_category": by_category_rates,
+        "by_domain": by_domain_rates,
         "adaptive_metrics_avg": adaptive_avg,
-        "failed_cases_top10": top_failed,
+        "error_tag_counts": dict(sorted(tag_counts.items(), key=lambda kv: (-kv[1], kv[0]))),
+        "failed_cases_top20": top_failed,
     }
 
 
@@ -390,19 +611,58 @@ def to_markdown(summary: dict[str, Any], input_path: Path, base_url: str) -> str
     lines.append("")
     lines.append("### Retrieval Metrics")
     lines.append(f"- top-1 hit rate: {summary['retrieval_top_1_rate']:.4f}")
+    lines.append(f"- top-3 hit rate: {summary.get('retrieval_top_3_rate', 0.0):.4f}")
+    lines.append(f"- top-5 hit rate: {summary.get('retrieval_top_5_rate', 0.0):.4f}")
     lines.append(f"- top-K hit rate: {summary.get('retrieval_hit_rate', 0.0):.4f}")
     lines.append(f"- mean reciprocal rank (mrr): {summary.get('retrieval_mrr', 0.0):.4f}")
     lines.append("")
     lines.append("### Answer Quality Metrics")
     lines.append(f"- answer keyword hit rate: {summary['answer_hit_rate']:.4f}")
+    lines.append(f"- average quality score (1-5): {summary.get('avg_quality_score', 0.0):.4f}")
+    lines.append(f"- % correct answers: {summary.get('pct_correct_answers', 0.0):.4f}")
+    lines.append(f"- % hallucination: {summary.get('pct_hallucination', 0.0):.4f}")
+    lines.append(f"- % answerable handled correctly: {summary.get('pct_answerable_handled_correctly', 0.0):.4f}")
     lines.append(f"- citation validity (groundedness): {summary['citation_validity_rate']:.4f}")
     lines.append(f"- must-not contain pass rate: {summary.get('must_not_contain_pass_rate', 0.0):.4f}")
     lines.append("")
     lines.append("### Latency Metrics")
     lines.append(f"- avg total latency ms: {summary['avg_latency_ms']:.2f}")
+    lines.append(f"- median total latency ms: {summary.get('median_latency_ms', 0.0):.2f}")
     lines.append(f"- p95 total latency ms: {summary['p95_latency_ms']:.2f}")
     lines.append(f"- avg retrieval latency ms: {summary['avg_retrieval_latency_ms']:.2f}")
+    lines.append(f"- median retrieval latency ms: {summary.get('median_retrieval_latency_ms', 0.0):.2f}")
     lines.append(f"- p95 retrieval latency ms: {summary['p95_retrieval_latency_ms']:.2f}")
+    lines.append(f"- avg generation latency ms: {summary.get('avg_generation_latency_ms', 0.0):.2f}")
+    lines.append(f"- median generation latency ms: {summary.get('median_generation_latency_ms', 0.0):.2f}")
+    lines.append(f"- p95 generation latency ms: {summary.get('p95_generation_latency_ms', 0.0):.2f}")
+    lines.append("")
+
+    lines.append("## Coverage")
+    lines.append("")
+    cov = summary.get("coverage") or {}
+    lines.append(f"- total questions: {int(cov.get('total_questions', 0))}")
+    for label, key in (
+        ("questions by domain", "questions_by_domain"),
+        ("questions by difficulty", "questions_by_difficulty"),
+        ("questions by question type", "questions_by_question_type"),
+    ):
+        vals = cov.get(key) or {}
+        if not vals:
+            lines.append(f"- {label}: none")
+            continue
+        compact = ", ".join([f"{k}={v}" for k, v in sorted(vals.items())])
+        lines.append(f"- {label}: {compact}")
+    lines.append("")
+
+    lines.append("## Retrieval By Domain")
+    lines.append("")
+    for dom in sorted((summary.get("by_domain") or {}).keys()):
+        row = (summary.get("by_domain") or {}).get(dom) or {}
+        lines.append(
+            f"- {dom}: total={int(row.get('total', 0))}, top1={row.get('retrieval_top_1_rate', 0.0):.4f}, "
+            f"top3={row.get('retrieval_top_3_rate', 0.0):.4f}, top5={row.get('retrieval_top_5_rate', 0.0):.4f}, "
+            f"mrr={row.get('retrieval_mrr', 0.0):.4f}"
+        )
     lines.append("")
 
     lines.append("## By Category")
@@ -412,8 +672,20 @@ def to_markdown(summary: dict[str, Any], input_path: Path, base_url: str) -> str
         lines.append(
             f"- {cat}: total={int(row['total'])}, overall={row['overall_pass_rate']:.4f}, "
             f"answer={row['answer_hit_rate']:.4f}, retrieval={row['retrieval_hit_rate']:.4f}, "
+            f"top1={row.get('retrieval_top_1_rate', 0.0):.4f}, top3={row.get('retrieval_top_3_rate', 0.0):.4f}, "
+            f"top5={row.get('retrieval_top_5_rate', 0.0):.4f}, "
             f"citation={row['citation_validity_rate']:.4f}"
         )
+    lines.append("")
+
+    lines.append("## Error Tag Counts")
+    lines.append("")
+    tag_counts = summary.get("error_tag_counts") or {}
+    if not tag_counts:
+        lines.append("- none")
+    else:
+        for tag, cnt in tag_counts.items():
+            lines.append(f"- {tag}: {cnt}")
     lines.append("")
 
     lines.append("## Adaptive Metrics")
@@ -422,9 +694,9 @@ def to_markdown(summary: dict[str, Any], input_path: Path, base_url: str) -> str
         lines.append(f"- {k}: {v:.4f}")
     lines.append("")
 
-    lines.append("## Failed Cases Top 10")
+    lines.append("## Failed Cases Top 20")
     lines.append("")
-    top_failed = summary.get("failed_cases_top10") or []
+    top_failed = summary.get("failed_cases_top20") or []
     if not top_failed:
         lines.append("- none")
     else:
@@ -433,7 +705,7 @@ def to_markdown(summary: dict[str, Any], input_path: Path, base_url: str) -> str
                 f"- {f['id']} ({f['category']}): coverage={f['answer_hit_coverage']:.2f}, "
                 f"retrieval={f['retrieval_hit_pass']}, citation={f['citation_validity_pass']}, "
                 f"must_not={f['must_not_contain_pass']}, latency_ms={f['total_latency_ms']:.1f}, "
-                f"error={f['error'] or 'none'}"
+                f"tags={','.join(f.get('error_tags') or [])}, error={f['error'] or 'none'}"
             )
     lines.append("")
 
@@ -670,15 +942,46 @@ def main() -> int:
             list(case.get("expected_answer_keywords") or []),
         )
 
-        retrieval_pass, retrieval_domain_pass, retrieval_source_pass, domains_found, missing_source, mrr, top1 = retrieval_hit(
+        retrieval_pass, retrieval_domain_pass, retrieval_source_pass, domains_found, missing_source, mrr, top1, best_rank = retrieval_hit(
             contexts,
             expected_domain,
             expected_domains_any,
             list(case.get("expected_source_contains") or []),
         )
+        top3 = best_rank is not None and best_rank <= 3
+        top5 = best_rank is not None and best_rank <= 5
 
         citation_pass, citation_total, citation_valid, citation_issues = citation_validity(answer, contexts)
         must_not_pass = must_not_contain_ok(answer, list(case.get("must_not_contain") or []))
+
+        expected_answerable = to_bool_or_none(case.get("expected_answerable"))
+        abstained = detect_system_abstain(answer)
+        answerable_handled: bool | None = None
+        if expected_answerable is True:
+            has_keywords = bool(list(case.get("expected_answer_keywords") or []))
+            answerable_handled = bool((answer_pass if has_keywords else (not abstained)) and not answer_err)
+        elif expected_answerable is False:
+            answerable_handled = bool(abstained and not answer_err)
+
+        h_correct = case.get("human_correctness_score")
+        h_complete = case.get("human_completeness_score")
+        h_clarity = case.get("human_clarity_score")
+        try:
+            h_correct_f = float(h_correct) if h_correct is not None else None
+        except Exception:
+            h_correct_f = None
+        try:
+            h_complete_f = float(h_complete) if h_complete is not None else None
+        except Exception:
+            h_complete_f = None
+        try:
+            h_clarity_f = float(h_clarity) if h_clarity is not None else None
+        except Exception:
+            h_clarity_f = None
+
+        quality_parts = [x for x in [h_correct_f, h_complete_f, h_clarity_f] if x is not None]
+        quality_avg = statistics.mean(quality_parts) if quality_parts else None
+        human_hallu = to_bool_or_none(case.get("human_hallucination"))
 
         err = answer_err or retrieval_err
         total_pass = bool(answer_pass and retrieval_pass and citation_pass and must_not_pass and not err)
@@ -688,11 +991,36 @@ def main() -> int:
             meta = retrieval_data.get("meta") if isinstance(retrieval_data, dict) else {}
         adaptive = coerce_adaptive(meta or {})
 
+        q_domain = first_non_empty_str(
+            case.get("domain"),
+            expected_domain,
+            (domains_found[0] if domains_found else ""),
+        ).lower() or None
+
+        generation_ms = max(0.0, float(total_ms) - float(retrieval_ms))
+        error_tags = case_error_tags(
+            error=err,
+            retrieval_hit_pass=retrieval_pass,
+            retrieval_domain_pass=retrieval_domain_pass,
+            retrieval_source_pass=retrieval_source_pass,
+            answer_hit_pass=answer_pass,
+            citation_validity_pass=citation_pass,
+            must_not_contain_pass=must_not_pass,
+            human_hallucination=human_hallu,
+        )
+
         results.append(
             CaseResult(
                 id=cid,
                 category=category,
                 question=question,
+                question_domain=q_domain,
+                expected_source_contains=list(case.get("expected_source_contains") or []),
+                expected_answer_keywords=list(case.get("expected_answer_keywords") or []),
+                reference_answer=(str(case.get("reference_answer") or "").strip() or None),
+                expected_answerable=expected_answerable,
+                difficulty=(str(case.get("difficulty") or "").strip().lower() or None),
+                question_type=(str(case.get("question_type") or case.get("reasoning_type") or "").strip().lower() or None),
                 expected_domain=expected_domain,
                 expected_domains_any=expected_domains_any,
                 answer=answer,
@@ -706,7 +1034,11 @@ def main() -> int:
                 retrieval_domains_found=domains_found,
                 retrieval_missing_source_tokens=missing_source,
                 retrieval_mrr=mrr,
+                retrieval_best_rank=best_rank,
                 retrieval_top_1_pass=top1,
+                retrieval_top_3_pass=top3,
+                retrieval_top_5_pass=top5,
+                retrieval_top_contexts=top_context_rows(contexts, k=5),
                 citation_validity_pass=citation_pass,
                 citation_total=citation_total,
                 citation_valid_count=citation_valid,
@@ -715,8 +1047,16 @@ def main() -> int:
                 total_pass=total_pass,
                 total_latency_ms=total_ms,
                 retrieval_latency_ms=retrieval_ms,
+                generation_latency_ms=generation_ms,
                 contexts_count=len(contexts or []),
                 error=err,
+                human_correctness_score=h_correct_f,
+                human_completeness_score=h_complete_f,
+                human_clarity_score=h_clarity_f,
+                human_hallucination=human_hallu,
+                answerable_handled_correctly=answerable_handled,
+                quality_score_avg=quality_avg,
+                error_tags=error_tags,
                 adaptive=adaptive,
             )
         )

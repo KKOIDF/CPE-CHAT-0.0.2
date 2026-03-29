@@ -155,6 +155,33 @@ def _top_sources(contexts: list[dict], n: int) -> list[str]:
     return out
 
 
+def _ctx_score(ctx: dict) -> float | None:
+    for k in ("score", "similarity", "similarity_score", "rerank_score", "vector_score"):
+        try:
+            v = ctx.get(k)
+            if v is None:
+                continue
+            return float(v)
+        except Exception:
+            continue
+    return None
+
+
+def _top_rows(contexts: list[dict], n: int) -> list[dict]:
+    rows: list[dict] = []
+    for i, c in enumerate(contexts[:n], start=1):
+        src = str(c.get("path") or c.get("source") or "")
+        rows.append(
+            {
+                "rank": i,
+                "source": _normalize_filename(src),
+                "domain": str((c.get("domain") or "")).strip().lower() or None,
+                "similarity_score": _ctx_score(c),
+            }
+        )
+    return rows
+
+
 def _first_hit_rank(
     retrieved: list[str],
     expected: Iterable[str],
@@ -191,8 +218,12 @@ class RowResult:
     expected_refs: list[str]
     expected_refs_norm: list[str]
     hit_rank: int | None
+    mrr: float
+    hit_at_1: bool
+    hit_at_3: bool
     hit_at_5: bool
     hit_at_10: bool
+    top_10: list[dict]
     top_5: list[str]
 
 
@@ -251,6 +282,9 @@ def main() -> int:
             retrieved_norm = [_normalize_filename(c.get("path") or c.get("source") or "") for c in contexts]
 
             hit_rank = _first_hit_rank(retrieved_norm, expected_norm, max_rank=max(10, int(args.k)))
+            mrr = (1.0 / hit_rank) if hit_rank else 0.0
+            hit_at_1 = hit_rank is not None and hit_rank <= 1
+            hit_at_3 = hit_rank is not None and hit_rank <= 3
             hit_at_5 = hit_rank is not None and hit_rank <= 5
             hit_at_10 = hit_rank is not None and hit_rank <= 10
 
@@ -267,8 +301,12 @@ def main() -> int:
                     expected_refs=expected,
                     expected_refs_norm=expected_norm,
                     hit_rank=hit_rank,
+                    mrr=mrr,
+                    hit_at_1=hit_at_1,
+                    hit_at_3=hit_at_3,
                     hit_at_5=hit_at_5,
                     hit_at_10=hit_at_10,
+                    top_10=_top_rows(contexts, 10),
                     top_5=_top_sources(contexts, 5),
                 )
             )
@@ -294,9 +332,12 @@ def main() -> int:
     gt_total = len(with_gt)
     hit5 = sum(1 for r in with_gt if r.hit_at_5)
     hit10 = sum(1 for r in with_gt if r.hit_at_10)
+    hit1 = sum(1 for r in with_gt if r.hit_at_1)
+    hit3 = sum(1 for r in with_gt if r.hit_at_3)
 
     hit_ranks = [r.hit_rank for r in with_gt if r.hit_rank is not None]
     avg_rank = (sum(hit_ranks) / len(hit_ranks)) if hit_ranks else None
+    mrr = (sum(r.mrr for r in with_gt) / gt_total) if gt_total else 0.0
 
     # domain alignment for all rows
     top1_dom_acc = sum(1 for r in results if r.top1_section_match)
@@ -309,8 +350,11 @@ def main() -> int:
         "csv": str(csv_path),
         "evaluated": total,
         "doc_eval_rows": gt_total,
+        "hit@1": hit1,
+        "hit@3": hit3,
         "hit@5": hit5,
         "hit@10": hit10,
+        "mrr": mrr,
         "avg_hit_rank": avg_rank,
         "domain_top1_accuracy": top1_dom_acc,
         "domain_top5_majority_accuracy": top5_dom_acc,
@@ -329,8 +373,12 @@ def main() -> int:
                 "expected_refs": r.expected_refs,
                 "expected_refs_norm": r.expected_refs_norm,
                 "hit_rank": r.hit_rank,
+                "mrr": r.mrr,
+                "hit@1": r.hit_at_1,
+                "hit@3": r.hit_at_3,
                 "hit@5": r.hit_at_5,
                 "hit@10": r.hit_at_10,
+                "top_10": r.top_10,
                 "top_5": r.top_5,
             }
             for r in results
@@ -345,8 +393,11 @@ def main() -> int:
     lines.append(f"- CSV: {csv_path}")
     lines.append(f"- Evaluated: {total}")
     lines.append(f"- Doc-eval rows (has expected ref): {gt_total}")
+    lines.append(f"- hit@1 (doc-eval only): {hit1}/{gt_total}")
+    lines.append(f"- hit@3 (doc-eval only): {hit3}/{gt_total}")
     lines.append(f"- hit@5 (doc-eval only): {hit5}/{gt_total}")
     lines.append(f"- hit@10 (doc-eval only): {hit10}/{gt_total}")
+    lines.append(f"- MRR (doc-eval only): {mrr:.4f}")
     lines.append(f"- Domain top1 accuracy (all rows): {top1_dom_acc}/{total}")
     lines.append(f"- Domain top5-majority accuracy (all rows): {top5_dom_acc}/{total}")
     if avg_rank is not None:
@@ -362,12 +413,16 @@ def main() -> int:
         sec_gt = [r for r in sec_rows if r.expected_refs_norm]
         sec_gt_total = len(sec_gt)
         sec_hit10 = sum(1 for r in sec_gt if r.hit_at_10)
+        sec_hit1 = sum(1 for r in sec_gt if r.hit_at_1)
+        sec_hit3 = sum(1 for r in sec_gt if r.hit_at_3)
+        sec_mrr = (sum(r.mrr for r in sec_gt) / sec_gt_total) if sec_gt_total else 0.0
         sec_top1 = sum(1 for r in sec_rows if r.top1_section_match)
         sec_top5 = sum(1 for r in sec_rows if r.top5_majority_section_match)
 
         lines.append(
             f"- {sec}: rows={len(sec_rows)} | doc_eval={sec_gt_total} | "
-            f"hit@10={sec_hit10}/{sec_gt_total} | top1={sec_top1}/{len(sec_rows)} | "
+            f"hit@1={sec_hit1}/{sec_gt_total} | hit@3={sec_hit3}/{sec_gt_total} | "
+            f"hit@10={sec_hit10}/{sec_gt_total} | mrr={sec_mrr:.4f} | top1={sec_top1}/{len(sec_rows)} | "
             f"top5maj={sec_top5}/{len(sec_rows)}"
         )
 
@@ -408,8 +463,9 @@ def main() -> int:
     print(f"Wrote: {json_path}")
     print(f"Wrote: {md_path}")
     print(
-        f"doc_hit@5={hit5}/{gt_total} doc_hit@10={hit10}/{gt_total} "
-        f"domain_top1={top1_dom_acc}/{total} domain_top5maj={top5_dom_acc}/{total} avg_rank={avg_rank}"
+        f"doc_hit@1={hit1}/{gt_total} doc_hit@3={hit3}/{gt_total} doc_hit@5={hit5}/{gt_total} "
+        f"doc_hit@10={hit10}/{gt_total} mrr={mrr:.4f} domain_top1={top1_dom_acc}/{total} "
+        f"domain_top5maj={top5_dom_acc}/{total} avg_rank={avg_rank}"
     )
 
     return 0
