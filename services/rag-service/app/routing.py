@@ -8,6 +8,10 @@ from dataclasses import dataclass, field
 
 from .config import KNOWN_DOMAINS, ROOT_DIR
 
+_AGGRESSIVE_BINARY_ROUTING = (os.getenv('RAG_AGGRESSIVE_BINARY_ROUTING', '0') or '0').strip().lower() in (
+    '1', 'true', 'yes', 'on'
+)
+
 @dataclass
 class RouteDecision:
     normalized_question: str
@@ -58,6 +62,9 @@ def _is_claim_verification_question(question: str) -> bool:
     )
     if not any(m in q for m in claim_markers):
         return False
+    if _AGGRESSIVE_BINARY_ROUTING:
+        # Aggressive mode prioritizes recall for binary evals.
+        return len(q) >= 6
     has_subject_signal = bool(re.search(r"\b[a-z]{2,6}\s*[- ]?\s*\d{3}\b", q)) or any(
         t in q for t in ('วิชาบังคับก่อน', 'วิชาบังคับ', 'วิชาเลือก', 'หมวด')
     )

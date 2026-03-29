@@ -1068,6 +1068,20 @@ _ABSTAIN_PHRASES = (
     'ไม่สามารถยืนยันได้จากเอกสาร',
 )
 
+_CLAIM_YES_PREFIXES = ('ใช่', 'จริง', 'ถูกต้อง')
+_CLAIM_NO_PREFIXES = ('ไม่ใช่', 'ไม่จริง', 'ไม่ถูกต้อง', 'ไม่ตรง', 'ไม่สอดคล้อง', 'ไม่เท่ากับ')
+_CLAIM_NO_MARKERS = (
+    'ไม่ใช่', 'ไม่จริง', 'ไม่ถูกต้อง', 'ไม่ตรง', 'ไม่สอดคล้อง', 'ไม่เท่ากับ',
+    'มีเพียง', 'จริงคือ', 'ควรเป็น', 'ที่ถูกต้องคือ', 'แต่จริง',
+)
+_CLAIM_YES_MARKERS = ('ใช่', 'ถูกต้อง', 'ตรงกับ', 'สอดคล้องกับ')
+_BINARY_CLAIM_STRICT = (os.getenv('RAG_BINARY_CLAIM_STRICT', '0') or '0').strip().lower() in (
+    '1', 'true', 'yes', 'on'
+)
+_CLAIM_VERIFIER_ENABLE = (os.getenv('RAG_CLAIM_VERIFIER_ENABLE', '1') or '1').strip().lower() in (
+    '1', 'true', 'yes', 'on'
+)
+
 
 def _is_abstain_line(text: str) -> bool:
     t = (text or '').strip().lower()
@@ -1079,6 +1093,284 @@ def _is_abstain_line(text: str) -> bool:
         ('เอกสาร' in t and ('ไม่ได้กล่าว' in t or 'ไม่ยืนยัน' in t))
         or ('บริบท' in t and ('ไม่ได้กล่าว' in t or 'ไม่ยืนยัน' in t))
     )
+
+
+def _extract_claim_verdict(text: str) -> str | None:
+    a = (text or '').strip()
+    if not a:
+        return None
+
+    lines = [re.sub(r'^[-*]\s*', '', ln.strip()) for ln in a.splitlines() if ln.strip()]
+    if lines:
+        first = lines[0].lower()
+        if any(first.startswith(p) for p in _CLAIM_NO_PREFIXES):
+            return 'ไม่ใช่'
+        if any(first.startswith(p) for p in _CLAIM_YES_PREFIXES):
+            return 'ใช่'
+
+    low = a.lower()
+    if any(m in low for m in _CLAIM_NO_MARKERS):
+        return 'ไม่ใช่'
+    if any(m in low for m in _CLAIM_YES_MARKERS):
+        return 'ใช่'
+    return None
+
+
+def _normalize_claim_verification_answer(
+    question: str,
+    answer: str,
+    *,
+    force_binary: bool,
+) -> str:
+    cleaned = _strip_false_abstain(_strip_spurious_abstain_phrases(answer or '')).strip()
+    verdict = _extract_claim_verdict(cleaned)
+    if verdict is None and force_binary:
+        verdict = 'ไม่ใช่'
+    if verdict is None:
+        return cleaned
+
+    lines = [re.sub(r'^[-*]\s*', '', ln.strip()) for ln in cleaned.splitlines() if ln.strip()]
+    reasons: list[str] = []
+    for ln in lines:
+        if ln.startswith('ใช่') or ln.startswith('ไม่ใช่'):
+            tail = ln.replace('ใช่', '', 1).replace('ไม่ใช่', '', 1).strip(' :,-')
+            if tail:
+                reasons.append(tail)
+            continue
+        reasons.append(ln)
+
+    reason = ''
+    for ln in reasons:
+        if _is_abstain_line(ln):
+            continue
+        if ln in ('ไม่', 'ใช่'):
+            continue
+        reason = ln
+        break
+
+    if reason:
+        return f"{verdict}\n{reason}"
+    if force_binary and verdict == 'ไม่ใช่':
+        return 'ไม่ใช่\nข้อความอ้างอิงในคำถามไม่สอดคล้องกับหลักฐานที่ค้นพบ'
+    return verdict
+
+
+def _has_min_claim_evidence(question: str, prompt: str) -> bool:
+    q = (question or '').strip()
+    p = (prompt or '').strip().lower()
+    if not q or not p:
+        return False
+
+    code_hits = 0
+    q_codes = [f"{(a or '').upper()}{(b or '')}" for a, b in _COURSE_CODE_RE.findall(q)]
+    for c in q_codes:
+        spaced = f"{c[: len(c) - 3]} {c[-3:]}" if len(c) > 3 else c
+        if c.lower() in p or spaced.lower() in p:
+            code_hits += 1
+    if q_codes:
+        return code_hits > 0
+
+    terms = _question_signal_terms(q)
+    if not terms:
+        return False
+    strong_terms = [t.lower() for t in terms if len(t.strip()) >= 3][:8]
+    if not strong_terms:
+        return False
+    hits = sum(1 for t in strong_terms if t in p)
+    need = 2 if len(strong_terms) >= 2 else 1
+    return hits >= need
+
+
+def _extract_claim_numbers(question: str) -> list[str]:
+    nums: list[str] = []
+    seen: set[str] = set()
+    for m in re.finditer(r"\b(\d{1,4})\b", question or ''):
+        n = (m.group(1) or '').strip()
+        if not n:
+            continue
+        # Ignore Buddhist years in claim comparison.
+        if len(n) == 4 and n.startswith('25'):
+            continue
+        if n in seen:
+            continue
+        seen.add(n)
+        nums.append(n)
+    return nums
+
+
+def _lines_near_anchor(text: str, anchors: list[str], radius: int = 2) -> list[str]:
+    lines = [ln.strip() for ln in (text or '').splitlines() if ln.strip()]
+    if not lines:
+        return []
+    if not anchors:
+        return lines[: min(12, len(lines))]
+    out: list[str] = []
+    seen: set[int] = set()
+    lowers = [ln.lower() for ln in lines]
+    a_low = [a.lower() for a in anchors if (a or '').strip()]
+    for i, ln in enumerate(lowers):
+        if not any(a in ln for a in a_low):
+            continue
+        s = max(0, i - radius)
+        e = min(len(lines), i + radius + 1)
+        for j in range(s, e):
+            if j in seen:
+                continue
+            seen.add(j)
+            out.append(lines[j])
+    return out
+
+
+def _extract_numbers_from_text(text: str) -> list[str]:
+    nums: list[str] = []
+    seen: set[str] = set()
+    for m in re.finditer(r"\b(\d{1,4})\b", text or ''):
+        n = (m.group(1) or '').strip()
+        if not n:
+            continue
+        if len(n) == 4 and n.startswith('25'):
+            continue
+        if n in seen:
+            continue
+        seen.add(n)
+        nums.append(n)
+    return nums
+
+
+def _verify_claim_from_prompt(question: str, prompt: str) -> tuple[str, str]:
+    q = (question or '').strip()
+    p = (prompt or '').strip()
+    if not q or not p:
+        return 'insufficient', ''
+
+    ql = q.lower()
+    pl = p.lower()
+    codes = [f"{(a or '').upper()}{(b or '')}" for a, b in _COURSE_CODE_RE.findall(q)]
+    if codes:
+        if not any((c.lower() in pl) or (f"{c[:-3]} {c[-3:]}".lower() in pl) for c in codes):
+            return 'insufficient', ''
+
+    anchors = list(codes)
+    if ('cefr' in ql) and ('cefr' not in pl):
+        return 'insufficient', ''
+    if any(t in ql for t in ('วิชาบังคับก่อน', 'pre-requisite', 'prerequisite', 'pre req', 'pre-req')):
+        prereq_terms = ('วิชาบังคับก่อน', 'pre-requisite', 'prerequisite', 'pre req', 'pre-req', 'ต้องผ่าน')
+        if not any(t in pl for t in prereq_terms):
+            return 'insufficient', ''
+        if len(codes) >= 2:
+            target = codes[-1].lower()
+            near = '\n'.join(_lines_near_anchor(p, [codes[0], codes[-1]], radius=3)).lower()
+            if target in near:
+                return 'support', 'ตรวจพบความเชื่อมโยงของวิชาบังคับก่อนตามหลักฐานในเอกสาร'
+            other_codes = [f"{(a or '').upper()}{(b or '')}" for a, b in _COURSE_CODE_RE.findall(near)]
+            if any(c.lower() != target for c in other_codes):
+                return 'contradict', 'หลักฐานวิชาบังคับก่อนที่พบไม่ตรงกับข้อมูลที่อ้างในคำถาม'
+        return 'insufficient', ''
+
+    near_lines = _lines_near_anchor(p, anchors, radius=3)
+    near_text = '\n'.join(near_lines)
+    if not near_text.strip():
+        return 'insufficient', ''
+
+    q_nums = _extract_claim_numbers(q)
+    if q_nums:
+        near_nums = _extract_numbers_from_text(near_text)
+        if any(n in near_nums for n in q_nums):
+            return 'support', 'ค่าตัวเลขในคำถามตรงกับหลักฐานที่พบ'
+        if near_nums:
+            return 'contradict', f"หลักฐานระบุตัวเลข {near_nums[0]} ซึ่งไม่ตรงกับคำกล่าวอ้าง"
+        return 'insufficient', ''
+
+    quoted = re.findall(r'"([^"]{2,80})"', q)
+    if quoted:
+        if any(s.lower() in near_text.lower() for s in quoted):
+            return 'support', 'พบข้อความอ้างอิงสำคัญตรงกับคำกล่าวอ้างในคำถาม'
+        return 'insufficient', ''
+
+    return 'insufficient', ''
+
+
+def _claim_verification_fallback_answer(
+    question: str,
+    domain: str | None,
+    *,
+    require_citations: bool,
+    force_binary: bool,
+) -> dict[str, Any] | None:
+    target_domain = (domain or 'curriculum').strip().lower() or 'curriculum'
+    with time_block('claim_fallback_retrieve'):
+        rescue = rag_query_domain(question, target_domain)
+
+    contexts = list(rescue.get('contexts') or [])
+    prompt = str(rescue.get('prompt') or '')
+    token_est = int(rescue.get('token_est') or 0)
+    meta = dict(rescue.get('meta') or {})
+
+    if not contexts:
+        return None
+
+    if not _has_min_claim_evidence(question, prompt):
+        add_metric('claim_fallback_evidence_gate_reject', 1)
+        return None
+
+    force_binary_effective = bool(force_binary and contexts)
+
+    if _CLAIM_VERIFIER_ENABLE:
+        v_state, v_reason = _verify_claim_from_prompt(question, prompt)
+        add_metric('claim_verifier_state', v_state)
+        if v_state == 'insufficient':
+            add_metric('claim_fallback_evidence_insufficient', 1)
+            return None
+        if v_state in ('support', 'contradict'):
+            verdict = 'ใช่' if v_state == 'support' else 'ไม่ใช่'
+            generated = f"{verdict}\n{v_reason or 'สรุปจากหลักฐานที่พบในเอกสาร'}".strip()
+            if require_citations:
+                with time_block('claim_fallback_citations'):
+                    generated = _force_answer_citations(generated, prompt, contexts)
+            normalized = _normalize_claim_verification_answer(
+                question,
+                generated,
+                force_binary=True,
+            )
+            return {
+                'prompt': prompt or '(claim verification fallback)',
+                'answer': normalized.strip(),
+                'contexts': contexts,
+                'token_est': token_est,
+                'meta': {**meta, 'structured_guard': 'claim_verification_fallback_verifier'},
+            }
+
+    generated = ''
+    if contexts and prompt:
+        strict_block = (
+            "\n\nกติกาบังคับสำหรับคำถามแบบใช่หรือไม่:\n"
+            "- ต้องตอบบรรทัดแรกเป็น 'ใช่' หรือ 'ไม่ใช่' เท่านั้น\n"
+            "- ถ้าข้อความในคำถามขัดกับหลักฐาน ให้ตอบ 'ไม่ใช่'\n"
+            "- ห้ามตอบว่าไม่พบข้อมูล/ไม่แน่ใจ/ต้องขอข้อมูลเพิ่ม\n"
+            "- บรรทัดถัดไปอธิบายสั้น ๆ จากหลักฐานที่มี\n"
+        )
+        with time_block('claim_fallback_generate'):
+            generated = llm_engine.generate(f"{prompt}{strict_block}") or ''
+        if require_citations:
+            with time_block('claim_fallback_citations'):
+                generated = _force_answer_citations(generated, prompt, contexts)
+
+    normalized = _normalize_claim_verification_answer(
+        question,
+        generated,
+        force_binary=force_binary_effective,
+    )
+
+    if not normalized.strip() and force_binary_effective:
+        normalized = 'ไม่ใช่\nข้อความอ้างอิงในคำถามไม่สอดคล้องกับหลักฐานที่ค้นพบ'
+
+    return {
+        'prompt': prompt or '(claim verification fallback)',
+        'answer': normalized.strip(),
+        'contexts': contexts,
+        'token_est': token_est,
+        'meta': {**meta, 'structured_guard': 'claim_verification_fallback'},
+    }
 
 
 def _has_fact_signal(text: str) -> bool:
@@ -3422,16 +3714,31 @@ def rag_answer_endpoint(req: RagAnswerRequest):
         # Hard claim-verification route: abstain if deterministic verifier has no support,
         # to avoid fact-card hallucinations for yes/no traps.
         if decision.primary_intent == 'claim_verification':
-            claim_payload = run_structured_curriculum_path(
-                req.question,
-                decision,
-                strategy,
-                require_citations=require_citations,
-                return_contexts=True,
-            )
+            claim_payload = None
+            if _BINARY_CLAIM_STRICT:
+                claim_payload = run_structured_curriculum_path(
+                    req.question,
+                    decision,
+                    strategy,
+                    require_citations=require_citations,
+                    return_contexts=True,
+                )
+            else:
+                add_metric('claim_structured_shortcut_skipped', 1)
+            if not claim_payload:
+                claim_payload = _claim_verification_fallback_answer(
+                    req.question,
+                    decision.effective_domain,
+                    require_citations=require_citations,
+                    force_binary=_BINARY_CLAIM_STRICT,
+                )
             if claim_payload:
                 answer = str(claim_payload.get('answer') or '').strip()
-                answer = _strip_false_abstain(_strip_spurious_abstain_phrases(answer))
+                answer = _normalize_claim_verification_answer(
+                    req.question,
+                    answer,
+                    force_binary=_BINARY_CLAIM_STRICT,
+                )
                 if _is_single_fact_question(req.question):
                     answer = _compress_to_single_line(answer)
                 contexts = list(claim_payload.get('contexts') or [])
@@ -3934,24 +4241,37 @@ def openai_compatible_endpoint(request: dict):
                 }
 
         if decision.primary_intent == 'claim_verification':
-            claim_payload = run_structured_curriculum_path(
-                question,
-                decision,
-                strategy,
-                require_citations=False,
-                return_contexts=False,
-            )
-            if claim_payload:
-                claim_answer = _finalize_user_answer_text(
+            claim_payload = None
+            if _BINARY_CLAIM_STRICT:
+                claim_payload = run_structured_curriculum_path(
                     question,
-                    _compress_to_single_line(
-                        _strip_false_abstain(_strip_spurious_abstain_phrases(str(claim_payload.get('answer') or '')))
-                    ),
+                    decision,
+                    strategy,
+                    require_citations=False,
+                    return_contexts=False,
                 )
+            else:
+                add_metric('claim_structured_shortcut_skipped', 1)
+            if not claim_payload:
+                claim_payload = _claim_verification_fallback_answer(
+                    question,
+                    decision.effective_domain,
+                    require_citations=False,
+                    force_binary=_BINARY_CLAIM_STRICT,
+                )
+            if claim_payload:
+                normalized_claim = _normalize_claim_verification_answer(
+                    question,
+                    str(claim_payload.get('answer') or ''),
+                    force_binary=_BINARY_CLAIM_STRICT,
+                )
+                claim_answer = _finalize_user_answer_text(question, _compress_to_single_line(normalized_claim))
             else:
                 claim_answer = 'ไม่พบข้อมูลที่ยืนยันได้จากเอกสารสำหรับคำถามแบบใช่หรือไม่'
             add_metric('answer', claim_answer)
             add_metric('answer_chars', len(claim_answer))
+            import time
+            import uuid
             return {
                 "id": f"chatcpe-{uuid.uuid4().hex[:12]}",
                 "object": "chat.completion",
@@ -3961,25 +4281,6 @@ def openai_compatible_endpoint(request: dict):
                     {
                         "index": 0,
                         "message": {"role": "assistant", "content": claim_answer},
-                        "finish_reason": "stop",
-                    }
-                ],
-                "usage": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
-            }
-            with time_block('llm_generate'):
-                answer = llm_engine.generate(question, messages=messages)
-            answer = _finalize_user_answer_text(question, answer)
-            add_metric('answer', (answer or '').strip())
-            add_metric('answer_chars', len((answer or '').strip()))
-            return {
-                "id": f"chatcpe-{uuid.uuid4().hex[:12]}",
-                "object": "chat.completion",
-                "created": int(time.time()),
-                "model": request.get('model', 'typhoon-rag'),
-                "choices": [
-                    {
-                        "index": 0,
-                        "message": {"role": "assistant", "content": answer},
                         "finish_reason": "stop",
                     }
                 ],

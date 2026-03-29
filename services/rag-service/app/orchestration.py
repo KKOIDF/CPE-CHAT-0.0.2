@@ -367,9 +367,10 @@ def rag_query(question: str) -> Dict:
     if target_clause and (dom_inferred in ('regulations', None) or 'ข้อ' in (question or '')):
         retrieved = _coerce_retrieved_rows(filter_contexts_by_clause(retrieved, target_clause))
     
-    # Restrict to Top-3 for latency optimization
-    if retrieved and len(retrieved) > 3:
-        retrieved = retrieved[:3]
+    # Keep more evidence for binary claim verification to reduce false abstains.
+    max_ctx = 6 if intent == 'claim_verification' else 3
+    if retrieved and len(retrieved) > max_ctx:
+        retrieved = retrieved[:max_ctx]
         
     if _MULTI_DOC_MODE == 'auto' and is_multi_doc_question(q_display):
         ctx, cites = pack_context_grouped(retrieved)

@@ -1,9 +1,10 @@
 import chromadb
 from chromadb.config import Settings
-from typing import List, Optional, Sequence
+from typing import Any, List, Optional, Sequence
 from functools import lru_cache
 from pathlib import Path
 from .config import CHROMA_DIR, EMBEDDING_MODEL, EMBED_BATCH, EMBEDDING_DIM, domain_paths
+from .perf import time_block
 import os
 
 try:
@@ -17,7 +18,7 @@ except Exception:
     SentenceTransformer = None  # type: ignore
 
 @lru_cache(maxsize=8)
-def _get_collection_for_domain(domain: str) -> any:
+def _get_collection_for_domain(domain: str) -> Any:
     dom = (domain or '').strip().lower()
     chroma_dir, _ = domain_paths(dom)
     chroma_dir = Path(chroma_dir)
@@ -198,7 +199,8 @@ def semantic_search_domain(
     dom = (domain or os.getenv('CPE_DOMAIN', '')).strip().lower()
     collection = _get_collection_for_domain(dom)
     # Embed query with instruction (for BGE-M3)
-    qvec = embed_texts([query], is_query=True)[0]
+    with time_block('embed_query_ms'):
+        qvec = embed_texts([query], is_query=True)[0]
     allow_src: list[str] = []
     if source_allowlist:
         seen = set()
@@ -224,14 +226,20 @@ def semantic_search_domain(
 
     try:
         if where is not None:
-            res = collection.query(
-                query_embeddings=[qvec],
-                n_results=top_k,
-                include=['documents', 'metadatas', 'distances', 'embeddings'],
-                where=where,
-            )
+            with time_block('chroma_query_ms'):
+                res = collection.query(
+                    query_embeddings=[qvec],
+                    n_results=top_k,
+                    include=['documents', 'metadatas', 'distances'],
+                    where=where,
+                )
         else:
-            res = collection.query(query_embeddings=[qvec], n_results=top_k, include=['documents','metadatas','distances','embeddings'])
+            with time_block('chroma_query_ms'):
+                res = collection.query(
+                    query_embeddings=[qvec],
+                    n_results=top_k,
+                    include=['documents', 'metadatas', 'distances'],
+                )
     except Exception as e:
         msg = str(e)
         if 'dimension' in msg.lower() or 'dim' in msg.lower():
@@ -245,7 +253,12 @@ def semantic_search_domain(
         # If where-filter isn't supported in this Chroma build, fall back to unfiltered search.
         if where is not None:
             try:
-                res = collection.query(query_embeddings=[qvec], n_results=top_k, include=['documents','metadatas','distances','embeddings'])
+                with time_block('chroma_query_ms'):
+                    res = collection.query(
+                        query_embeddings=[qvec],
+                        n_results=top_k,
+                        include=['documents', 'metadatas', 'distances'],
+                    )
             except Exception:
                 raise
         else:
@@ -268,7 +281,7 @@ def semantic_search_domain(
             'text': res['documents'][0][i],
             **(res['metadatas'][0][i] or {}),
             'distance': (res.get('distances') or [[None]])[0][i],
-            'embedding': (res.get('embeddings') or [[None]])[0][i]
+            'embedding': None
         })
     # In case the backend didn't apply filtering (or we fell back), enforce allowlist client-side.
     if allow_src:
