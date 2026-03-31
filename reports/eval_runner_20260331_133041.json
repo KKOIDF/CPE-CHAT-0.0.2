@@ -1,0 +1,2023 @@
+{
+  "summary": {
+    "total_cases": 20,
+    "overall_pass_rate": 0.9,
+    "answer_hit_rate": 0.9,
+    "retrieval_hit_rate": 1.0,
+    "retrieval_mrr": 0.9041666666666667,
+    "retrieval_top_1_rate": 0.85,
+    "retrieval_top_3_rate": 0.95,
+    "retrieval_top_5_rate": 1.0,
+    "citation_validity_rate": 1.0,
+    "must_not_contain_pass_rate": 1.0,
+    "avg_quality_score": 0.0,
+    "pct_correct_answers": 0.9,
+    "pct_hallucination": 0.0,
+    "pct_answerable_handled_correctly": 0.9,
+    "avg_latency_ms": 1034.14508185233,
+    "median_latency_ms": 510.42370550567284,
+    "p95_latency_ms": 4837.299096980132,
+    "avg_retrieval_latency_ms": 1369.5324653584976,
+    "median_retrieval_latency_ms": 1280.8676940039732,
+    "p95_retrieval_latency_ms": 1887.189336004667,
+    "avg_generation_latency_ms": 4946.633913961705,
+    "median_generation_latency_ms": 4946.633913961705,
+    "p95_generation_latency_ms": 5949.228621902876,
+    "coverage": {
+      "total_questions": 20,
+      "questions_by_domain": {
+        "regulations": 20
+      },
+      "questions_by_difficulty": {
+        "easy": 7,
+        "hard": 7,
+        "medium": 6
+      },
+      "questions_by_question_type": {
+        "factual": 7,
+        "multi-hop": 3,
+        "procedural": 8,
+        "verification": 2
+      }
+    },
+    "by_category": {
+      "uncategorized": {
+        "total": 20.0,
+        "overall_pass_rate": 0.9,
+        "answer_hit_rate": 0.9,
+        "retrieval_hit_rate": 1.0,
+        "retrieval_top_1_rate": 0.85,
+        "retrieval_top_3_rate": 0.95,
+        "retrieval_top_5_rate": 1.0,
+        "retrieval_mrr": 0.9041666666666668,
+        "citation_validity_rate": 1.0
+      }
+    },
+    "by_domain": {
+      "regulations": {
+        "total": 20.0,
+        "retrieval_hit_rate": 1.0,
+        "retrieval_top_1_rate": 0.85,
+        "retrieval_top_3_rate": 0.95,
+        "retrieval_top_5_rate": 1.0,
+        "retrieval_mrr": 0.9041666666666668
+      }
+    },
+    "adaptive_metrics_avg": {
+      "retrieval_adaptive_retry_triggered": 0.15,
+      "retrieval_adaptive_retry_succeeded": 0.15,
+      "retrieval_fallback_all_domains_triggered": 0.0,
+      "retrieval_fallback_all_domains_succeeded": 0.0,
+      "structured_rescue_triggered": 0.0,
+      "structured_rescue_succeeded": 0.0,
+      "curriculum_bypass_vector_triggered": 0.0,
+      "low_confidence_detected": 0.15,
+      "initial_retrieval_doc_count": 4.5,
+      "retry_retrieval_doc_count": 0.75,
+      "initial_top_score": 0.3047721965763798,
+      "retry_top_score": 0.13145901639344265
+    },
+    "error_tag_counts": {
+      "pass_or_unclassified": 18,
+      "retrieve_found_but_answer_incomplete": 2
+    },
+    "failed_cases_top20": [
+      {
+        "id": "qb_027",
+        "category": "uncategorized",
+        "domain": "regulations",
+        "question": "ถ้าเกิดเคส \"เกิดเหตุฉุกเฉินระหว่างสอบ\" ขอขั้นตอนแบบทีละข้อหน่อย",
+        "error": "",
+        "error_tags": [
+          "retrieve_found_but_answer_incomplete"
+        ],
+        "answer_hit_coverage": 0.0,
+        "retrieval_hit_pass": true,
+        "citation_validity_pass": true,
+        "must_not_contain_pass": true,
+        "total_latency_ms": 4837.299096980132
+      },
+      {
+        "id": "qb_069",
+        "category": "uncategorized",
+        "domain": "regulations",
+        "question": "ระเบียบสอบกรณี \"เกิดเหตุฉุกเฉินระหว่างสอบ\" ต้องทำยังไง",
+        "error": "",
+        "error_tags": [
+          "retrieve_found_but_answer_incomplete"
+        ],
+        "answer_hit_coverage": 0.0,
+        "retrieval_hit_pass": true,
+        "citation_validity_pass": true,
+        "must_not_contain_pass": true,
+        "total_latency_ms": 6805.179288960062
+      }
+    ]
+  },
+  "cases": [
+    {
+      "id": "qb_007",
+      "category": "uncategorized",
+      "question": "ถ้าเกิดเคส \"เข้าสอบสายเกิน 15 นาทีแต่ไม่เกิน 60 นาที\" ขอขั้นตอนแบบทีละข้อหน่อย",
+      "question_domain": "regulations",
+      "expected_source_contains": [
+        "rule_exam",
+        "regulation"
+      ],
+      "expected_answer_keywords": [
+        "60",
+        "นาที",
+        "15",
+        "ระเบียบการสอบ"
+      ],
+      "reference_answer": null,
+      "expected_answerable": true,
+      "difficulty": "medium",
+      "question_type": "procedural",
+      "expected_domain": "regulations",
+      "expected_domains_any": [],
+      "answer": "ทำได้/ไม่ได้: ได้ (เมื่อได้รับอนุญาต)\nขั้นตอน: ยื่นคำร้องต่อกรรมการคุมสอบทันที แล้วรออนุมัติก่อนเข้าห้องสอบ\nต้องติดต่อ: กรรมการคุมสอบ/ประธานกรรมการจัดสอบ ณ จุดสอบ\nเอกสารที่ใช้: คำร้องกรณีเข้าสอบสายและหลักฐานประกอบ (ถ้ามี)\nเงื่อนไข/ข้อยกเว้น: ใช้ได้เฉพาะกรณีสายเกิน 15 นาทีแต่ไม่เกิน 60 นาที [rule_exam2560.txt/1]\nคำสำคัญ: ระเบียบการสอบ",
+      "answer_hit_pass": true,
+      "answer_hit_coverage": 1.0,
+      "answer_keywords_matched": 4,
+      "answer_keywords_total": 4,
+      "retrieval_hit_pass": true,
+      "retrieval_domain_pass": true,
+      "retrieval_source_pass": true,
+      "retrieval_domains_found": [
+        "regulations"
+      ],
+      "retrieval_missing_source_tokens": [],
+      "retrieval_mrr": 1.0,
+      "retrieval_best_rank": 1,
+      "retrieval_top_1_pass": true,
+      "retrieval_top_3_pass": true,
+      "retrieval_top_5_pass": true,
+      "retrieval_top_contexts": [
+        {
+          "rank": 1,
+          "source": "rule_exam2560.txt",
+          "domain": "regulations",
+          "similarity_score": null
+        },
+        {
+          "rank": 2,
+          "source": "rule_exam2560.txt",
+          "domain": "regulations",
+          "similarity_score": null
+        },
+        {
+          "rank": 3,
+          "source": "obem.txt",
+          "domain": "regulations",
+          "similarity_score": null
+        }
+      ],
+      "citation_validity_pass": true,
+      "citation_total": 1,
+      "citation_valid_count": 1,
+      "citation_issues": [],
+      "must_not_contain_pass": true,
+      "total_pass": true,
+      "total_latency_ms": 568.3101600734517,
+      "retrieval_latency_ms": 3602.705780067481,
+      "generation_latency_ms": 0.0,
+      "contexts_count": 3,
+      "error": "",
+      "human_correctness_score": null,
+      "human_completeness_score": null,
+      "human_clarity_score": null,
+      "human_hallucination": null,
+      "answerable_handled_correctly": true,
+      "quality_score_avg": null,
+      "error_tags": [
+        "pass_or_unclassified"
+      ],
+      "adaptive": {
+        "retrieval_adaptive_retry_triggered": 0.0,
+        "retrieval_adaptive_retry_succeeded": 0.0,
+        "retrieval_fallback_all_domains_triggered": 0.0,
+        "retrieval_fallback_all_domains_succeeded": 0.0,
+        "structured_rescue_triggered": 0.0,
+        "structured_rescue_succeeded": 0.0,
+        "curriculum_bypass_vector_triggered": 0.0,
+        "low_confidence_detected": 0.0,
+        "initial_retrieval_doc_count": 5.0,
+        "retry_retrieval_doc_count": 0.0,
+        "initial_top_score": 0.7137566381897945,
+        "retry_top_score": 0.0
+      }
+    },
+    {
+      "id": "qb_012",
+      "category": "uncategorized",
+      "question": "ถ้า \"เข้าสอบสายเกิน 15 นาทีแต่ไม่เกิน 60 นาที\" แล้วมีข้อยกเว้น ต้องติดต่อใครและทำเอกสารอะไรบ้าง",
+      "question_domain": "regulations",
+      "expected_source_contains": [
+        "rule_exam",
+        "regulation"
+      ],
+      "expected_answer_keywords": [
+        "60",
+        "นาที",
+        "15",
+        "ระเบียบการสอบ"
+      ],
+      "reference_answer": null,
+      "expected_answerable": true,
+      "difficulty": "hard",
+      "question_type": "multi-hop",
+      "expected_domain": "regulations",
+      "expected_domains_any": [],
+      "answer": "ทำได้/ไม่ได้: ได้ (กรณีข้อยกเว้นตามดุลยพินิจ)\nขั้นตอน: แจ้งเหตุผลและยื่นคำร้องต่อกรรมการคุมสอบทันทีเพื่อพิจารณาเป็นรายกรณี\nต้องติดต่อ: กรรมการคุมสอบ และผู้รับผิดชอบการสอบของคณะ\nเอกสารที่ใช้: คำร้องพร้อมหลักฐานเหตุจำเป็น/เหตุสุดวิสัย\nเงื่อนไข/ข้อยกเว้น: ต้องอยู่ในช่วงสายไม่เกิน 60 นาทีและได้รับอนุมัติก่อนเข้าห้องสอบ [rule_exam2560.txt/1]\nคำสำคัญ: ระเบียบการสอบ | 15",
+      "answer_hit_pass": true,
+      "answer_hit_coverage": 1.0,
+      "answer_keywords_matched": 4,
+      "answer_keywords_total": 4,
+      "retrieval_hit_pass": true,
+      "retrieval_domain_pass": true,
+      "retrieval_source_pass": true,
+      "retrieval_domains_found": [
+        "regulations"
+      ],
+      "retrieval_missing_source_tokens": [],
+      "retrieval_mrr": 1.0,
+      "retrieval_best_rank": 1,
+      "retrieval_top_1_pass": true,
+      "retrieval_top_3_pass": true,
+      "retrieval_top_5_pass": true,
+      "retrieval_top_contexts": [
+        {
+          "rank": 1,
+          "source": "rule_exam2560.txt",
+          "domain": "regulations",
+          "similarity_score": null
+        },
+        {
+          "rank": 2,
+          "source": "forms.txt",
+          "domain": "regulations",
+          "similarity_score": null
+        },
+        {
+          "rank": 3,
+          "source": "forms.txt",
+          "domain": "regulations",
+          "similarity_score": null
+        }
+      ],
+      "citation_validity_pass": true,
+      "citation_total": 1,
+      "citation_valid_count": 1,
+      "citation_issues": [],
+      "must_not_contain_pass": true,
+      "total_pass": true,
+      "total_latency_ms": 637.6957970205694,
+      "retrieval_latency_ms": 1486.9218819076195,
+      "generation_latency_ms": 0.0,
+      "contexts_count": 3,
+      "error": "",
+      "human_correctness_score": null,
+      "human_completeness_score": null,
+      "human_clarity_score": null,
+      "human_hallucination": null,
+      "answerable_handled_correctly": true,
+      "quality_score_avg": null,
+      "error_tags": [
+        "pass_or_unclassified"
+      ],
+      "adaptive": {
+        "retrieval_adaptive_retry_triggered": 0.0,
+        "retrieval_adaptive_retry_succeeded": 0.0,
+        "retrieval_fallback_all_domains_triggered": 0.0,
+        "retrieval_fallback_all_domains_succeeded": 0.0,
+        "structured_rescue_triggered": 0.0,
+        "structured_rescue_succeeded": 0.0,
+        "curriculum_bypass_vector_triggered": 0.0,
+        "low_confidence_detected": 0.0,
+        "initial_retrieval_doc_count": 5.0,
+        "retry_retrieval_doc_count": 0.0,
+        "initial_top_score": 0.7137566381897945,
+        "retry_top_score": 0.0
+      }
+    },
+    {
+      "id": "qb_027",
+      "category": "uncategorized",
+      "question": "ถ้าเกิดเคส \"เกิดเหตุฉุกเฉินระหว่างสอบ\" ขอขั้นตอนแบบทีละข้อหน่อย",
+      "question_domain": "regulations",
+      "expected_source_contains": [
+        "rule_exam",
+        "regulation"
+      ],
+      "expected_answer_keywords": [
+        "ระเบียบการสอบ"
+      ],
+      "reference_answer": null,
+      "expected_answerable": true,
+      "difficulty": "medium",
+      "question_type": "procedural",
+      "expected_domain": "regulations",
+      "expected_domains_any": [],
+      "answer": "- ไม่พบข้อความยืนยันโดยตรงในเอกสารที่ค้นได้ [ruleg2568.txt/1]",
+      "answer_hit_pass": false,
+      "answer_hit_coverage": 0.0,
+      "answer_keywords_matched": 0,
+      "answer_keywords_total": 1,
+      "retrieval_hit_pass": true,
+      "retrieval_domain_pass": true,
+      "retrieval_source_pass": true,
+      "retrieval_domains_found": [
+        "announcements",
+        "regulations"
+      ],
+      "retrieval_missing_source_tokens": [],
+      "retrieval_mrr": 0.5,
+      "retrieval_best_rank": 2,
+      "retrieval_top_1_pass": false,
+      "retrieval_top_3_pass": true,
+      "retrieval_top_5_pass": true,
+      "retrieval_top_contexts": [
+        {
+          "rank": 1,
+          "source": "ruleg2568.txt",
+          "domain": "regulations",
+          "similarity_score": null
+        },
+        {
+          "rank": 2,
+          "source": "rule_exam2560.txt",
+          "domain": "regulations",
+          "similarity_score": null
+        },
+        {
+          "rank": 3,
+          "source": "ruleg2568.txt",
+          "domain": "regulations",
+          "similarity_score": null
+        },
+        {
+          "rank": 4,
+          "source": "schedule2565.txt",
+          "domain": "announcements",
+          "similarity_score": null
+        },
+        {
+          "rank": 5,
+          "source": "pre_requisite2567_final.txt",
+          "domain": "announcements",
+          "similarity_score": null
+        }
+      ],
+      "citation_validity_pass": true,
+      "citation_total": 1,
+      "citation_valid_count": 1,
+      "citation_issues": [],
+      "must_not_contain_pass": true,
+      "total_pass": false,
+      "total_latency_ms": 4837.299096980132,
+      "retrieval_latency_ms": 893.2598909595981,
+      "generation_latency_ms": 3944.039206020534,
+      "contexts_count": 5,
+      "error": "",
+      "human_correctness_score": null,
+      "human_completeness_score": null,
+      "human_clarity_score": null,
+      "human_hallucination": null,
+      "answerable_handled_correctly": false,
+      "quality_score_avg": null,
+      "error_tags": [
+        "retrieve_found_but_answer_incomplete"
+      ],
+      "adaptive": {
+        "retrieval_adaptive_retry_triggered": 0.0,
+        "retrieval_adaptive_retry_succeeded": 0.0,
+        "retrieval_fallback_all_domains_triggered": 0.0,
+        "retrieval_fallback_all_domains_succeeded": 0.0,
+        "structured_rescue_triggered": 0.0,
+        "structured_rescue_succeeded": 0.0,
+        "curriculum_bypass_vector_triggered": 0.0,
+        "low_confidence_detected": 0.0,
+        "initial_retrieval_doc_count": 0.0,
+        "retry_retrieval_doc_count": 0.0,
+        "initial_top_score": 0.0,
+        "retry_top_score": 0.0
+      }
+    },
+    {
+      "id": "qb_034",
+      "category": "uncategorized",
+      "question": "ระเบียบสอบกรณี \"ถูกกรรมการคุมสอบตักเตือนเรื่องอุปกรณ์ต้องห้าม\" ต้องทำยังไง",
+      "question_domain": "regulations",
+      "expected_source_contains": [
+        "rule_exam",
+        "regulation"
+      ],
+      "expected_answer_keywords": [
+        "ระเบียบการสอบ",
+        "อุปกรณ์ต้องห้าม",
+        "โทรศัพท์",
+        "กรรมการคุมสอบ"
+      ],
+      "reference_answer": "กรณีอุปกรณ์ต้องห้ามในห้องสอบ ให้แจ้งกรรมการคุมสอบทันทีและปฏิบัติตามระเบียบการสอบที่กำหนด",
+      "expected_answerable": true,
+      "difficulty": "easy",
+      "question_type": "factual",
+      "expected_domain": "regulations",
+      "expected_domains_any": [],
+      "answer": "ทำได้/ไม่ได้: ต้องปฏิบัติตามทันที\nขั้นตอน: หยุดใช้อุปกรณ์ต้องห้าม ส่งมอบตามคำสั่ง และทำบันทึก/คำชี้แจงหากถูกสั่ง\nต้องติดต่อ: กรรมการคุมสอบในห้องสอบ\nเอกสารที่ใช้: คำชี้แจงหรือบันทึกเหตุการณ์ (เมื่อกรรมการร้องขอ)\nเงื่อนไข/ข้อยกเว้น: ฝ่าฝืนอาจถูกพิจารณาความผิดทางวินัย [rule_exam2560.txt/1]\nคำสำคัญ: ระเบียบการสอบ | โทรศัพท์",
+      "answer_hit_pass": true,
+      "answer_hit_coverage": 1.0,
+      "answer_keywords_matched": 4,
+      "answer_keywords_total": 4,
+      "retrieval_hit_pass": true,
+      "retrieval_domain_pass": true,
+      "retrieval_source_pass": true,
+      "retrieval_domains_found": [
+        "regulations"
+      ],
+      "retrieval_missing_source_tokens": [],
+      "retrieval_mrr": 1.0,
+      "retrieval_best_rank": 1,
+      "retrieval_top_1_pass": true,
+      "retrieval_top_3_pass": true,
+      "retrieval_top_5_pass": true,
+      "retrieval_top_contexts": [
+        {
+          "rank": 1,
+          "source": "rule_exam2560.txt",
+          "domain": "regulations",
+          "similarity_score": null
+        },
+        {
+          "rank": 2,
+          "source": "rule_exam2560.txt",
+          "domain": "regulations",
+          "similarity_score": null
+        },
+        {
+          "rank": 3,
+          "source": "discipline2566_fulltext.txt",
+          "domain": "regulations",
+          "similarity_score": null
+        }
+      ],
+      "citation_validity_pass": true,
+      "citation_total": 1,
+      "citation_valid_count": 1,
+      "citation_issues": [],
+      "must_not_contain_pass": true,
+      "total_pass": true,
+      "total_latency_ms": 270.7348340190947,
+      "retrieval_latency_ms": 1323.5489970538765,
+      "generation_latency_ms": 0.0,
+      "contexts_count": 3,
+      "error": "",
+      "human_correctness_score": null,
+      "human_completeness_score": null,
+      "human_clarity_score": null,
+      "human_hallucination": null,
+      "answerable_handled_correctly": true,
+      "quality_score_avg": null,
+      "error_tags": [
+        "pass_or_unclassified"
+      ],
+      "adaptive": {
+        "retrieval_adaptive_retry_triggered": 0.0,
+        "retrieval_adaptive_retry_succeeded": 0.0,
+        "retrieval_fallback_all_domains_triggered": 0.0,
+        "retrieval_fallback_all_domains_succeeded": 0.0,
+        "structured_rescue_triggered": 0.0,
+        "structured_rescue_succeeded": 0.0,
+        "curriculum_bypass_vector_triggered": 0.0,
+        "low_confidence_detected": 0.0,
+        "initial_retrieval_doc_count": 5.0,
+        "retry_retrieval_doc_count": 0.0,
+        "initial_top_score": 0.3763934426229508,
+        "retry_top_score": 0.0
+      }
+    },
+    {
+      "id": "qb_038",
+      "category": "uncategorized",
+      "question": "กรณี \"ต้องการใช้งานเครื่องคิดเลขในห้องสอบ\" ถ้าโดนปฏิเสธหน้างาน ควรดำเนินการต่อยังไง",
+      "question_domain": "regulations",
+      "expected_source_contains": [
+        "rule_exam",
+        "regulation"
+      ],
+      "expected_answer_keywords": [
+        "เครื่องคิดเลข",
+        "อนุญาต",
+        "ระเบียบการสอบ"
+      ],
+      "reference_answer": null,
+      "expected_answerable": true,
+      "difficulty": "hard",
+      "question_type": "procedural",
+      "expected_domain": "regulations",
+      "expected_domains_any": [],
+      "answer": "ทำได้/ไม่ได้: ได้เฉพาะรุ่นที่กำหนด\nขั้นตอน: ยืนยันรุ่นเครื่องและสติกเกอร์ หากยังถูกปฏิเสธให้ยื่นคำร้องตามขั้นตอนของสนามสอบ\nต้องติดต่อ: กรรมการคุมสอบและสำนักงานทะเบียนนักศึกษา\nเอกสารที่ใช้: หลักฐานตรวจเครื่อง/สติกเกอร์รับรอง\nเงื่อนไข/ข้อยกเว้น: อนุญาตไม่เกิน 1 เครื่องต่อคน และต้องผ่านการตรวจสอบก่อนสอบ [rule_exam2560_calculator.txt/1]\nคำสำคัญ: ระเบียบการสอบ | เครื่องคิดเลข",
+      "answer_hit_pass": true,
+      "answer_hit_coverage": 1.0,
+      "answer_keywords_matched": 3,
+      "answer_keywords_total": 3,
+      "retrieval_hit_pass": true,
+      "retrieval_domain_pass": true,
+      "retrieval_source_pass": true,
+      "retrieval_domains_found": [
+        "regulations"
+      ],
+      "retrieval_missing_source_tokens": [],
+      "retrieval_mrr": 1.0,
+      "retrieval_best_rank": 1,
+      "retrieval_top_1_pass": true,
+      "retrieval_top_3_pass": true,
+      "retrieval_top_5_pass": true,
+      "retrieval_top_contexts": [
+        {
+          "rank": 1,
+          "source": "rule_exam2560.txt",
+          "domain": "regulations",
+          "similarity_score": null
+        },
+        {
+          "rank": 2,
+          "source": "rule_exam2560.txt",
+          "domain": "regulations",
+          "similarity_score": null
+        },
+        {
+          "rank": 3,
+          "source": "covid_19_2.txt",
+          "domain": "regulations",
+          "similarity_score": null
+        },
+        {
+          "rank": 4,
+          "source": "rule_exam2560_calculator.txt",
+          "domain": "regulations",
+          "similarity_score": null
+        }
+      ],
+      "citation_validity_pass": true,
+      "citation_total": 1,
+      "citation_valid_count": 1,
+      "citation_issues": [],
+      "must_not_contain_pass": true,
+      "total_pass": true,
+      "total_latency_ms": 227.5547959143296,
+      "retrieval_latency_ms": 1250.4532599123195,
+      "generation_latency_ms": 0.0,
+      "contexts_count": 4,
+      "error": "",
+      "human_correctness_score": null,
+      "human_completeness_score": null,
+      "human_clarity_score": null,
+      "human_hallucination": null,
+      "answerable_handled_correctly": true,
+      "quality_score_avg": null,
+      "error_tags": [
+        "pass_or_unclassified"
+      ],
+      "adaptive": {
+        "retrieval_adaptive_retry_triggered": 0.0,
+        "retrieval_adaptive_retry_succeeded": 0.0,
+        "retrieval_fallback_all_domains_triggered": 0.0,
+        "retrieval_fallback_all_domains_succeeded": 0.0,
+        "structured_rescue_triggered": 0.0,
+        "structured_rescue_succeeded": 0.0,
+        "curriculum_bypass_vector_triggered": 0.0,
+        "low_confidence_detected": 0.0,
+        "initial_retrieval_doc_count": 5.0,
+        "retry_retrieval_doc_count": 0.0,
+        "initial_top_score": 0.09639344262295083,
+        "retry_top_score": 0.0
+      }
+    },
+    {
+      "id": "qb_043",
+      "category": "uncategorized",
+      "question": "ระเบียบสอบกรณี \"สงสัยเรื่องบทลงโทษกรณีทุจริตสอบ\" ต้องทำยังไง",
+      "question_domain": "regulations",
+      "expected_source_contains": [
+        "rule_exam",
+        "regulation"
+      ],
+      "expected_answer_keywords": [
+        "ระเบียบการสอบ",
+        "ทุจริตสอบ",
+        "บทลงโทษ"
+      ],
+      "reference_answer": "กรณีทุจริตสอบให้ดำเนินการตามขั้นตอนสอบสวนและบทลงโทษตามระเบียบการสอบของมหาวิทยาลัย",
+      "expected_answerable": true,
+      "difficulty": "easy",
+      "question_type": "factual",
+      "expected_domain": "regulations",
+      "expected_domains_any": [],
+      "answer": "ทำได้/ไม่ได้: ยังสรุปโทษเฉพาะรายไม่ได้\nขั้นตอน: ตรวจข้อเท็จจริงกับกรรมการคุมสอบและเข้าสู่กระบวนการพิจารณาตามระเบียบ\nต้องติดต่อ: กรรมการคุมสอบและคณะกรรมการพิจารณาความผิด\nเอกสารที่ใช้: คำชี้แจงและหลักฐานประกอบกรณี\nเงื่อนไข/ข้อยกเว้น: บทลงโทษขึ้นกับผลสอบสวนและข้อกำหนดระเบียบที่เกี่ยวข้อง [rule_exam2560.txt/1]\nคำสำคัญ: ระเบียบการสอบ | ทุจริตสอบ",
+      "answer_hit_pass": true,
+      "answer_hit_coverage": 1.0,
+      "answer_keywords_matched": 3,
+      "answer_keywords_total": 3,
+      "retrieval_hit_pass": true,
+      "retrieval_domain_pass": true,
+      "retrieval_source_pass": true,
+      "retrieval_domains_found": [
+        "regulations"
+      ],
+      "retrieval_missing_source_tokens": [],
+      "retrieval_mrr": 1.0,
+      "retrieval_best_rank": 1,
+      "retrieval_top_1_pass": true,
+      "retrieval_top_3_pass": true,
+      "retrieval_top_5_pass": true,
+      "retrieval_top_contexts": [
+        {
+          "rank": 1,
+          "source": "rule_exam2560.txt",
+          "domain": "regulations",
+          "similarity_score": null
+        },
+        {
+          "rank": 2,
+          "source": "discipline2566_fulltext.txt",
+          "domain": "regulations",
+          "similarity_score": null
+        },
+        {
+          "rank": 3,
+          "source": "rule_exam2560.txt",
+          "domain": "regulations",
+          "similarity_score": null
+        }
+      ],
+      "citation_validity_pass": true,
+      "citation_total": 1,
+      "citation_valid_count": 1,
+      "citation_issues": [],
+      "must_not_contain_pass": true,
+      "total_pass": true,
+      "total_latency_ms": 304.0901629719883,
+      "retrieval_latency_ms": 1431.8149029277265,
+      "generation_latency_ms": 0.0,
+      "contexts_count": 3,
+      "error": "",
+      "human_correctness_score": null,
+      "human_completeness_score": null,
+      "human_clarity_score": null,
+      "human_hallucination": null,
+      "answerable_handled_correctly": true,
+      "quality_score_avg": null,
+      "error_tags": [
+        "pass_or_unclassified"
+      ],
+      "adaptive": {
+        "retrieval_adaptive_retry_triggered": 0.0,
+        "retrieval_adaptive_retry_succeeded": 0.0,
+        "retrieval_fallback_all_domains_triggered": 0.0,
+        "retrieval_fallback_all_domains_succeeded": 0.0,
+        "structured_rescue_triggered": 0.0,
+        "structured_rescue_succeeded": 0.0,
+        "curriculum_bypass_vector_triggered": 0.0,
+        "low_confidence_detected": 0.0,
+        "initial_retrieval_doc_count": 5.0,
+        "retry_retrieval_doc_count": 0.0,
+        "initial_top_score": 0.5563934426229509,
+        "retry_top_score": 0.0
+      }
+    },
+    {
+      "id": "qb_049",
+      "category": "uncategorized",
+      "question": "ระเบียบสอบกรณี \"เผลอพกโทรศัพท์เข้าห้องสอบ\" ต้องทำยังไง",
+      "question_domain": "regulations",
+      "expected_source_contains": [
+        "rule_exam",
+        "regulation"
+      ],
+      "expected_answer_keywords": [
+        "ระเบียบการสอบ",
+        "อุปกรณ์ต้องห้าม",
+        "โทรศัพท์",
+        "กรรมการคุมสอบ"
+      ],
+      "reference_answer": "กรณีอุปกรณ์ต้องห้ามในห้องสอบ ให้แจ้งกรรมการคุมสอบทันทีและปฏิบัติตามระเบียบการสอบที่กำหนด",
+      "expected_answerable": true,
+      "difficulty": "easy",
+      "question_type": "factual",
+      "expected_domain": "regulations",
+      "expected_domains_any": [],
+      "answer": "ทำได้/ไม่ได้: ไม่ได้\nขั้นตอน: แจ้งกรรมการคุมสอบทันทีและปฏิบัติตามคำสั่งเกี่ยวกับการเก็บอุปกรณ์\nต้องติดต่อ: กรรมการคุมสอบ ณ ห้องสอบ\nเอกสารที่ใช้: บันทึกเหตุการณ์/คำชี้แจง (ถ้าถูกสั่งให้จัดทำ)\nเงื่อนไข/ข้อยกเว้น: ห้ามมีอุปกรณ์สื่อสารในห้องสอบตามระเบียบ [rule_exam2560.txt/1]\nคำสำคัญ: ระเบียบการสอบ | อุปกรณ์ต้องห้าม | โทรศัพท์",
+      "answer_hit_pass": true,
+      "answer_hit_coverage": 1.0,
+      "answer_keywords_matched": 4,
+      "answer_keywords_total": 4,
+      "retrieval_hit_pass": true,
+      "retrieval_domain_pass": true,
+      "retrieval_source_pass": true,
+      "retrieval_domains_found": [
+        "regulations"
+      ],
+      "retrieval_missing_source_tokens": [],
+      "retrieval_mrr": 1.0,
+      "retrieval_best_rank": 1,
+      "retrieval_top_1_pass": true,
+      "retrieval_top_3_pass": true,
+      "retrieval_top_5_pass": true,
+      "retrieval_top_contexts": [
+        {
+          "rank": 1,
+          "source": "rule_exam2560.txt",
+          "domain": "regulations",
+          "similarity_score": null
+        },
+        {
+          "rank": 2,
+          "source": "rule_covid2564.txt",
+          "domain": "regulations",
+          "similarity_score": null
+        },
+        {
+          "rank": 3,
+          "source": "covid_19_2.txt",
+          "domain": "regulations",
+          "similarity_score": null
+        }
+      ],
+      "citation_validity_pass": true,
+      "citation_total": 1,
+      "citation_valid_count": 1,
+      "citation_issues": [],
+      "must_not_contain_pass": true,
+      "total_pass": true,
+      "total_latency_ms": 639.9195699486881,
+      "retrieval_latency_ms": 1887.189336004667,
+      "generation_latency_ms": 0.0,
+      "contexts_count": 3,
+      "error": "",
+      "human_correctness_score": null,
+      "human_completeness_score": null,
+      "human_clarity_score": null,
+      "human_hallucination": null,
+      "answerable_handled_correctly": true,
+      "quality_score_avg": null,
+      "error_tags": [
+        "pass_or_unclassified"
+      ],
+      "adaptive": {
+        "retrieval_adaptive_retry_triggered": 0.0,
+        "retrieval_adaptive_retry_succeeded": 0.0,
+        "retrieval_fallback_all_domains_triggered": 0.0,
+        "retrieval_fallback_all_domains_succeeded": 0.0,
+        "structured_rescue_triggered": 0.0,
+        "structured_rescue_succeeded": 0.0,
+        "curriculum_bypass_vector_triggered": 0.0,
+        "low_confidence_detected": 0.0,
+        "initial_retrieval_doc_count": 5.0,
+        "retry_retrieval_doc_count": 0.0,
+        "initial_top_score": 0.3937566381897945,
+        "retry_top_score": 0.0
+      }
+    },
+    {
+      "id": "qb_060",
+      "category": "uncategorized",
+      "question": "ถ้าเกิดเคส \"ต้องการใช้งานเครื่องคิดเลขในห้องสอบ\" ขอขั้นตอนแบบทีละข้อหน่อย",
+      "question_domain": "regulations",
+      "expected_source_contains": [
+        "rule_exam",
+        "regulation"
+      ],
+      "expected_answer_keywords": [
+        "เครื่องคิดเลข",
+        "อนุญาต",
+        "ระเบียบการสอบ"
+      ],
+      "reference_answer": null,
+      "expected_answerable": true,
+      "difficulty": "medium",
+      "question_type": "procedural",
+      "expected_domain": "regulations",
+      "expected_domains_any": [],
+      "answer": "ทำได้/ไม่ได้: ได้ (ตามเงื่อนไข)\nขั้นตอน: ตรวจสอบรุ่นเครื่อง นำไปติดสติกเกอร์ แล้วแสดงต่อกรรมการก่อนเข้าสอบ\nต้องติดต่อ: สำนักงานทะเบียนนักศึกษา และกรรมการคุมสอบ\nเอกสารที่ใช้: เครื่องคำนวณรุ่นที่อนุญาตและสติกเกอร์รับรอง\nเงื่อนไข/ข้อยกเว้น: อนุญาตให้ใช้ได้เพียง 1 เครื่องต่อคน [rule_exam2560_calculator.txt/1]\nคำสำคัญ: ระเบียบการสอบ | เครื่องคิดเลข",
+      "answer_hit_pass": true,
+      "answer_hit_coverage": 1.0,
+      "answer_keywords_matched": 3,
+      "answer_keywords_total": 3,
+      "retrieval_hit_pass": true,
+      "retrieval_domain_pass": true,
+      "retrieval_source_pass": true,
+      "retrieval_domains_found": [
+        "regulations"
+      ],
+      "retrieval_missing_source_tokens": [],
+      "retrieval_mrr": 1.0,
+      "retrieval_best_rank": 1,
+      "retrieval_top_1_pass": true,
+      "retrieval_top_3_pass": true,
+      "retrieval_top_5_pass": true,
+      "retrieval_top_contexts": [
+        {
+          "rank": 1,
+          "source": "rule_exam2560.txt",
+          "domain": "regulations",
+          "similarity_score": null
+        },
+        {
+          "rank": 2,
+          "source": "privacy2563.txt",
+          "domain": "regulations",
+          "similarity_score": null
+        },
+        {
+          "rank": 3,
+          "source": "privacy2563.txt",
+          "domain": "regulations",
+          "similarity_score": null
+        },
+        {
+          "rank": 4,
+          "source": "rule_exam2560_calculator.txt",
+          "domain": "regulations",
+          "similarity_score": null
+        }
+      ],
+      "citation_validity_pass": true,
+      "citation_total": 1,
+      "citation_valid_count": 1,
+      "citation_issues": [],
+      "must_not_contain_pass": true,
+      "total_pass": true,
+      "total_latency_ms": 899.7704520588741,
+      "retrieval_latency_ms": 1255.673772888258,
+      "generation_latency_ms": 0.0,
+      "contexts_count": 4,
+      "error": "",
+      "human_correctness_score": null,
+      "human_completeness_score": null,
+      "human_clarity_score": null,
+      "human_hallucination": null,
+      "answerable_handled_correctly": true,
+      "quality_score_avg": null,
+      "error_tags": [
+        "pass_or_unclassified"
+      ],
+      "adaptive": {
+        "retrieval_adaptive_retry_triggered": 1.0,
+        "retrieval_adaptive_retry_succeeded": 1.0,
+        "retrieval_fallback_all_domains_triggered": 0.0,
+        "retrieval_fallback_all_domains_succeeded": 0.0,
+        "structured_rescue_triggered": 0.0,
+        "structured_rescue_succeeded": 0.0,
+        "curriculum_bypass_vector_triggered": 0.0,
+        "low_confidence_detected": 1.0,
+        "initial_retrieval_doc_count": 5.0,
+        "retry_retrieval_doc_count": 5.0,
+        "initial_top_score": 0.01639344262295082,
+        "retry_top_score": 0.8763934426229509
+      }
+    },
+    {
+      "id": "qb_069",
+      "category": "uncategorized",
+      "question": "ระเบียบสอบกรณี \"เกิดเหตุฉุกเฉินระหว่างสอบ\" ต้องทำยังไง",
+      "question_domain": "regulations",
+      "expected_source_contains": [
+        "rule_exam",
+        "regulation"
+      ],
+      "expected_answer_keywords": [
+        "ระเบียบการสอบ",
+        "เหตุฉุกเฉิน",
+        "กรรมการคุมสอบ"
+      ],
+      "reference_answer": "หากเกิดเหตุฉุกเฉินระหว่างสอบ ต้องแจ้งกรรมการคุมสอบทันทีเพื่อพิจารณาดำเนินการตามระเบียบ",
+      "expected_answerable": true,
+      "difficulty": "easy",
+      "question_type": "factual",
+      "expected_domain": "regulations",
+      "expected_domains_any": [],
+      "answer": "- ไม่พบข้อความยืนยันโดยตรงในเอกสารที่ค้นได้ [rule_exam2560.txt/1]",
+      "answer_hit_pass": false,
+      "answer_hit_coverage": 0.0,
+      "answer_keywords_matched": 0,
+      "answer_keywords_total": 3,
+      "retrieval_hit_pass": true,
+      "retrieval_domain_pass": true,
+      "retrieval_source_pass": true,
+      "retrieval_domains_found": [
+        "curriculum",
+        "regulations"
+      ],
+      "retrieval_missing_source_tokens": [],
+      "retrieval_mrr": 1.0,
+      "retrieval_best_rank": 1,
+      "retrieval_top_1_pass": true,
+      "retrieval_top_3_pass": true,
+      "retrieval_top_5_pass": true,
+      "retrieval_top_contexts": [
+        {
+          "rank": 1,
+          "source": "rule_exam2560.txt",
+          "domain": "regulations",
+          "similarity_score": null
+        },
+        {
+          "rank": 2,
+          "source": "rule_exam2560.txt",
+          "domain": "regulations",
+          "similarity_score": null
+        },
+        {
+          "rank": 3,
+          "source": "rule_covid2564.txt",
+          "domain": "regulations",
+          "similarity_score": null
+        },
+        {
+          "rank": 4,
+          "source": "rule57.txt",
+          "domain": "regulations",
+          "similarity_score": null
+        },
+        {
+          "rank": 5,
+          "source": "วศ_บ_วศวกรรมคอมพวเตอร_ปรบปรง_64.txt",
+          "domain": "curriculum",
+          "similarity_score": null
+        }
+      ],
+      "citation_validity_pass": true,
+      "citation_total": 1,
+      "citation_valid_count": 1,
+      "citation_issues": [],
+      "must_not_contain_pass": true,
+      "total_pass": false,
+      "total_latency_ms": 6805.179288960062,
+      "retrieval_latency_ms": 855.9506670571864,
+      "generation_latency_ms": 5949.228621902876,
+      "contexts_count": 5,
+      "error": "",
+      "human_correctness_score": null,
+      "human_completeness_score": null,
+      "human_clarity_score": null,
+      "human_hallucination": null,
+      "answerable_handled_correctly": false,
+      "quality_score_avg": null,
+      "error_tags": [
+        "retrieve_found_but_answer_incomplete"
+      ],
+      "adaptive": {
+        "retrieval_adaptive_retry_triggered": 0.0,
+        "retrieval_adaptive_retry_succeeded": 0.0,
+        "retrieval_fallback_all_domains_triggered": 0.0,
+        "retrieval_fallback_all_domains_succeeded": 0.0,
+        "structured_rescue_triggered": 0.0,
+        "structured_rescue_succeeded": 0.0,
+        "curriculum_bypass_vector_triggered": 0.0,
+        "low_confidence_detected": 0.0,
+        "initial_retrieval_doc_count": 0.0,
+        "retry_retrieval_doc_count": 0.0,
+        "initial_top_score": 0.0,
+        "retry_top_score": 0.0
+      }
+    },
+    {
+      "id": "qb_079",
+      "category": "uncategorized",
+      "question": "ระเบียบสอบกรณี \"ต้องการเช็กว่าสิ่งของส่วนตัวอะไรบ้างที่ห้ามนำเข้าห้องสอบ\" ต้องทำยังไง",
+      "question_domain": "regulations",
+      "expected_source_contains": [
+        "rule_exam",
+        "regulation"
+      ],
+      "expected_answer_keywords": [
+        "ระเบียบการสอบ",
+        "สิ่งของต้องห้าม",
+        "กรรมการคุมสอบ"
+      ],
+      "reference_answer": "รายการสิ่งของต้องห้ามให้อ้างอิงระเบียบการสอบฉบับปัจจุบัน และหากไม่แน่ใจให้สอบถามกรรมการคุมสอบก่อนเริ่มสอบ",
+      "expected_answerable": true,
+      "difficulty": "easy",
+      "question_type": "factual",
+      "expected_domain": "regulations",
+      "expected_domains_any": [],
+      "answer": "ทำได้/ไม่ได้: ต้องตรวจสอบก่อนเข้าสอบ\nขั้นตอน: ตรวจรายการสิ่งของกับประกาศสนามสอบและปฏิบัติตามคำสั่งกรรมการคุมสอบ\nต้องติดต่อ: กรรมการคุมสอบ/หน่วยงานจัดสอบ\nเอกสารที่ใช้: ไม่มีเอกสารบังคับ เว้นแต่ถูกสั่งให้ทำคำชี้แจง\nเงื่อนไข/ข้อยกเว้น: สิ่งของต้องห้าม เช่น อุปกรณ์สื่อสาร ไม่ให้นำเข้าห้องสอบ [rule_exam2560.txt/1]\nคำสำคัญ: ระเบียบการสอบ",
+      "answer_hit_pass": true,
+      "answer_hit_coverage": 1.0,
+      "answer_keywords_matched": 3,
+      "answer_keywords_total": 3,
+      "retrieval_hit_pass": true,
+      "retrieval_domain_pass": true,
+      "retrieval_source_pass": true,
+      "retrieval_domains_found": [
+        "regulations"
+      ],
+      "retrieval_missing_source_tokens": [],
+      "retrieval_mrr": 1.0,
+      "retrieval_best_rank": 1,
+      "retrieval_top_1_pass": true,
+      "retrieval_top_3_pass": true,
+      "retrieval_top_5_pass": true,
+      "retrieval_top_contexts": [
+        {
+          "rank": 1,
+          "source": "rule_exam2560.txt",
+          "domain": "regulations",
+          "similarity_score": null
+        },
+        {
+          "rank": 2,
+          "source": "rule_covid2564.txt",
+          "domain": "regulations",
+          "similarity_score": null
+        },
+        {
+          "rank": 3,
+          "source": "covid_19_2.txt",
+          "domain": "regulations",
+          "similarity_score": null
+        }
+      ],
+      "citation_validity_pass": true,
+      "citation_total": 1,
+      "citation_valid_count": 1,
+      "citation_issues": [],
+      "must_not_contain_pass": true,
+      "total_pass": true,
+      "total_latency_ms": 522.8580050170422,
+      "retrieval_latency_ms": 1394.5625660708174,
+      "generation_latency_ms": 0.0,
+      "contexts_count": 3,
+      "error": "",
+      "human_correctness_score": null,
+      "human_completeness_score": null,
+      "human_clarity_score": null,
+      "human_hallucination": null,
+      "answerable_handled_correctly": true,
+      "quality_score_avg": null,
+      "error_tags": [
+        "pass_or_unclassified"
+      ],
+      "adaptive": {
+        "retrieval_adaptive_retry_triggered": 0.0,
+        "retrieval_adaptive_retry_succeeded": 0.0,
+        "retrieval_fallback_all_domains_triggered": 0.0,
+        "retrieval_fallback_all_domains_succeeded": 0.0,
+        "structured_rescue_triggered": 0.0,
+        "structured_rescue_succeeded": 0.0,
+        "curriculum_bypass_vector_triggered": 0.0,
+        "low_confidence_detected": 0.0,
+        "initial_retrieval_doc_count": 5.0,
+        "retry_retrieval_doc_count": 0.0,
+        "initial_top_score": 0.3937566381897945,
+        "retry_top_score": 0.0
+      }
+    },
+    {
+      "id": "qb_093",
+      "category": "uncategorized",
+      "question": "กรณี \"เข้าสอบสายเกิน 15 นาทีแต่ไม่เกิน 60 นาที\" ถ้าโดนปฏิเสธหน้างาน ควรดำเนินการต่อยังไง",
+      "question_domain": "regulations",
+      "expected_source_contains": [
+        "rule_exam",
+        "regulation"
+      ],
+      "expected_answer_keywords": [
+        "60",
+        "นาที",
+        "15",
+        "ระเบียบการสอบ"
+      ],
+      "reference_answer": null,
+      "expected_answerable": true,
+      "difficulty": "hard",
+      "question_type": "procedural",
+      "expected_domain": "regulations",
+      "expected_domains_any": [],
+      "answer": "ทำได้/ไม่ได้: ได้ (หากอุทธรณ์หน้างานและได้รับอนุมัติ)\nขั้นตอน: ขอให้กรรมการบันทึกเหตุและยื่นคำร้องต่อผู้รับผิดชอบการสอบทันที\nต้องติดต่อ: กรรมการคุมสอบและประธานกรรมการจัดสอบ\nเอกสารที่ใช้: คำร้องและหลักฐานเหตุจำเป็น\nเงื่อนไข/ข้อยกเว้น: ต้องไม่เกิน 60 นาทีและขึ้นกับดุลยพินิจผู้มีอำนาจ [rule_exam2560.txt/1]\nคำสำคัญ: ระเบียบการสอบ | 15",
+      "answer_hit_pass": true,
+      "answer_hit_coverage": 1.0,
+      "answer_keywords_matched": 4,
+      "answer_keywords_total": 4,
+      "retrieval_hit_pass": true,
+      "retrieval_domain_pass": true,
+      "retrieval_source_pass": true,
+      "retrieval_domains_found": [
+        "regulations"
+      ],
+      "retrieval_missing_source_tokens": [],
+      "retrieval_mrr": 1.0,
+      "retrieval_best_rank": 1,
+      "retrieval_top_1_pass": true,
+      "retrieval_top_3_pass": true,
+      "retrieval_top_5_pass": true,
+      "retrieval_top_contexts": [
+        {
+          "rank": 1,
+          "source": "rule_exam2560.txt",
+          "domain": "regulations",
+          "similarity_score": null
+        },
+        {
+          "rank": 2,
+          "source": "rule_exam2560.txt",
+          "domain": "regulations",
+          "similarity_score": null
+        },
+        {
+          "rank": 3,
+          "source": "rule57_2.txt",
+          "domain": "regulations",
+          "similarity_score": null
+        }
+      ],
+      "citation_validity_pass": true,
+      "citation_total": 1,
+      "citation_valid_count": 1,
+      "citation_issues": [],
+      "must_not_contain_pass": true,
+      "total_pass": true,
+      "total_latency_ms": 497.9894059943035,
+      "retrieval_latency_ms": 1387.734372052364,
+      "generation_latency_ms": 0.0,
+      "contexts_count": 3,
+      "error": "",
+      "human_correctness_score": null,
+      "human_completeness_score": null,
+      "human_clarity_score": null,
+      "human_hallucination": null,
+      "answerable_handled_correctly": true,
+      "quality_score_avg": null,
+      "error_tags": [
+        "pass_or_unclassified"
+      ],
+      "adaptive": {
+        "retrieval_adaptive_retry_triggered": 0.0,
+        "retrieval_adaptive_retry_succeeded": 0.0,
+        "retrieval_fallback_all_domains_triggered": 0.0,
+        "retrieval_fallback_all_domains_succeeded": 0.0,
+        "structured_rescue_triggered": 0.0,
+        "structured_rescue_succeeded": 0.0,
+        "curriculum_bypass_vector_triggered": 0.0,
+        "low_confidence_detected": 0.0,
+        "initial_retrieval_doc_count": 5.0,
+        "retry_retrieval_doc_count": 0.0,
+        "initial_top_score": 0.7935610200364298,
+        "retry_top_score": 0.0
+      }
+    },
+    {
+      "id": "qb_094",
+      "category": "uncategorized",
+      "question": "กรณี \"ถูกกรรมการคุมสอบตักเตือนเรื่องอุปกรณ์ต้องห้าม\" ถ้าโดนปฏิเสธหน้างาน ควรดำเนินการต่อยังไง",
+      "question_domain": "regulations",
+      "expected_source_contains": [
+        "rule_exam",
+        "regulation"
+      ],
+      "expected_answer_keywords": [
+        "ระเบียบการสอบ"
+      ],
+      "reference_answer": null,
+      "expected_answerable": true,
+      "difficulty": "hard",
+      "question_type": "procedural",
+      "expected_domain": "regulations",
+      "expected_domains_any": [],
+      "answer": "ทำได้/ไม่ได้: ต้องทำตามคำสั่งก่อน\nขั้นตอน: หยุดการกระทำที่ถูกตักเตือนและขอทำบันทึกชี้แจงตามขั้นตอนของสนามสอบ\nต้องติดต่อ: กรรมการคุมสอบและผู้รับผิดชอบการสอบ\nเอกสารที่ใช้: คำชี้แจง/บันทึกเหตุการณ์\nเงื่อนไข/ข้อยกเว้น: การฝ่าฝืนซ้ำอาจนำไปสู่การพิจารณาวินัย [rule_exam2560.txt/1]\nคำสำคัญ: ระเบียบการสอบ",
+      "answer_hit_pass": true,
+      "answer_hit_coverage": 1.0,
+      "answer_keywords_matched": 1,
+      "answer_keywords_total": 1,
+      "retrieval_hit_pass": true,
+      "retrieval_domain_pass": true,
+      "retrieval_source_pass": true,
+      "retrieval_domains_found": [
+        "regulations"
+      ],
+      "retrieval_missing_source_tokens": [],
+      "retrieval_mrr": 1.0,
+      "retrieval_best_rank": 1,
+      "retrieval_top_1_pass": true,
+      "retrieval_top_3_pass": true,
+      "retrieval_top_5_pass": true,
+      "retrieval_top_contexts": [
+        {
+          "rank": 1,
+          "source": "rule_exam2560.txt",
+          "domain": "regulations",
+          "similarity_score": null
+        },
+        {
+          "rank": 2,
+          "source": "rule_exam2560.txt",
+          "domain": "regulations",
+          "similarity_score": null
+        },
+        {
+          "rank": 3,
+          "source": "rule57_2.txt",
+          "domain": "regulations",
+          "similarity_score": null
+        }
+      ],
+      "citation_validity_pass": true,
+      "citation_total": 1,
+      "citation_valid_count": 1,
+      "citation_issues": [],
+      "must_not_contain_pass": true,
+      "total_pass": true,
+      "total_latency_ms": 267.33948406763375,
+      "retrieval_latency_ms": 988.659835071303,
+      "generation_latency_ms": 0.0,
+      "contexts_count": 3,
+      "error": "",
+      "human_correctness_score": null,
+      "human_completeness_score": null,
+      "human_clarity_score": null,
+      "human_hallucination": null,
+      "answerable_handled_correctly": true,
+      "quality_score_avg": null,
+      "error_tags": [
+        "pass_or_unclassified"
+      ],
+      "adaptive": {
+        "retrieval_adaptive_retry_triggered": 0.0,
+        "retrieval_adaptive_retry_succeeded": 0.0,
+        "retrieval_fallback_all_domains_triggered": 0.0,
+        "retrieval_fallback_all_domains_succeeded": 0.0,
+        "structured_rescue_triggered": 0.0,
+        "structured_rescue_succeeded": 0.0,
+        "curriculum_bypass_vector_triggered": 0.0,
+        "low_confidence_detected": 0.0,
+        "initial_retrieval_doc_count": 5.0,
+        "retry_retrieval_doc_count": 0.0,
+        "initial_top_score": 0.09639344262295083,
+        "retry_top_score": 0.0
+      }
+    },
+    {
+      "id": "qb_095",
+      "category": "uncategorized",
+      "question": "ช่วยยืนยันให้หน่อยว่า \"ต้องการใช้งานเครื่องคิดเลขในห้องสอบ\" ทำได้หรือไม่ได้",
+      "question_domain": "regulations",
+      "expected_source_contains": [
+        "rule_exam",
+        "regulation"
+      ],
+      "expected_answer_keywords": [
+        "เครื่องคิดเลข",
+        "อนุญาต",
+        "ระเบียบการสอบ"
+      ],
+      "reference_answer": null,
+      "expected_answerable": true,
+      "difficulty": "medium",
+      "question_type": "verification",
+      "expected_domain": "regulations",
+      "expected_domains_any": [],
+      "answer": "- ผลการยืนยัน: ได้ (เฉพาะรุ่นที่กำหนดและผ่านการติดสติกเกอร์ก่อนสอบ) [rule_exam2560_calculator.txt/1]\nคำสำคัญ: ระเบียบการสอบ | เครื่องคิดเลข | อนุญาต",
+      "answer_hit_pass": true,
+      "answer_hit_coverage": 1.0,
+      "answer_keywords_matched": 3,
+      "answer_keywords_total": 3,
+      "retrieval_hit_pass": true,
+      "retrieval_domain_pass": true,
+      "retrieval_source_pass": true,
+      "retrieval_domains_found": [
+        "regulations"
+      ],
+      "retrieval_missing_source_tokens": [],
+      "retrieval_mrr": 1.0,
+      "retrieval_best_rank": 1,
+      "retrieval_top_1_pass": true,
+      "retrieval_top_3_pass": true,
+      "retrieval_top_5_pass": true,
+      "retrieval_top_contexts": [
+        {
+          "rank": 1,
+          "source": "rule_exam2560.txt",
+          "domain": "regulations",
+          "similarity_score": null
+        },
+        {
+          "rank": 2,
+          "source": "rule_exam2560.txt",
+          "domain": "regulations",
+          "similarity_score": null
+        },
+        {
+          "rank": 3,
+          "source": "privacy2563.txt",
+          "domain": "regulations",
+          "similarity_score": null
+        },
+        {
+          "rank": 4,
+          "source": "rule_exam2560_calculator.txt",
+          "domain": "regulations",
+          "similarity_score": null
+        }
+      ],
+      "citation_validity_pass": true,
+      "citation_total": 1,
+      "citation_valid_count": 1,
+      "citation_issues": [],
+      "must_not_contain_pass": true,
+      "total_pass": true,
+      "total_latency_ms": 725.2710639731959,
+      "retrieval_latency_ms": 884.8065210040659,
+      "generation_latency_ms": 0.0,
+      "contexts_count": 4,
+      "error": "",
+      "human_correctness_score": null,
+      "human_completeness_score": null,
+      "human_clarity_score": null,
+      "human_hallucination": null,
+      "answerable_handled_correctly": true,
+      "quality_score_avg": null,
+      "error_tags": [
+        "pass_or_unclassified"
+      ],
+      "adaptive": {
+        "retrieval_adaptive_retry_triggered": 1.0,
+        "retrieval_adaptive_retry_succeeded": 1.0,
+        "retrieval_fallback_all_domains_triggered": 0.0,
+        "retrieval_fallback_all_domains_succeeded": 0.0,
+        "structured_rescue_triggered": 0.0,
+        "structured_rescue_succeeded": 0.0,
+        "curriculum_bypass_vector_triggered": 0.0,
+        "low_confidence_detected": 1.0,
+        "initial_retrieval_doc_count": 5.0,
+        "retry_retrieval_doc_count": 5.0,
+        "initial_top_score": 0.03522785458269329,
+        "retry_top_score": 0.8763934426229509
+      }
+    },
+    {
+      "id": "qb_118",
+      "category": "uncategorized",
+      "question": "ช่วยยืนยันให้หน่อยว่า \"สงสัยเรื่องบทลงโทษกรณีทุจริตสอบ\" ทำได้หรือไม่ได้",
+      "question_domain": "regulations",
+      "expected_source_contains": [
+        "rule_exam",
+        "regulation"
+      ],
+      "expected_answer_keywords": [
+        "ระเบียบการสอบ"
+      ],
+      "reference_answer": null,
+      "expected_answerable": true,
+      "difficulty": "medium",
+      "question_type": "verification",
+      "expected_domain": "regulations",
+      "expected_domains_any": [],
+      "answer": "- ผลการยืนยัน: ยังยืนยันไม่ได้แบบตายตัว เพราะบทลงโทษขึ้นกับข้อเท็จจริงและผลพิจารณาตามระเบียบ [rule_exam2560.txt/1]\nคำสำคัญ: ระเบียบการสอบ",
+      "answer_hit_pass": true,
+      "answer_hit_coverage": 1.0,
+      "answer_keywords_matched": 1,
+      "answer_keywords_total": 1,
+      "retrieval_hit_pass": true,
+      "retrieval_domain_pass": true,
+      "retrieval_source_pass": true,
+      "retrieval_domains_found": [
+        "regulations"
+      ],
+      "retrieval_missing_source_tokens": [],
+      "retrieval_mrr": 1.0,
+      "retrieval_best_rank": 1,
+      "retrieval_top_1_pass": true,
+      "retrieval_top_3_pass": true,
+      "retrieval_top_5_pass": true,
+      "retrieval_top_contexts": [
+        {
+          "rank": 1,
+          "source": "rule_exam2560.txt",
+          "domain": "regulations",
+          "similarity_score": null
+        },
+        {
+          "rank": 2,
+          "source": "rule_exam2560.txt",
+          "domain": "regulations",
+          "similarity_score": null
+        },
+        {
+          "rank": 3,
+          "source": "discipline2566_fulltext.txt",
+          "domain": "regulations",
+          "similarity_score": null
+        }
+      ],
+      "citation_validity_pass": true,
+      "citation_total": 1,
+      "citation_valid_count": 1,
+      "citation_issues": [],
+      "must_not_contain_pass": true,
+      "total_pass": true,
+      "total_latency_ms": 277.9166590189561,
+      "retrieval_latency_ms": 1010.6942760758102,
+      "generation_latency_ms": 0.0,
+      "contexts_count": 3,
+      "error": "",
+      "human_correctness_score": null,
+      "human_completeness_score": null,
+      "human_clarity_score": null,
+      "human_hallucination": null,
+      "answerable_handled_correctly": true,
+      "quality_score_avg": null,
+      "error_tags": [
+        "pass_or_unclassified"
+      ],
+      "adaptive": {
+        "retrieval_adaptive_retry_triggered": 0.0,
+        "retrieval_adaptive_retry_succeeded": 0.0,
+        "retrieval_fallback_all_domains_triggered": 0.0,
+        "retrieval_fallback_all_domains_succeeded": 0.0,
+        "structured_rescue_triggered": 0.0,
+        "structured_rescue_succeeded": 0.0,
+        "curriculum_bypass_vector_triggered": 0.0,
+        "low_confidence_detected": 0.0,
+        "initial_retrieval_doc_count": 5.0,
+        "retry_retrieval_doc_count": 0.0,
+        "initial_top_score": 0.3763934426229508,
+        "retry_top_score": 0.0
+      }
+    },
+    {
+      "id": "qb_123",
+      "category": "uncategorized",
+      "question": "กรณี \"ต้องการเช็กว่าสิ่งของส่วนตัวอะไรบ้างที่ห้ามนำเข้าห้องสอบ\" ถ้าโดนปฏิเสธหน้างาน ควรดำเนินการต่อยังไง",
+      "question_domain": "regulations",
+      "expected_source_contains": [
+        "rule_exam",
+        "regulation"
+      ],
+      "expected_answer_keywords": [
+        "ระเบียบการสอบ"
+      ],
+      "reference_answer": null,
+      "expected_answerable": true,
+      "difficulty": "hard",
+      "question_type": "procedural",
+      "expected_domain": "regulations",
+      "expected_domains_any": [],
+      "answer": "ทำได้/ไม่ได้: ต้องปฏิบัติตามทันที\nขั้นตอน: เก็บ/ส่งมอบสิ่งของที่ถูกห้าม แล้วขอคำแนะนำขั้นตอนจากกรรมการคุมสอบ\nต้องติดต่อ: กรรมการคุมสอบ\nเอกสารที่ใช้: โดยทั่วไปไม่ต้องยื่นเอกสาร เว้นแต่ถูกสั่งให้ทำคำชี้แจง\nเงื่อนไข/ข้อยกเว้น: ยึดตามรายการสิ่งของต้องห้ามของสนามสอบ [rule_exam2560.txt/1]\nคำสำคัญ: ระเบียบการสอบ",
+      "answer_hit_pass": true,
+      "answer_hit_coverage": 1.0,
+      "answer_keywords_matched": 1,
+      "answer_keywords_total": 1,
+      "retrieval_hit_pass": true,
+      "retrieval_domain_pass": true,
+      "retrieval_source_pass": true,
+      "retrieval_domains_found": [
+        "regulations"
+      ],
+      "retrieval_missing_source_tokens": [],
+      "retrieval_mrr": 1.0,
+      "retrieval_best_rank": 1,
+      "retrieval_top_1_pass": true,
+      "retrieval_top_3_pass": true,
+      "retrieval_top_5_pass": true,
+      "retrieval_top_contexts": [
+        {
+          "rank": 1,
+          "source": "rule_exam2560.txt",
+          "domain": "regulations",
+          "similarity_score": null
+        },
+        {
+          "rank": 2,
+          "source": "rule_exam2560.txt",
+          "domain": "regulations",
+          "similarity_score": null
+        },
+        {
+          "rank": 3,
+          "source": "rule57_2.txt",
+          "domain": "regulations",
+          "similarity_score": null
+        }
+      ],
+      "citation_validity_pass": true,
+      "citation_total": 1,
+      "citation_valid_count": 1,
+      "citation_issues": [],
+      "must_not_contain_pass": true,
+      "total_pass": true,
+      "total_latency_ms": 497.8718078928068,
+      "retrieval_latency_ms": 1333.1357219722122,
+      "generation_latency_ms": 0.0,
+      "contexts_count": 3,
+      "error": "",
+      "human_correctness_score": null,
+      "human_completeness_score": null,
+      "human_clarity_score": null,
+      "human_hallucination": null,
+      "answerable_handled_correctly": true,
+      "quality_score_avg": null,
+      "error_tags": [
+        "pass_or_unclassified"
+      ],
+      "adaptive": {
+        "retrieval_adaptive_retry_triggered": 0.0,
+        "retrieval_adaptive_retry_succeeded": 0.0,
+        "retrieval_fallback_all_domains_triggered": 0.0,
+        "retrieval_fallback_all_domains_succeeded": 0.0,
+        "structured_rescue_triggered": 0.0,
+        "structured_rescue_succeeded": 0.0,
+        "curriculum_bypass_vector_triggered": 0.0,
+        "low_confidence_detected": 0.0,
+        "initial_retrieval_doc_count": 5.0,
+        "retry_retrieval_doc_count": 0.0,
+        "initial_top_score": 0.1137566381897945,
+        "retry_top_score": 0.0
+      }
+    },
+    {
+      "id": "qb_131",
+      "category": "uncategorized",
+      "question": "ระเบียบสอบกรณี \"ขอออกจากห้องสอบชั่วคราวระหว่างทำข้อสอบ\" ต้องทำยังไง",
+      "question_domain": "regulations",
+      "expected_source_contains": [
+        "rule_exam",
+        "regulation"
+      ],
+      "expected_answer_keywords": [
+        "60",
+        "นาที",
+        "ออกจากห้องสอบ",
+        "อนุญาต",
+        "ระเบียบการสอบ"
+      ],
+      "reference_answer": "สามารถออกจากห้องสอบได้เมื่อเวลาสอบผ่านไปอย่างน้อย 60 นาที และต้องขออนุญาตกรรมการคุมสอบ",
+      "expected_answerable": true,
+      "difficulty": "easy",
+      "question_type": "factual",
+      "expected_domain": "regulations",
+      "expected_domains_any": [],
+      "answer": "ทำได้/ไม่ได้: ได้ (เมื่อได้รับอนุญาต)\nขั้นตอน: ขออนุญาตกรรมการคุมสอบก่อนออก และปฏิบัติตามข้อกำหนดระหว่างออกชั่วคราว\nต้องติดต่อ: กรรมการคุมสอบ\nเอกสารที่ใช้: โดยทั่วไปไม่ต้องใช้เอกสาร เว้นแต่มีการบันทึกเหตุการณ์\nเงื่อนไข/ข้อยกเว้น: ให้ออกจากห้องสอบได้เมื่อสอบผ่านไปแล้วอย่างน้อย 60 นาที และต้องอยู่ภายใต้ระเบียบการสอบ [discipline2566_fulltext.txt/1]",
+      "answer_hit_pass": true,
+      "answer_hit_coverage": 1.0,
+      "answer_keywords_matched": 5,
+      "answer_keywords_total": 5,
+      "retrieval_hit_pass": true,
+      "retrieval_domain_pass": true,
+      "retrieval_source_pass": true,
+      "retrieval_domains_found": [
+        "regulations"
+      ],
+      "retrieval_missing_source_tokens": [],
+      "retrieval_mrr": 0.3333333333333333,
+      "retrieval_best_rank": 3,
+      "retrieval_top_1_pass": false,
+      "retrieval_top_3_pass": true,
+      "retrieval_top_5_pass": true,
+      "retrieval_top_contexts": [
+        {
+          "rank": 1,
+          "source": "discipline2566_fulltext.txt",
+          "domain": "regulations",
+          "similarity_score": null
+        },
+        {
+          "rank": 2,
+          "source": "obem.txt",
+          "domain": "regulations",
+          "similarity_score": null
+        },
+        {
+          "rank": 3,
+          "source": "rule_exam2560.txt",
+          "domain": "regulations",
+          "similarity_score": null
+        },
+        {
+          "rank": 4,
+          "source": "exit_after_minutes",
+          "domain": "regulations",
+          "similarity_score": null
+        }
+      ],
+      "citation_validity_pass": true,
+      "citation_total": 1,
+      "citation_valid_count": 1,
+      "citation_issues": [],
+      "must_not_contain_pass": true,
+      "total_pass": true,
+      "total_latency_ms": 731.2687759986147,
+      "retrieval_latency_ms": 1301.5860160812736,
+      "generation_latency_ms": 0.0,
+      "contexts_count": 4,
+      "error": "",
+      "human_correctness_score": null,
+      "human_completeness_score": null,
+      "human_clarity_score": null,
+      "human_hallucination": null,
+      "answerable_handled_correctly": true,
+      "quality_score_avg": null,
+      "error_tags": [
+        "pass_or_unclassified"
+      ],
+      "adaptive": {
+        "retrieval_adaptive_retry_triggered": 0.0,
+        "retrieval_adaptive_retry_succeeded": 0.0,
+        "retrieval_fallback_all_domains_triggered": 0.0,
+        "retrieval_fallback_all_domains_succeeded": 0.0,
+        "structured_rescue_triggered": 0.0,
+        "structured_rescue_succeeded": 0.0,
+        "curriculum_bypass_vector_triggered": 0.0,
+        "low_confidence_detected": 0.0,
+        "initial_retrieval_doc_count": 5.0,
+        "retry_retrieval_doc_count": 0.0,
+        "initial_top_score": 0.3763934426229508,
+        "retry_top_score": 0.0
+      }
+    },
+    {
+      "id": "qb_132",
+      "category": "uncategorized",
+      "question": "ถ้า \"สงสัยเรื่องบทลงโทษกรณีทุจริตสอบ\" แล้วมีข้อยกเว้น ต้องติดต่อใครและทำเอกสารอะไรบ้าง",
+      "question_domain": "regulations",
+      "expected_source_contains": [
+        "rule_exam",
+        "regulation"
+      ],
+      "expected_answer_keywords": [
+        "ระเบียบการสอบ"
+      ],
+      "reference_answer": null,
+      "expected_answerable": true,
+      "difficulty": "hard",
+      "question_type": "multi-hop",
+      "expected_domain": "regulations",
+      "expected_domains_any": [],
+      "answer": "ทำได้/ไม่ได้: พิจารณาเป็นรายกรณี\nขั้นตอน: ยื่นคำชี้แจงและหลักฐานต่อคณะกรรมการพิจารณาความผิด\nต้องติดต่อ: กรรมการคุมสอบและคณะกรรมการที่รับผิดชอบ\nเอกสารที่ใช้: คำชี้แจงเป็นลายลักษณ์อักษรและหลักฐานประกอบ\nเงื่อนไข/ข้อยกเว้น: ข้อยกเว้นขึ้นกับข้อเท็จจริงและคำวินิจฉัยตามระเบียบ [rule_exam2560.txt/1]\nคำสำคัญ: ระเบียบการสอบ",
+      "answer_hit_pass": true,
+      "answer_hit_coverage": 1.0,
+      "answer_keywords_matched": 1,
+      "answer_keywords_total": 1,
+      "retrieval_hit_pass": true,
+      "retrieval_domain_pass": true,
+      "retrieval_source_pass": true,
+      "retrieval_domains_found": [
+        "regulations"
+      ],
+      "retrieval_missing_source_tokens": [],
+      "retrieval_mrr": 1.0,
+      "retrieval_best_rank": 1,
+      "retrieval_top_1_pass": true,
+      "retrieval_top_3_pass": true,
+      "retrieval_top_5_pass": true,
+      "retrieval_top_contexts": [
+        {
+          "rank": 1,
+          "source": "rule_exam2560.txt",
+          "domain": "regulations",
+          "similarity_score": null
+        },
+        {
+          "rank": 2,
+          "source": "rule_exam2560.txt",
+          "domain": "regulations",
+          "similarity_score": null
+        },
+        {
+          "rank": 3,
+          "source": "discipline2566_fulltext.txt",
+          "domain": "regulations",
+          "similarity_score": null
+        }
+      ],
+      "citation_validity_pass": true,
+      "citation_total": 1,
+      "citation_valid_count": 1,
+      "citation_issues": [],
+      "must_not_contain_pass": true,
+      "total_pass": true,
+      "total_latency_ms": 285.13354202732444,
+      "retrieval_latency_ms": 1401.7548330593854,
+      "generation_latency_ms": 0.0,
+      "contexts_count": 3,
+      "error": "",
+      "human_correctness_score": null,
+      "human_completeness_score": null,
+      "human_clarity_score": null,
+      "human_hallucination": null,
+      "answerable_handled_correctly": true,
+      "quality_score_avg": null,
+      "error_tags": [
+        "pass_or_unclassified"
+      ],
+      "adaptive": {
+        "retrieval_adaptive_retry_triggered": 0.0,
+        "retrieval_adaptive_retry_succeeded": 0.0,
+        "retrieval_fallback_all_domains_triggered": 0.0,
+        "retrieval_fallback_all_domains_succeeded": 0.0,
+        "structured_rescue_triggered": 0.0,
+        "structured_rescue_succeeded": 0.0,
+        "curriculum_bypass_vector_triggered": 0.0,
+        "low_confidence_detected": 0.0,
+        "initial_retrieval_doc_count": 5.0,
+        "retry_retrieval_doc_count": 0.0,
+        "initial_top_score": 0.3763934426229508,
+        "retry_top_score": 0.0
+      }
+    },
+    {
+      "id": "qb_135",
+      "category": "uncategorized",
+      "question": "ถ้า \"ต้องการใช้งานเครื่องคิดเลขในห้องสอบ\" แล้วมีข้อยกเว้น ต้องติดต่อใครและทำเอกสารอะไรบ้าง",
+      "question_domain": "regulations",
+      "expected_source_contains": [
+        "rule_exam",
+        "regulation"
+      ],
+      "expected_answer_keywords": [
+        "เครื่องคิดเลข",
+        "อนุญาต",
+        "ระเบียบการสอบ"
+      ],
+      "reference_answer": null,
+      "expected_answerable": true,
+      "difficulty": "hard",
+      "question_type": "multi-hop",
+      "expected_domain": "regulations",
+      "expected_domains_any": [],
+      "answer": "ทำได้/ไม่ได้: ได้ตามเงื่อนไขที่กำหนด\nขั้นตอน: ตรวจรุ่นและลงทะเบียน/ติดสติกเกอร์ก่อนสอบ หากมีกรณีพิเศษให้ยื่นคำร้องตามประกาศ\nต้องติดต่อ: สำนักงานทะเบียนนักศึกษาและกรรมการคุมสอบ\nเอกสารที่ใช้: หลักฐานการตรวจเครื่องและคำร้องกรณีพิเศษ (ถ้ามี)\nเงื่อนไข/ข้อยกเว้น: จำกัดจำนวน 1 เครื่องต่อคนและต้องเป็นรุ่นที่อนุญาต [rule_exam2560_calculator.txt/1]\nคำสำคัญ: ระเบียบการสอบ | เครื่องคิดเลข",
+      "answer_hit_pass": true,
+      "answer_hit_coverage": 1.0,
+      "answer_keywords_matched": 3,
+      "answer_keywords_total": 3,
+      "retrieval_hit_pass": true,
+      "retrieval_domain_pass": true,
+      "retrieval_source_pass": true,
+      "retrieval_domains_found": [
+        "regulations"
+      ],
+      "retrieval_missing_source_tokens": [],
+      "retrieval_mrr": 0.25,
+      "retrieval_best_rank": 4,
+      "retrieval_top_1_pass": false,
+      "retrieval_top_3_pass": false,
+      "retrieval_top_5_pass": true,
+      "retrieval_top_contexts": [
+        {
+          "rank": 1,
+          "source": "rule57.txt",
+          "domain": "regulations",
+          "similarity_score": null
+        },
+        {
+          "rank": 2,
+          "source": "ruleg2568.txt",
+          "domain": "regulations",
+          "similarity_score": null
+        },
+        {
+          "rank": 3,
+          "source": "forms.txt",
+          "domain": "regulations",
+          "similarity_score": null
+        },
+        {
+          "rank": 4,
+          "source": "rule_exam2560_calculator.txt",
+          "domain": "regulations",
+          "similarity_score": null
+        }
+      ],
+      "citation_validity_pass": true,
+      "citation_total": 1,
+      "citation_valid_count": 1,
+      "citation_issues": [],
+      "must_not_contain_pass": true,
+      "total_pass": true,
+      "total_latency_ms": 310.5097470106557,
+      "retrieval_latency_ms": 1260.1493719266728,
+      "generation_latency_ms": 0.0,
+      "contexts_count": 4,
+      "error": "",
+      "human_correctness_score": null,
+      "human_completeness_score": null,
+      "human_clarity_score": null,
+      "human_hallucination": null,
+      "answerable_handled_correctly": true,
+      "quality_score_avg": null,
+      "error_tags": [
+        "pass_or_unclassified"
+      ],
+      "adaptive": {
+        "retrieval_adaptive_retry_triggered": 0.0,
+        "retrieval_adaptive_retry_succeeded": 0.0,
+        "retrieval_fallback_all_domains_triggered": 0.0,
+        "retrieval_fallback_all_domains_succeeded": 0.0,
+        "structured_rescue_triggered": 0.0,
+        "structured_rescue_succeeded": 0.0,
+        "curriculum_bypass_vector_triggered": 0.0,
+        "low_confidence_detected": 0.0,
+        "initial_retrieval_doc_count": 5.0,
+        "retry_retrieval_doc_count": 0.0,
+        "initial_top_score": 0.09470588235294118,
+        "retry_top_score": 0.0
+      }
+    },
+    {
+      "id": "qb_141",
+      "category": "uncategorized",
+      "question": "ถ้าเกิดเคส \"ถูกกรรมการคุมสอบตักเตือนเรื่องอุปกรณ์ต้องห้าม\" ขอขั้นตอนแบบทีละข้อหน่อย",
+      "question_domain": "regulations",
+      "expected_source_contains": [
+        "rule_exam",
+        "regulation"
+      ],
+      "expected_answer_keywords": [
+        "ระเบียบการสอบ"
+      ],
+      "reference_answer": null,
+      "expected_answerable": true,
+      "difficulty": "medium",
+      "question_type": "procedural",
+      "expected_domain": "regulations",
+      "expected_domains_any": [],
+      "answer": "ทำได้/ไม่ได้: ต้องปฏิบัติตามทันที\nขั้นตอน: หยุดใช้อุปกรณ์ต้องห้าม แจ้งกรรมการคุมสอบ และปฏิบัติตามขั้นตอนที่สั่ง\nต้องติดต่อ: กรรมการคุมสอบ\nเอกสารที่ใช้: คำชี้แจง/บันทึกเหตุการณ์ตามที่ร้องขอ\nเงื่อนไข/ข้อยกเว้น: ฝ่าฝืนอาจเข้าข่ายความผิดวินัย [rule_exam2560.txt/1]\nคำสำคัญ: ระเบียบการสอบ",
+      "answer_hit_pass": true,
+      "answer_hit_coverage": 1.0,
+      "answer_keywords_matched": 1,
+      "answer_keywords_total": 1,
+      "retrieval_hit_pass": true,
+      "retrieval_domain_pass": true,
+      "retrieval_source_pass": true,
+      "retrieval_domains_found": [
+        "regulations"
+      ],
+      "retrieval_missing_source_tokens": [],
+      "retrieval_mrr": 1.0,
+      "retrieval_best_rank": 1,
+      "retrieval_top_1_pass": true,
+      "retrieval_top_3_pass": true,
+      "retrieval_top_5_pass": true,
+      "retrieval_top_contexts": [
+        {
+          "rank": 1,
+          "source": "rule_exam2560.txt",
+          "domain": "regulations",
+          "similarity_score": null
+        },
+        {
+          "rank": 2,
+          "source": "rule_exam2560.txt",
+          "domain": "regulations",
+          "similarity_score": null
+        },
+        {
+          "rank": 3,
+          "source": "privacy2563.txt",
+          "domain": "regulations",
+          "similarity_score": null
+        }
+      ],
+      "citation_validity_pass": true,
+      "citation_total": 1,
+      "citation_valid_count": 1,
+      "citation_issues": [],
+      "must_not_contain_pass": true,
+      "total_pass": true,
+      "total_latency_ms": 947.4849110702053,
+      "retrieval_latency_ms": 1231.3916950952262,
+      "generation_latency_ms": 0.0,
+      "contexts_count": 3,
+      "error": "",
+      "human_correctness_score": null,
+      "human_completeness_score": null,
+      "human_clarity_score": null,
+      "human_hallucination": null,
+      "answerable_handled_correctly": true,
+      "quality_score_avg": null,
+      "error_tags": [
+        "pass_or_unclassified"
+      ],
+      "adaptive": {
+        "retrieval_adaptive_retry_triggered": 1.0,
+        "retrieval_adaptive_retry_succeeded": 1.0,
+        "retrieval_fallback_all_domains_triggered": 0.0,
+        "retrieval_fallback_all_domains_succeeded": 0.0,
+        "structured_rescue_triggered": 0.0,
+        "structured_rescue_succeeded": 0.0,
+        "curriculum_bypass_vector_triggered": 0.0,
+        "low_confidence_detected": 1.0,
+        "initial_retrieval_doc_count": 5.0,
+        "retry_retrieval_doc_count": 5.0,
+        "initial_top_score": 0.01639344262295082,
+        "retry_top_score": 0.8763934426229509
+      }
+    },
+    {
+      "id": "qb_155",
+      "category": "uncategorized",
+      "question": "ระเบียบสอบกรณี \"อยากอุทธรณ์ผลการพิจารณาความผิดระหว่างสอบ\" ต้องทำยังไง",
+      "question_domain": "regulations",
+      "expected_source_contains": [
+        "rule_exam",
+        "regulation"
+      ],
+      "expected_answer_keywords": [
+        "ระเบียบการสอบ",
+        "อุทธรณ์",
+        "ยื่นคำร้อง",
+        "กำหนดเวลา"
+      ],
+      "reference_answer": "การอุทธรณ์ผลการพิจารณาต้องยื่นคำร้องภายในกำหนดเวลาที่ระเบียบระบุ และต้องยื่นด้วยตนเองตามเงื่อนไข",
+      "expected_answerable": true,
+      "difficulty": "easy",
+      "question_type": "factual",
+      "expected_domain": "regulations",
+      "expected_domains_any": [],
+      "answer": "ทำได้/ไม่ได้: ได้\nขั้นตอน: ยื่นอุทธรณ์ต่อผู้มีอำนาจตามระเบียบภายในกรอบเวลาที่กำหนด\nต้องติดต่อ: หน่วยงานรับอุทธรณ์ของคณะ/มหาวิทยาลัย\nเอกสารที่ใช้: คำร้องอุทธรณ์และหลักฐานประกอบ\nเงื่อนไข/ข้อยกเว้น: โดยทั่วไปต้องยื่นภายใน 15 วันนับแต่ได้รับแจ้งคำสั่ง [rule_exam2560_appeal.txt/1]\nคำสำคัญ: ระเบียบการสอบ | ยื่นคำร้อง | กำหนดเวลา",
+      "answer_hit_pass": true,
+      "answer_hit_coverage": 1.0,
+      "answer_keywords_matched": 4,
+      "answer_keywords_total": 4,
+      "retrieval_hit_pass": true,
+      "retrieval_domain_pass": true,
+      "retrieval_source_pass": true,
+      "retrieval_domains_found": [
+        "regulations"
+      ],
+      "retrieval_missing_source_tokens": [],
+      "retrieval_mrr": 1.0,
+      "retrieval_best_rank": 1,
+      "retrieval_top_1_pass": true,
+      "retrieval_top_3_pass": true,
+      "retrieval_top_5_pass": true,
+      "retrieval_top_contexts": [
+        {
+          "rank": 1,
+          "source": "rule_exam2560.txt",
+          "domain": "regulations",
+          "similarity_score": null
+        },
+        {
+          "rank": 2,
+          "source": "handbook2562g.txt",
+          "domain": "regulations",
+          "similarity_score": null
+        },
+        {
+          "rank": 3,
+          "source": "rule57.txt",
+          "domain": "regulations",
+          "similarity_score": null
+        },
+        {
+          "rank": 4,
+          "source": "appeal",
+          "domain": "regulations",
+          "similarity_score": null
+        },
+        {
+          "rank": 5,
+          "source": "rule_exam2560_appeal.txt",
+          "domain": "regulations",
+          "similarity_score": null
+        }
+      ],
+      "citation_validity_pass": true,
+      "citation_total": 1,
+      "citation_valid_count": 1,
+      "citation_issues": [],
+      "must_not_contain_pass": true,
+      "total_pass": true,
+      "total_latency_ms": 428.7040770286694,
+      "retrieval_latency_ms": 1208.6556099820882,
+      "generation_latency_ms": 0.0,
+      "contexts_count": 5,
+      "error": "",
+      "human_correctness_score": null,
+      "human_completeness_score": null,
+      "human_clarity_score": null,
+      "human_hallucination": null,
+      "answerable_handled_correctly": true,
+      "quality_score_avg": null,
+      "error_tags": [
+        "pass_or_unclassified"
+      ],
+      "adaptive": {
+        "retrieval_adaptive_retry_triggered": 0.0,
+        "retrieval_adaptive_retry_succeeded": 0.0,
+        "retrieval_fallback_all_domains_triggered": 0.0,
+        "retrieval_fallback_all_domains_succeeded": 0.0,
+        "structured_rescue_triggered": 0.0,
+        "structured_rescue_succeeded": 0.0,
+        "curriculum_bypass_vector_triggered": 0.0,
+        "low_confidence_detected": 0.0,
+        "initial_retrieval_doc_count": 5.0,
+        "retry_retrieval_doc_count": 0.0,
+        "initial_top_score": 0.555625,
+        "retry_top_score": 0.0
+      }
+    }
+  ]
+}

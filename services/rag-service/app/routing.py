@@ -121,6 +121,14 @@ def classify_intent(question: str) -> str:
     q = (question or '').strip()
     ql = q.lower()
 
+    unanswerable_terms = (
+        'เดาข้อสอบ', 'ช่วยเดาข้อสอบ', 'ข้อสอบจะออก', 'สอบจะออกอะไร', 'เฉลยข้อสอบ', 'ทำนายข้อสอบ', 'ใบ้ข้อสอบ',
+        'ตัดสินเกรด', 'ตัดเกรดให้', 'ขอให้ปรับเกรด', 'ปรับเกรดให้', 'เปลี่ยนเกรดให้', 'การันตีเกรด',
+        'ผลสอบล่วงหน้า', 'ผลสอบก่อนประกาศ', 'บอกเกรดล่วงหน้า', 'ยืนยันผลสอบล่วงหน้า',
+    )
+    if any(t in ql for t in unanswerable_terms):
+        return 'unanswerable'
+
     if _is_claim_verification_question(q):
         return 'claim_verification'
 

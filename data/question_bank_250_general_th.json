@@ -21,20 +21,20 @@
     "depends_on_id": ""
   },
   {
-    "domain": "internship",
+    "domain": "announcements",
     "difficulty": "hard",
     "question_type": "multi-hop",
     "expected_answerable": true,
-    "question": "ถ้าเกิดปัญหาเกี่ยวกับ ชั่วโมงงานขั้นต่ำระหว่างฝึกงาน ต้องประสานกับใครบ้างและภายในกี่วัน",
+    "question": "ถ้าเลยกำหนดเรื่อง ช่องทางติดตามประกาศล่าสุดของภาควิชา ไปแล้ว ยังมีทางแก้หรือยื่นคำร้องอะไรได้บ้าง",
     "id": "qb_002",
-    "expected_domain": "internship",
+    "expected_domain": "announcements",
     "expected_source_contains": [
-      "internship",
-      "announcement"
+      "announcement",
+      "calendar"
     ],
     "reference_answer": "",
     "expected_answer_keywords": [
-      "ฝึกงาน"
+      "ประกาศ"
     ],
     "scenario_type": "standard",
     "conversation_id": "",
@@ -220,21 +220,20 @@
     "depends_on_id": ""
   },
   {
-    "domain": "internship",
+    "domain": "announcements",
     "difficulty": "medium",
     "question_type": "procedural",
     "expected_answerable": true,
-    "question": "ขอขั้นตอนเรื่อง ความแตกต่างระหว่างฝึกงานกับสหกิจ แบบเข้าใจง่ายหน่อย",
+    "question": "ถ้าจะจัดการเรื่อง กำหนดการชำระค่าเทอม ต้องเริ่มจากตรงไหน",
     "id": "qb_011",
-    "expected_domain": "internship",
+    "expected_domain": "announcements",
     "expected_source_contains": [
-      "internship",
-      "announcement"
+      "announcement",
+      "calendar"
     ],
     "reference_answer": "",
     "expected_answer_keywords": [
-      "ฝึกงาน",
-      "สหกิจ"
+      "ประกาศ"
     ],
     "scenario_type": "standard",
     "conversation_id": "",
@@ -266,20 +265,20 @@
     "depends_on_id": ""
   },
   {
-    "domain": "internship",
+    "domain": "announcements",
     "difficulty": "medium",
     "question_type": "verification",
     "expected_answerable": true,
-    "question": "ช่วยยืนยันเงื่อนไขล่าสุดของ การเปลี่ยนสถานที่ฝึกงานกลางเทอม ให้หน่อย",
+    "question": "ช่วยเช็กให้หน่อยว่า ช่วงสอบกลางภาคและปลายภาค มีประกาศใหม่แล้วหรือยัง",
     "id": "qb_013",
-    "expected_domain": "internship",
+    "expected_domain": "announcements",
     "expected_source_contains": [
-      "internship",
-      "announcement"
+      "announcement",
+      "calendar"
     ],
     "reference_answer": "",
     "expected_answer_keywords": [
-      "ฝึกงาน"
+      "ประกาศ"
     ],
     "scenario_type": "standard",
     "conversation_id": "",
@@ -356,7 +355,7 @@
     "difficulty": "medium",
     "question_type": "verification",
     "expected_answerable": true,
-    "question": "ช่วยเช็กให้หน่อยว่า ประกาศฝึกงานภาคฤดูร้อน มีประกาศใหม่แล้วหรือยัง",
+    "question": "ช่วยเช็กให้หน่อยว่า กำหนดการลงทะเบียนล่าช้า มีประกาศใหม่แล้วหรือยัง",
     "id": "qb_017",
     "expected_domain": "announcements",
     "expected_source_contains": [
@@ -585,21 +584,20 @@
     "depends_on_id": ""
   },
   {
-    "domain": "internship",
+    "domain": "announcements",
     "difficulty": "hard",
     "question_type": "multi-hop",
     "expected_answerable": true,
-    "question": "ถ้าเกิดปัญหาเกี่ยวกับ ความแตกต่างระหว่างฝึกงานกับสหกิจ ต้องประสานกับใครบ้างและภายในกี่วัน",
+    "question": "ถ้าเลยกำหนดเรื่อง ขั้นตอนขอหนังสือรับรองนักศึกษา ไปแล้ว ยังมีทางแก้หรือยื่นคำร้องอะไรได้บ้าง",
     "id": "qb_028",
-    "expected_domain": "internship",
+    "expected_domain": "announcements",
     "expected_source_contains": [
-      "internship",
-      "announcement"
+      "announcement",
+      "calendar"
     ],
     "reference_answer": "",
     "expected_answer_keywords": [
-      "ฝึกงาน",
-      "สหกิจ"
+      "ประกาศ"
     ],
     "scenario_type": "standard",
     "conversation_id": "",
@@ -654,22 +652,20 @@
     "depends_on_id": ""
   },
   {
-    "domain": "internship",
+    "domain": "announcements",
     "difficulty": "hard",
     "question_type": "multi-hop",
     "expected_answerable": true,
-    "question": "ถ้าเกิดปัญหาเกี่ยวกับ เงื่อนไข GPA สำหรับสหกิจ ต้องประสานกับใครบ้างและภายในกี่วัน",
+    "question": "ถ้าเลยกำหนดเรื่อง ขั้นตอนขอทรานสคริปต์ออนไลน์ ไปแล้ว ยังมีทางแก้หรือยื่นคำร้องอะไรได้บ้าง",
     "id": "qb_031",
-    "expected_domain": "internship",
+    "expected_domain": "announcements",
     "expected_source_contains": [
-      "internship",
-      "announcement"
+      "announcement",
+      "calendar"
     ],
     "reference_answer": "",
     "expected_answer_keywords": [
-      "ฝึกงาน",
-      "สหกิจ",
-      "GPA"
+      "ประกาศ"
     ],
     "scenario_type": "standard",
     "conversation_id": "",
@@ -788,20 +784,20 @@
     "depends_on_id": ""
   },
   {
-    "domain": "internship",
+    "domain": "announcements",
     "difficulty": "medium",
     "question_type": "procedural",
     "expected_answerable": true,
-    "question": "ขอขั้นตอนเรื่อง การแต่งตั้งอาจารย์ที่ปรึกษาฝึกงาน แบบเข้าใจง่ายหน่อย",
+    "question": "ถ้าจะจัดการเรื่อง ช่วง add/drop ต้องเริ่มจากตรงไหน",
     "id": "qb_037",
-    "expected_domain": "internship",
+    "expected_domain": "announcements",
     "expected_source_contains": [
-      "internship",
-      "announcement"
+      "announcement",
+      "calendar"
     ],
     "reference_answer": "",
     "expected_answer_keywords": [
-      "ฝึกงาน"
+      "ประกาศ"
     ],
     "scenario_type": "standard",
     "conversation_id": "",
@@ -1100,20 +1096,20 @@
     "depends_on_id": ""
   },
   {
-    "domain": "internship",
+    "domain": "announcements",
     "difficulty": "medium",
     "question_type": "verification",
     "expected_answerable": true,
-    "question": "ช่วยยืนยันเงื่อนไขล่าสุดของ เอกสารก่อนเริ่มฝึกงาน ให้หน่อย",
+    "question": "ช่วยเช็กให้หน่อยว่า กำหนดการลงทะเบียนล่าช้า มีประกาศใหม่แล้วหรือยัง",
     "id": "qb_051",
-    "expected_domain": "internship",
+    "expected_domain": "announcements",
     "expected_source_contains": [
-      "internship",
-      "announcement"
+      "announcement",
+      "calendar"
     ],
     "reference_answer": "",
     "expected_answer_keywords": [
-      "ฝึกงาน"
+      "ประกาศ"
     ],
     "scenario_type": "standard",
     "conversation_id": "",
@@ -1188,20 +1184,20 @@
     "depends_on_id": ""
   },
   {
-    "domain": "internship",
+    "domain": "announcements",
     "difficulty": "hard",
     "question_type": "multi-hop",
     "expected_answerable": true,
-    "question": "ถ้าเกิดปัญหาเกี่ยวกับ เอกสารก่อนเริ่มฝึกงาน ต้องประสานกับใครบ้างและภายในกี่วัน",
+    "question": "ถ้าเลยกำหนดเรื่อง วันสุดท้ายถอนวิชาแบบติด W ไปแล้ว ยังมีทางแก้หรือยื่นคำร้องอะไรได้บ้าง",
     "id": "qb_055",
-    "expected_domain": "internship",
+    "expected_domain": "announcements",
     "expected_source_contains": [
-      "internship",
-      "announcement"
+      "announcement",
+      "calendar"
     ],
     "reference_answer": "",
     "expected_answer_keywords": [
-      "ฝึกงาน"
+      "ประกาศ"
     ],
     "scenario_type": "standard",
     "conversation_id": "",
@@ -1389,7 +1385,7 @@
     "difficulty": "hard",
     "question_type": "multi-hop",
     "expected_answerable": true,
-    "question": "ถ้าเลยกำหนดเรื่อง ประกาศฝึกงานภาคฤดูร้อน ไปแล้ว ยังมีทางแก้หรือยื่นคำร้องอะไรได้บ้าง",
+    "question": "ถ้าเลยกำหนดเรื่อง ช่วงสอบกลางภาคและปลายภาค ไปแล้ว ยังมีทางแก้หรือยื่นคำร้องอะไรได้บ้าง",
     "id": "qb_064",
     "expected_domain": "announcements",
     "expected_source_contains": [
@@ -1429,20 +1425,20 @@
     "depends_on_id": ""
   },
   {
-    "domain": "internship",
+    "domain": "announcements",
     "difficulty": "medium",
     "question_type": "verification",
     "expected_answerable": true,
-    "question": "ช่วยยืนยันเงื่อนไขล่าสุดของ ชั่วโมงงานขั้นต่ำระหว่างฝึกงาน ให้หน่อย",
+    "question": "ช่วยเช็กให้หน่อยว่า ค่าธรรมเนียมจัดส่งเอกสารทางไปรษณีย์ มีประกาศใหม่แล้วหรือยัง",
     "id": "qb_066",
-    "expected_domain": "internship",
+    "expected_domain": "announcements",
     "expected_source_contains": [
-      "internship",
-      "announcement"
+      "announcement",
+      "calendar"
     ],
     "reference_answer": "",
     "expected_answer_keywords": [
-      "ฝึกงาน"
+      "ประกาศ"
     ],
     "scenario_type": "standard",
     "conversation_id": "",
@@ -1450,20 +1446,20 @@
     "depends_on_id": ""
   },
   {
-    "domain": "internship",
+    "domain": "announcements",
     "difficulty": "hard",
     "question_type": "multi-hop",
     "expected_answerable": true,
-    "question": "ถ้าเกิดปัญหาเกี่ยวกับ ทุนช่วยเหลือกรณีฝึกงานต่างจังหวัด ต้องประสานกับใครบ้างและภายในกี่วัน",
+    "question": "ถ้าเลยกำหนดเรื่อง ค่าประกันอุบัติเหตุนักศึกษา ไปแล้ว ยังมีทางแก้หรือยื่นคำร้องอะไรได้บ้าง",
     "id": "qb_067",
-    "expected_domain": "internship",
+    "expected_domain": "announcements",
     "expected_source_contains": [
-      "internship",
-      "announcement"
+      "announcement",
+      "calendar"
     ],
     "reference_answer": "",
     "expected_answer_keywords": [
-      "ฝึกงาน"
+      "ประกาศ"
     ],
     "scenario_type": "standard",
     "conversation_id": "",
@@ -1736,20 +1732,20 @@
     "depends_on_id": ""
   },
   {
-    "domain": "internship",
+    "domain": "announcements",
     "difficulty": "hard",
     "question_type": "multi-hop",
     "expected_answerable": true,
-    "question": "ถ้าเกิดปัญหาเกี่ยวกับ ลงทะเบียนรายวิชาฝึกงาน ต้องประสานกับใครบ้างและภายในกี่วัน",
+    "question": "ถ้าเลยกำหนดเรื่อง ประกาศหยุดเรียน/เลื่อนการเรียนการสอน ไปแล้ว ยังมีทางแก้หรือยื่นคำร้องอะไรได้บ้าง",
     "id": "qb_080",
-    "expected_domain": "internship",
+    "expected_domain": "announcements",
     "expected_source_contains": [
-      "internship",
-      "announcement"
+      "announcement",
+      "calendar"
     ],
     "reference_answer": "",
     "expected_answer_keywords": [
-      "ฝึกงาน"
+      "ประกาศ"
     ],
     "scenario_type": "standard",
     "conversation_id": "",
@@ -1821,20 +1817,20 @@
     "depends_on_id": ""
   },
   {
-    "domain": "internship",
+    "domain": "announcements",
     "difficulty": "hard",
     "question_type": "multi-hop",
     "expected_answerable": true,
-    "question": "ถ้าเกิดปัญหาเกี่ยวกับ การแต่งตั้งอาจารย์ที่ปรึกษาฝึกงาน ต้องประสานกับใครบ้างและภายในกี่วัน",
+    "question": "ถ้าเลยกำหนดเรื่อง ช่องทางติดตามประกาศล่าสุดของภาควิชา ไปแล้ว ยังมีทางแก้หรือยื่นคำร้องอะไรได้บ้าง",
     "id": "qb_084",
-    "expected_domain": "internship",
+    "expected_domain": "announcements",
     "expected_source_contains": [
-      "internship",
-      "announcement"
+      "announcement",
+      "calendar"
     ],
     "reference_answer": "",
     "expected_answer_keywords": [
-      "ฝึกงาน"
+      "ประกาศ"
     ],
     "scenario_type": "standard",
     "conversation_id": "",
@@ -2368,20 +2364,20 @@
     "depends_on_id": ""
   },
   {
-    "domain": "internship",
+    "domain": "announcements",
     "difficulty": "medium",
     "question_type": "procedural",
     "expected_answerable": true,
-    "question": "ขอขั้นตอนเรื่อง ลงทะเบียนรายวิชาฝึกงาน แบบเข้าใจง่ายหน่อย",
+    "question": "ถ้าจะจัดการเรื่อง กำหนดการชำระค่าเทอม ต้องเริ่มจากตรงไหน",
     "id": "qb_109",
-    "expected_domain": "internship",
+    "expected_domain": "announcements",
     "expected_source_contains": [
-      "internship",
-      "announcement"
+      "announcement",
+      "calendar"
     ],
     "reference_answer": "",
     "expected_answer_keywords": [
-      "ฝึกงาน"
+      "ประกาศ"
     ],
     "scenario_type": "standard",
     "conversation_id": "",
@@ -2456,20 +2452,20 @@
     "depends_on_id": ""
   },
   {
-    "domain": "internship",
+    "domain": "announcements",
     "difficulty": "medium",
     "question_type": "verification",
     "expected_answerable": true,
-    "question": "ช่วยยืนยันเงื่อนไขล่าสุดของ การแต่งตั้งอาจารย์ที่ปรึกษาฝึกงาน ให้หน่อย",
+    "question": "ช่วยเช็กให้หน่อยว่า ช่วงสอบกลางภาคและปลายภาค มีประกาศใหม่แล้วหรือยัง",
     "id": "qb_113",
-    "expected_domain": "internship",
+    "expected_domain": "announcements",
     "expected_source_contains": [
-      "internship",
-      "announcement"
+      "announcement",
+      "calendar"
     ],
     "reference_answer": "",
     "expected_answer_keywords": [
-      "ฝึกงาน"
+      "ประกาศ"
     ],
     "scenario_type": "standard",
     "conversation_id": "",
@@ -2633,20 +2629,20 @@
     "depends_on_id": ""
   },
   {
-    "domain": "internship",
+    "domain": "announcements",
     "difficulty": "medium",
     "question_type": "procedural",
     "expected_answerable": true,
-    "question": "ขอขั้นตอนเรื่อง การเปลี่ยนสถานที่ฝึกงานกลางเทอม แบบเข้าใจง่ายหน่อย",
+    "question": "ถ้าจะจัดการเรื่อง ขั้นตอนขอหนังสือรับรองนักศึกษา ต้องเริ่มจากตรงไหน",
     "id": "qb_121",
-    "expected_domain": "internship",
+    "expected_domain": "announcements",
     "expected_source_contains": [
-      "internship",
-      "announcement"
+      "announcement",
+      "calendar"
     ],
     "reference_answer": "",
     "expected_answer_keywords": [
-      "ฝึกงาน"
+      "ประกาศ"
     ],
     "scenario_type": "standard",
     "conversation_id": "",
@@ -2698,22 +2694,20 @@
     "depends_on_id": ""
   },
   {
-    "domain": "internship",
+    "domain": "announcements",
     "difficulty": "medium",
     "question_type": "verification",
     "expected_answerable": true,
-    "question": "ช่วยยืนยันเงื่อนไขล่าสุดของ เงื่อนไข GPA สำหรับสหกิจ ให้หน่อย",
+    "question": "ช่วยเช็กให้หน่อยว่า ขั้นตอนขอทรานสคริปต์ออนไลน์ มีประกาศใหม่แล้วหรือยัง",
     "id": "qb_124",
-    "expected_domain": "internship",
+    "expected_domain": "announcements",
     "expected_source_contains": [
-      "internship",
-      "announcement"
+      "announcement",
+      "calendar"
     ],
     "reference_answer": "",
     "expected_answer_keywords": [
-      "ฝึกงาน",
-      "สหกิจ",
-      "GPA"
+      "ประกาศ"
     ],
     "scenario_type": "standard",
     "conversation_id": "",
@@ -3052,19 +3046,16 @@
     "difficulty": "easy",
     "question_type": "factual",
     "expected_answerable": true,
-    "question": "ขออัปเดต ประกาศฝึกงานภาคฤดูร้อน ล่าสุดหน่อยครับ",
+    "question": "ขออัปเดต วันสุดท้ายถอนวิชาแบบติด W ล่าสุดหน่อยครับ",
     "id": "qb_140",
     "expected_domain": "announcements",
     "expected_source_contains": [
       "announcement",
       "calendar"
     ],
-    "reference_answer": "ประกาศฝึกงานภาคฤดูร้อนให้ติดตามจากช่องทางประกาศอย่างเป็นทางการของภาควิชาและคณะ",
+    "reference_answer": "",
     "expected_answer_keywords": [
-      "ประกาศ",
-      "ฝึกงาน",
-      "ฝึกงานภาคฤดูร้อน",
-      "ภาควิชา"
+      "ประกาศ"
     ],
     "scenario_type": "standard",
     "conversation_id": "",
@@ -3115,20 +3106,20 @@
     "depends_on_id": ""
   },
   {
-    "domain": "internship",
+    "domain": "announcements",
     "difficulty": "medium",
     "question_type": "procedural",
     "expected_answerable": true,
-    "question": "ขอขั้นตอนเรื่อง ทุนช่วยเหลือกรณีฝึกงานต่างจังหวัด แบบเข้าใจง่ายหน่อย",
+    "question": "ถ้าจะจัดการเรื่อง ช่วง add/drop ต้องเริ่มจากตรงไหน",
     "id": "qb_143",
-    "expected_domain": "internship",
+    "expected_domain": "announcements",
     "expected_source_contains": [
-      "internship",
-      "announcement"
+      "announcement",
+      "calendar"
     ],
     "reference_answer": "",
     "expected_answer_keywords": [
-      "ฝึกงาน"
+      "ประกาศ"
     ],
     "scenario_type": "standard",
     "conversation_id": "",
@@ -3136,20 +3127,20 @@
     "depends_on_id": ""
   },
   {
-    "domain": "internship",
+    "domain": "announcements",
     "difficulty": "medium",
     "question_type": "verification",
     "expected_answerable": true,
-    "question": "ช่วยยืนยันเงื่อนไขล่าสุดของ ทุนช่วยเหลือกรณีฝึกงานต่างจังหวัด ให้หน่อย",
+    "question": "ช่วยเช็กให้หน่อยว่า กำหนดการลงทะเบียนล่าช้า มีประกาศใหม่แล้วหรือยัง",
     "id": "qb_144",
-    "expected_domain": "internship",
+    "expected_domain": "announcements",
     "expected_source_contains": [
-      "internship",
-      "announcement"
+      "announcement",
+      "calendar"
     ],
     "reference_answer": "",
     "expected_answer_keywords": [
-      "ฝึกงาน"
+      "ประกาศ"
     ],
     "scenario_type": "standard",
     "conversation_id": "",
@@ -3290,20 +3281,20 @@
     "depends_on_id": ""
   },
   {
-    "domain": "internship",
+    "domain": "announcements",
     "difficulty": "medium",
     "question_type": "procedural",
     "expected_answerable": true,
-    "question": "ขอขั้นตอนเรื่อง ขั้นตอนแจ้งสถานที่ฝึกงานที่หามาเอง แบบเข้าใจง่ายหน่อย",
+    "question": "ถ้าจะจัดการเรื่อง วันสุดท้ายถอนวิชาแบบติด W ต้องเริ่มจากตรงไหน",
     "id": "qb_151",
-    "expected_domain": "internship",
+    "expected_domain": "announcements",
     "expected_source_contains": [
-      "internship",
-      "announcement"
+      "announcement",
+      "calendar"
     ],
     "reference_answer": "",
     "expected_answer_keywords": [
-      "ฝึกงาน"
+      "ประกาศ"
     ],
     "scenario_type": "standard",
     "conversation_id": "",
@@ -3467,20 +3458,20 @@
     "depends_on_id": ""
   },
   {
-    "domain": "internship",
+    "domain": "announcements",
     "difficulty": "medium",
     "question_type": "procedural",
     "expected_answerable": true,
-    "question": "ขอขั้นตอนเรื่อง เอกสารก่อนเริ่มฝึกงาน แบบเข้าใจง่ายหน่อย",
+    "question": "ถ้าจะจัดการเรื่อง ค่าธรรมเนียมจัดส่งเอกสารทางไปรษณีย์ ต้องเริ่มจากตรงไหน",
     "id": "qb_159",
-    "expected_domain": "internship",
+    "expected_domain": "announcements",
     "expected_source_contains": [
-      "internship",
-      "announcement"
+      "announcement",
+      "calendar"
     ],
     "reference_answer": "",
     "expected_answer_keywords": [
-      "ฝึกงาน"
+      "ประกาศ"
     ],
     "scenario_type": "standard",
     "conversation_id": "",
@@ -3509,22 +3500,20 @@
     "depends_on_id": ""
   },
   {
-    "domain": "internship",
+    "domain": "announcements",
     "difficulty": "medium",
     "question_type": "procedural",
     "expected_answerable": true,
-    "question": "ขอขั้นตอนเรื่อง เงื่อนไข GPA สำหรับสหกิจ แบบเข้าใจง่ายหน่อย",
+    "question": "ถ้าจะจัดการเรื่อง ค่าประกันอุบัติเหตุนักศึกษา ต้องเริ่มจากตรงไหน",
     "id": "qb_161",
-    "expected_domain": "internship",
+    "expected_domain": "announcements",
     "expected_source_contains": [
-      "internship",
-      "announcement"
+      "announcement",
+      "calendar"
     ],
     "reference_answer": "",
     "expected_answer_keywords": [
-      "ฝึกงาน",
-      "สหกิจ",
-      "GPA"
+      "ประกาศ"
     ],
     "scenario_type": "standard",
     "conversation_id": "",
@@ -3686,7 +3675,7 @@
     "difficulty": "medium",
     "question_type": "procedural",
     "expected_answerable": true,
-    "question": "ถ้าจะจัดการเรื่อง ประกาศฝึกงานภาคฤดูร้อน ต้องเริ่มจากตรงไหน",
+    "question": "ถ้าจะจัดการเรื่อง ขั้นตอนขอทรานสคริปต์ออนไลน์ ต้องเริ่มจากตรงไหน",
     "id": "qb_169",
     "expected_domain": "announcements",
     "expected_source_contains": [
@@ -3703,21 +3692,20 @@
     "depends_on_id": ""
   },
   {
-    "domain": "internship",
+    "domain": "announcements",
     "difficulty": "medium",
     "question_type": "procedural",
     "expected_answerable": true,
-    "question": "ขอขั้นตอนเรื่อง กำหนดส่งรายงานระหว่างฝึกงาน แบบเข้าใจง่ายหน่อย",
+    "question": "ถ้าจะจัดการเรื่อง ประกาศหยุดเรียน/เลื่อนการเรียนการสอน ต้องเริ่มจากตรงไหน",
     "id": "qb_170",
-    "expected_domain": "internship",
+    "expected_domain": "announcements",
     "expected_source_contains": [
-      "internship",
-      "announcement"
+      "announcement",
+      "calendar"
     ],
     "reference_answer": "",
     "expected_answer_keywords": [
-      "ฝึกงาน",
-      "รายงาน"
+      "ประกาศ"
     ],
     "scenario_type": "standard",
     "conversation_id": "",
@@ -3879,21 +3867,20 @@
     "depends_on_id": ""
   },
   {
-    "domain": "internship",
+    "domain": "announcements",
     "difficulty": "medium",
     "question_type": "verification",
     "expected_answerable": true,
-    "question": "ช่วยยืนยันเงื่อนไขล่าสุดของ ความแตกต่างระหว่างฝึกงานกับสหกิจ ให้หน่อย",
+    "question": "ช่วยเช็กให้หน่อยว่า ช่องทางติดตามประกาศล่าสุดของภาควิชา มีประกาศใหม่แล้วหรือยัง",
     "id": "qb_178",
-    "expected_domain": "internship",
+    "expected_domain": "announcements",
     "expected_source_contains": [
-      "internship",
-      "announcement"
+      "announcement",
+      "calendar"
     ],
     "reference_answer": "",
     "expected_answer_keywords": [
-      "ฝึกงาน",
-      "สหกิจ"
+      "ประกาศ"
     ],
     "scenario_type": "standard",
     "conversation_id": "",
@@ -4076,21 +4063,20 @@
     "depends_on_id": ""
   },
   {
-    "domain": "internship",
+    "domain": "announcements",
     "difficulty": "hard",
     "question_type": "multi-hop",
     "expected_answerable": true,
-    "question": "ถ้าเกิดปัญหาเกี่ยวกับ กำหนดส่งรายงานระหว่างฝึกงาน ต้องประสานกับใครบ้างและภายในกี่วัน",
+    "question": "ถ้าเลยกำหนดเรื่อง กำหนดการชำระค่าเทอม ไปแล้ว ยังมีทางแก้หรือยื่นคำร้องอะไรได้บ้าง",
     "id": "qb_187",
-    "expected_domain": "internship",
+    "expected_domain": "announcements",
     "expected_source_contains": [
-      "internship",
-      "announcement"
+      "announcement",
+      "calendar"
     ],
     "reference_answer": "",
     "expected_answer_keywords": [
-      "ฝึกงาน",
-      "รายงาน"
+      "ประกาศ"
     ],
     "scenario_type": "standard",
     "conversation_id": "",
@@ -4098,20 +4084,20 @@
     "depends_on_id": ""
   },
   {
-    "domain": "internship",
+    "domain": "announcements",
     "difficulty": "hard",
     "question_type": "multi-hop",
     "expected_answerable": true,
-    "question": "ถ้าเกิดปัญหาเกี่ยวกับ การเปลี่ยนสถานที่ฝึกงานกลางเทอม ต้องประสานกับใครบ้างและภายในกี่วัน",
+    "question": "ถ้าเลยกำหนดเรื่อง ช่วงสอบกลางภาคและปลายภาค ไปแล้ว ยังมีทางแก้หรือยื่นคำร้องอะไรได้บ้าง",
     "id": "qb_188",
-    "expected_domain": "internship",
+    "expected_domain": "announcements",
     "expected_source_contains": [
-      "internship",
-      "announcement"
+      "announcement",
+      "calendar"
     ],
     "reference_answer": "",
     "expected_answer_keywords": [
-      "ฝึกงาน"
+      "ประกาศ"
     ],
     "scenario_type": "standard",
     "conversation_id": "",
@@ -4276,20 +4262,20 @@
     "depends_on_id": ""
   },
   {
-    "domain": "internship",
+    "domain": "announcements",
     "difficulty": "medium",
     "question_type": "verification",
     "expected_answerable": true,
-    "question": "ช่วยยืนยันเงื่อนไขล่าสุดของ ลงทะเบียนรายวิชาฝึกงาน ให้หน่อย",
+    "question": "ช่วยเช็กให้หน่อยว่า ขั้นตอนขอหนังสือรับรองนักศึกษา มีประกาศใหม่แล้วหรือยัง",
     "id": "qb_196",
-    "expected_domain": "internship",
+    "expected_domain": "announcements",
     "expected_source_contains": [
-      "internship",
-      "announcement"
+      "announcement",
+      "calendar"
     ],
     "reference_answer": "",
     "expected_answer_keywords": [
-      "ฝึกงาน"
+      "ประกาศ"
     ],
     "scenario_type": "standard",
     "conversation_id": "",
@@ -4702,21 +4688,20 @@
     "depends_on_id": ""
   },
   {
-    "domain": "internship",
+    "domain": "announcements",
     "difficulty": "medium",
     "question_type": "verification",
     "expected_answerable": true,
-    "question": "ช่วยยืนยันเงื่อนไขล่าสุดของ กำหนดส่งรายงานระหว่างฝึกงาน ให้หน่อย",
+    "question": "ช่วยเช็กให้หน่อยว่า ขั้นตอนขอทรานสคริปต์ออนไลน์ มีประกาศใหม่แล้วหรือยัง",
     "id": "qb_215",
-    "expected_domain": "internship",
+    "expected_domain": "announcements",
     "expected_source_contains": [
-      "internship",
-      "announcement"
+      "announcement",
+      "calendar"
     ],
     "reference_answer": "",
     "expected_answer_keywords": [
-      "ฝึกงาน",
-      "รายงาน"
+      "ประกาศ"
     ],
     "scenario_type": "standard",
     "conversation_id": "",
@@ -4747,20 +4732,20 @@
     "depends_on_id": ""
   },
   {
-    "domain": "internship",
+    "domain": "announcements",
     "difficulty": "medium",
     "question_type": "procedural",
     "expected_answerable": true,
-    "question": "ขอขั้นตอนเรื่อง ชั่วโมงงานขั้นต่ำระหว่างฝึกงาน แบบเข้าใจง่ายหน่อย",
+    "question": "ถ้าจะจัดการเรื่อง ช่วง add/drop ต้องเริ่มจากตรงไหน",
     "id": "qb_217",
-    "expected_domain": "internship",
+    "expected_domain": "announcements",
     "expected_source_contains": [
-      "internship",
-      "announcement"
+      "announcement",
+      "calendar"
     ],
     "reference_answer": "",
     "expected_answer_keywords": [
-      "ฝึกงาน"
+      "ประกาศ"
     ],
     "scenario_type": "standard",
     "conversation_id": "",
@@ -4900,20 +4885,20 @@
     "depends_on_id": ""
   },
   {
-    "domain": "internship",
+    "domain": "announcements",
     "difficulty": "medium",
     "question_type": "verification",
     "expected_answerable": true,
-    "question": "ช่วยยืนยันเงื่อนไขล่าสุดของ ขั้นตอนแจ้งสถานที่ฝึกงานที่หามาเอง ให้หน่อย",
+    "question": "ช่วยเช็กให้หน่อยว่า กำหนดการลงทะเบียนล่าช้า มีประกาศใหม่แล้วหรือยัง",
     "id": "qb_224",
-    "expected_domain": "internship",
+    "expected_domain": "announcements",
     "expected_source_contains": [
-      "internship",
-      "announcement"
+      "announcement",
+      "calendar"
     ],
     "reference_answer": "",
     "expected_answer_keywords": [
-      "ฝึกงาน"
+      "ประกาศ"
     ],
     "scenario_type": "standard",
     "conversation_id": "",
@@ -5315,20 +5300,20 @@
     "depends_on_id": ""
   },
   {
-    "domain": "internship",
+    "domain": "announcements",
     "difficulty": "hard",
     "question_type": "multi-hop",
     "expected_answerable": true,
-    "question": "ถ้าเกิดปัญหาเกี่ยวกับ ขั้นตอนแจ้งสถานที่ฝึกงานที่หามาเอง ต้องประสานกับใครบ้างและภายในกี่วัน",
+    "question": "ถ้าเลยกำหนดเรื่อง วันสุดท้ายถอนวิชาแบบติด W ไปแล้ว ยังมีทางแก้หรือยื่นคำร้องอะไรได้บ้าง",
     "id": "qb_243",
-    "expected_domain": "internship",
+    "expected_domain": "announcements",
     "expected_source_contains": [
-      "internship",
-      "announcement"
+      "announcement",
+      "calendar"
     ],
     "reference_answer": "",
     "expected_answer_keywords": [
-      "ฝึกงาน"
+      "ประกาศ"
     ],
     "scenario_type": "standard",
     "conversation_id": "",
@@ -5494,20 +5479,19 @@
   },
   {
     "id": "qb_251",
-    "domain": "internship",
+    "domain": "announcements",
     "difficulty": "medium",
     "question_type": "ambiguous",
     "expected_answerable": true,
-    "question": "เรื่องฝึกงานต้องทำยังไงบ้าง",
-    "expected_domain": "internship",
+    "question": "ช่วยอธิบายเรื่อง ค่าธรรมเนียมจัดส่งเอกสารทางไปรษณีย์ ตามประกาศล่าสุดให้หน่อย",
+    "expected_domain": "announcements",
     "expected_source_contains": [
-      "internship",
-      "announcement"
+      "announcement",
+      "calendar"
     ],
-    "reference_answer": "ควรถามกลับเพื่อระบุบริบท เช่น ปีการศึกษา รูปแบบฝึกงาน และกำหนดการที่เกี่ยวข้อง",
+    "reference_answer": "",
     "expected_answer_keywords": [
-      "ฝึกงาน",
-      "ขั้นตอน"
+      "ประกาศ"
     ],
     "scenario_type": "ambiguous_question",
     "conversation_id": "",
@@ -5626,20 +5610,19 @@
   },
   {
     "id": "qb_257",
-    "domain": "internship",
+    "domain": "announcements",
     "difficulty": "medium",
     "question_type": "noisy",
     "expected_answerable": true,
-    "question": "ฝึกงนต้องทำงัยบ้างอะ",
-    "expected_domain": "internship",
+    "question": "ช่วยอธิบายเรื่อง ค่าประกันอุบัติเหตุนักศึกษา ตามประกาศล่าสุดให้หน่อย",
+    "expected_domain": "announcements",
     "expected_source_contains": [
-      "internship",
-      "announcement"
+      "announcement",
+      "calendar"
     ],
-    "reference_answer": "ควรตีความเป็นคำถามเรื่องขั้นตอนฝึกงาน แล้วตอบแบบเป็นลำดับขั้น",
+    "reference_answer": "",
     "expected_answer_keywords": [
-      "ฝึกงาน",
-      "ขั้นตอน"
+      "ประกาศ"
     ],
     "scenario_type": "noisy_input",
     "conversation_id": "",
@@ -5810,21 +5793,19 @@
   },
   {
     "id": "qb_265",
-    "domain": "internship",
+    "domain": "announcements",
     "difficulty": "hard",
     "question_type": "policy_conflict",
     "expected_answerable": true,
-    "question": "เลยกำหนดส่งเอกสารฝึกงานแล้ว แต่บริษัทเพิ่งออกเอกสารให้ ทำยังไงดี",
-    "expected_domain": "internship",
+    "question": "ช่วยอธิบายเรื่อง ประกาศหยุดเรียน/เลื่อนการเรียนการสอน ตามประกาศล่าสุดให้หน่อย",
+    "expected_domain": "announcements",
     "expected_source_contains": [
-      "internship",
-      "announcement"
+      "announcement",
+      "calendar"
     ],
-    "reference_answer": "ให้ยื่นคำร้องพร้อมเอกสารประกอบและเหตุผลต่อผู้รับผิดชอบฝึกงานโดยเร็ว",
+    "reference_answer": "",
     "expected_answer_keywords": [
-      "เอกสารฝึกงาน",
-      "เลยกำหนด",
-      "ยื่นคำร้อง"
+      "ประกาศ"
     ],
     "scenario_type": "policy_conflict",
     "conversation_id": "",
@@ -6057,19 +6038,19 @@
   {
     "id": "qb_276",
     "source_id": "qb_002",
-    "domain": "internship",
+    "domain": "announcements",
     "difficulty": "medium",
     "question_type": "factual",
     "expected_answerable": true,
-    "question": "หากมีปัญหาชั่วโมงฝึกงานไม่ครบ ต้องดำเนินการอย่างไรบ้างตั้งแต่ต้นจนจบ",
-    "expected_domain": "internship",
+    "question": "ขออัปเดต ช่องทางติดตามประกาศล่าสุดของภาควิชา ล่าสุดหน่อยครับ",
+    "expected_domain": "announcements",
     "expected_source_contains": [
-      "internship",
-      "announcement"
+      "announcement",
+      "calendar"
     ],
-    "reference_answer": "หากชั่วโมงฝึกงานไม่ครบ ต้องรีบแจ้งอาจารย์ที่ปรึกษาและผู้ประสานงานฝึกงาน จัดทำแผนชดเชยชั่วโมง และยื่นเอกสารตามขั้นตอนจนปิดงานครบ",
+    "reference_answer": "",
     "expected_answer_keywords": [
-      "ฝึกงาน"
+      "ประกาศ"
     ],
     "scenario_type": "user_custom_list",
     "conversation_id": "",
@@ -6254,20 +6235,19 @@
   {
     "id": "qb_285",
     "source_id": "qb_011",
-    "domain": "internship",
+    "domain": "announcements",
     "difficulty": "medium",
     "question_type": "factual",
     "expected_answerable": true,
-    "question": "ความแตกต่างระหว่างฝึกงานกับสหกิจคืออะไรในแง่โครงสร้างและการประเมิน",
-    "expected_domain": "internship",
+    "question": "ขออัปเดต กำหนดการชำระค่าเทอม ล่าสุดหน่อยครับ",
+    "expected_domain": "announcements",
     "expected_source_contains": [
-      "internship",
-      "announcement"
+      "announcement",
+      "calendar"
     ],
-    "reference_answer": "ฝึกงานและสหกิจต่างกันที่โครงสร้างเวลา งานที่มอบหมาย และเกณฑ์ประเมิน โดยต้องยึดประกาศของหลักสูตรในปีนั้น",
+    "reference_answer": "",
     "expected_answer_keywords": [
-      "ฝึกงาน",
-      "สหกิจ"
+      "ประกาศ"
     ],
     "scenario_type": "user_custom_list",
     "conversation_id": "",
@@ -6299,19 +6279,19 @@
   {
     "id": "qb_287",
     "source_id": "qb_013",
-    "domain": "internship",
+    "domain": "announcements",
     "difficulty": "medium",
     "question_type": "procedural",
     "expected_answerable": true,
-    "question": "สามารถเปลี่ยนสถานที่ฝึกงานระหว่างเทอมได้หรือไม่ และต้องทำอย่างไร",
-    "expected_domain": "internship",
+    "question": "ถ้าจะจัดการเรื่อง ช่วงสอบกลางภาคและปลายภาค ต้องเริ่มจากตรงไหน",
+    "expected_domain": "announcements",
     "expected_source_contains": [
-      "internship",
-      "announcement"
+      "announcement",
+      "calendar"
     ],
-    "reference_answer": "การเปลี่ยนสถานที่ฝึกงานระหว่างเทอมทำได้เมื่อมีเหตุผลชัดเจน โดยต้องขออนุมัติและทำเอกสารตามขั้นตอนของภาควิชา",
+    "reference_answer": "",
     "expected_answer_keywords": [
-      "ฝึกงาน"
+      "ประกาศ"
     ],
     "scenario_type": "user_custom_list",
     "conversation_id": "",
@@ -6387,19 +6367,18 @@
   {
     "id": "qb_291",
     "source_id": "qb_017",
-    "domain": "internship",
+    "domain": "announcements",
     "difficulty": "medium",
     "question_type": "factual",
     "expected_answerable": true,
-    "question": "ประกาศฝึกงานภาคฤดูร้อนล่าสุดมีเงื่อนไขอะไรบ้าง",
-    "expected_domain": "internship",
+    "question": "ขออัปเดต ขั้นตอนขอหนังสือรับรองนักศึกษา ล่าสุดหน่อยครับ",
+    "expected_domain": "announcements",
     "expected_source_contains": [
-      "internship",
-      "announcement"
+      "announcement",
+      "calendar"
     ],
-    "reference_answer": "ให้ยึดประกาศและคู่มือฝึกงานล่าสุดของภาควิชาในการดำเนินการทุกขั้นตอน",
+    "reference_answer": "",
     "expected_answer_keywords": [
-      "ฝึกงาน",
       "ประกาศ"
     ],
     "scenario_type": "user_custom_list",
@@ -6543,19 +6522,19 @@
   {
     "id": "qb_298",
     "source_id": "qb_024",
-    "domain": "internship",
+    "domain": "announcements",
     "difficulty": "medium",
     "question_type": "factual",
     "expected_answerable": true,
-    "question": "ต้องเตรียมเอกสารอะไรบ้างสำหรับการสมัครฝึกงาน",
-    "expected_domain": "internship",
+    "question": "ขออัปเดต ขั้นตอนขอทรานสคริปต์ออนไลน์ ล่าสุดหน่อยครับ",
+    "expected_domain": "announcements",
     "expected_source_contains": [
-      "internship",
-      "announcement"
+      "announcement",
+      "calendar"
     ],
-    "reference_answer": "เอกสารสมัครฝึกงานโดยทั่วไปประกอบด้วยหนังสือขอความอนุเคราะห์จากมหาวิทยาลัย ประวัติ/เรซูเม่ และเอกสารที่ภาควิชากำหนดเพิ่มเติม",
+    "reference_answer": "",
     "expected_answer_keywords": [
-      "ฝึกงาน"
+      "ประกาศ"
     ],
     "scenario_type": "user_custom_list",
     "conversation_id": "",
@@ -6650,19 +6629,19 @@
   {
     "id": "qb_303",
     "source_id": "qb_029",
-    "domain": "internship",
+    "domain": "announcements",
     "difficulty": "medium",
     "question_type": "factual",
     "expected_answerable": true,
-    "question": "ต้องทำรายงานฝึกงานเมื่อไร และส่งอย่างไร",
-    "expected_domain": "internship",
+    "question": "ขออัปเดต ช่วง add/drop ล่าสุดหน่อยครับ",
+    "expected_domain": "announcements",
     "expected_source_contains": [
-      "internship",
-      "announcement"
+      "announcement",
+      "calendar"
     ],
-    "reference_answer": "งานฝึกงานต้องส่งรายงาน/หลักฐานตาม timeline ที่กำหนด เช่น logbook และรายงานสรุปผล โดยส่งผ่านช่องทางที่ภาควิชาระบุ",
+    "reference_answer": "",
     "expected_answer_keywords": [
-      "ฝึกงาน"
+      "ประกาศ"
     ],
     "scenario_type": "user_custom_list",
     "conversation_id": "",
@@ -6757,19 +6736,19 @@
   {
     "id": "qb_308",
     "source_id": "qb_034",
-    "domain": "internship",
+    "domain": "announcements",
     "difficulty": "medium",
     "question_type": "verification",
     "expected_answerable": true,
-    "question": "ต้องมีอาจารย์ที่ปรึกษาฝึกงานหรือไม่",
-    "expected_domain": "internship",
+    "question": "ช่วยเช็กให้หน่อยว่า กำหนดการลงทะเบียนล่าช้า มีประกาศใหม่แล้วหรือยัง",
+    "expected_domain": "announcements",
     "expected_source_contains": [
-      "internship",
-      "announcement"
+      "announcement",
+      "calendar"
     ],
-    "reference_answer": "การฝึกงานควรมีผู้กำกับดูแลทั้งฝั่งมหาวิทยาลัยและสถานประกอบการตามรูปแบบที่หลักสูตรกำหนด",
+    "reference_answer": "",
     "expected_answer_keywords": [
-      "ฝึกงาน"
+      "ประกาศ"
     ],
     "scenario_type": "user_custom_list",
     "conversation_id": "",
@@ -6868,19 +6847,19 @@
   {
     "id": "qb_313",
     "source_id": "qb_039",
-    "domain": "internship",
+    "domain": "announcements",
     "difficulty": "medium",
     "question_type": "verification",
     "expected_answerable": true,
-    "question": "ต้องมี supervisor ฝึกงานหรือไม่",
-    "expected_domain": "internship",
+    "question": "ช่วยเช็กให้หน่อยว่า วันสุดท้ายถอนวิชาแบบติด W มีประกาศใหม่แล้วหรือยัง",
+    "expected_domain": "announcements",
     "expected_source_contains": [
-      "internship",
-      "announcement"
+      "announcement",
+      "calendar"
     ],
-    "reference_answer": "การฝึกงานควรมีผู้กำกับดูแลทั้งฝั่งมหาวิทยาลัยและสถานประกอบการตามรูปแบบที่หลักสูตรกำหนด",
+    "reference_answer": "",
     "expected_answer_keywords": [
-      "ฝึกงาน"
+      "ประกาศ"
     ],
     "scenario_type": "user_custom_list",
     "conversation_id": "",
@@ -6975,19 +6954,19 @@
   {
     "id": "qb_318",
     "source_id": "qb_044",
-    "domain": "internship",
+    "domain": "announcements",
     "difficulty": "medium",
     "question_type": "verification",
     "expected_answerable": true,
-    "question": "ต้องส่ง logbook ฝึกงานหรือไม่",
-    "expected_domain": "internship",
+    "question": "ช่วยเช็กให้หน่อยว่า ค่าธรรมเนียมจัดส่งเอกสารทางไปรษณีย์ มีประกาศใหม่แล้วหรือยัง",
+    "expected_domain": "announcements",
     "expected_source_contains": [
-      "internship",
-      "announcement"
+      "announcement",
+      "calendar"
     ],
-    "reference_answer": "งานฝึกงานต้องส่งรายงาน/หลักฐานตาม timeline ที่กำหนด เช่น logbook และรายงานสรุปผล โดยส่งผ่านช่องทางที่ภาควิชาระบุ",
+    "reference_answer": "",
     "expected_answer_keywords": [
-      "ฝึกงาน"
+      "ประกาศ"
     ],
     "scenario_type": "user_custom_list",
     "conversation_id": "",
@@ -7085,19 +7064,19 @@
   {
     "id": "qb_323",
     "source_id": "qb_049",
-    "domain": "internship",
+    "domain": "announcements",
     "difficulty": "medium",
     "question_type": "verification",
     "expected_answerable": true,
-    "question": "ต้องมีรายงาน final ฝึกงานหรือไม่",
-    "expected_domain": "internship",
+    "question": "ช่วยเช็กให้หน่อยว่า ค่าประกันอุบัติเหตุนักศึกษา มีประกาศใหม่แล้วหรือยัง",
+    "expected_domain": "announcements",
     "expected_source_contains": [
-      "internship",
-      "announcement"
+      "announcement",
+      "calendar"
     ],
-    "reference_answer": "งานฝึกงานต้องส่งรายงาน/หลักฐานตาม timeline ที่กำหนด เช่น logbook และรายงานสรุปผล โดยส่งผ่านช่องทางที่ภาควิชาระบุ",
+    "reference_answer": "",
     "expected_answer_keywords": [
-      "ฝึกงาน"
+      "ประกาศ"
     ],
     "scenario_type": "user_custom_list",
     "conversation_id": "",
@@ -7151,19 +7130,19 @@
   {
     "id": "qb_326",
     "source_id": "qb_052",
-    "domain": "internship",
+    "domain": "announcements",
     "difficulty": "medium",
     "question_type": "verification",
     "expected_answerable": true,
-    "question": "สามารถเลื่อนการฝึกงานได้หรือไม่",
-    "expected_domain": "internship",
+    "question": "ช่วยเช็กให้หน่อยว่า ประกาศหยุดเรียน/เลื่อนการเรียนการสอน มีประกาศใหม่แล้วหรือยัง",
+    "expected_domain": "announcements",
     "expected_source_contains": [
-      "internship",
-      "announcement"
+      "announcement",
+      "calendar"
     ],
-    "reference_answer": "การเลื่อนฝึกงานทำได้เมื่อมีเหตุผลและได้รับอนุมัติตามขั้นตอนจากภาควิชาและหน่วยงานที่เกี่ยวข้อง",
+    "reference_answer": "",
     "expected_answer_keywords": [
-      "ฝึกงาน"
+      "ประกาศ"
     ],
     "scenario_type": "user_custom_list",
     "conversation_id": "",
@@ -7195,19 +7174,19 @@
   {
     "id": "qb_328",
     "source_id": "qb_054",
-    "domain": "internship",
+    "domain": "announcements",
     "difficulty": "medium",
     "question_type": "factual",
     "expected_answerable": true,
-    "question": "ต้องมีการประเมินฝึกงานกี่ครั้ง",
-    "expected_domain": "internship",
+    "question": "ขออัปเดต ช่องทางติดตามประกาศล่าสุดของภาควิชา ล่าสุดหน่อยครับ",
+    "expected_domain": "announcements",
     "expected_source_contains": [
-      "internship",
-      "announcement"
+      "announcement",
+      "calendar"
     ],
-    "reference_answer": "การประเมินฝึกงานใช้หลายองค์ประกอบ เช่น ผลงาน การประเมินจากสถานประกอบการ และรายงาน/การนำเสนอ ตามเกณฑ์ของภาควิชา",
+    "reference_answer": "",
     "expected_answer_keywords": [
-      "ฝึกงาน"
+      "ประกาศ"
     ],
     "scenario_type": "user_custom_list",
     "conversation_id": "",
@@ -7255,19 +7234,19 @@
   {
     "id": "qb_331",
     "source_id": "qb_057",
-    "domain": "internship",
+    "domain": "announcements",
     "difficulty": "medium",
     "question_type": "factual",
     "expected_answerable": true,
-    "question": "การสมัครสหกิจต้องทำเมื่อไร",
-    "expected_domain": "internship",
+    "question": "ขออัปเดต กำหนดการชำระค่าเทอม ล่าสุดหน่อยครับ",
+    "expected_domain": "announcements",
     "expected_source_contains": [
-      "internship",
-      "announcement"
+      "announcement",
+      "calendar"
     ],
-    "reference_answer": "การสมัครสหกิจต้องทำตามรอบเวลาที่ภาควิชาประกาศ โดยเตรียมเอกสารและคุณสมบัติให้พร้อมก่อนยื่นสมัคร",
+    "reference_answer": "",
     "expected_answer_keywords": [
-      "สหกิจ"
+      "ประกาศ"
     ],
     "scenario_type": "user_custom_list",
     "conversation_id": "",
@@ -7299,19 +7278,19 @@
   {
     "id": "qb_333",
     "source_id": "qb_059",
-    "domain": "internship",
+    "domain": "announcements",
     "difficulty": "medium",
     "question_type": "verification",
     "expected_answerable": true,
-    "question": "ต้องมี mentor ในฝึกงานหรือไม่",
-    "expected_domain": "internship",
+    "question": "ช่วยเช็กให้หน่อยว่า ช่วงสอบกลางภาคและปลายภาค มีประกาศใหม่แล้วหรือยัง",
+    "expected_domain": "announcements",
     "expected_source_contains": [
-      "internship",
-      "announcement"
+      "announcement",
+      "calendar"
     ],
-    "reference_answer": "การฝึกงานควรมีผู้กำกับดูแลทั้งฝั่งมหาวิทยาลัยและสถานประกอบการตามรูปแบบที่หลักสูตรกำหนด",
+    "reference_answer": "",
     "expected_answer_keywords": [
-      "ฝึกงาน"
+      "ประกาศ"
     ],
     "scenario_type": "user_custom_list",
     "conversation_id": "",
@@ -7362,19 +7341,19 @@
   {
     "id": "qb_336",
     "source_id": "qb_120",
-    "domain": "internship",
+    "domain": "announcements",
     "difficulty": "medium",
     "question_type": "factual",
     "expected_answerable": true,
-    "question": "การประเมินผลฝึกงานคิดจากอะไรบ้าง",
-    "expected_domain": "internship",
+    "question": "ขออัปเดต ขั้นตอนขอหนังสือรับรองนักศึกษา ล่าสุดหน่อยครับ",
+    "expected_domain": "announcements",
     "expected_source_contains": [
-      "internship",
-      "announcement"
+      "announcement",
+      "calendar"
     ],
-    "reference_answer": "การประเมินฝึกงานใช้หลายองค์ประกอบ เช่น ผลงาน การประเมินจากสถานประกอบการ และรายงาน/การนำเสนอ ตามเกณฑ์ของภาควิชา",
+    "reference_answer": "",
     "expected_answer_keywords": [
-      "ฝึกงาน"
+      "ประกาศ"
     ],
     "scenario_type": "user_custom_list",
     "conversation_id": "",
@@ -7406,19 +7385,19 @@
   {
     "id": "qb_338",
     "source_id": "qb_180",
-    "domain": "internship",
+    "domain": "announcements",
     "difficulty": "medium",
     "question_type": "procedural",
     "expected_answerable": true,
-    "question": "หากบริษัทฝึกงานปิดตัวกลางคันต้องทำอย่างไร",
-    "expected_domain": "internship",
+    "question": "ถ้าจะจัดการเรื่อง ขั้นตอนขอทรานสคริปต์ออนไลน์ ต้องเริ่มจากตรงไหน",
+    "expected_domain": "announcements",
     "expected_source_contains": [
-      "internship",
-      "announcement"
+      "announcement",
+      "calendar"
     ],
-    "reference_answer": "หากบริษัทฝึกงานปิดตัวกลางคัน ให้แจ้งภาควิชาทันทีเพื่อจัดแผนย้ายสถานที่หรือแนวทางทดแทนตามระเบียบ",
+    "reference_answer": "",
     "expected_answer_keywords": [
-      "ฝึกงาน"
+      "ประกาศ"
     ],
     "scenario_type": "user_custom_list",
     "conversation_id": "",
@@ -7428,19 +7407,19 @@
   {
     "id": "qb_339",
     "source_id": "qb_200",
-    "domain": "internship",
+    "domain": "announcements",
     "difficulty": "medium",
     "question_type": "verification",
     "expected_answerable": true,
-    "question": "สามารถใช้ผลงานฝึกงานเป็น senior project ได้หรือไม่",
-    "expected_domain": "internship",
+    "question": "ช่วยเช็กให้หน่อยว่า ช่วง add/drop มีประกาศใหม่แล้วหรือยัง",
+    "expected_domain": "announcements",
     "expected_source_contains": [
-      "internship",
-      "announcement"
+      "announcement",
+      "calendar"
     ],
-    "reference_answer": "การนับผลงานฝึกงานเป็น senior project ขึ้นกับเกณฑ์ของหลักสูตรและการอนุมัติจากอาจารย์ผู้รับผิดชอบโครงงาน",
+    "reference_answer": "",
     "expected_answer_keywords": [
-      "ฝึกงาน"
+      "ประกาศ"
     ],
     "scenario_type": "user_custom_list",
     "conversation_id": "",

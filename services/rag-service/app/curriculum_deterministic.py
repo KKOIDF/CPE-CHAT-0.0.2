@@ -550,6 +550,85 @@ def _lookup_prerequisites_from_graph(code: str) -> tuple[list[str], str] | None:
     return reqs, 'curriculum_graph_relation'
 
 
+def _lookup_course_hours_from_sqlite(code: str) -> tuple[str, str] | None:
+    """Best-effort hours pattern lookup (e.g., 3-0-6) from SQLite chunks."""
+    k = (code or '').replace('-', '').replace(' ', '').upper()
+    m = re.match(r'^([A-Z]{2,6})(\d{3})$', k)
+    if not m:
+        return None
+    pref, num = m.group(1), m.group(2)
+
+    db_path = domain_sqlite_path('curriculum')
+    dids: list[str] = []
+    seen_ids: set[str] = set()
+    needles = [f'{pref} {num}', f'{pref}{num}', 'หน่วยกิต', 'ชั่วโมง', 'บรรยาย']
+    for needle in needles:
+        for did in keyword_search(needle, limit=450, sqlite_path=db_path):
+            if did and did not in seen_ids:
+                seen_ids.add(did)
+                dids.append(did)
+        if len(dids) >= 450:
+            break
+
+    docs = fetch_docs_with_path(dids, sqlite_path=db_path)
+    if not docs:
+        return None
+
+    code_re = re.compile(rf"\b{re.escape(pref)}\s*[- ]?\s*{re.escape(num)}\b", re.IGNORECASE)
+    hour_re = re.compile(r"\b(\d\s*[-–—]\s*\d\s*[-–—]\s*\d)\b")
+
+    for d in docs:
+        src = str(d.get('source') or '').strip() or 'curriculum_sqlite'
+        txt = str(d.get('text') or '')
+        if not txt:
+            continue
+        for mc in code_re.finditer(txt):
+            s = max(0, mc.start() - 240)
+            e = min(len(txt), mc.end() + 420)
+            win = txt[s:e]
+            mh = hour_re.search(win)
+            if mh:
+                val = re.sub(r"\s+", '', str(mh.group(1) or '').replace('–', '-').replace('—', '-'))
+                return val, src
+
+    return None
+
+
+def _format_course_detail_answer(
+    code_disp: str,
+    title: str,
+    credits: int,
+    base_src: str,
+    hour_hit: tuple[str, str] | None,
+    prereq_hit: tuple[list[str], str] | None,
+) -> str:
+    hour_val = ''
+    hour_src = base_src
+    if hour_hit:
+        hour_val, hour_src = hour_hit
+
+    prereq_txt = 'ยังไม่พบข้อมูลที่ยืนยันได้'
+    prereq_src = base_src
+    if prereq_hit is not None:
+        prereqs, psrc = prereq_hit
+        prereq_src = psrc
+        if prereqs:
+            prereq_txt = ', '.join(prereqs)
+        else:
+            prereq_txt = 'ไม่มีวิชาบังคับก่อน'
+
+    credit_text = f'{credits} หน่วยกิต' if credits else 'ยังไม่พบข้อมูลที่ยืนยันได้'
+    hour_text = hour_val if hour_val else 'ยังไม่พบข้อมูลที่ยืนยันได้'
+
+    return (
+        f"- รหัสวิชา: {code_disp}\n"
+        f"- ชื่อวิชา: {title} [{base_src}/1]\n"
+        f"- หน่วยกิต: {credit_text} [{base_src}/1]\n"
+        f"- ชั่วโมงเรียน: {hour_text} [{hour_src}/1]\n"
+        f"- วิชาบังคับก่อน: {prereq_txt} [{prereq_src}/1]"
+    ).strip()
+
+
 def _load_curriculum_reference_text() -> str:
     curriculum = load_cpe_curriculum_2564()
     if curriculum:
@@ -1385,11 +1464,17 @@ def structured_curriculum_lookup(question: str) -> dict[str, Any]:
                     course, source_hint = sqlite_hit
             if not course:
                 continue
-            credit_text = f"{course.credits} หน่วยกิต" if course.credits else "ไม่พบจำนวนหน่วยกิตในข้อความที่ parse ได้"
+            code_disp = f"{course.prefix} {course.number}"
+            sqlite_prereq_hit = _lookup_prerequisites_from_sqlite(code_disp)
+            sqlite_hour_hit = _lookup_course_hours_from_sqlite(code_disp)
             return {
-                "answer": (
-                    f"- วิชา {course.prefix} {course.number} คือ {course.title_th} [{source_hint}/1]\n"
-                    f"- วิชา {course.prefix} {course.number} มีจำนวน {credit_text} [{source_hint}/1]"
+                "answer": _format_course_detail_answer(
+                    code_disp=code_disp,
+                    title=course.title_th,
+                    credits=course.credits,
+                    base_src=source_hint,
+                    hour_hit=sqlite_hour_hit,
+                    prereq_hit=sqlite_prereq_hit,
                 ),
                 "lookup_mode": (title_lookup_mode or "exact_code"),
                 "miss_reason": "",

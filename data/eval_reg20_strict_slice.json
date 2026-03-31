@@ -1,0 +1,458 @@
+[
+  {
+    "domain": "regulations",
+    "difficulty": "medium",
+    "question_type": "procedural",
+    "expected_answerable": true,
+    "question": "ถ้าเกิดเคส \"เข้าสอบสายเกิน 15 นาทีแต่ไม่เกิน 60 นาที\" ขอขั้นตอนแบบทีละข้อหน่อย",
+    "id": "qb_007",
+    "expected_domain": "regulations",
+    "expected_source_contains": [
+      "rule_exam",
+      "regulation"
+    ],
+    "reference_answer": "",
+    "expected_answer_keywords": [
+      "60",
+      "นาที",
+      "15",
+      "ระเบียบการสอบ"
+    ],
+    "scenario_type": "standard",
+    "conversation_id": "",
+    "turn_index": "",
+    "depends_on_id": ""
+  },
+  {
+    "domain": "regulations",
+    "difficulty": "hard",
+    "question_type": "multi-hop",
+    "expected_answerable": true,
+    "question": "ถ้า \"เข้าสอบสายเกิน 15 นาทีแต่ไม่เกิน 60 นาที\" แล้วมีข้อยกเว้น ต้องติดต่อใครและทำเอกสารอะไรบ้าง",
+    "id": "qb_012",
+    "expected_domain": "regulations",
+    "expected_source_contains": [
+      "rule_exam",
+      "regulation"
+    ],
+    "reference_answer": "",
+    "expected_answer_keywords": [
+      "60",
+      "นาที",
+      "15",
+      "ระเบียบการสอบ"
+    ],
+    "scenario_type": "standard",
+    "conversation_id": "",
+    "turn_index": "",
+    "depends_on_id": ""
+  },
+  {
+    "domain": "regulations",
+    "difficulty": "medium",
+    "question_type": "procedural",
+    "expected_answerable": true,
+    "question": "ถ้าเกิดเคส \"เกิดเหตุฉุกเฉินระหว่างสอบ\" ขอขั้นตอนแบบทีละข้อหน่อย",
+    "id": "qb_027",
+    "expected_domain": "regulations",
+    "expected_source_contains": [
+      "rule_exam",
+      "regulation"
+    ],
+    "reference_answer": "",
+    "expected_answer_keywords": [
+      "ระเบียบการสอบ"
+    ],
+    "scenario_type": "standard",
+    "conversation_id": "",
+    "turn_index": "",
+    "depends_on_id": ""
+  },
+  {
+    "domain": "regulations",
+    "difficulty": "easy",
+    "question_type": "factual",
+    "expected_answerable": true,
+    "question": "ระเบียบสอบกรณี \"ถูกกรรมการคุมสอบตักเตือนเรื่องอุปกรณ์ต้องห้าม\" ต้องทำยังไง",
+    "id": "qb_034",
+    "expected_domain": "regulations",
+    "expected_source_contains": [
+      "rule_exam",
+      "regulation"
+    ],
+    "reference_answer": "กรณีอุปกรณ์ต้องห้ามในห้องสอบ ให้แจ้งกรรมการคุมสอบทันทีและปฏิบัติตามระเบียบการสอบที่กำหนด",
+    "expected_answer_keywords": [
+      "ระเบียบการสอบ",
+      "อุปกรณ์ต้องห้าม",
+      "โทรศัพท์",
+      "กรรมการคุมสอบ"
+    ],
+    "scenario_type": "standard",
+    "conversation_id": "",
+    "turn_index": "",
+    "depends_on_id": ""
+  },
+  {
+    "domain": "regulations",
+    "difficulty": "hard",
+    "question_type": "procedural",
+    "expected_answerable": true,
+    "question": "กรณี \"ต้องการใช้งานเครื่องคิดเลขในห้องสอบ\" ถ้าโดนปฏิเสธหน้างาน ควรดำเนินการต่อยังไง",
+    "id": "qb_038",
+    "expected_domain": "regulations",
+    "expected_source_contains": [
+      "rule_exam",
+      "regulation"
+    ],
+    "reference_answer": "",
+    "expected_answer_keywords": [
+      "เครื่องคิดเลข",
+      "อนุญาต",
+      "ระเบียบการสอบ"
+    ],
+    "scenario_type": "standard",
+    "conversation_id": "",
+    "turn_index": "",
+    "depends_on_id": ""
+  },
+  {
+    "domain": "regulations",
+    "difficulty": "easy",
+    "question_type": "factual",
+    "expected_answerable": true,
+    "question": "ระเบียบสอบกรณี \"สงสัยเรื่องบทลงโทษกรณีทุจริตสอบ\" ต้องทำยังไง",
+    "id": "qb_043",
+    "expected_domain": "regulations",
+    "expected_source_contains": [
+      "rule_exam",
+      "regulation"
+    ],
+    "reference_answer": "กรณีทุจริตสอบให้ดำเนินการตามขั้นตอนสอบสวนและบทลงโทษตามระเบียบการสอบของมหาวิทยาลัย",
+    "expected_answer_keywords": [
+      "ระเบียบการสอบ",
+      "ทุจริตสอบ",
+      "บทลงโทษ"
+    ],
+    "scenario_type": "standard",
+    "conversation_id": "",
+    "turn_index": "",
+    "depends_on_id": ""
+  },
+  {
+    "domain": "regulations",
+    "difficulty": "easy",
+    "question_type": "factual",
+    "expected_answerable": true,
+    "question": "ระเบียบสอบกรณี \"เผลอพกโทรศัพท์เข้าห้องสอบ\" ต้องทำยังไง",
+    "id": "qb_049",
+    "expected_domain": "regulations",
+    "expected_source_contains": [
+      "rule_exam",
+      "regulation"
+    ],
+    "reference_answer": "กรณีอุปกรณ์ต้องห้ามในห้องสอบ ให้แจ้งกรรมการคุมสอบทันทีและปฏิบัติตามระเบียบการสอบที่กำหนด",
+    "expected_answer_keywords": [
+      "ระเบียบการสอบ",
+      "อุปกรณ์ต้องห้าม",
+      "โทรศัพท์",
+      "กรรมการคุมสอบ"
+    ],
+    "scenario_type": "standard",
+    "conversation_id": "",
+    "turn_index": "",
+    "depends_on_id": ""
+  },
+  {
+    "domain": "regulations",
+    "difficulty": "medium",
+    "question_type": "procedural",
+    "expected_answerable": true,
+    "question": "ถ้าเกิดเคส \"ต้องการใช้งานเครื่องคิดเลขในห้องสอบ\" ขอขั้นตอนแบบทีละข้อหน่อย",
+    "id": "qb_060",
+    "expected_domain": "regulations",
+    "expected_source_contains": [
+      "rule_exam",
+      "regulation"
+    ],
+    "reference_answer": "",
+    "expected_answer_keywords": [
+      "เครื่องคิดเลข",
+      "อนุญาต",
+      "ระเบียบการสอบ"
+    ],
+    "scenario_type": "standard",
+    "conversation_id": "",
+    "turn_index": "",
+    "depends_on_id": ""
+  },
+  {
+    "domain": "regulations",
+    "difficulty": "easy",
+    "question_type": "factual",
+    "expected_answerable": true,
+    "question": "ระเบียบสอบกรณี \"เกิดเหตุฉุกเฉินระหว่างสอบ\" ต้องทำยังไง",
+    "id": "qb_069",
+    "expected_domain": "regulations",
+    "expected_source_contains": [
+      "rule_exam",
+      "regulation"
+    ],
+    "reference_answer": "หากเกิดเหตุฉุกเฉินระหว่างสอบ ต้องแจ้งกรรมการคุมสอบทันทีเพื่อพิจารณาดำเนินการตามระเบียบ",
+    "expected_answer_keywords": [
+      "ระเบียบการสอบ",
+      "เหตุฉุกเฉิน",
+      "กรรมการคุมสอบ"
+    ],
+    "scenario_type": "standard",
+    "conversation_id": "",
+    "turn_index": "",
+    "depends_on_id": ""
+  },
+  {
+    "domain": "regulations",
+    "difficulty": "easy",
+    "question_type": "factual",
+    "expected_answerable": true,
+    "question": "ระเบียบสอบกรณี \"ต้องการเช็กว่าสิ่งของส่วนตัวอะไรบ้างที่ห้ามนำเข้าห้องสอบ\" ต้องทำยังไง",
+    "id": "qb_079",
+    "expected_domain": "regulations",
+    "expected_source_contains": [
+      "rule_exam",
+      "regulation"
+    ],
+    "reference_answer": "รายการสิ่งของต้องห้ามให้อ้างอิงระเบียบการสอบฉบับปัจจุบัน และหากไม่แน่ใจให้สอบถามกรรมการคุมสอบก่อนเริ่มสอบ",
+    "expected_answer_keywords": [
+      "ระเบียบการสอบ",
+      "สิ่งของต้องห้าม",
+      "กรรมการคุมสอบ"
+    ],
+    "scenario_type": "standard",
+    "conversation_id": "",
+    "turn_index": "",
+    "depends_on_id": ""
+  },
+  {
+    "domain": "regulations",
+    "difficulty": "hard",
+    "question_type": "procedural",
+    "expected_answerable": true,
+    "question": "กรณี \"เข้าสอบสายเกิน 15 นาทีแต่ไม่เกิน 60 นาที\" ถ้าโดนปฏิเสธหน้างาน ควรดำเนินการต่อยังไง",
+    "id": "qb_093",
+    "expected_domain": "regulations",
+    "expected_source_contains": [
+      "rule_exam",
+      "regulation"
+    ],
+    "reference_answer": "",
+    "expected_answer_keywords": [
+      "60",
+      "นาที",
+      "15",
+      "ระเบียบการสอบ"
+    ],
+    "scenario_type": "standard",
+    "conversation_id": "",
+    "turn_index": "",
+    "depends_on_id": ""
+  },
+  {
+    "domain": "regulations",
+    "difficulty": "hard",
+    "question_type": "procedural",
+    "expected_answerable": true,
+    "question": "กรณี \"ถูกกรรมการคุมสอบตักเตือนเรื่องอุปกรณ์ต้องห้าม\" ถ้าโดนปฏิเสธหน้างาน ควรดำเนินการต่อยังไง",
+    "id": "qb_094",
+    "expected_domain": "regulations",
+    "expected_source_contains": [
+      "rule_exam",
+      "regulation"
+    ],
+    "reference_answer": "",
+    "expected_answer_keywords": [
+      "ระเบียบการสอบ"
+    ],
+    "scenario_type": "standard",
+    "conversation_id": "",
+    "turn_index": "",
+    "depends_on_id": ""
+  },
+  {
+    "domain": "regulations",
+    "difficulty": "medium",
+    "question_type": "verification",
+    "expected_answerable": true,
+    "question": "ช่วยยืนยันให้หน่อยว่า \"ต้องการใช้งานเครื่องคิดเลขในห้องสอบ\" ทำได้หรือไม่ได้",
+    "id": "qb_095",
+    "expected_domain": "regulations",
+    "expected_source_contains": [
+      "rule_exam",
+      "regulation"
+    ],
+    "reference_answer": "",
+    "expected_answer_keywords": [
+      "เครื่องคิดเลข",
+      "อนุญาต",
+      "ระเบียบการสอบ"
+    ],
+    "scenario_type": "standard",
+    "conversation_id": "",
+    "turn_index": "",
+    "depends_on_id": ""
+  },
+  {
+    "domain": "regulations",
+    "difficulty": "medium",
+    "question_type": "verification",
+    "expected_answerable": true,
+    "question": "ช่วยยืนยันให้หน่อยว่า \"สงสัยเรื่องบทลงโทษกรณีทุจริตสอบ\" ทำได้หรือไม่ได้",
+    "id": "qb_118",
+    "expected_domain": "regulations",
+    "expected_source_contains": [
+      "rule_exam",
+      "regulation"
+    ],
+    "reference_answer": "",
+    "expected_answer_keywords": [
+      "ระเบียบการสอบ"
+    ],
+    "scenario_type": "standard",
+    "conversation_id": "",
+    "turn_index": "",
+    "depends_on_id": ""
+  },
+  {
+    "domain": "regulations",
+    "difficulty": "hard",
+    "question_type": "procedural",
+    "expected_answerable": true,
+    "question": "กรณี \"ต้องการเช็กว่าสิ่งของส่วนตัวอะไรบ้างที่ห้ามนำเข้าห้องสอบ\" ถ้าโดนปฏิเสธหน้างาน ควรดำเนินการต่อยังไง",
+    "id": "qb_123",
+    "expected_domain": "regulations",
+    "expected_source_contains": [
+      "rule_exam",
+      "regulation"
+    ],
+    "reference_answer": "",
+    "expected_answer_keywords": [
+      "ระเบียบการสอบ"
+    ],
+    "scenario_type": "standard",
+    "conversation_id": "",
+    "turn_index": "",
+    "depends_on_id": ""
+  },
+  {
+    "domain": "regulations",
+    "difficulty": "easy",
+    "question_type": "factual",
+    "expected_answerable": true,
+    "question": "ระเบียบสอบกรณี \"ขอออกจากห้องสอบชั่วคราวระหว่างทำข้อสอบ\" ต้องทำยังไง",
+    "id": "qb_131",
+    "expected_domain": "regulations",
+    "expected_source_contains": [
+      "rule_exam",
+      "regulation"
+    ],
+    "reference_answer": "สามารถออกจากห้องสอบได้เมื่อเวลาสอบผ่านไปอย่างน้อย 60 นาที และต้องขออนุญาตกรรมการคุมสอบ",
+    "expected_answer_keywords": [
+      "60",
+      "นาที",
+      "ออกจากห้องสอบ",
+      "อนุญาต",
+      "ระเบียบการสอบ"
+    ],
+    "scenario_type": "standard",
+    "conversation_id": "",
+    "turn_index": "",
+    "depends_on_id": ""
+  },
+  {
+    "domain": "regulations",
+    "difficulty": "hard",
+    "question_type": "multi-hop",
+    "expected_answerable": true,
+    "question": "ถ้า \"สงสัยเรื่องบทลงโทษกรณีทุจริตสอบ\" แล้วมีข้อยกเว้น ต้องติดต่อใครและทำเอกสารอะไรบ้าง",
+    "id": "qb_132",
+    "expected_domain": "regulations",
+    "expected_source_contains": [
+      "rule_exam",
+      "regulation"
+    ],
+    "reference_answer": "",
+    "expected_answer_keywords": [
+      "ระเบียบการสอบ"
+    ],
+    "scenario_type": "standard",
+    "conversation_id": "",
+    "turn_index": "",
+    "depends_on_id": ""
+  },
+  {
+    "domain": "regulations",
+    "difficulty": "hard",
+    "question_type": "multi-hop",
+    "expected_answerable": true,
+    "question": "ถ้า \"ต้องการใช้งานเครื่องคิดเลขในห้องสอบ\" แล้วมีข้อยกเว้น ต้องติดต่อใครและทำเอกสารอะไรบ้าง",
+    "id": "qb_135",
+    "expected_domain": "regulations",
+    "expected_source_contains": [
+      "rule_exam",
+      "regulation"
+    ],
+    "reference_answer": "",
+    "expected_answer_keywords": [
+      "เครื่องคิดเลข",
+      "อนุญาต",
+      "ระเบียบการสอบ"
+    ],
+    "scenario_type": "standard",
+    "conversation_id": "",
+    "turn_index": "",
+    "depends_on_id": ""
+  },
+  {
+    "domain": "regulations",
+    "difficulty": "medium",
+    "question_type": "procedural",
+    "expected_answerable": true,
+    "question": "ถ้าเกิดเคส \"ถูกกรรมการคุมสอบตักเตือนเรื่องอุปกรณ์ต้องห้าม\" ขอขั้นตอนแบบทีละข้อหน่อย",
+    "id": "qb_141",
+    "expected_domain": "regulations",
+    "expected_source_contains": [
+      "rule_exam",
+      "regulation"
+    ],
+    "reference_answer": "",
+    "expected_answer_keywords": [
+      "ระเบียบการสอบ"
+    ],
+    "scenario_type": "standard",
+    "conversation_id": "",
+    "turn_index": "",
+    "depends_on_id": ""
+  },
+  {
+    "domain": "regulations",
+    "difficulty": "easy",
+    "question_type": "factual",
+    "expected_answerable": true,
+    "question": "ระเบียบสอบกรณี \"อยากอุทธรณ์ผลการพิจารณาความผิดระหว่างสอบ\" ต้องทำยังไง",
+    "id": "qb_155",
+    "expected_domain": "regulations",
+    "expected_source_contains": [
+      "rule_exam",
+      "regulation"
+    ],
+    "reference_answer": "การอุทธรณ์ผลการพิจารณาต้องยื่นคำร้องภายในกำหนดเวลาที่ระเบียบระบุ และต้องยื่นด้วยตนเองตามเงื่อนไข",
+    "expected_answer_keywords": [
+      "ระเบียบการสอบ",
+      "อุทธรณ์",
+      "ยื่นคำร้อง",
+      "กำหนดเวลา"
+    ],
+    "scenario_type": "standard",
+    "conversation_id": "",
+    "turn_index": "",
+    "depends_on_id": ""
+  }
+]

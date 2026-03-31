@@ -2381,6 +2381,35 @@ def _infer_primary_intent(question: str) -> str:
     return classify_intent(question)
 
 
+_UNANSWERABLE_FALLBACK = (
+    os.getenv('RAG_UNANSWERABLE_MESSAGE', '') or
+    'คำถามลักษณะนี้ไม่สามารถยืนยันหรือตัดสินให้ได้จากระบบ แนะนำติดต่ออาจารย์ผู้สอนหรือเจ้าหน้าที่ที่เกี่ยวข้องโดยตรง'
+).strip()
+
+
+def is_unanswerable_query(question: str) -> bool:
+    q = (question or '').strip().lower()
+    if not q:
+        return False
+    refusal_terms = (
+        'เดาข้อสอบ', 'ช่วยเดาข้อสอบ', 'ข้อสอบจะออก', 'สอบจะออกอะไร', 'เฉลยข้อสอบ', 'ทำนายข้อสอบ', 'ใบ้ข้อสอบ',
+        'ตัดสินเกรด', 'ตัดเกรดให้', 'ขอให้ปรับเกรด', 'ปรับเกรดให้', 'เปลี่ยนเกรดให้', 'การันตีเกรด',
+        'ผลสอบล่วงหน้า', 'ผลสอบก่อนประกาศ', 'บอกเกรดล่วงหน้า', 'ยืนยันผลสอบล่วงหน้า',
+    )
+    return any(t in q for t in refusal_terms)
+
+
+def _build_unanswerable_answer(question: str) -> str:
+    q = (question or '').strip().lower()
+    if any(t in q for t in ('เดาข้อสอบ', 'ช่วยเดาข้อสอบ', 'ข้อสอบจะออก', 'สอบจะออกอะไร', 'เฉลยข้อสอบ', 'ทำนายข้อสอบ', 'ใบ้ข้อสอบ')):
+        return 'ไม่สามารถช่วยเดา เฉลย หรือทำนายข้อสอบล่วงหน้าได้ แนะนำทบทวนหัวข้อจากเอกสารรายวิชาและประกาศทางการ'
+    if any(t in q for t in ('ตัดสินเกรด', 'ตัดเกรดให้', 'ขอให้ปรับเกรด', 'ปรับเกรดให้', 'เปลี่ยนเกรดให้', 'การันตีเกรด')):
+        return 'ไม่สามารถตัดสินหรือเปลี่ยนแปลงเกรดแทนอาจารย์ผู้สอนได้ แนะนำติดต่ออาจารย์ผู้สอนหรือภาควิชาโดยตรง'
+    if any(t in q for t in ('ผลสอบล่วงหน้า', 'ผลสอบก่อนประกาศ', 'บอกเกรดล่วงหน้า', 'ยืนยันผลสอบล่วงหน้า')):
+        return 'ไม่สามารถยืนยันผลสอบก่อนประกาศอย่างเป็นทางการได้ แนะนำติดตามประกาศผลสอบจากรายวิชาหรือภาควิชาโดยตรง'
+    return _UNANSWERABLE_FALLBACK
+
+
 
 def _is_prerequisite_intent(question: str) -> bool:
     q = (question or '').strip().lower()
@@ -3117,6 +3146,15 @@ def rag_endpoint(req: RagRequest):
         add_metric('needs_exact_schema', int(bool(getattr(decision, 'needs_exact_schema', False))))
         add_metric('timeout_policy', str(getattr(decision, 'timeout_policy', 'normal') or 'normal'))
         add_metric('session_has_id', int(bool((req.session_id or '').strip())))
+
+        if decision.primary_intent == 'unanswerable' or is_unanswerable_query(req.question):
+            add_metric('unanswerable_intent_triggered', 1)
+            return RagResponse(
+                prompt='(unanswerable_intent)',
+                contexts=[],
+                token_est=0,
+                meta={'out_of_scope': True, 'reason': 'unanswerable_policy'},
+            )
         
         _observe_entry_metrics(req.question, decision.requested_domain, use_langchain=use_langchain)
         _observe_default_request_metrics(structured_eligible=decision.structured_eligible, structured_reg_eligible=(decision.structured_kind=='regulations'))
@@ -3675,6 +3713,21 @@ def rag_answer_endpoint(req: RagAnswerRequest):
         add_metric('timeout_policy', str(getattr(decision, 'timeout_policy', 'normal') or 'normal'))
         add_metric('session_has_id', int(bool((req.session_id or '').strip())))
 
+        if decision.primary_intent == 'unanswerable' or is_unanswerable_query(req.question):
+            answer = _build_unanswerable_answer(req.question)
+            add_metric('unanswerable_intent_triggered', 1)
+            add_metric('fallback_answer_used', 1)
+            add_metric('answer', answer)
+            add_metric('answer_chars', len(answer))
+            return RagAnswerResponse(
+                question=req.question,
+                prompt='(unanswerable_intent)',
+                answer=answer,
+                contexts=[],
+                token_est=0,
+                meta={'out_of_scope': True, 'reason': 'unanswerable_policy'},
+            )
+
         if decision.primary_intent == 'prerequisite_lookup' and decision.requested_domain != 'curriculum':
             add_metric('routing_force_curriculum_prereq', 1)
         else:
@@ -4108,6 +4161,27 @@ def openai_compatible_endpoint(request: dict):
         add_metric('session_has_id', int(bool(session_id)))
         add_metric('followup_session_domain_lock_applied', int(lock_applied))
         add_metric('followup_session_domain_lock_reason', lock_reason)
+
+        if decision.primary_intent == 'unanswerable' or is_unanswerable_query(question):
+            answer = _finalize_user_answer_text(question, _build_unanswerable_answer(question))
+            add_metric('unanswerable_intent_triggered', 1)
+            add_metric('fallback_answer_used', 1)
+            add_metric('answer', answer)
+            add_metric('answer_chars', len(answer))
+            return {
+                "id": f"chatcpe-{uuid.uuid4().hex[:12]}",
+                "object": "chat.completion",
+                "created": int(time.time()),
+                "model": request.get('model', 'typhoon-rag'),
+                "choices": [
+                    {
+                        "index": 0,
+                        "message": {"role": "assistant", "content": answer},
+                        "finish_reason": "stop",
+                    }
+                ],
+                "usage": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
+            }
         _remember_session_followup_hint(session_id, question, decision)
 
         summary_fast = _build_followup_summary_answer(
