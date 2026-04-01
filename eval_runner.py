@@ -238,6 +238,16 @@ def retrieval_hit(
     top_1 = (best_rank == 1)
     out_rank = None if best_rank == 9999 else best_rank
 
+    # Conservative: ถ้า contexts ว่าง หรือ ไม่มี expected_source_contains และไม่มี context relevant ให้ retrieval_hit_pass=False
+    # 1. contexts ว่างเปล่า (ไม่มี retrieval เลย) => retrieval_hit_pass = False
+    # 2. expected_source_contains มี แต่ไม่มี context ไหน match เลย => retrieval_hit_pass = False
+    # 3. expected_source_contains ว่าง แต่ contexts มีข้อมูล ให้ถือว่า retrieval_hit_pass = True เฉพาะถ้ามี context จริง
+    if not contexts or len(contexts) == 0:
+        return False, domain_ok, sources_ok, sorted(domain_set), missing_source_tokens, mrr, top_1, out_rank
+    if expected_source_contains:
+        if len(missing_source_tokens) == len(expected_source_contains):
+            # ไม่มี context ไหน match expected_source_contains เลย
+            return False, domain_ok, sources_ok, sorted(domain_set), missing_source_tokens, mrr, top_1, out_rank
     return domain_ok and domains_any_ok and sources_ok, domain_ok, sources_ok, sorted(domain_set), missing_source_tokens, mrr, top_1, out_rank
 
 
@@ -350,6 +360,7 @@ class CaseResult:
     quality_score_avg: float | None
     error_tags: list[str]
     adaptive: dict[str, Any]
+    answer_schema: dict[str, Any]
 
 
 def default_adaptive() -> dict[str, float]:
@@ -382,6 +393,33 @@ def coerce_adaptive(meta: dict[str, Any]) -> dict[str, float]:
     return out
 
 
+def coerce_answer_schema(meta: dict[str, Any]) -> dict[str, Any]:
+    raw = (meta or {}).get("answer_schema") if isinstance(meta, dict) else None
+    if not isinstance(raw, dict):
+        return {
+            "task": "none",
+            "repair_attempted": 0,
+            "repair_success": 0,
+            "missing_slots_before_count": 0,
+            "missing_slots_after_count": 0,
+        }
+
+    task = str(raw.get("task") or "none").strip() or "none"
+    def _to_int(v: Any) -> int:
+        try:
+            return int(v)
+        except Exception:
+            return 0
+
+    return {
+        "task": task,
+        "repair_attempted": _to_int(raw.get("repair_attempted")),
+        "repair_success": _to_int(raw.get("repair_success")),
+        "missing_slots_before_count": _to_int(raw.get("missing_slots_before_count")),
+        "missing_slots_after_count": _to_int(raw.get("missing_slots_after_count")),
+    }
+
+
 def summarize(results: list[CaseResult]) -> dict[str, Any]:
     total = len(results)
     lat_total = [r.total_latency_ms for r in results if r.total_latency_ms > 0]
@@ -400,8 +438,9 @@ def summarize(results: list[CaseResult]) -> dict[str, Any]:
 
     # Quality metrics (prefer human labels when provided)
     quality_rows = [r for r in results if r.quality_score_avg is not None]
+    quality_vals = [float(r.quality_score_avg) for r in quality_rows if r.quality_score_avg is not None]
     avg_quality_score = (
-        statistics.mean([float(r.quality_score_avg) for r in quality_rows]) if quality_rows else 0.0
+        statistics.mean(quality_vals) if quality_vals else 0.0
     )
 
     correctness_rows = [r for r in results if r.human_correctness_score is not None]
@@ -523,6 +562,40 @@ def summarize(results: list[CaseResult]) -> dict[str, Any]:
         for k, v in adaptive_acc.items()
     }
 
+    answer_schema_by_task: dict[str, dict[str, float]] = {}
+    for r in results:
+        task = str((r.answer_schema or {}).get("task") or "none").strip() or "none"
+        b = answer_schema_by_task.setdefault(
+            task,
+            {
+                "cases": 0.0,
+                "repair_attempted": 0.0,
+                "repair_success": 0.0,
+                "missing_slots_before_sum": 0.0,
+                "missing_slots_after_sum": 0.0,
+            },
+        )
+        b["cases"] += 1.0
+        b["repair_attempted"] += float((r.answer_schema or {}).get("repair_attempted") or 0)
+        b["repair_success"] += float((r.answer_schema or {}).get("repair_success") or 0)
+        b["missing_slots_before_sum"] += float((r.answer_schema or {}).get("missing_slots_before_count") or 0)
+        b["missing_slots_after_sum"] += float((r.answer_schema or {}).get("missing_slots_after_count") or 0)
+
+    answer_schema_summary: dict[str, dict[str, float]] = {}
+    for task, m in sorted(answer_schema_by_task.items()):
+        cases_n = max(1.0, float(m["cases"]))
+        attempted = float(m["repair_attempted"])
+        success = float(m["repair_success"])
+        answer_schema_summary[task] = {
+            "cases": float(m["cases"]),
+            "repair_attempted": attempted,
+            "repair_success": success,
+            "repair_attempt_rate": attempted / cases_n,
+            "repair_success_rate_of_attempts": (success / attempted) if attempted > 0 else 0.0,
+            "avg_missing_slots_before": float(m["missing_slots_before_sum"]) / cases_n,
+            "avg_missing_slots_after": float(m["missing_slots_after_sum"]) / cases_n,
+        }
+
     failures = [r for r in results if not r.total_pass]
     failures_sorted = sorted(
         failures,
@@ -590,6 +663,7 @@ def summarize(results: list[CaseResult]) -> dict[str, Any]:
         "by_category": by_category_rates,
         "by_domain": by_domain_rates,
         "adaptive_metrics_avg": adaptive_avg,
+        "answer_schema_metrics_by_task": answer_schema_summary,
         "error_tag_counts": dict(sorted(tag_counts.items(), key=lambda kv: (-kv[1], kv[0]))),
         "failed_cases_top20": top_failed,
     }
@@ -692,6 +766,22 @@ def to_markdown(summary: dict[str, Any], input_path: Path, base_url: str) -> str
     lines.append("")
     for k, v in summary["adaptive_metrics_avg"].items():
         lines.append(f"- {k}: {v:.4f}")
+    lines.append("")
+
+    lines.append("## Answer Schema Metrics By Task")
+    lines.append("")
+    asm = summary.get("answer_schema_metrics_by_task") or {}
+    if not asm:
+        lines.append("- none")
+    else:
+        for task, row in sorted(asm.items()):
+            lines.append(
+                f"- {task}: cases={int(row.get('cases', 0))}, attempted={int(row.get('repair_attempted', 0))}, "
+                f"success={int(row.get('repair_success', 0))}, attempt_rate={row.get('repair_attempt_rate', 0.0):.4f}, "
+                f"success_rate_of_attempts={row.get('repair_success_rate_of_attempts', 0.0):.4f}, "
+                f"avg_missing_before={row.get('avg_missing_slots_before', 0.0):.4f}, "
+                f"avg_missing_after={row.get('avg_missing_slots_after', 0.0):.4f}"
+            )
     lines.append("")
 
     lines.append("## Failed Cases Top 20")
@@ -990,6 +1080,7 @@ def main() -> int:
         if not isinstance(meta, dict):
             meta = retrieval_data.get("meta") if isinstance(retrieval_data, dict) else {}
         adaptive = coerce_adaptive(meta or {})
+        answer_schema = coerce_answer_schema(meta or {})
 
         q_domain = first_non_empty_str(
             case.get("domain"),
@@ -1058,6 +1149,7 @@ def main() -> int:
                 quality_score_avg=quality_avg,
                 error_tags=error_tags,
                 adaptive=adaptive,
+                answer_schema=answer_schema,
             )
         )
 

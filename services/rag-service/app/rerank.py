@@ -8,6 +8,21 @@ import re
 from .config import MAX_CONTEXTS, RRF_K
 
 
+def apply_announcement_procedure_boost(items: list[dict], keywords=None, boost=0.18):
+    """Boost score for announcement contexts with procedure/important keywords."""
+    if not items:
+        return items
+    keywords = keywords or ["ขั้นตอน", "procedure", "วิธีการ", "important", "ประกาศสำคัญ", "process", "ดำเนินการ"]
+    for d in items:
+        txt = str(d.get("text") or "")
+        if any(k in txt for k in keywords):
+            base = float(d.get("score_final") or d.get("score_rrf") or 0.0)
+            d["score_final"] = base + boost
+            d["score_rrf"] = base + boost
+    items.sort(key=lambda x: float(x.get("score_final") or x.get("score_rrf") or 0.0), reverse=True)
+    return items
+
+
 def _normalize_source_key(s: str) -> str:
     txt = (s or '').strip().lower()
     if not txt:

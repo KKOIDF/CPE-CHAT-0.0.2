@@ -363,15 +363,37 @@ def rag_query(question: str) -> Dict:
     retrieved = _coerce_retrieved_rows(retrieved)
     retrieved = _coerce_retrieved_rows(_filter_chunks_by_reference(retrieved, question, strict=has_ref))
 
+    # --- Regulation Topic Map rerank ---
+    from .regulations_deterministic import _topic_lookup, _read_exam_rules
+    if dom_inferred == 'regulations':
+        rules_text = _read_exam_rules()
+        topic_result = _topic_lookup(q_display, rules_text)
+        if topic_result and topic_result.get('answer'):
+            # Insert topic-mapped answer as top context
+            retrieved = [{
+                'doc_id': 'regulation_topic_map',
+                'domain': 'regulations',
+                'source': 'regulation_topic_map',
+                'path': 'regulation_topic_map',
+                'text': topic_result['answer'],
+                'score_rrf': 1.2,
+                'score_final': 1.2,
+            }] + [r for r in retrieved if r.get('doc_id') != 'regulation_topic_map']
+
+    # --- Announcement Procedure/Important rerank ---
+    from .rerank import apply_announcement_procedure_boost
+    if dom_inferred == 'announcements':
+        retrieved = apply_announcement_procedure_boost(retrieved)
+
     target_clause = extract_clause_id(question)
     if target_clause and (dom_inferred in ('regulations', None) or 'ข้อ' in (question or '')):
         retrieved = _coerce_retrieved_rows(filter_contexts_by_clause(retrieved, target_clause))
-    
+
     # Keep more evidence for binary claim verification to reduce false abstains.
     max_ctx = 6 if intent == 'claim_verification' else 3
     if retrieved and len(retrieved) > max_ctx:
         retrieved = retrieved[:max_ctx]
-        
+
     if _MULTI_DOC_MODE == 'auto' and is_multi_doc_question(q_display):
         ctx, cites = pack_context_grouped(retrieved)
     elif _MULTI_DOC_MODE in ('1', 'true', 'yes', 'on'):

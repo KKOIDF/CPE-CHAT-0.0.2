@@ -1511,19 +1511,25 @@ def _question_signal_terms(question: str) -> list[str]:
 
 def _has_date_intent(question: str) -> bool:
     q = (question or '')
+    date_signal = any(t in q for t in ('วัน', 'วันที่', 'เมื่อไร', 'เมื่อไหร่', 'ปฏิทิน', 'ช่วงไหน', 'ภายในวัน')) or bool(
+        re.search(r'กำหนด(?:การ|วัน|เวลา|เปิด|ปิด)', q)
+    )
     # Do not treat exam-room policy questions as calendar-date questions.
     # Example: "ออกห้องสอบเมื่อไร" is typically answered in minutes (e.g., 60 นาที),
     # not a specific day/date.
     if any(t in q for t in ('ห้องสอบ', 'กรรมการคุมสอบ', 'คุมสอบ', 'ทุจริต', 'อุทธรณ์')):
-        return any(t in q for t in ('วัน', 'วันที่', 'กำหนด', 'ปฏิทิน', 'ช่วงไหน', 'ภายในวัน'))
-    return any(t in q for t in ('วัน', 'วันที่', 'เมื่อไร', 'กำหนด', 'ปฏิทิน', 'ช่วงไหน', 'ภายในวัน'))
+        return any(t in q for t in ('วัน', 'วันที่', 'ปฏิทิน', 'ช่วงไหน', 'ภายในวัน')) or bool(
+            re.search(r'กำหนด(?:การ|วัน|เวลา)', q)
+        )
+    return date_signal
 
 
 def _has_exact_date_intent(question: str) -> bool:
     q = (question or '')
+    exact_date_signal = any(t in q for t in ('วันที่เท่าไร', 'วันไหน', 'วันใด', 'เมื่อไหร่', 'วันที่อะไร'))
     if any(t in q for t in ('ห้องสอบ', 'กรรมการคุมสอบ', 'คุมสอบ', 'ทุจริต', 'อุทธรณ์')):
         return any(t in q for t in ('วันที่เท่าไร', 'วันไหน', 'วันใด', 'วันที่อะไร'))
-    return any(t in q for t in ('วันที่เท่าไร', 'วันไหน', 'วันใด', 'เมื่อไหร่', 'วันที่อะไร'))
+    return exact_date_signal
 
 
 def _try_extract_exam_exit_rule(prompt: str, question: str) -> str | None:
@@ -2587,6 +2593,7 @@ def _run_prerequisite_structured_guard(
 
     prereq_schema = _extract_prerequisite_schema(question, prereq_structured)
     if is_valid_prerequisite_schema(prereq_schema):
+        assert prereq_schema is not None
         answer = _render_prerequisite_schema_answer(prereq_schema, include_citation=require_citations)
         contexts: list[Any] = []
         if return_contexts:
@@ -2769,6 +2776,7 @@ def _enforce_answer_completeness(
             _trace_prereq('answer_candidate_ready', target=target or 'none', n_codes=len(ans_prereq_codes))
 
         # Retrieval-assisted schema rescue for cases where deterministic lookup returns course info only.
+        target = ''
         try:
             rescue = rag_query_domain(q, 'curriculum')
             prompt_txt = str(rescue.get('prompt') or '')
@@ -2865,7 +2873,7 @@ def _enforce_answer_completeness(
     course_lookup_signal = (
         _has_course_code(q)
         and (intent in ('curriculum_course_info', 'credit_lookup', 'general_info', 'prerequisite_lookup'))
-        and any(t in ql for t in ('คือวิชาอะไร', 'วิชาอะไร', 'หน่วยกิต', 'credit'))
+        and any(t in ql for t in ('คือวิชาอะไร', 'วิชาอะไร', 'หน่วยกิต', 'credit', 'กี่กิต', 'กี่นกิต', 'กิต'))
     )
     if course_lookup_signal and not _answer_has_course_lookup_schema(ans):
         try:
@@ -2892,6 +2900,458 @@ def _enforce_answer_completeness(
             return fixed
 
     return ans
+
+
+def _detect_answer_task(question: str, domain: str | None) -> str:
+    q = (question or '').strip()
+    if not q:
+        return ''
+
+    intent = _infer_primary_intent(q)
+    dom = (domain or '').strip().lower()
+    ql = q.lower()
+
+    is_study_plan = (
+        _has_course_code(q)
+        and any(t in ql for t in ('วางแผนเรียน', 'จบตรงเวลา', 'ลงช่วงไหน', 'ควรลง', 'ปีไหน', 'เทอมไหน', 'ภาคการศึกษา'))
+    )
+    is_reg_procedure = (
+        any(t in ql for t in ('สอบ', 'ห้องสอบ', 'มาสาย', 'เข้าสอบสาย', 'ทุจริต', 'อุทธรณ์', 'วินัย', 'เหตุฉุกเฉิน'))
+        and any(t in ql for t in ('ขั้นตอน', 'ควรดำเนินการ', 'ทำยังไง', 'ต้องแจ้ง', 'แจ้งใคร', 'เตรียมเอกสาร', 'เอกสารอะไร'))
+    )
+    is_announcement_procedure = (
+        any(
+            t in ql
+            for t in (
+                'ประกาศ', 'ทุน', 'เปิดภาค', 'ลงทะเบียน', 'ปฏิทิน', 'deadline', 'เดดไลน์',
+                'ล่าสุด', 'อัปเดต', 'update', 'หยุดเรียน', 'เลื่อนการเรียนการสอน',
+                'หนังสือรับรอง', 'ค่าธรรมเนียมจัดส่งเอกสาร',
+            )
+        )
+        and any(
+            t in ql
+            for t in (
+                'ขั้นตอน', 'ทำยังไง', 'ต้องทำอะไร', 'ช่องทาง', 'ติดตาม',
+                'ต้องเริ่มจากตรงไหน', 'เริ่มจากตรงไหน', 'ช่วยเช็ก', 'เช็กให้หน่อย',
+                'อธิบายเรื่อง', 'มีประกาศใหม่', 'ล่าสุด', 'ทางแก้', 'ยื่นคำร้อง',
+            )
+        )
+    )
+    is_announcement_verification = (
+        any(t in ql for t in ('ประกาศ', 'deadline', 'เดดไลน์', 'กำหนดการ', 'เปิดระบบ', 'ปิดระบบ'))
+        and any(t in ql for t in ('จริงไหม', 'ใช่ไหม', 'ถูกไหม', 'ยืนยัน', 'verify', 'verification', 'ถูกต้องไหม'))
+    )
+
+    if intent == 'unanswerable' or is_unanswerable_query(q):
+        return 'unanswerable_refusal'
+    if is_announcement_verification:
+        return 'announcement_verification'
+    if intent == 'claim_verification':
+        return 'verification'
+    if is_study_plan:
+        return 'course_study_plan'
+    if is_reg_procedure:
+        return 'regulation_procedure'
+    if is_announcement_procedure:
+        return 'announcement_procedure'
+    if intent == 'prerequisite_lookup' or _looks_like_prerequisite_question(q):
+        return 'prerequisite'
+    if intent in ('exam_policy', 'registration_policy', 'regulation_forms', 'academic_status_policy'):
+        return 'regulation_procedure'
+    if dom == 'announcements' and any(t in ql for t in ('ประกาศ', 'กำหนดการ', 'deadline', 'เดดไลน์', 'ทุน', 'เปิดเทอม')):
+        return 'announcement_procedure'
+    if dom == 'curriculum' or intent in ('curriculum_course_info', 'credit_lookup', 'prerequisite_lookup', 'instructor_lookup'):
+        return 'course_factual'
+    return ''
+
+
+def _extract_labeled_value(answer: str, labels: list[str]) -> str:
+    a = str(answer or '')
+    for ln in a.splitlines():
+        s = ln.strip()
+        if not s:
+            continue
+        s2 = re.sub(r'^[-*]\s*', '', s)
+        for lb in labels:
+            if s2.lower().startswith(lb.lower() + ':'):
+                return s2.split(':', 1)[1].strip()
+    return ''
+
+
+def _enforce_task_template(task: str, question: str, answer: str) -> str:
+    q = (question or '').strip()
+    a = (answer or '').strip()
+    if not task or not a:
+        return a
+
+    default_unknown = 'ยังยืนยันไม่ได้จากเอกสาร'
+
+    if task == 'announcement_procedure':
+        source = _extract_labeled_value(a, ['แหล่งประกาศ']) or default_unknown
+        steps = _extract_labeled_value(a, ['ขั้นตอน']) or default_unknown
+        conditions = _extract_labeled_value(a, ['เงื่อนไข']) or default_unknown
+        limitations = _extract_labeled_value(a, ['ข้อจำกัด']) or default_unknown
+        return (
+            f"- แหล่งประกาศ: {source}\n"
+            f"- ขั้นตอน: {steps}\n"
+            f"- เงื่อนไข: {conditions}\n"
+            f"- ข้อจำกัด: {limitations}"
+        )
+
+    if task == 'regulation_procedure':
+        status = _extract_labeled_value(a, ['status', 'สถานะ']) or default_unknown
+        steps = _extract_labeled_value(a, ['steps', 'ขั้นตอน']) or default_unknown
+        contact = _extract_labeled_value(a, ['contact', 'ติดต่อ']) or default_unknown
+        documents = _extract_labeled_value(a, ['documents', 'เอกสาร']) or default_unknown
+        conditions = _extract_labeled_value(a, ['conditions', 'เงื่อนไข']) or default_unknown
+        return (
+            f"- status: {status}\n"
+            f"- steps: {steps}\n"
+            f"- contact: {contact}\n"
+            f"- documents: {documents}\n"
+            f"- conditions: {conditions}"
+        )
+
+    if task == 'announcement_verification':
+        statement = _extract_labeled_value(a, ['ข้อความประกาศ']) or q
+        verdict = _extract_labeled_value(a, ['ผลการตรวจสอบ'])
+        if not verdict:
+            first = re.sub(r'^[-*]\s*', '', (a.splitlines()[0] if a.splitlines() else '')).strip()
+            if re.match(r'^(ใช่|ไม่ใช่|ยังยืนยันไม่ได้|ไม่พบข้อมูล)\b', first):
+                verdict = first.split(':', 1)[0].strip()
+            else:
+                verdict = 'ยังยืนยันไม่ได้'
+        reason = _extract_labeled_value(a, ['เหตุผล/หลักฐาน']) or default_unknown
+        return (
+            f"- ข้อความประกาศ: {statement}\n"
+            f"- ผลการตรวจสอบ: {verdict}\n"
+            f"- เหตุผล/หลักฐาน: {reason}"
+        )
+
+    if task == 'prerequisite':
+        norm = _normalize_prerequisite_answer(q, a)
+        target_codes = [f"{(x or '').upper()}{(y or '')}" for x, y in _COURSE_CODE_RE.findall(q)]
+        target = target_codes[0] if target_codes else ''
+        prereq_text = 'ไม่มี'
+        if norm and 'ไม่มีวิชาบังคับก่อน' not in norm:
+            codes = [f"{(x or '').upper()}{(y or '')}" for x, y in _COURSE_CODE_RE.findall(norm)]
+            prereq_codes = [c for c in codes if (not target) or (c != target)]
+            if prereq_codes:
+                prereq_text = ', '.join(prereq_codes)
+        course_disp = target or (_extract_labeled_value(a, ['รายวิชา']) or 'ยังยืนยันไม่ได้')
+        return f"- รายวิชา: {course_disp}\n- วิชาบังคับก่อน: {prereq_text}"
+
+    if task == 'unanswerable_refusal':
+        reason = _extract_labeled_value(a, ['เหตุผลปฏิเสธ'])
+        if not reason:
+            reason = a if ('ไม่สามารถ' in a or 'ไม่พบข้อมูลยืนยัน' in a) else f"ไม่สามารถตอบได้ เนื่องจาก {default_unknown}"
+        if 'ไม่สามารถ' not in reason and 'ไม่พบข้อมูลยืนยัน' not in reason:
+            reason = f"ไม่สามารถตอบได้ เนื่องจาก {reason}"
+        return f"- เหตุผลปฏิเสธ: {reason}"
+
+    return a
+
+
+def _task_missing_slots(task: str, question: str, answer: str) -> list[str]:
+    ql = (question or '').strip().lower()
+    a = (answer or '').strip()
+    al = a.lower()
+    if not task or not a:
+        return ['empty_answer'] if task else []
+
+    missing: list[str] = []
+
+    if task == 'verification':
+        first = ''
+        for ln in a.splitlines():
+            s = ln.strip()
+            if not s:
+                continue
+            first = re.sub(r'^[-*]\s*', '', s)
+            break
+        if not re.match(r'^(ได้|ไม่ได้|ยังยืนยันไม่ได้|ใช่|ไม่ใช่)\b', first):
+            missing.append('verdict_prefix')
+        return missing
+
+    if task == 'announcement_verification':
+        has_statement = ('ข้อความประกาศ:' in a) or ('ประกาศ' in al)
+        has_verdict = ('ผลการตรวจสอบ:' in a) or bool(re.search(r'\b(ใช่|ไม่ใช่|ยังยืนยันไม่ได้|ไม่พบข้อมูล)\b', al))
+        has_reason = ('เหตุผล/หลักฐาน:' in a) or any(t in al for t in ('เหตุผล', 'หลักฐาน', 'เนื่องจาก', 'เพราะ'))
+        if not has_statement:
+            missing.append('statement')
+        if not has_verdict:
+            missing.append('verdict')
+        if not has_reason:
+            missing.append('reason')
+        return missing
+
+    if task == 'unanswerable_refusal':
+        if 'ไม่สามารถ' not in al:
+            missing.append('cannot_statement')
+        if not any(t in al for t in ('เนื่องจาก', 'เพราะ', 'ไม่พบข้อมูลยืนยัน', 'ไม่สามารถยืนยัน')):
+            missing.append('reason')
+        if not any(t in al for t in ('แนะนำ', 'ติดต่อ', 'ช่องทางทางการ', 'ประกาศทางการ')):
+            missing.append('official_guidance')
+        return missing
+
+    if task == 'course_factual':
+        if not _has_course_code(a):
+            missing.append('course_code')
+        if not any(t in al for t in ('รายวิชา', 'วิชา', 'คือ')):
+            missing.append('course_name')
+        asks_credit = any(t in ql for t in ('หน่วยกิต', 'credit', 'กี่กิต', 'กี่นกิต', 'กิต'))
+        if asks_credit and not (('หน่วยกิต' in al) and bool(re.search(r'\b\d{1,3}\b', a))):
+            missing.append('credits')
+        asks_hours = any(t in ql for t in ('ชั่วโมง', 'ชม.', 'ภาระงาน', 'ชั่วโมงเรียน', 'hour'))
+        if asks_hours and not (bool(re.search(r'\b\d\s*-\s*\d\s*-\s*\d\b', a)) or ('ชั่วโมง' in al) or ('ชม.' in al)):
+            missing.append('hours')
+        asks_prereq = any(t in ql for t in ('บังคับก่อน', 'prereq', 'prerequisite', 'ต้องผ่าน'))
+        if asks_prereq and not any(t in al for t in ('บังคับก่อน', 'prereq', 'prerequisite', 'ต้องผ่าน', 'ไม่มีวิชาบังคับก่อน')):
+            missing.append('prerequisite')
+        return missing
+
+    if task == 'prerequisite':
+        if 'รายวิชา:' not in a and not _has_course_code(a):
+            missing.append('course')
+        if ('วิชาบังคับก่อน:' not in a) and (not any(t in al for t in ('มีวิชาบังคับก่อน', 'ไม่มีวิชาบังคับก่อน', 'วิชาบังคับก่อน'))):
+            missing.append('prerequisite')
+        return missing
+
+    if task == 'course_study_plan':
+        if not _has_course_code(a):
+            missing.append('course_code')
+        has_term = bool(re.search(r'(ชั้นปีที่\s*[1-4]|ปีที่\s*[1-4]|ภาคการศึกษา|เทอม\s*[1-3]|semester\s*[1-3])', a, re.IGNORECASE))
+        if not has_term:
+            missing.append('study_plan_term')
+        if not any(t in al for t in ('ควรลง', 'แนะนำ', 'เหมาะกับ', 'ตามแผน', 'ภาคการศึกษา')):
+            missing.append('recommendation')
+        return missing
+
+    if task == 'announcement_procedure':
+        if 'แหล่งประกาศ:' not in a:
+            missing.append('source')
+        if 'ขั้นตอน:' not in a and not any(t in al for t in ('ขั้นตอน', 'ทำ', 'ดำเนินการ')):
+            missing.append('steps')
+        if 'เงื่อนไข:' not in a and not any(t in al for t in ('เงื่อนไข', 'กรณี', 'หาก', 'ภายใน', 'ก่อน', 'หลัง')):
+            missing.append('conditions')
+        if 'ข้อจำกัด:' not in a and not any(t in al for t in ('ข้อจำกัด', 'จำกัด', 'ไม่เกิน', 'ยกเว้น')):
+            missing.append('limitations')
+        return missing
+
+    if task == 'regulation_procedure':
+        has_status = any(t in al for t in ('ได้', 'ไม่ได้', 'สามารถ', 'ไม่สามารถ', 'อนุญาต', 'ห้าม'))
+        has_steps = (a.count('- ') >= 2) or any(t in al for t in ('ขั้นตอน', 'ให้', 'โปรด', 'ควร', 'กรุณา'))
+        has_contact = any(t in al for t in ('ติดต่อ', 'ภาควิชา', 'งานทะเบียน', 'เจ้าหน้าที่', 'สำนักทะเบียน', 'อาจารย์'))
+        has_docs = any(t in al for t in ('เอกสาร', 'หลักฐาน', 'แบบฟอร์ม', 'คำร้อง'))
+        has_conditions = any(t in al for t in ('เงื่อนไข', 'กรณี', 'หาก', 'ภายใน', 'ก่อน', 'หลัง', 'กำหนดการ', 'วัน', 'วันที่', 'deadline'))
+        if not has_status:
+            missing.append('status')
+        if not has_steps:
+            missing.append('steps')
+        if not has_contact:
+            missing.append('contact')
+        if not has_docs:
+            missing.append('documents')
+        if not has_conditions:
+            missing.append('conditions')
+        return missing
+
+    return missing
+
+
+def _repair_answer_by_task_schema(
+    question: str,
+    answer: str,
+    *,
+    domain: str | None,
+    prompt: str,
+    contexts: list[Any] | None,
+    require_citations: bool,
+) -> str:
+    q = (question or '').strip()
+    ans = (answer or '').strip()
+    if not q or not ans or ans.startswith('('):
+        return ans
+
+    task = _detect_answer_task(q, domain)
+    if not task:
+        return ans
+
+    if task == 'announcement_procedure':
+        al = ans.lower()
+        has_abstain = any(t in al for t in ('ยังยืนยันไม่ได้', 'ไม่สามารถยืนยัน', 'ไม่พบข้อมูล', 'ไม่มีข้อมูลยืนยัน'))
+        ann_ctx = 0
+        for c in (contexts or []):
+            dom = str((c or {}).get('domain') or '').strip().lower()
+            src = str((c or {}).get('source') or (c or {}).get('path') or '').strip().lower()
+            if dom == 'announcements' or any(t in src for t in ('announce', 'ประกาศ', 'calendar', 'ปฏิทิน')):
+                ann_ctx += 1
+        missing_preview = _task_missing_slots(task, q, ans)
+        # Keep a metric for weak evidence, but still run template/schema enforcement.
+        if has_abstain or ann_ctx == 0:
+            add_metric('answer_schema_repair_weak_evidence', 1)
+
+    missing = _task_missing_slots(task, q, ans)
+    add_metric('answer_schema_task', task)
+    add_metric('answer_schema_missing_slots_count', len(missing))
+    if not missing:
+        return ans
+
+    # Conservative trigger: regenerate only when clearly incomplete.
+    strict_tasks = {
+        'verification',
+        'announcement_verification',
+        'unanswerable_refusal',
+        'course_study_plan',
+        'prerequisite',
+        'announcement_procedure',
+        'course_factual',
+    }
+    threshold = 0 if task in strict_tasks else 1
+    if len(missing) <= threshold:
+        templated = _enforce_task_template(task, q, ans)
+        missing_after_template = _task_missing_slots(task, q, templated)
+        if len(missing_after_template) < len(missing):
+            add_metric('answer_schema_template_enforce_success', 1)
+            return templated
+        return ans
+
+    templated_before = _enforce_task_template(task, q, ans)
+    missing_after_template = _task_missing_slots(task, q, templated_before)
+    if len(missing_after_template) < len(missing):
+        ans = templated_before
+        missing = missing_after_template
+        if not missing:
+            add_metric('answer_schema_template_enforce_success', 1)
+            return ans
+
+    task_schema_hint = {
+        'announcement_procedure': (
+            '- แหล่งประกาศ: ...\n'
+            '- ขั้นตอน: ...\n'
+            '- เงื่อนไข: ...\n'
+            '- ข้อจำกัด: ...'
+        ),
+        'announcement_verification': (
+            '- ข้อความประกาศ: ...\n'
+            '- ผลการตรวจสอบ: ใช่/ไม่ใช่/ยังยืนยันไม่ได้\n'
+            '- เหตุผล/หลักฐาน: ...'
+        ),
+        'prerequisite': (
+            '- รายวิชา: ...\n'
+            '- วิชาบังคับก่อน: ... (หรือ ไม่มี)'
+        ),
+        'unanswerable_refusal': '- เหตุผลปฏิเสธ: ไม่สามารถ... เนื่องจาก ...',
+        'regulation_procedure': (
+            '- status: ได้/ไม่ได้/สามารถ/ไม่สามารถ ...\n'
+            '- steps: ...\n'
+            '- contact: ...\n'
+            '- documents: ...\n'
+            '- conditions: ...'
+        ),
+    }.get(task, '')
+
+    allowed_cites = _extract_allowed_cites(prompt or '')
+    cite_rule = ''
+    if require_citations and allowed_cites:
+        cite_rule = (
+            'ทุก bullet ต้องลงท้ายด้วย citation รูปแบบ [source/page] และใช้อ้างอิงเฉพาะรายการที่อนุญาตเท่านั้น\n'
+            + '\n'.join([f'- [{c}]' for c in allowed_cites[:12]])
+        )
+
+    repair_prompt = (
+        'ปรับปรุงคำตอบให้ครบตาม schema ของงานนี้ โดยห้ามเพิ่มข้อเท็จจริงที่ไม่มีในบริบท\n'
+        f'task: {task}\n'
+        f'ช่องข้อมูลที่ยังขาด: {", ".join(missing)}\n\n'
+        'ข้อกำหนดรูปแบบ:\n'
+        '- ตอบแบบ bullet ชัดเจนและสั้น\n'
+        '- ต้องให้ข้อมูลครบตามช่องที่ขาด\n'
+        '- ถ้าข้อมูลบางช่องไม่มีในบริบท ให้ระบุว่า \"ยังยืนยันไม่ได้จากเอกสาร\" สำหรับช่องนั้น\n'
+        f'- template ที่ต้องใช้:\n{task_schema_hint}\n'
+        f'{cite_rule}\n\n'
+        f'คำถาม: {q}\n\n'
+        f'คำตอบเดิม:\n{ans}\n'
+    )
+
+    add_metric('answer_schema_repair_attempt', 1)
+    repaired = llm_engine.generate(repair_prompt)
+    repaired = str(repaired or '').strip()
+    if not repaired:
+        return ans
+
+    repaired = _strip_false_abstain(_strip_spurious_abstain_phrases(repaired))
+    repaired = _enforce_task_template(task, q, repaired)
+    if require_citations:
+        repaired = _force_answer_citations(repaired, prompt or '', contexts or [])
+
+    missing_after = _task_missing_slots(task, q, repaired)
+    add_metric('answer_schema_missing_slots_after_count', len(missing_after))
+    if len(missing_after) < len(missing):
+        add_metric('answer_schema_repair_success', 1)
+        return repaired
+    return ans
+
+
+def _repair_answer_by_task_schema_with_meta(
+    question: str,
+    answer: str,
+    *,
+    domain: str | None,
+    prompt: str,
+    contexts: list[Any] | None,
+    require_citations: bool,
+) -> tuple[str, dict[str, Any]]:
+    q = (question or '').strip()
+    ans = (answer or '').strip()
+    task = _detect_answer_task(q, domain)
+    missing_before = _task_missing_slots(task, q, ans) if task else []
+
+    if task == 'announcement_procedure':
+        al = ans.lower()
+        has_abstain = any(t in al for t in ('ยังยืนยันไม่ได้', 'ไม่สามารถยืนยัน', 'ไม่พบข้อมูล', 'ไม่มีข้อมูลยืนยัน'))
+        ann_ctx = 0
+        for c in (contexts or []):
+            dom = str((c or {}).get('domain') or '').strip().lower()
+            src = str((c or {}).get('source') or (c or {}).get('path') or '').strip().lower()
+            if dom == 'announcements' or any(t in src for t in ('announce', 'ประกาศ', 'calendar', 'ปฏิทิน')):
+                ann_ctx += 1
+        if has_abstain or ann_ctx == 0:
+            add_metric('answer_schema_repair_weak_evidence', 1)
+
+    strict_tasks = {
+        'verification',
+        'announcement_verification',
+        'unanswerable_refusal',
+        'course_study_plan',
+        'prerequisite',
+        'announcement_procedure',
+        'course_factual',
+    }
+    threshold = 0 if task in strict_tasks else 1
+    if task == 'announcement_procedure':
+        repair_attempted = bool(task and missing_before and ans)
+    else:
+        repair_attempted = bool(task and len(missing_before) > threshold and ans and not ans.startswith('('))
+
+    repaired = _repair_answer_by_task_schema(
+        question,
+        answer,
+        domain=domain,
+        prompt=prompt,
+        contexts=contexts,
+        require_citations=require_citations,
+    )
+
+    missing_after = _task_missing_slots(task, q, repaired) if task else []
+    repair_success = bool(repair_attempted and len(missing_after) < len(missing_before))
+
+    return repaired, {
+        'task': task or 'none',
+        'missing_slots_before_count': len(missing_before),
+        'missing_slots_after_count': len(missing_after),
+        'repair_attempted': int(repair_attempted),
+        'repair_success': int(repair_success),
+    }
 
 
 def _is_announcement_temporal_intent(question: str, domain: str | None = None) -> bool:
@@ -3946,6 +4406,7 @@ def rag_answer_endpoint(req: RagAnswerRequest):
         user_msg = { 'role': 'user', 'content': result['prompt'] }
 
         # Hard guardrails: if no context, never hallucinate.
+        answer_schema_meta: dict[str, Any] = {}
         if not (result.get('contexts') or []):
             answer = _clarify_when_no_context(req.question) or _FALLBACK
         else:
@@ -4018,6 +4479,14 @@ def rag_answer_endpoint(req: RagAnswerRequest):
                         answer or '',
                         domain=effective_domain,
                     )
+                    answer, answer_schema_meta = _repair_answer_by_task_schema_with_meta(
+                        req.question,
+                        answer or '',
+                        domain=effective_domain,
+                        prompt=result.get('prompt') or '',
+                        contexts=result.get('contexts') or [],
+                        require_citations=require_citations,
+                    )
                     answer = _strip_false_abstain(_strip_spurious_abstain_phrases(answer or ''))
                     if _is_single_fact_question(req.question):
                         answer = _compress_to_single_line(answer)
@@ -4070,13 +4539,17 @@ def rag_answer_endpoint(req: RagAnswerRequest):
         add_metric('answer', (answer or '').strip())
         add_metric('answer_chars', len((answer or '').strip()))
 
+        response_meta = dict(result.get('meta') or {})
+        if isinstance(answer_schema_meta, dict) and answer_schema_meta:
+            response_meta['answer_schema'] = answer_schema_meta
+
         return RagAnswerResponse(
             question=req.question,
             prompt=result['prompt'],
             answer=answer,
             contexts=final_contexts,
             token_est=result['token_est'],
-            meta=result.get('meta'),
+            meta=response_meta,
         )
 
 @app.get('/v1/models')
@@ -4508,6 +4981,14 @@ def openai_compatible_endpoint(request: dict):
                 answer = _strip_false_abstain(_strip_spurious_abstain_phrases(answer))
                 if _is_single_fact_question(question):
                     answer = _compress_to_single_line(answer)
+                answer = _repair_answer_by_task_schema(
+                    question,
+                    answer or '',
+                    domain=domain,
+                    prompt=result.get('prompt') or '',
+                    contexts=result.get('contexts') or [],
+                    require_citations=False,
+                )
                 answer = _finalize_user_answer_text(question, answer)
 
         if (answer or '').strip() == _FALLBACK:

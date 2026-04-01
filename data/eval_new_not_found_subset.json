@@ -1,0 +1,574 @@
+[
+  {
+    "domain": "announcements",
+    "difficulty": "medium",
+    "question_type": "procedural",
+    "expected_answerable": true,
+    "question": "ถ้าจะจัดการเรื่อง ช่องทางติดตามประกาศล่าสุดของภาควิชา ต้องเริ่มจากตรงไหน",
+    "id": "qb_001",
+    "expected_domain": "announcements",
+    "expected_source_contains": [
+      "announcement",
+      "calendar"
+    ],
+    "reference_answer": "",
+    "expected_answer_keywords": [
+      "ประกาศ"
+    ],
+    "scenario_type": "standard",
+    "conversation_id": "",
+    "turn_index": "",
+    "depends_on_id": ""
+  },
+  {
+    "domain": "announcements",
+    "difficulty": "medium",
+    "question_type": "verification",
+    "expected_answerable": true,
+    "question": "ช่วยเช็กให้หน่อยว่า ค่าประกันอุบัติเหตุนักศึกษา มีประกาศใหม่แล้วหรือยัง",
+    "id": "qb_004",
+    "expected_domain": "announcements",
+    "expected_source_contains": [
+      "announcement",
+      "calendar"
+    ],
+    "reference_answer": "",
+    "expected_answer_keywords": [
+      "500",
+      "บาท",
+      "ประกันอุบัติเหตุ",
+      "ประกาศ"
+    ],
+    "scenario_type": "standard",
+    "conversation_id": "",
+    "turn_index": "",
+    "depends_on_id": ""
+  },
+  {
+    "domain": "announcements",
+    "difficulty": "easy",
+    "question_type": "factual",
+    "expected_answerable": true,
+    "question": "ขออัปเดต ค่าธรรมเนียมจัดส่งเอกสารทางไปรษณีย์ ล่าสุดหน่อยครับ",
+    "id": "qb_009",
+    "expected_domain": "announcements",
+    "expected_source_contains": [
+      "announcement",
+      "calendar"
+    ],
+    "reference_answer": "มีประกาศอัตราค่าธรรมเนียมการจัดส่งเอกสารทางไปรษณีย์ โดยคิดตามประเภทการส่งและปลายทาง",
+    "expected_answer_keywords": [
+      "ค่าธรรมเนียม",
+      "จัดส่งเอกสาร",
+      "ไปรษณีย์",
+      "ประกาศ"
+    ],
+    "scenario_type": "standard",
+    "conversation_id": "",
+    "turn_index": "",
+    "depends_on_id": ""
+  },
+  {
+    "domain": "announcements",
+    "difficulty": "easy",
+    "question_type": "factual",
+    "expected_answerable": true,
+    "question": "ขออัปเดต ประกาศหยุดเรียน/เลื่อนการเรียนการสอน ล่าสุดหน่อยครับ",
+    "id": "qb_032",
+    "expected_domain": "announcements",
+    "expected_source_contains": [
+      "announcement",
+      "calendar"
+    ],
+    "reference_answer": "โปรดตรวจสอบประกาศล่าสุดจากช่องทางทางการของมหาวิทยาลัย/คณะเพื่อความถูกต้องของข้อมูล",
+    "expected_answer_keywords": [
+      "ประกาศ",
+      "ประกาศล่าสุด"
+    ],
+    "scenario_type": "standard",
+    "conversation_id": "",
+    "turn_index": "",
+    "depends_on_id": ""
+  },
+  {
+    "domain": "regulations",
+    "difficulty": "medium",
+    "question_type": "procedural",
+    "expected_answerable": true,
+    "question": "ถ้าเกิดเคส \"ขอออกจากห้องสอบชั่วคราวระหว่างทำข้อสอบ\" ขอขั้นตอนแบบทีละข้อหน่อย",
+    "id": "qb_033",
+    "expected_domain": "regulations",
+    "expected_source_contains": [
+      "rule_exam",
+      "regulation"
+    ],
+    "reference_answer": "",
+    "expected_answer_keywords": [
+      "ออกจากห้องสอบ",
+      "อนุญาต",
+      "ระเบียบการสอบ"
+    ],
+    "scenario_type": "standard",
+    "conversation_id": "",
+    "turn_index": "",
+    "depends_on_id": ""
+  },
+  {
+    "domain": "announcements",
+    "difficulty": "hard",
+    "question_type": "multi-hop",
+    "expected_answerable": true,
+    "question": "ถ้าเลยกำหนดเรื่อง ค่าธรรมเนียมจัดส่งเอกสารทางไปรษณีย์ ไปแล้ว ยังมีทางแก้หรือยื่นคำร้องอะไรได้บ้าง",
+    "id": "qb_054",
+    "expected_domain": "announcements",
+    "expected_source_contains": [
+      "announcement",
+      "calendar"
+    ],
+    "reference_answer": "",
+    "expected_answer_keywords": [
+      "ค่าธรรมเนียม",
+      "ไปรษณีย์",
+      "ประกาศ"
+    ],
+    "scenario_type": "standard",
+    "conversation_id": "",
+    "turn_index": "",
+    "depends_on_id": ""
+  },
+  {
+    "domain": "announcements",
+    "difficulty": "hard",
+    "question_type": "multi-hop",
+    "expected_answerable": true,
+    "question": "ถ้าเลยกำหนดเรื่อง ประกาศหยุดเรียน/เลื่อนการเรียนการสอน ไปแล้ว ยังมีทางแก้หรือยื่นคำร้องอะไรได้บ้าง",
+    "id": "qb_070",
+    "expected_domain": "announcements",
+    "expected_source_contains": [
+      "announcement",
+      "calendar"
+    ],
+    "reference_answer": "",
+    "expected_answer_keywords": [
+      "ประกาศ"
+    ],
+    "scenario_type": "standard",
+    "conversation_id": "",
+    "turn_index": "",
+    "depends_on_id": ""
+  },
+  {
+    "domain": "announcements",
+    "difficulty": "hard",
+    "question_type": "multi-hop",
+    "expected_answerable": true,
+    "question": "ถ้าเลยกำหนดเรื่อง ประกาศหยุดเรียน/เลื่อนการเรียนการสอน ไปแล้ว ยังมีทางแก้หรือยื่นคำร้องอะไรได้บ้าง",
+    "id": "qb_080",
+    "expected_domain": "announcements",
+    "expected_source_contains": [
+      "announcement",
+      "calendar"
+    ],
+    "reference_answer": "",
+    "expected_answer_keywords": [
+      "ประกาศ"
+    ],
+    "scenario_type": "standard",
+    "conversation_id": "",
+    "turn_index": "",
+    "depends_on_id": ""
+  },
+  {
+    "domain": "announcements",
+    "difficulty": "medium",
+    "question_type": "procedural",
+    "expected_answerable": true,
+    "question": "ถ้าจะจัดการเรื่อง ขั้นตอนขอหนังสือรับรองนักศึกษา ต้องเริ่มจากตรงไหน",
+    "id": "qb_100",
+    "expected_domain": "announcements",
+    "expected_source_contains": [
+      "announcement",
+      "calendar"
+    ],
+    "reference_answer": "",
+    "expected_answer_keywords": [
+      "ประกาศ"
+    ],
+    "scenario_type": "standard",
+    "conversation_id": "",
+    "turn_index": "",
+    "depends_on_id": ""
+  },
+  {
+    "domain": "announcements",
+    "difficulty": "medium",
+    "question_type": "procedural",
+    "expected_answerable": true,
+    "question": "ถ้าจะจัดการเรื่อง ค่าธรรมเนียมจัดส่งเอกสารทางไปรษณีย์ ต้องเริ่มจากตรงไหน",
+    "id": "qb_116",
+    "expected_domain": "announcements",
+    "expected_source_contains": [
+      "announcement",
+      "calendar"
+    ],
+    "reference_answer": "",
+    "expected_answer_keywords": [
+      "ค่าธรรมเนียม",
+      "ไปรษณีย์",
+      "ประกาศ"
+    ],
+    "scenario_type": "standard",
+    "conversation_id": "",
+    "turn_index": "",
+    "depends_on_id": ""
+  },
+  {
+    "domain": "announcements",
+    "difficulty": "medium",
+    "question_type": "procedural",
+    "expected_answerable": true,
+    "question": "ถ้าจะจัดการเรื่อง ขั้นตอนขอหนังสือรับรองนักศึกษา ต้องเริ่มจากตรงไหน",
+    "id": "qb_121",
+    "expected_domain": "announcements",
+    "expected_source_contains": [
+      "announcement",
+      "calendar"
+    ],
+    "reference_answer": "",
+    "expected_answer_keywords": [
+      "ประกาศ"
+    ],
+    "scenario_type": "standard",
+    "conversation_id": "",
+    "turn_index": "",
+    "depends_on_id": ""
+  },
+  {
+    "domain": "regulations",
+    "difficulty": "hard",
+    "question_type": "procedural",
+    "expected_answerable": true,
+    "question": "กรณี \"ขอออกจากห้องสอบชั่วคราวระหว่างทำข้อสอบ\" ถ้าโดนปฏิเสธหน้างาน ควรดำเนินการต่อยังไง",
+    "id": "qb_122",
+    "expected_domain": "regulations",
+    "expected_source_contains": [
+      "rule_exam",
+      "regulation"
+    ],
+    "reference_answer": "",
+    "expected_answer_keywords": [
+      "ออกจากห้องสอบ",
+      "อนุญาต",
+      "ระเบียบการสอบ"
+    ],
+    "scenario_type": "standard",
+    "conversation_id": "",
+    "turn_index": "",
+    "depends_on_id": ""
+  },
+  {
+    "domain": "announcements",
+    "difficulty": "easy",
+    "question_type": "factual",
+    "expected_answerable": true,
+    "question": "ขออัปเดต ประกาศทุนการศึกษา ล่าสุดหน่อยครับ",
+    "id": "qb_137",
+    "expected_domain": "announcements",
+    "expected_source_contains": [
+      "announcement",
+      "calendar"
+    ],
+    "reference_answer": "ข้อมูลทุนการศึกษาต้องอ้างอิงประกาศรอบล่าสุดของมหาวิทยาลัย/คณะ เพราะเงื่อนไขและกำหนดเวลาเปลี่ยนตามรอบ",
+    "expected_answer_keywords": [
+      "ประกาศ",
+      "ทุนการศึกษา",
+      "ประกาศล่าสุด",
+      "กำหนดเวลา"
+    ],
+    "scenario_type": "standard",
+    "conversation_id": "",
+    "turn_index": "",
+    "depends_on_id": ""
+  },
+  {
+    "domain": "announcements",
+    "difficulty": "medium",
+    "question_type": "verification",
+    "expected_answerable": true,
+    "question": "ช่วยเช็กให้หน่อยว่า ประกาศหยุดเรียน/เลื่อนการเรียนการสอน มีประกาศใหม่แล้วหรือยัง",
+    "id": "qb_139",
+    "expected_domain": "announcements",
+    "expected_source_contains": [
+      "announcement",
+      "calendar"
+    ],
+    "reference_answer": "",
+    "expected_answer_keywords": [
+      "ประกาศ"
+    ],
+    "scenario_type": "standard",
+    "conversation_id": "",
+    "turn_index": "",
+    "depends_on_id": ""
+  },
+  {
+    "domain": "announcements",
+    "difficulty": "medium",
+    "question_type": "procedural",
+    "expected_answerable": true,
+    "question": "ถ้าจะจัดการเรื่อง ประกาศหยุดเรียน/เลื่อนการเรียนการสอน ต้องเริ่มจากตรงไหน",
+    "id": "qb_154",
+    "expected_domain": "announcements",
+    "expected_source_contains": [
+      "announcement",
+      "calendar"
+    ],
+    "reference_answer": "",
+    "expected_answer_keywords": [
+      "ประกาศ"
+    ],
+    "scenario_type": "standard",
+    "conversation_id": "",
+    "turn_index": "",
+    "depends_on_id": ""
+  },
+  {
+    "domain": "announcements",
+    "difficulty": "medium",
+    "question_type": "procedural",
+    "expected_answerable": true,
+    "question": "ถ้าจะจัดการเรื่อง ค่าธรรมเนียมจัดส่งเอกสารทางไปรษณีย์ ต้องเริ่มจากตรงไหน",
+    "id": "qb_159",
+    "expected_domain": "announcements",
+    "expected_source_contains": [
+      "announcement",
+      "calendar"
+    ],
+    "reference_answer": "",
+    "expected_answer_keywords": [
+      "ประกาศ"
+    ],
+    "scenario_type": "standard",
+    "conversation_id": "",
+    "turn_index": "",
+    "depends_on_id": ""
+  },
+  {
+    "domain": "announcements",
+    "difficulty": "medium",
+    "question_type": "procedural",
+    "expected_answerable": true,
+    "question": "ถ้าจะจัดการเรื่อง ประกาศหยุดเรียน/เลื่อนการเรียนการสอน ต้องเริ่มจากตรงไหน",
+    "id": "qb_170",
+    "expected_domain": "announcements",
+    "expected_source_contains": [
+      "announcement",
+      "calendar"
+    ],
+    "reference_answer": "",
+    "expected_answer_keywords": [
+      "ประกาศ"
+    ],
+    "scenario_type": "standard",
+    "conversation_id": "",
+    "turn_index": "",
+    "depends_on_id": ""
+  },
+  {
+    "domain": "regulations",
+    "difficulty": "medium",
+    "question_type": "verification",
+    "expected_answerable": true,
+    "question": "ช่วยยืนยันให้หน่อยว่า \"ขอออกจากห้องสอบชั่วคราวระหว่างทำข้อสอบ\" ทำได้หรือไม่ได้",
+    "id": "qb_176",
+    "expected_domain": "regulations",
+    "expected_source_contains": [
+      "rule_exam",
+      "regulation"
+    ],
+    "reference_answer": "",
+    "expected_answer_keywords": [
+      "ออกจากห้องสอบ",
+      "อนุญาต",
+      "ระเบียบการสอบ"
+    ],
+    "scenario_type": "standard",
+    "conversation_id": "",
+    "turn_index": "",
+    "depends_on_id": ""
+  },
+  {
+    "id": "qb_255",
+    "domain": "curriculum",
+    "difficulty": "easy",
+    "question_type": "ambiguous",
+    "expected_answerable": true,
+    "question": "วิชานี้ยากไหม",
+    "expected_domain": "curriculum",
+    "expected_source_contains": [
+      "foe10",
+      "curriculum"
+    ],
+    "reference_answer": "ควรถามกลับว่าหมายถึงวิชาใดก่อนจึงจะตอบได้ตรง",
+    "expected_answer_keywords": [
+      "วิชา",
+      "เนื้อหา"
+    ],
+    "scenario_type": "ambiguous_question",
+    "conversation_id": "",
+    "turn_index": "",
+    "depends_on_id": ""
+  },
+  {
+    "id": "qb_256",
+    "domain": "announcements",
+    "difficulty": "medium",
+    "question_type": "ambiguous",
+    "expected_answerable": true,
+    "question": "เอกสารที่ต้องใช้มีอะไรบ้าง",
+    "expected_domain": "announcements",
+    "expected_source_contains": [
+      "announcement",
+      "calendar"
+    ],
+    "reference_answer": "ควรถามกลับว่าทำรายการใด เช่น ขอทรานสคริปต์หรือหนังสือรับรอง",
+    "expected_answer_keywords": [
+      "เอกสาร",
+      "ขั้นตอน"
+    ],
+    "scenario_type": "ambiguous_question",
+    "conversation_id": "",
+    "turn_index": "",
+    "depends_on_id": ""
+  },
+  {
+    "id": "qb_257",
+    "domain": "announcements",
+    "difficulty": "medium",
+    "question_type": "noisy",
+    "expected_answerable": true,
+    "question": "ช่วยอธิบายเรื่อง ค่าประกันอุบัติเหตุนักศึกษา ตามประกาศล่าสุดให้หน่อย",
+    "expected_domain": "announcements",
+    "expected_source_contains": [
+      "announcement",
+      "calendar"
+    ],
+    "reference_answer": "",
+    "expected_answer_keywords": [
+      "ประกาศ"
+    ],
+    "scenario_type": "noisy_input",
+    "conversation_id": "",
+    "turn_index": "",
+    "depends_on_id": ""
+  },
+  {
+    "id": "qb_265",
+    "domain": "announcements",
+    "difficulty": "hard",
+    "question_type": "policy_conflict",
+    "expected_answerable": true,
+    "question": "ช่วยอธิบายเรื่อง ประกาศหยุดเรียน/เลื่อนการเรียนการสอน ตามประกาศล่าสุดให้หน่อย",
+    "expected_domain": "announcements",
+    "expected_source_contains": [
+      "announcement",
+      "calendar"
+    ],
+    "reference_answer": "",
+    "expected_answer_keywords": [
+      "ประกาศ"
+    ],
+    "scenario_type": "policy_conflict",
+    "conversation_id": "",
+    "turn_index": "",
+    "depends_on_id": ""
+  },
+  {
+    "id": "qb_299",
+    "source_id": "qb_025",
+    "domain": "regulations",
+    "difficulty": "medium",
+    "question_type": "procedural",
+    "expected_answerable": true,
+    "question": "หากสอบไม่ผ่าน ต้องทำอย่างไรต่อ",
+    "expected_domain": "regulations",
+    "expected_source_contains": [
+      "rule_exam",
+      "regulation"
+    ],
+    "reference_answer": "ให้ยึดระเบียบการสอบฉบับปัจจุบันและคำชี้แจงของกรรมการคุมสอบ/รายวิชาเป็นหลัก",
+    "expected_answer_keywords": [
+      "สอบ"
+    ],
+    "scenario_type": "user_custom_list",
+    "conversation_id": "",
+    "turn_index": "",
+    "depends_on_id": ""
+  },
+  {
+    "id": "qb_323",
+    "source_id": "qb_049",
+    "domain": "announcements",
+    "difficulty": "medium",
+    "question_type": "verification",
+    "expected_answerable": true,
+    "question": "ช่วยเช็กให้หน่อยว่า ค่าประกันอุบัติเหตุนักศึกษา มีประกาศใหม่แล้วหรือยัง",
+    "expected_domain": "announcements",
+    "expected_source_contains": [
+      "announcement",
+      "calendar"
+    ],
+    "reference_answer": "",
+    "expected_answer_keywords": [
+      "ประกาศ"
+    ],
+    "scenario_type": "user_custom_list",
+    "conversation_id": "",
+    "turn_index": "",
+    "depends_on_id": ""
+  },
+  {
+    "id": "qb_326",
+    "source_id": "qb_052",
+    "domain": "announcements",
+    "difficulty": "medium",
+    "question_type": "verification",
+    "expected_answerable": true,
+    "question": "ช่วยเช็กให้หน่อยว่า ประกาศหยุดเรียน/เลื่อนการเรียนการสอน มีประกาศใหม่แล้วหรือยัง",
+    "expected_domain": "announcements",
+    "expected_source_contains": [
+      "announcement",
+      "calendar"
+    ],
+    "reference_answer": "",
+    "expected_answer_keywords": [
+      "ประกาศ"
+    ],
+    "scenario_type": "user_custom_list",
+    "conversation_id": "",
+    "turn_index": "",
+    "depends_on_id": ""
+  },
+  {
+    "id": "qb_334",
+    "source_id": "qb_060",
+    "domain": "regulations",
+    "difficulty": "medium",
+    "question_type": "verification",
+    "expected_answerable": true,
+    "question": "หากสอบตกสามารถลงใหม่ได้หรือไม่",
+    "expected_domain": "regulations",
+    "expected_source_contains": [
+      "rule_exam",
+      "regulation"
+    ],
+    "reference_answer": "ให้ยึดระเบียบการสอบฉบับปัจจุบันและคำชี้แจงของกรรมการคุมสอบ/รายวิชาเป็นหลัก",
+    "expected_answer_keywords": [
+      "สอบ"
+    ],
+    "scenario_type": "user_custom_list",
+    "conversation_id": "",
+    "turn_index": "",
+    "depends_on_id": ""
+  }
+]
