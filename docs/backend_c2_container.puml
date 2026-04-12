@@ -5,19 +5,23 @@ LAYOUT_WITH_LEGEND()
 
 title C2 - CPE CHAT Backend Container Architecture
 
+note as c2_sot
+Runtime Source of Truth: docker-compose.yml
+If service names or runtime call flow change,
+update this C2 diagram in the same PR.
+end note
+
 Person(user, "User", "Client/Browser")
 Person(admin, "Administrator", "Admin User")
 
 Container_Boundary(client_boundary, "Client Layer") {
-    Container(web_app, "Web Application", "React/Vite", "Frontend UI\nChat Interface\nDocument Management")
+    Container(web_app, "OpenWeb-UI", "OpenWeb-UI", "Chat UI\nOpenAI-compatible client")
 }
 
 Container_Boundary(backend_boundary, "Backend Services") {
-    Container(api_server, "API Gateway", "Node.js/Express", "REST API\nRequest Routing\nAuthentication")
-    
-    Container(ingestion_api, "Ingestion Service", "Python/FastAPI", "Document Upload\nPDF/Excel/Image Processing\nOCR Pipeline")
-    
-    Container(rag_api, "RAG Service", "Python/FastAPI", "Query Processing\nSemantic Search\nLLM Integration")
+    Container(rag_api, "RAG Service", "Python/FastAPI", "OpenAI-compatible /v1 API\nRetrieval + Generation")
+    Container(ingestion_job, "Ingestion Pipeline (Offline)", "Python CLI", "Batch ingest/index job\nNot deployed in current docker-compose")
+    Container(mlflow, "MLflow", "Tracking Server", "Observability\nExperiment tracking")
 }
 
 Container_Boundary(data_boundary, "Data Layer") {
@@ -28,25 +32,24 @@ Container_Boundary(data_boundary, "Data Layer") {
     ContainerDb(file_storage, "File Storage", "Local/Cloud", "Original Documents\nProcessed Files")
 }
 
-System_Ext(external_llm, "LLM Provider", "Claude/GPT/Typhoon\nAPI Service")
+System_Ext(external_llm, "LLM Provider", "Typhoon/OpenAI-compatible\nAPI Service")
 
 System_Ext(external_ocr, "OCR Service", "Typhoon OCR\nGoogle Vision API")
 
 Rel(user, web_app, "Uses", "HTTP/WebSocket")
 Rel(admin, web_app, "Manages", "HTTP/WebSocket")
 
-Rel(web_app, api_server, "Calls API", "HTTP/REST")
+Rel(web_app, rag_api, "Calls API", "HTTP/REST (/v1)")
 
-Rel(api_server, ingestion_api, "Routes Requests", "HTTP/gRPC")
-Rel(api_server, rag_api, "Routes Requests", "HTTP/gRPC")
-
-Rel(ingestion_api, vector_db, "Stores Embeddings")
-Rel(ingestion_api, sql_db, "Stores Metadata")
-Rel(ingestion_api, file_storage, "Archives Documents")
-Rel(ingestion_api, external_ocr, "OCR Processing")
+Rel(ingestion_job, vector_db, "Stores Embeddings")
+Rel(ingestion_job, sql_db, "Stores Metadata")
+Rel(ingestion_job, file_storage, "Reads/Writes Documents")
+Rel(ingestion_job, external_ocr, "OCR Processing")
+Rel(admin, ingestion_job, "Runs/controls", "CLI/Batch")
 
 Rel(rag_api, vector_db, "Semantic Search")
 Rel(rag_api, sql_db, "Query Metadata")
 Rel(rag_api, external_llm, "Generate Responses")
+Rel(rag_api, mlflow, "Logs traces/metrics")
 
 @enduml

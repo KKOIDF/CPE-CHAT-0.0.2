@@ -2,7 +2,7 @@
 !include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Context.puml
 !include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
 !include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
-!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Code.puml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Deployment.puml
 
 !define FONTNAME Arial
 !define FONTCOLOR #333333
@@ -21,7 +21,7 @@ rectangle "CPE CHAT System\nfor Document Intelligence" as cpe_system
 actor "Administrator" as admin
 
 rectangle "External Document Sources\nPDF, Excel, Images" as external_docs
-rectangle "LLM Service\n(Claude, GPT, etc.)" as llm
+rectangle "LLM Service\n(Typhoon/OpenAI-compatible API)" as llm
 
 Rel(user, cpe_system, "Uses")
 Rel(admin, cpe_system, "Manages")
@@ -41,23 +41,29 @@ LAYOUT_WITH_LEGEND()
 
 title C2 - CPE CHAT Backend Container Architecture
 
+note as c2_sot
+Runtime Source of Truth: docker-compose.yml
+If service names or runtime call flow change,
+update this C2 diagram in the same PR.
+end note
+
 actor "User" as user
 actor "Administrator" as admin
 
 package "Client Layer" as client_boundary {
-    rectangle "Web Application\n[React/Vite]\nFrontend UI for Chat & Document Management" as web_app
+    rectangle "OpenWeb-UI\n[OpenWeb-UI]\nChat UI (OpenAI-compatible client)" as web_app
 }
 
 package "Backend Services" as backend_boundary {
-    rectangle "API Gateway & Server\n[Node.js/Express]\nREST API / Routing / Auth" as api_server
-    
     package "Ingestion Service" as ingestion_svc_boundary {
-        rectangle "Ingestion API\n[Python/FastAPI]\nUploads, PDF/Excel/Image processing" as ingestion_api
+        rectangle "Ingestion Pipeline (Offline)\n[Python CLI]\nBatch ingest/index job" as ingestion_api
     }
     
     package "RAG Service" as rag_svc_boundary {
-        rectangle "RAG Query Engine\n[Python/FastAPI]\nQuery, Retrieve, Generate" as rag_api
+        rectangle "RAG Query Engine\n[Python/FastAPI]\nOpenAI-compatible /v1 API\nRetrieval + Generation" as rag_api
     }
+
+    rectangle "MLflow\n[Tracking/Observability]\nExperiment tracking and request telemetry" as mlflow
 }
 
 package "Data Layer" as data_boundary {
@@ -66,15 +72,13 @@ package "Data Layer" as data_boundary {
     database "File Storage\n[Local/Cloud]\nOriginal & Processed Files" as file_storage
 }
 
-rectangle "LLM Provider\nClaude/GPT/Typhoon" as external_llm
+rectangle "LLM Provider\nTyphoon/OpenAI-compatible API" as external_llm
 rectangle "OCR Service\nTyphoon OCR / Google Vision" as external_ocr
 
 Rel(user, web_app, "Uses", "HTTP/WebSocket")
 Rel(admin, web_app, "Uses", "HTTP/WebSocket")
 
-Rel(web_app, api_server, "Calls", "HTTP/REST")
-Rel(api_server, ingestion_api, "Routes", "HTTP/gRPC")
-Rel(api_server, rag_api, "Routes", "HTTP/gRPC")
+Rel(web_app, rag_api, "Calls", "HTTP/REST (OpenAI-compatible /v1)")
 
 Rel(ingestion_api, vector_db, "Stores Embeddings")
 Rel(ingestion_api, sql_db, "Stores Metadata")
@@ -84,6 +88,7 @@ Rel(ingestion_api, external_ocr, "OCR Processing")
 Rel(rag_api, vector_db, "Queries Embeddings")
 Rel(rag_api, sql_db, "Queries Metadata")
 Rel(rag_api, external_llm, "Generates Responses")
+Rel(rag_api, mlflow, "Logs traces and metrics")
 
 @enduml
 
@@ -99,44 +104,32 @@ LAYOUT_WITH_LEGEND()
 title C3 - Ingestion Service Components
 
 package "Ingestion Service" as ingestion_container {
-    Component(ingestion_main, "Main Entry Point", "main.py", "FastAPI App\nRequest routing")
-    
-    Component(pdf_extractor, "PDF Extractor", "extract_pdf.py", "Extract text from PDF\nHandle scanned images")
-    Component(excel_extractor, "Excel Extractor", "extract_excel.py", "Parse Excel files\nExtract tables & data")
-    Component(ocr_pipeline, "OCR Pipeline", "ocr_pipeline.py", "Process scanned documents\nIntegrate with Typhoon OCR")
-    
-    Component(chunking, "Text Chunking", "chunking.py", "Split documents into chunks\nMaintain context")
-    Component(thai_nlp, "Thai NLP", "thai_nlp.py", "Thai language processing\nTokenization")
-    Component(validation, "Data Validation", "validation.py", "Validate document quality\nCheck completeness")
-    
-    Component(embedding, "Embedding Service", "Uses BGE-M3", "Generate vector embeddings\nMultilingual support")
-    Component(chroma_client, "Chroma Client", "chroma_client.py", "Vector DB interface\nStore/retrieve embeddings")
-    
-    Component(toon_converter, "TOON Converter", "toon_converter.py\ntoon_format.py", "Convert data to TOON format\nCompression & serialization")
-    Component(db_client, "Database Client", "db.py", "SQLite/Postgres access\nStore metadata & records")
-    
-    Component(quality, "Quality Check", "quality.py", "Review flagged items\nData quality assurance")
+    Component(ingestion_main, "CLI Entry Point", "main.py", "Batch ingestion CLI\nDomain-aware orchestration")
+
+    Component(ocr_pipeline, "OCR Pipeline", "ocr_pipeline.py", "ingest_pdf/ingest_excel/ingest_txt\nRecord extraction")
+    Component(chunking, "Chunking Engine", "chunking.py", "Paragraph normalization\nDomain-specific chunk strategies")
+    Component(quality, "OCR Quality Rules", "quality.py", "Score and flag low-quality OCR text")
+
+    Component(db_client, "SQLite Writer", "db.py", "Persist chunks and quality logs")
+    Component(chroma_client, "Embedding + Vector Index", "chroma_client.py", "BGE-M3 embeddings\nUpsert/query Chroma")
+    Component(graph_writer, "Graph Upsert (Optional)", "neo4j_graph.py", "Curriculum graph projection to Neo4j")
+
+    Component(toon_converter, "TOON IO", "toon_converter.py\ntoon_format.py", "Serialize records/chunks to TOON")
     Component(config, "Configuration", "config.py", "Environment settings\nModel parameters")
 }
 
-Rel(ingestion_main, pdf_extractor, "Uses")
-Rel(ingestion_main, excel_extractor, "Uses")
 Rel(ingestion_main, ocr_pipeline, "Uses")
 Rel(ingestion_main, config, "Reads")
 
-Rel(pdf_extractor, chunking, "Sends Text")
-Rel(excel_extractor, chunking, "Sends Data")
 Rel(ocr_pipeline, chunking, "Sends Text")
-
-Rel(chunking, thai_nlp, "Processes")
-Rel(chunking, validation, "Validates")
-
-Rel(validation, embedding, "Sends Chunks")
-Rel(embedding, chroma_client, "Stores")
+Rel(chunking, quality, "Checks OCR quality")
+Rel(chunking, db_client, "Stores chunk metadata")
+Rel(chunking, chroma_client, "Embeds + indexes")
 
 Rel(chunking, toon_converter, "Converts")
-Rel(toon_converter, db_client, "Stores")
-Rel(db_client, quality, "Records for Review")
+Rel(toon_converter, db_client, "Loads/Saves")
+Rel(chunking, graph_writer, "Upserts curriculum graph")
+Rel(db_client, quality, "Persists quality records")
 
 @enduml
 
@@ -152,36 +145,40 @@ LAYOUT_WITH_LEGEND()
 title C3 - RAG Service Components
 
 package "RAG Service" as rag_container {
-    Component(rag_main, "Main Entry Point", "main.py", "FastAPI App\nRequest routing")
-    
-    Component(query_processor, "Query Processor", "rag_logic.py", "Parse user queries\nPrepare for search")
-    Component(retriever, "Retriever", "Chroma Interface", "Semantic search\nRetrieve relevant chunks")
-    
-    Component(chroma_rag, "Chroma Client", "chroma_client.py", "Vector DB queries\nEmbedding similarity search")
-    Component(metadata_engine, "Metadata Engine", "sqlite_client.py", "Query document metadata\nFilter results")
-    
-    Component(llm_interface, "LLM Interface", "llm.py", "Call LLM API\nPrompt engineering")
-    Component(prompt_builder, "Prompt Builder", "rag_logic.py", "Construct prompts\nAdd context & chunks")
-    
-    Component(response_generator, "Response Generator", "rag_logic.py", "Format LLM responses\nAdd citations")
-    Component(cache_manager, "Cache Manager", "Optional Caching", "Cache frequent queries\nReduce API calls")
-    
+    Component(rag_main, "FastAPI Entry Point", "main.py", "Endpoints: /rag/* and /v1/*\nOpenAI-compatible chat completions")
+
+    Component(orchestration, "Orchestration", "orchestration.py", "rag_query/ rag_query_domain\nStructured + generative path selection")
+    Component(routing, "Routing and Intent", "routing.py", "classify_intent\ninfer_domain\nselect_resolution_strategy")
+    Component(retrieval, "Retrieval Engine", "retrieval.py", "Hybrid retrieval\nRRF fusion\ncontext packing")
+    Component(langchain_flow, "LangChain Path (Optional)", "langchain_rag.py", "Multi-query/re-rank/compression path")
+
+    Component(chroma_rag, "Vector Search", "chroma_client.py", "Semantic similarity search")
+    Component(metadata_engine, "SQLite Metadata", "sqlite_client.py", "Keyword search + doc metadata")
+    Component(graph_lookup, "Graph Retrieval (Optional)", "neo4j_client.py", "Neo4j connection and graph lookups")
+
+    Component(prompt_builder, "Prompt Builder", "prompting.py + retrieval.py", "Build prompts from packed context and citations")
+    Component(llm_interface, "LLM Engine", "llm.py", "Typhoon/OpenAI/HF runtime\nStreaming + timeout handling")
+    Component(observability, "Observability", "mlflow_observability.py", "MLflow request logs\nmetrics and traces")
+
     Component(config_rag, "Configuration", "config.py", "Model settings\nRetrieval parameters")
 }
 
-Rel(rag_main, query_processor, "Uses")
-Rel(query_processor, retriever, "Sends Query")
-Rel(retriever, chroma_rag, "Searches")
-Rel(retriever, metadata_engine, "Queries")
-
-Rel(query_processor, prompt_builder, "Prepares")
-Rel(prompt_builder, llm_interface, "Calls")
-Rel(retriever, prompt_builder, "Provides Context")
-
-Rel(llm_interface, cache_manager, "Checks/Updates Cache")
-Rel(llm_interface, response_generator, "Returns Response")
-
+Rel(rag_main, orchestration, "Routes request")
 Rel(rag_main, config_rag, "Reads")
+Rel(rag_main, observability, "Publishes metrics")
+
+Rel(orchestration, routing, "Analyzes intent/domain")
+Rel(orchestration, retrieval, "Fetches contexts")
+Rel(orchestration, prompt_builder, "Builds final prompt")
+Rel(orchestration, llm_interface, "Calls model")
+Rel(orchestration, langchain_flow, "Optional execution path")
+
+Rel(retrieval, chroma_rag, "Vector search")
+Rel(retrieval, metadata_engine, "Keyword/metadata search")
+Rel(retrieval, graph_lookup, "Optional graph evidence")
+Rel(retrieval, prompt_builder, "Provides packed context")
+
+Rel(prompt_builder, llm_interface, "Prompt payload")
 
 @enduml
 
@@ -190,92 +187,75 @@ Rel(rag_main, config_rag, "Reads")
 ' ========================================
 
 @startuml Backend_C4_Code_Classes
-!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Code.puml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Deployment.puml
 
 LAYOUT_WITH_LEGEND()
 
 title C4 - Key Classes & Data Models
 
 package "Ingestion Service Classes" {
-    class PDFExtractor {
-        - file_path: str
-        - use_ocr: bool
-        + extract_text(): str
-        + extract_images(): List[Image]
+    class TOONEncoder {
+        - indent: str
+        + encode(data): str
+        + _encode_dict(data, level): str
     }
-    
-    class TextChunker {
-        - chunk_size: int
-        - overlap: int
-        + chunk_text(): List[Chunk]
-        + preserve_context(): Chunk
-    }
-    
-    class ChromaClient {
-        - collection_name: str
-        + add_embeddings(): bool
-        + search(): List[Result]
-    }
-    
-    class TOONConverter {
-        - compression_level: int
-        + to_toon(): bytes
-        + from_toon(): dict
-    }
-    
-    class Document {
-        - doc_id: str
-        - content: str
-        - metadata: dict
-        - chunks: List[Chunk]
-        - created_at: datetime
+
+    class TOONDecoder {
+        + decode(toon_str): Dict|List
+        + _parse_lines(lines, start_idx): tuple
+        + _parse_value(value_str): Any
     }
 }
 
 package "RAG Service Classes" {
-    class RAGEngine {
-        - retriever: Retriever
-        - llm: LLMClient
-        + query(): str
-        + generate_response(): str
-    }
-    
-    class Retriever {
-        - vector_db: ChromaClient
-        - metadata_db: SQLiteClient
-        + retrieve_chunks(): List[Chunk]
-        + filter_by_metadata(): List[Chunk]
-    }
-    
-    class LLMClient {
+    class LLMEngine {
         - model_name: str
-        - api_key: str
-        + call_model(): str
-        + stream_response(): Iterator[str]
+        - tokenizer: Any
+        - model: Any
+        + load(): void
+        + generate(prompt): str
     }
-    
-    class PromptTemplate {
-        - system_prompt: str
-        - context_template: str
-        + build_prompt(): str
+
+    class RouteDecision {
+        - normalized_question: str
+        - inferred_domain: Optional[str]
+        - primary_intent: str
+        - subqueries: List[str]
+        - structured_eligible: bool
     }
-    
-    class RAGResponse {
-        - query: str
-        - response: str
-        - sources: List[Source]
-        - confidence: float
+
+    class ResolutionStrategy {
+        - resolution_path: str
+    }
+
+    class Course {
+        - prefix: str
+        - number: str
+        - title_th: str
+        - credits: int
+        + code: str
+    }
+
+    class CurriculumCPE2564 {
+        - source_path: Path
+        - required_cpe_common: tuple[Course,...]
+        - required_cpe_normal_only: tuple[Course,...]
+        - required_cpe_wil_only: tuple[Course,...]
+    }
+
+    class MlflowObservability {
+        - _cfg: _Cfg
+        - _run_id: Optional[str]
+        + start(): None
+        + stop(): None
+        + flush(): None
     }
 }
 
-Rel(PDFExtractor, TextChunker, "produces Chunks")
-Rel(TextChunker, ChromaClient, "sends to")
-Rel(TextChunker, TOONConverter, "converts")
+Rel(TOONEncoder, TOONDecoder, "paired serialization format")
 
-Rel(RAGEngine, Retriever, "uses")
-Rel(RAGEngine, LLMClient, "calls")
-Rel(Retriever, ChromaClient, "queries")
-Rel(LLMClient, PromptTemplate, "uses")
-Rel(RAGEngine, RAGResponse, "produces")
+Rel(RouteDecision, ResolutionStrategy, "drives")
+Rel(CurriculumCPE2564, Course, "contains")
+Rel(MlflowObservability, LLMEngine, "observes runtime behavior")
 
 @enduml

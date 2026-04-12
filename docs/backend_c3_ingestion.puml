@@ -7,53 +7,42 @@ title C3 - Ingestion Service Component Diagram
 
 package "Ingestion Service" as ingestion_container {
 
-    Component(main, "Main Entry", "main.py", "FastAPI Application\nRequest Handler")
+    Component(main, "CLI Entry", "main.py", "Batch ingestion CLI\nDomain-aware orchestration")
 
     package "Extraction Layer" as extraction {
-        Component(pdf_ext, "PDF Extractor", "extract_pdf.py", "Parse PDF Files\nHandle Scanned Docs")
-        Component(excel_ext, "Excel Extractor", "extract_excel.py", "Parse Excel Files\nExtract Tables")
-        Component(ocr_pipe, "OCR Pipeline", "ocr_pipeline.py", "Process Scanned Images\nIntegrate Typhoon OCR")
+        Component(ocr_pipe, "OCR + Parsing", "ocr_pipeline.py", "ingest_pdf/ingest_excel/ingest_txt\nRecord extraction")
     }
 
     package "Processing Layer" as processing {
-        Component(chunking, "Text Chunking", "chunking.py", "Split into Chunks\nPreserve Context")
-        Component(thai_nlp, "Thai NLP", "thai_nlp.py", "Thai Tokenization\nLanguage Processing")
-        Component(validation, "Data Validation", "validation.py", "Quality Check\nFlag Issues")
+        Component(chunking, "Chunking Engine", "chunking.py", "Paragraph normalization\nDomain-specific chunk strategies")
+        Component(quality_review, "OCR Quality Rules", "quality.py", "Score and flag low-quality OCR text")
     }
 
     package "Embedding Layer" as embedding {
-        Component(embed_gen, "Embedding Engine", "Uses BGE-M3", "Generate Vectors\nMultilingual Support")
-        Component(chroma_client, "Chroma Client", "chroma_client.py", "Vector DB Interface\nStore Embeddings")
+        Component(chroma_client, "Embedding + Vector Index", "chroma_client.py", "BGE-M3 embeddings\nUpsert/query Chroma")
     }
 
     package "Storage Layer" as storage {
-        Component(toon_conv, "TOON Converter", "toon_converter.py\ntoon_format.py", "Compress Data\nSerialize Format")
-        Component(db_client, "DB Client", "db.py", "Store Metadata\nSave Records")
+        Component(toon_conv, "TOON IO", "toon_converter.py\ntoon_format.py", "Serialize records/chunks to TOON")
+        Component(db_client, "SQLite Writer", "db.py", "Persist chunks and quality logs")
+        Component(graph_upsert, "Graph Upsert (Optional)", "neo4j_graph.py", "Curriculum graph projection to Neo4j")
     }
 
-    Component(quality_review, "Quality Review", "quality.py", "Review Flagged Items\nData QA")
     Component(config, "Configuration", "config.py", "Load Settings\nModel Parameters")
 }
 
 Rel(main, config, "Loads")
-Rel(main, pdf_ext, "Routes")
-Rel(main, excel_ext, "Routes")
 Rel(main, ocr_pipe, "Routes")
 
-Rel(pdf_ext, chunking, "Text Output")
-Rel(excel_ext, chunking, "Data Output")
 Rel(ocr_pipe, chunking, "Text Output")
 
-Rel(chunking, thai_nlp, "Process")
-Rel(chunking, validation, "Validate")
-
-Rel(validation, embed_gen, "Valid Chunks")
-Rel(validation, quality_review, "Flagged Items")
-
-Rel(embed_gen, chroma_client, "Store")
+Rel(chunking, quality_review, "Quality check")
+Rel(chunking, chroma_client, "Embed + index")
+Rel(chunking, db_client, "Store metadata")
 Rel(chunking, toon_conv, "Convert")
-Rel(toon_conv, db_client, "Save")
+Rel(toon_conv, db_client, "Load/Save")
+Rel(chunking, graph_upsert, "Upsert curriculum graph")
 
-Rel(db_client, quality_review, "Query Records")
+Rel(db_client, quality_review, "Persist quality records")
 
 @enduml

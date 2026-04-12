@@ -11,11 +11,13 @@ System(cpe_system, "CPE CHAT System", "Conversational AI System\nfor Document In
 Person(admin, "Administrator", "System Admin\nManaging Content")
 
 System_Ext(external_docs, "External Document Sources", "PDF, Excel, Images")
-System_Ext(llm, "LLM Service", "Language Model\n(Claude, GPT, Typhoon)")
+System_Ext(llm, "LLM Service", "Typhoon/OpenAI-compatible API")
+System_Ext(ocr, "OCR Service", "Typhoon OCR / Google Vision")
 
 Rel(user, cpe_system, "Uses")
 Rel(admin, cpe_system, "Manages")
 Rel(cpe_system, external_docs, "Ingests Documents")
 Rel(cpe_system, llm, "Queries for Answers")
+Rel(cpe_system, ocr, "Uses for scanned documents")
 
 @enduml

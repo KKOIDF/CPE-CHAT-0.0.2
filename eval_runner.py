@@ -169,6 +169,46 @@ def post_json(base_url: str, endpoint: str, payload: dict[str, Any], timeout_s: 
         return {}, elapsed_ms, f"{type(exc).__name__}: {exc}"
 
 
+def get_json(base_url: str, endpoint: str, timeout_s: float) -> tuple[dict[str, Any], float, str]:
+    url = base_url.rstrip("/") + endpoint
+    started = time.perf_counter()
+    try:
+        response = requests.get(url, timeout=timeout_s)
+        elapsed_ms = (time.perf_counter() - started) * 1000.0
+        response.raise_for_status()
+        data = response.json() or {}
+        return dict(data), elapsed_ms, ""
+    except Exception as exc:  # pragma: no cover
+        elapsed_ms = (time.perf_counter() - started) * 1000.0
+        return {}, elapsed_ms, f"{type(exc).__name__}: {exc}"
+
+
+def preflight_healthcheck(base_url: str, timeout_s: float, retries: int, interval_s: float) -> tuple[bool, str]:
+    tries = max(1, int(retries))
+    wait_s = max(0.0, float(interval_s))
+    last_err = ""
+    for i in range(1, tries + 1):
+        data, elapsed_ms, err = get_json(base_url, "/health", timeout_s=timeout_s)
+        if not err:
+            status = str(data.get("status") or "").strip().lower()
+            if status in {"ok", "ready", "healthy"}:
+                print(
+                    f"[heartbeat] preflight_ok attempt={i}/{tries} latency_ms={elapsed_ms:.1f} status={status}",
+                    flush=True,
+                )
+                return True, ""
+            last_err = f"unexpected health payload: {data}"
+        else:
+            last_err = err
+        print(
+            f"[heartbeat] preflight_retry attempt={i}/{tries} err={last_err}",
+            flush=True,
+        )
+        if i < tries and wait_s > 0:
+            time.sleep(wait_s)
+    return False, last_err or "preflight healthcheck failed"
+
+
 def answer_keyword_stats(answer: str, expected_keywords: list[str]) -> tuple[int, int, float, bool]:
     expected = [k for k in (expected_keywords or []) if str(k).strip()]
     if not expected:
@@ -612,6 +652,9 @@ def summarize(results: list[CaseResult]) -> dict[str, Any]:
         for t in r.error_tags:
             tag_counts[t] = tag_counts.get(t, 0) + 1
 
+    runtime_error_count = int(tag_counts.get("runtime_error", 0))
+    runtime_error_rate = (float(runtime_error_count) / float(total)) if total else 0.0
+
     top_failed = []
     for f in failures_sorted[:20]:
         top_failed.append(
@@ -665,6 +708,8 @@ def summarize(results: list[CaseResult]) -> dict[str, Any]:
         "adaptive_metrics_avg": adaptive_avg,
         "answer_schema_metrics_by_task": answer_schema_summary,
         "error_tag_counts": dict(sorted(tag_counts.items(), key=lambda kv: (-kv[1], kv[0]))),
+        "runtime_error_count": runtime_error_count,
+        "runtime_error_rate": runtime_error_rate,
         "failed_cases_top20": top_failed,
     }
 
@@ -698,6 +743,8 @@ def to_markdown(summary: dict[str, Any], input_path: Path, base_url: str) -> str
     lines.append(f"- % answerable handled correctly: {summary.get('pct_answerable_handled_correctly', 0.0):.4f}")
     lines.append(f"- citation validity (groundedness): {summary['citation_validity_rate']:.4f}")
     lines.append(f"- must-not contain pass rate: {summary.get('must_not_contain_pass_rate', 0.0):.4f}")
+    lines.append(f"- runtime error rate: {summary.get('runtime_error_rate', 0.0):.4f}")
+    lines.append(f"- runtime error count: {int(summary.get('runtime_error_count', 0))}")
     lines.append("")
     lines.append("### Latency Metrics")
     lines.append(f"- avg total latency ms: {summary['avg_latency_ms']:.2f}")
@@ -935,6 +982,9 @@ def main() -> int:
     ap.add_argument("--input", default="eval_cases.json")
     ap.add_argument("--base-url", default="http://127.0.0.1:8001")
     ap.add_argument("--timeout", type=float, default=120.0)
+    ap.add_argument("--preflight-health", action="store_true", help="Check /health before running eval")
+    ap.add_argument("--preflight-retries", type=int, default=5)
+    ap.add_argument("--preflight-interval-s", type=float, default=2.0)
     ap.add_argument("--limit", type=int, default=0)
     ap.add_argument("--output-prefix", default="")
     ap.add_argument("--baseline-commit", default="")
@@ -959,6 +1009,12 @@ def main() -> int:
         default=",".join(f"{k}={v}" for k, v in DEFAULT_PRODUCTION_CATEGORY_MIN_OVERALL.items()),
         help="Comma-separated category threshold map, e.g. regulations=0.9,curriculum_fact_lookup=0.9",
     )
+    ap.add_argument(
+        "--max-runtime-error-rate",
+        type=float,
+        default=0.05,
+        help="Maximum allowed runtime error ratio before marking infra failure",
+    )
     args = ap.parse_args()
 
     input_path = Path(args.input)
@@ -970,6 +1026,21 @@ def main() -> int:
     if not isinstance(cases, list):
         print("Input must be a JSON array", file=sys.stderr)
         return 2
+
+    if args.preflight_health:
+        ok, preflight_err = preflight_healthcheck(
+            args.base_url,
+            timeout_s=float(args.timeout),
+            retries=int(args.preflight_retries),
+            interval_s=float(args.preflight_interval_s),
+        )
+        if not ok:
+            print(
+                f"INFRA PRECHECK FAILED: base_url={args.base_url} err={preflight_err}",
+                file=sys.stderr,
+                flush=True,
+            )
+            return 4
 
     results: list[CaseResult] = []
     total = 0
@@ -1185,6 +1256,18 @@ def main() -> int:
 
     print(f"Wrote JSON: {out_json}", flush=True)
     print(f"Wrote MD:   {out_md}", flush=True)
+
+    runtime_error_rate = float(summary.get("runtime_error_rate", 0.0))
+    if runtime_error_rate > float(args.max_runtime_error_rate):
+        print(
+            (
+                "INFRA FAILURE: runtime_error_rate exceeded threshold "
+                f"current={runtime_error_rate:.4f} threshold={float(args.max_runtime_error_rate):.4f}"
+            ),
+            file=sys.stderr,
+            flush=True,
+        )
+        return 4
 
     if args.baseline_commit:
         short = (args.baseline_commit or "").strip()[:7]

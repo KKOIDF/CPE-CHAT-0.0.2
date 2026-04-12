@@ -49,6 +49,8 @@ _COMMON_TYPO_FIXES: list[tuple[str, str]] = [
     ('มั้ย', 'ไหม'),
     ('มั๊ย', 'ไหม'),
     ('ได้ปะ', 'ได้ไหม'),
+    ('ปรึกสา', 'ปรึกษา'),
+    ('กำหนดส่งเอกสาร', 'กำหนดส่งเอกสาร'),
 ]
 
 
@@ -100,6 +102,12 @@ def normalize_question(question: str) -> str:
 
     # Normalize alphanumeric course codes without space: CPE342 -> CPE 342
     q = re.sub(r"\b([A-Za-z]{2,6})\s*(\d{3})\b", r"\1 \2", q)
+    # Handle OCR/typo ambiguity in numeric part: CPE 34O / CPE34O -> CPE 340
+    q = re.sub(
+        r"\b([A-Za-z]{2,6})\s*[- ]?\s*(\d{2})[oO]\b",
+        lambda m: f"{(m.group(1) or '').upper()} {(m.group(2) or '').strip()}0",
+        q,
+    )
 
     # Normalize credits
     q = re.sub(r"(\d+)\s*(กิต|นก\.|หน่วย)\b", r"\1 หน่วยกิต", q)
@@ -135,6 +143,15 @@ def _expand_course_code_variants(q: str) -> list[str]:
         num = m.group(2) or ''
         if not pfx or not num:
             continue
+        variants.extend([f"{pfx}{num}", f"{pfx} {num}", f"{pfx}-{num}"])
+
+    # OCR/typo variant where last digit uses O/o, e.g. CPE34O -> CPE340.
+    for m in re.finditer(r"\b([A-Za-z]{2,6})\s*[-]?\s*([0-9]{2})[oO]\b", q2):
+        pfx = (m.group(1) or '').upper()
+        num2 = m.group(2) or ''
+        if not pfx or not num2:
+            continue
+        num = f"{num2}0"
         variants.extend([f"{pfx}{num}", f"{pfx} {num}", f"{pfx}-{num}"])
 
     # Placeholder family codes: LNGxxx / lngXX -> LNGxxx + LNG

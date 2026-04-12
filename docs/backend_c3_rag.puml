@@ -11,51 +11,45 @@ LAYOUT_WITH_LEGEND()
 title C3 - RAG Service Component Diagram
 
 package "RAG Service" as rag_container {
-    Component(main, "Main Entry", "main.py", "FastAPI Application\nRequest Handler")
+    Component(main, "FastAPI Entry Point", "main.py", "Endpoints: /rag/* and /v1/*\nOpenAI-compatible chat completions")
     
     package "Query Processing Layer" as query_layer {
-        Component(query_proc, "Query Processor", "rag_logic.py", "Parse User Input\nPrepare for Search")
-        Component(intent, "Intent Recognition", "rag_logic.py", "Identify Query Type\nExtract Entities")
+        Component(orchestration, "Orchestration", "orchestration.py", "rag_query/rag_query_domain\nStructured + generative path selection")
+        Component(routing, "Routing and Intent", "routing.py", "classify_intent\ninfer_domain\nselect_resolution_strategy")
     }
     
     package "Retrieval Layer" as retrieval {
         Component(chroma_rag, "Vector Search", "chroma_client.py", "Semantic Similarity\nFind Relevant Chunks")
-        Component(meta_filter, "Metadata Filter", "sqlite_client.py", "Filter by Metadata\nRefine Results")
-        Component(ranker, "Result Ranker", "rag_logic.py", "Rank by Relevance\nApply Weights")
+        Component(meta_filter, "SQLite Metadata", "sqlite_client.py", "Keyword search\nDocument metadata")
+        Component(retrieval_engine, "Retrieval Engine", "retrieval.py", "Hybrid retrieve\nRRF fusion\nContext packing")
+        Component(graph_lookup, "Graph Retrieval (Optional)", "neo4j_client.py", "Neo4j connection\nGraph evidence")
+        Component(langchain_flow, "LangChain Path (Optional)", "langchain_rag.py", "Multi-query/re-rank/compression")
     }
     
     package "Generation Layer" as generation {
-        Component(prompt_build, "Prompt Builder", "rag_logic.py", "Construct Prompts\nAdd Context")
-        Component(llm_call, "LLM Interface", "llm.py", "Call LLM API\nHandle Streaming")
-        Component(response_fmt, "Response Formatter", "rag_logic.py", "Format Output\nAdd Citations")
+        Component(prompt_build, "Prompt Builder", "prompting.py + retrieval.py", "Construct prompts\nAdd packed context and citations")
+        Component(llm_call, "LLM Engine", "llm.py", "Typhoon/OpenAI/HF runtime\nStreaming + timeout handling")
     }
     
-    Component(cache, "Cache Manager", "Optional", "Cache Queries\nReduce API Calls")
+    Component(observability, "Observability", "mlflow_observability.py", "MLflow request logs\nmetrics and traces")
     Component(config, "Configuration", "config.py", "Load Settings\nModel Config")
-    
-    Component(session_mgr, "Session Manager", "rag_logic.py", "Manage Context\nTrack Conversation")
 }
 
 Rel(main, config, "Loads")
-Rel(main, session_mgr, "Uses")
-Rel(main, query_proc, "Routes")
+Rel(main, orchestration, "Routes")
+Rel(main, observability, "Publishes metrics")
 
-Rel(query_proc, intent, "Analyzes")
-Rel(intent, chroma_rag, "Query")
-Rel(intent, meta_filter, "Filter")
+Rel(orchestration, routing, "Analyzes intent/domain")
+Rel(orchestration, retrieval_engine, "Fetches contexts")
+Rel(orchestration, prompt_build, "Builds final prompt")
+Rel(orchestration, llm_call, "Calls model")
+Rel(orchestration, langchain_flow, "Optional execution path")
 
-Rel(chroma_rag, ranker, "Results")
-Rel(meta_filter, ranker, "Metadata")
+Rel(retrieval_engine, chroma_rag, "Vector search")
+Rel(retrieval_engine, meta_filter, "Keyword/metadata search")
+Rel(retrieval_engine, graph_lookup, "Optional graph evidence")
+Rel(retrieval_engine, prompt_build, "Provides packed context")
 
-Rel(ranker, prompt_build, "Context")
-Rel(session_mgr, prompt_build, "History")
-
-Rel(prompt_build, cache, "Check")
-Rel(cache, llm_call, "Results/Miss")
-
-Rel(llm_call, response_fmt, "Raw Response")
-Rel(ranker, response_fmt, "Source Info")
-
-Rel(response_fmt, session_mgr, "Store")
+Rel(prompt_build, llm_call, "Prompt payload")
 
 @enduml

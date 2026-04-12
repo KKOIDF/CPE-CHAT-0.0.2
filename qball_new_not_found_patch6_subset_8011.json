@@ -1,0 +1,3339 @@
+{
+  "summary": {
+    "total_cases": 26,
+    "overall_pass_rate": 0.0,
+    "answer_hit_rate": 0.6923076923076923,
+    "retrieval_hit_rate": 0.0,
+    "retrieval_mrr": 0.0,
+    "retrieval_top_1_rate": 0.0,
+    "retrieval_top_3_rate": 0.0,
+    "retrieval_top_5_rate": 0.0,
+    "citation_validity_rate": 1.0,
+    "must_not_contain_pass_rate": 1.0,
+    "avg_quality_score": 0.0,
+    "pct_correct_answers": 0.6923076923076923,
+    "pct_hallucination": 0.0,
+    "pct_answerable_handled_correctly": 0.6923076923076923,
+    "avg_latency_ms": 1313.1195047300514,
+    "median_latency_ms": 711.0546170006273,
+    "p95_latency_ms": 5363.274949006154,
+    "avg_retrieval_latency_ms": 941.6958093452894,
+    "median_retrieval_latency_ms": 661.8102259963052,
+    "p95_retrieval_latency_ms": 2046.633257996291,
+    "avg_generation_latency_ms": 864.9958169989986,
+    "median_generation_latency_ms": 86.17176699772244,
+    "p95_generation_latency_ms": 4176.724553006352,
+    "coverage": {
+      "total_questions": 26,
+      "questions_by_domain": {
+        "announcements": 20,
+        "curriculum": 1,
+        "regulations": 5
+      },
+      "questions_by_difficulty": {
+        "easy": 4,
+        "hard": 5,
+        "medium": 17
+      },
+      "questions_by_question_type": {
+        "ambiguous": 2,
+        "factual": 3,
+        "multi-hop": 3,
+        "noisy": 1,
+        "policy_conflict": 1,
+        "procedural": 10,
+        "verification": 6
+      }
+    },
+    "by_category": {
+      "uncategorized": {
+        "total": 26.0,
+        "overall_pass_rate": 0.0,
+        "answer_hit_rate": 0.6923076923076923,
+        "retrieval_hit_rate": 0.0,
+        "retrieval_top_1_rate": 0.0,
+        "retrieval_top_3_rate": 0.0,
+        "retrieval_top_5_rate": 0.0,
+        "retrieval_mrr": 0.0,
+        "citation_validity_rate": 1.0
+      }
+    },
+    "by_domain": {
+      "announcements": {
+        "total": 20.0,
+        "retrieval_hit_rate": 0.0,
+        "retrieval_top_1_rate": 0.0,
+        "retrieval_top_3_rate": 0.0,
+        "retrieval_top_5_rate": 0.0,
+        "retrieval_mrr": 0.0
+      },
+      "regulations": {
+        "total": 5.0,
+        "retrieval_hit_rate": 0.0,
+        "retrieval_top_1_rate": 0.0,
+        "retrieval_top_3_rate": 0.0,
+        "retrieval_top_5_rate": 0.0,
+        "retrieval_mrr": 0.0
+      },
+      "curriculum": {
+        "total": 1.0,
+        "retrieval_hit_rate": 0.0,
+        "retrieval_top_1_rate": 0.0,
+        "retrieval_top_3_rate": 0.0,
+        "retrieval_top_5_rate": 0.0,
+        "retrieval_mrr": 0.0
+      }
+    },
+    "adaptive_metrics_avg": {
+      "retrieval_adaptive_retry_triggered": 0.0,
+      "retrieval_adaptive_retry_succeeded": 0.0,
+      "retrieval_fallback_all_domains_triggered": 0.0,
+      "retrieval_fallback_all_domains_succeeded": 0.0,
+      "structured_rescue_triggered": 0.0,
+      "structured_rescue_succeeded": 0.0,
+      "curriculum_bypass_vector_triggered": 0.0,
+      "low_confidence_detected": 0.07692307692307693,
+      "initial_retrieval_doc_count": 0.5769230769230769,
+      "retry_retrieval_doc_count": 0.0,
+      "initial_top_score": 0.005603746548771538,
+      "retry_top_score": 0.0
+    },
+    "answer_schema_metrics_by_task": {
+      "announcement_procedure": {
+        "cases": 19.0,
+        "repair_attempted": 19.0,
+        "repair_success": 19.0,
+        "repair_attempt_rate": 1.0,
+        "repair_success_rate_of_attempts": 1.0,
+        "avg_missing_slots_before": 3.6842105263157894,
+        "avg_missing_slots_after": 0.0
+      },
+      "course_factual": {
+        "cases": 1.0,
+        "repair_attempted": 0.0,
+        "repair_success": 0.0,
+        "repair_attempt_rate": 0.0,
+        "repair_success_rate_of_attempts": 0.0,
+        "avg_missing_slots_before": 0.0,
+        "avg_missing_slots_after": 0.0
+      },
+      "none": {
+        "cases": 6.0,
+        "repair_attempted": 0.0,
+        "repair_success": 0.0,
+        "repair_attempt_rate": 0.0,
+        "repair_success_rate_of_attempts": 0.0,
+        "avg_missing_slots_before": 0.0,
+        "avg_missing_slots_after": 0.0
+      }
+    },
+    "error_tag_counts": {
+      "retrieve_not_found": 26
+    },
+    "failed_cases_top20": [
+      {
+        "id": "qb_256",
+        "category": "uncategorized",
+        "domain": "announcements",
+        "question": "เอกสารที่ต้องใช้มีอะไรบ้าง",
+        "error": "",
+        "error_tags": [
+          "retrieve_not_found"
+        ],
+        "answer_hit_coverage": 0.0,
+        "retrieval_hit_pass": false,
+        "citation_validity_pass": true,
+        "must_not_contain_pass": true,
+        "total_latency_ms": 775.9289859968703
+      },
+      {
+        "id": "qb_137",
+        "category": "uncategorized",
+        "domain": "announcements",
+        "question": "ขออัปเดต ประกาศทุนการศึกษา ล่าสุดหน่อยครับ",
+        "error": "",
+        "error_tags": [
+          "retrieve_not_found"
+        ],
+        "answer_hit_coverage": 0.25,
+        "retrieval_hit_pass": false,
+        "citation_validity_pass": true,
+        "must_not_contain_pass": true,
+        "total_latency_ms": 615.3714819956804
+      },
+      {
+        "id": "qb_004",
+        "category": "uncategorized",
+        "domain": "announcements",
+        "question": "ช่วยเช็กให้หน่อยว่า ค่าประกันอุบัติเหตุนักศึกษา มีประกาศใหม่แล้วหรือยัง",
+        "error": "",
+        "error_tags": [
+          "retrieve_not_found"
+        ],
+        "answer_hit_coverage": 0.25,
+        "retrieval_hit_pass": false,
+        "citation_validity_pass": true,
+        "must_not_contain_pass": true,
+        "total_latency_ms": 703.4150249965023
+      },
+      {
+        "id": "qb_009",
+        "category": "uncategorized",
+        "domain": "announcements",
+        "question": "ขออัปเดต ค่าธรรมเนียมจัดส่งเอกสารทางไปรษณีย์ ล่าสุดหน่อยครับ",
+        "error": "",
+        "error_tags": [
+          "retrieve_not_found"
+        ],
+        "answer_hit_coverage": 0.25,
+        "retrieval_hit_pass": false,
+        "citation_validity_pass": true,
+        "must_not_contain_pass": true,
+        "total_latency_ms": 985.3424059983809
+      },
+      {
+        "id": "qb_116",
+        "category": "uncategorized",
+        "domain": "announcements",
+        "question": "ถ้าจะจัดการเรื่อง ค่าธรรมเนียมจัดส่งเอกสารทางไปรษณีย์ ต้องเริ่มจากตรงไหน",
+        "error": "",
+        "error_tags": [
+          "retrieve_not_found"
+        ],
+        "answer_hit_coverage": 0.3333333333333333,
+        "retrieval_hit_pass": false,
+        "citation_validity_pass": true,
+        "must_not_contain_pass": true,
+        "total_latency_ms": 718.6942090047523
+      },
+      {
+        "id": "qb_054",
+        "category": "uncategorized",
+        "domain": "announcements",
+        "question": "ถ้าเลยกำหนดเรื่อง ค่าธรรมเนียมจัดส่งเอกสารทางไปรษณีย์ ไปแล้ว ยังมีทางแก้หรือยื่นคำร้องอะไรได้บ้าง",
+        "error": "",
+        "error_tags": [
+          "retrieve_not_found"
+        ],
+        "answer_hit_coverage": 0.3333333333333333,
+        "retrieval_hit_pass": false,
+        "citation_validity_pass": true,
+        "must_not_contain_pass": true,
+        "total_latency_ms": 1233.7899269914487
+      },
+      {
+        "id": "qb_032",
+        "category": "uncategorized",
+        "domain": "announcements",
+        "question": "ขออัปเดต ประกาศหยุดเรียน/เลื่อนการเรียนการสอน ล่าสุดหน่อยครับ",
+        "error": "",
+        "error_tags": [
+          "retrieve_not_found"
+        ],
+        "answer_hit_coverage": 0.5,
+        "retrieval_hit_pass": false,
+        "citation_validity_pass": true,
+        "must_not_contain_pass": true,
+        "total_latency_ms": 1105.12308300531
+      },
+      {
+        "id": "qb_255",
+        "category": "uncategorized",
+        "domain": "curriculum",
+        "question": "วิชานี้ยากไหม",
+        "error": "",
+        "error_tags": [
+          "retrieve_not_found"
+        ],
+        "answer_hit_coverage": 0.5,
+        "retrieval_hit_pass": false,
+        "citation_validity_pass": true,
+        "must_not_contain_pass": true,
+        "total_latency_ms": 8177.028377001989
+      },
+      {
+        "id": "qb_122",
+        "category": "uncategorized",
+        "domain": "regulations",
+        "question": "กรณี \"ขอออกจากห้องสอบชั่วคราวระหว่างทำข้อสอบ\" ถ้าโดนปฏิเสธหน้างาน ควรดำเนินการต่อยังไง",
+        "error": "",
+        "error_tags": [
+          "retrieve_not_found"
+        ],
+        "answer_hit_coverage": 1.0,
+        "retrieval_hit_pass": false,
+        "citation_validity_pass": true,
+        "must_not_contain_pass": true,
+        "total_latency_ms": 428.13108398695476
+      },
+      {
+        "id": "qb_176",
+        "category": "uncategorized",
+        "domain": "regulations",
+        "question": "ช่วยยืนยันให้หน่อยว่า \"ขอออกจากห้องสอบชั่วคราวระหว่างทำข้อสอบ\" ทำได้หรือไม่ได้",
+        "error": "",
+        "error_tags": [
+          "retrieve_not_found"
+        ],
+        "answer_hit_coverage": 1.0,
+        "retrieval_hit_pass": false,
+        "citation_validity_pass": true,
+        "must_not_contain_pass": true,
+        "total_latency_ms": 430.790104001062
+      },
+      {
+        "id": "qb_323",
+        "category": "uncategorized",
+        "domain": "announcements",
+        "question": "ช่วยเช็กให้หน่อยว่า ค่าประกันอุบัติเหตุนักศึกษา มีประกาศใหม่แล้วหรือยัง",
+        "error": "",
+        "error_tags": [
+          "retrieve_not_found"
+        ],
+        "answer_hit_coverage": 1.0,
+        "retrieval_hit_pass": false,
+        "citation_validity_pass": true,
+        "must_not_contain_pass": true,
+        "total_latency_ms": 582.4576099985279
+      },
+      {
+        "id": "qb_170",
+        "category": "uncategorized",
+        "domain": "announcements",
+        "question": "ถ้าจะจัดการเรื่อง ประกาศหยุดเรียน/เลื่อนการเรียนการสอน ต้องเริ่มจากตรงไหน",
+        "error": "",
+        "error_tags": [
+          "retrieve_not_found"
+        ],
+        "answer_hit_coverage": 1.0,
+        "retrieval_hit_pass": false,
+        "citation_validity_pass": true,
+        "must_not_contain_pass": true,
+        "total_latency_ms": 619.9426789971767
+      },
+      {
+        "id": "qb_139",
+        "category": "uncategorized",
+        "domain": "announcements",
+        "question": "ช่วยเช็กให้หน่อยว่า ประกาศหยุดเรียน/เลื่อนการเรียนการสอน มีประกาศใหม่แล้วหรือยัง",
+        "error": "",
+        "error_tags": [
+          "retrieve_not_found"
+        ],
+        "answer_hit_coverage": 1.0,
+        "retrieval_hit_pass": false,
+        "citation_validity_pass": true,
+        "must_not_contain_pass": true,
+        "total_latency_ms": 623.0024810065515
+      },
+      {
+        "id": "qb_265",
+        "category": "uncategorized",
+        "domain": "announcements",
+        "question": "ช่วยอธิบายเรื่อง ประกาศหยุดเรียน/เลื่อนการเรียนการสอน ตามประกาศล่าสุดให้หน่อย",
+        "error": "",
+        "error_tags": [
+          "retrieve_not_found"
+        ],
+        "answer_hit_coverage": 1.0,
+        "retrieval_hit_pass": false,
+        "citation_validity_pass": true,
+        "must_not_contain_pass": true,
+        "total_latency_ms": 631.3065249996725
+      },
+      {
+        "id": "qb_033",
+        "category": "uncategorized",
+        "domain": "regulations",
+        "question": "ถ้าเกิดเคส \"ขอออกจากห้องสอบชั่วคราวระหว่างทำข้อสอบ\" ขอขั้นตอนแบบทีละข้อหน่อย",
+        "error": "",
+        "error_tags": [
+          "retrieve_not_found"
+        ],
+        "answer_hit_coverage": 1.0,
+        "retrieval_hit_pass": false,
+        "citation_validity_pass": true,
+        "must_not_contain_pass": true,
+        "total_latency_ms": 636.0025580070214
+      },
+      {
+        "id": "qb_121",
+        "category": "uncategorized",
+        "domain": "announcements",
+        "question": "ถ้าจะจัดการเรื่อง ขั้นตอนขอหนังสือรับรองนักศึกษา ต้องเริ่มจากตรงไหน",
+        "error": "",
+        "error_tags": [
+          "retrieve_not_found"
+        ],
+        "answer_hit_coverage": 1.0,
+        "retrieval_hit_pass": false,
+        "citation_validity_pass": true,
+        "must_not_contain_pass": true,
+        "total_latency_ms": 644.622524996521
+      },
+      {
+        "id": "qb_159",
+        "category": "uncategorized",
+        "domain": "announcements",
+        "question": "ถ้าจะจัดการเรื่อง ค่าธรรมเนียมจัดส่งเอกสารทางไปรษณีย์ ต้องเริ่มจากตรงไหน",
+        "error": "",
+        "error_tags": [
+          "retrieve_not_found"
+        ],
+        "answer_hit_coverage": 1.0,
+        "retrieval_hit_pass": false,
+        "citation_validity_pass": true,
+        "must_not_contain_pass": true,
+        "total_latency_ms": 646.3143270084402
+      },
+      {
+        "id": "qb_154",
+        "category": "uncategorized",
+        "domain": "announcements",
+        "question": "ถ้าจะจัดการเรื่อง ประกาศหยุดเรียน/เลื่อนการเรียนการสอน ต้องเริ่มจากตรงไหน",
+        "error": "",
+        "error_tags": [
+          "retrieve_not_found"
+        ],
+        "answer_hit_coverage": 1.0,
+        "retrieval_hit_pass": false,
+        "citation_validity_pass": true,
+        "must_not_contain_pass": true,
+        "total_latency_ms": 668.5352740023518
+      },
+      {
+        "id": "qb_326",
+        "category": "uncategorized",
+        "domain": "announcements",
+        "question": "ช่วยเช็กให้หน่อยว่า ประกาศหยุดเรียน/เลื่อนการเรียนการสอน มีประกาศใหม่แล้วหรือยัง",
+        "error": "",
+        "error_tags": [
+          "retrieve_not_found"
+        ],
+        "answer_hit_coverage": 1.0,
+        "retrieval_hit_pass": false,
+        "citation_validity_pass": true,
+        "must_not_contain_pass": true,
+        "total_latency_ms": 681.9160799932433
+      },
+      {
+        "id": "qb_080",
+        "category": "uncategorized",
+        "domain": "announcements",
+        "question": "ถ้าเลยกำหนดเรื่อง ประกาศหยุดเรียน/เลื่อนการเรียนการสอน ไปแล้ว ยังมีทางแก้หรือยื่นคำร้องอะไรได้บ้าง",
+        "error": "",
+        "error_tags": [
+          "retrieve_not_found"
+        ],
+        "answer_hit_coverage": 1.0,
+        "retrieval_hit_pass": false,
+        "citation_validity_pass": true,
+        "must_not_contain_pass": true,
+        "total_latency_ms": 727.304069994716
+      }
+    ]
+  },
+  "cases": [
+    {
+      "id": "qb_001",
+      "category": "uncategorized",
+      "question": "ถ้าจะจัดการเรื่อง ช่องทางติดตามประกาศล่าสุดของภาควิชา ต้องเริ่มจากตรงไหน",
+      "question_domain": "announcements",
+      "expected_source_contains": [
+        "announcement",
+        "calendar"
+      ],
+      "expected_answer_keywords": [
+        "ประกาศ"
+      ],
+      "reference_answer": null,
+      "expected_answerable": true,
+      "difficulty": "medium",
+      "question_type": "procedural",
+      "expected_domain": "announcements",
+      "expected_domains_any": [],
+      "answer": "- แหล่งประกาศ: ยังยืนยันไม่ได้จากเอกสาร [schedule2565.txt/1]\n- ขั้นตอน: ยังยืนยันไม่ได้จากเอกสาร [schedule2565.txt/1]\n- เงื่อนไข: ยังยืนยันไม่ได้จากเอกสาร [schedule2565.txt/1]\n- ข้อจำกัด: ยังยืนยันไม่ได้จากเอกสาร [schedule2565.txt/1]",
+      "answer_hit_pass": true,
+      "answer_hit_coverage": 1.0,
+      "answer_keywords_matched": 1,
+      "answer_keywords_total": 1,
+      "retrieval_hit_pass": false,
+      "retrieval_domain_pass": true,
+      "retrieval_source_pass": false,
+      "retrieval_domains_found": [
+        "announcements"
+      ],
+      "retrieval_missing_source_tokens": [
+        "calendar"
+      ],
+      "retrieval_mrr": 0.0,
+      "retrieval_best_rank": null,
+      "retrieval_top_1_pass": false,
+      "retrieval_top_3_pass": false,
+      "retrieval_top_5_pass": false,
+      "retrieval_top_contexts": [
+        {
+          "rank": 1,
+          "source": "schedule2565.txt",
+          "domain": "announcements",
+          "similarity_score": null
+        },
+        {
+          "rank": 2,
+          "source": "anounc_move52ene.txt",
+          "domain": "announcements",
+          "similarity_score": null
+        },
+        {
+          "rank": 3,
+          "source": "schedule2565.txt",
+          "domain": "announcements",
+          "similarity_score": null
+        },
+        {
+          "rank": 4,
+          "source": "english_grad_2017.txt",
+          "domain": "announcements",
+          "similarity_score": null
+        },
+        {
+          "rank": 5,
+          "source": "approved_exam2568.txt",
+          "domain": "announcements",
+          "similarity_score": null
+        }
+      ],
+      "citation_validity_pass": true,
+      "citation_total": 4,
+      "citation_valid_count": 4,
+      "citation_issues": [],
+      "must_not_contain_pass": true,
+      "total_pass": false,
+      "total_latency_ms": 733.8777359982487,
+      "retrieval_latency_ms": 2046.633257996291,
+      "generation_latency_ms": 0.0,
+      "contexts_count": 5,
+      "error": "",
+      "human_correctness_score": null,
+      "human_completeness_score": null,
+      "human_clarity_score": null,
+      "human_hallucination": null,
+      "answerable_handled_correctly": true,
+      "quality_score_avg": null,
+      "error_tags": [
+        "retrieve_not_found"
+      ],
+      "adaptive": {
+        "retrieval_adaptive_retry_triggered": 0.0,
+        "retrieval_adaptive_retry_succeeded": 0.0,
+        "retrieval_fallback_all_domains_triggered": 0.0,
+        "retrieval_fallback_all_domains_succeeded": 0.0,
+        "structured_rescue_triggered": 0.0,
+        "structured_rescue_succeeded": 0.0,
+        "curriculum_bypass_vector_triggered": 0.0,
+        "low_confidence_detected": 0.0,
+        "initial_retrieval_doc_count": 0.0,
+        "retry_retrieval_doc_count": 0.0,
+        "initial_top_score": 0.0,
+        "retry_top_score": 0.0
+      },
+      "answer_schema": {
+        "task": "announcement_procedure",
+        "repair_attempted": 1,
+        "repair_success": 1,
+        "missing_slots_before_count": 4,
+        "missing_slots_after_count": 0
+      }
+    },
+    {
+      "id": "qb_004",
+      "category": "uncategorized",
+      "question": "ช่วยเช็กให้หน่อยว่า ค่าประกันอุบัติเหตุนักศึกษา มีประกาศใหม่แล้วหรือยัง",
+      "question_domain": "announcements",
+      "expected_source_contains": [
+        "announcement",
+        "calendar"
+      ],
+      "expected_answer_keywords": [
+        "500",
+        "บาท",
+        "ประกันอุบัติเหตุ",
+        "ประกาศ"
+      ],
+      "reference_answer": null,
+      "expected_answerable": true,
+      "difficulty": "medium",
+      "question_type": "verification",
+      "expected_domain": "announcements",
+      "expected_domains_any": [],
+      "answer": "- แหล่งประกาศ: ยังยืนยันไม่ได้จากเอกสาร [eng_m2568.txt/1]\n- ขั้นตอน: ยังยืนยันไม่ได้จากเอกสาร [eng_m2568.txt/1]\n- เงื่อนไข: ยังยืนยันไม่ได้จากเอกสาร [eng_m2568.txt/1]\n- ข้อจำกัด: ยังยืนยันไม่ได้จากเอกสาร [eng_m2568.txt/1]",
+      "answer_hit_pass": false,
+      "answer_hit_coverage": 0.25,
+      "answer_keywords_matched": 1,
+      "answer_keywords_total": 4,
+      "retrieval_hit_pass": false,
+      "retrieval_domain_pass": true,
+      "retrieval_source_pass": false,
+      "retrieval_domains_found": [
+        "announcements"
+      ],
+      "retrieval_missing_source_tokens": [
+        "calendar"
+      ],
+      "retrieval_mrr": 0.0,
+      "retrieval_best_rank": null,
+      "retrieval_top_1_pass": false,
+      "retrieval_top_3_pass": false,
+      "retrieval_top_5_pass": false,
+      "retrieval_top_contexts": [
+        {
+          "rank": 1,
+          "source": "eng_m2568.txt",
+          "domain": "announcements",
+          "similarity_score": null
+        },
+        {
+          "rank": 2,
+          "source": "insurance_std_1.txt",
+          "domain": "announcements",
+          "similarity_score": null
+        },
+        {
+          "rank": 3,
+          "source": "insurance_std.txt",
+          "domain": "announcements",
+          "similarity_score": null
+        },
+        {
+          "rank": 4,
+          "source": "insurance_inter_std.txt",
+          "domain": "announcements",
+          "similarity_score": null
+        },
+        {
+          "rank": 5,
+          "source": "announce_financ.txt",
+          "domain": "announcements",
+          "similarity_score": null
+        }
+      ],
+      "citation_validity_pass": true,
+      "citation_total": 4,
+      "citation_valid_count": 4,
+      "citation_issues": [],
+      "must_not_contain_pass": true,
+      "total_pass": false,
+      "total_latency_ms": 703.4150249965023,
+      "retrieval_latency_ms": 691.4597409922862,
+      "generation_latency_ms": 11.955284004216082,
+      "contexts_count": 5,
+      "error": "",
+      "human_correctness_score": null,
+      "human_completeness_score": null,
+      "human_clarity_score": null,
+      "human_hallucination": null,
+      "answerable_handled_correctly": false,
+      "quality_score_avg": null,
+      "error_tags": [
+        "retrieve_not_found"
+      ],
+      "adaptive": {
+        "retrieval_adaptive_retry_triggered": 0.0,
+        "retrieval_adaptive_retry_succeeded": 0.0,
+        "retrieval_fallback_all_domains_triggered": 0.0,
+        "retrieval_fallback_all_domains_succeeded": 0.0,
+        "structured_rescue_triggered": 0.0,
+        "structured_rescue_succeeded": 0.0,
+        "curriculum_bypass_vector_triggered": 0.0,
+        "low_confidence_detected": 0.0,
+        "initial_retrieval_doc_count": 0.0,
+        "retry_retrieval_doc_count": 0.0,
+        "initial_top_score": 0.0,
+        "retry_top_score": 0.0
+      },
+      "answer_schema": {
+        "task": "announcement_procedure",
+        "repair_attempted": 1,
+        "repair_success": 1,
+        "missing_slots_before_count": 4,
+        "missing_slots_after_count": 0
+      }
+    },
+    {
+      "id": "qb_009",
+      "category": "uncategorized",
+      "question": "ขออัปเดต ค่าธรรมเนียมจัดส่งเอกสารทางไปรษณีย์ ล่าสุดหน่อยครับ",
+      "question_domain": "announcements",
+      "expected_source_contains": [
+        "announcement",
+        "calendar"
+      ],
+      "expected_answer_keywords": [
+        "ค่าธรรมเนียม",
+        "จัดส่งเอกสาร",
+        "ไปรษณีย์",
+        "ประกาศ"
+      ],
+      "reference_answer": "มีประกาศอัตราค่าธรรมเนียมการจัดส่งเอกสารทางไปรษณีย์ โดยคิดตามประเภทการส่งและปลายทาง",
+      "expected_answerable": true,
+      "difficulty": "easy",
+      "question_type": "factual",
+      "expected_domain": "announcements",
+      "expected_domains_any": [],
+      "answer": "- แหล่งประกาศ: ยังยืนยันไม่ได้จากเอกสาร [t_fee.txt/1]\n- ขั้นตอน: ยังยืนยันไม่ได้จากเอกสาร [t_fee.txt/1]\n- เงื่อนไข: ยังยืนยันไม่ได้จากเอกสาร [t_fee.txt/1]\n- ข้อจำกัด: ยังยืนยันไม่ได้จากเอกสาร [t_fee.txt/1]",
+      "answer_hit_pass": false,
+      "answer_hit_coverage": 0.25,
+      "answer_keywords_matched": 1,
+      "answer_keywords_total": 4,
+      "retrieval_hit_pass": false,
+      "retrieval_domain_pass": true,
+      "retrieval_source_pass": false,
+      "retrieval_domains_found": [
+        "announcements"
+      ],
+      "retrieval_missing_source_tokens": [
+        "calendar"
+      ],
+      "retrieval_mrr": 0.0,
+      "retrieval_best_rank": null,
+      "retrieval_top_1_pass": false,
+      "retrieval_top_3_pass": false,
+      "retrieval_top_5_pass": false,
+      "retrieval_top_contexts": [
+        {
+          "rank": 1,
+          "source": "t_fee.txt",
+          "domain": "announcements",
+          "similarity_score": null
+        },
+        {
+          "rank": 2,
+          "source": "131.txt",
+          "domain": "announcements",
+          "similarity_score": null
+        },
+        {
+          "rank": 3,
+          "source": "139.txt",
+          "domain": "announcements",
+          "similarity_score": null
+        },
+        {
+          "rank": 4,
+          "source": "131.txt",
+          "domain": "announcements",
+          "similarity_score": null
+        },
+        {
+          "rank": 5,
+          "source": "137.txt",
+          "domain": "announcements",
+          "similarity_score": null
+        }
+      ],
+      "citation_validity_pass": true,
+      "citation_total": 4,
+      "citation_valid_count": 4,
+      "citation_issues": [],
+      "must_not_contain_pass": true,
+      "total_pass": false,
+      "total_latency_ms": 985.3424059983809,
+      "retrieval_latency_ms": 787.0308099954855,
+      "generation_latency_ms": 198.31159600289539,
+      "contexts_count": 5,
+      "error": "",
+      "human_correctness_score": null,
+      "human_completeness_score": null,
+      "human_clarity_score": null,
+      "human_hallucination": null,
+      "answerable_handled_correctly": false,
+      "quality_score_avg": null,
+      "error_tags": [
+        "retrieve_not_found"
+      ],
+      "adaptive": {
+        "retrieval_adaptive_retry_triggered": 0.0,
+        "retrieval_adaptive_retry_succeeded": 0.0,
+        "retrieval_fallback_all_domains_triggered": 0.0,
+        "retrieval_fallback_all_domains_succeeded": 0.0,
+        "structured_rescue_triggered": 0.0,
+        "structured_rescue_succeeded": 0.0,
+        "curriculum_bypass_vector_triggered": 0.0,
+        "low_confidence_detected": 0.0,
+        "initial_retrieval_doc_count": 0.0,
+        "retry_retrieval_doc_count": 0.0,
+        "initial_top_score": 0.0,
+        "retry_top_score": 0.0
+      },
+      "answer_schema": {
+        "task": "announcement_procedure",
+        "repair_attempted": 1,
+        "repair_success": 1,
+        "missing_slots_before_count": 4,
+        "missing_slots_after_count": 0
+      }
+    },
+    {
+      "id": "qb_032",
+      "category": "uncategorized",
+      "question": "ขออัปเดต ประกาศหยุดเรียน/เลื่อนการเรียนการสอน ล่าสุดหน่อยครับ",
+      "question_domain": "announcements",
+      "expected_source_contains": [
+        "announcement",
+        "calendar"
+      ],
+      "expected_answer_keywords": [
+        "ประกาศ",
+        "ประกาศล่าสุด"
+      ],
+      "reference_answer": "โปรดตรวจสอบประกาศล่าสุดจากช่องทางทางการของมหาวิทยาลัย/คณะเพื่อความถูกต้องของข้อมูล",
+      "expected_answerable": true,
+      "difficulty": "easy",
+      "question_type": "factual",
+      "expected_domain": "announcements",
+      "expected_domains_any": [],
+      "answer": "- แหล่งประกาศ: ยังยืนยันไม่ได้จากเอกสาร [2568thv3_5th_1.txt/1]\n- ขั้นตอน: ยังยืนยันไม่ได้จากเอกสาร [2568thv3_5th_1.txt/1]\n- เงื่อนไข: ยังยืนยันไม่ได้จากเอกสาร [2568thv3_5th_1.txt/1]\n- ข้อจำกัด: ยังยืนยันไม่ได้จากเอกสาร [2568thv3_5th_1.txt/1]",
+      "answer_hit_pass": false,
+      "answer_hit_coverage": 0.5,
+      "answer_keywords_matched": 1,
+      "answer_keywords_total": 2,
+      "retrieval_hit_pass": false,
+      "retrieval_domain_pass": true,
+      "retrieval_source_pass": false,
+      "retrieval_domains_found": [
+        "announcements"
+      ],
+      "retrieval_missing_source_tokens": [
+        "calendar"
+      ],
+      "retrieval_mrr": 0.0,
+      "retrieval_best_rank": null,
+      "retrieval_top_1_pass": false,
+      "retrieval_top_3_pass": false,
+      "retrieval_top_5_pass": false,
+      "retrieval_top_contexts": [
+        {
+          "rank": 1,
+          "source": "2568thv3_5th_1.txt",
+          "domain": "announcements",
+          "similarity_score": null
+        },
+        {
+          "rank": 2,
+          "source": "2568thv3_5th.txt",
+          "domain": "announcements",
+          "similarity_score": null
+        },
+        {
+          "rank": 3,
+          "source": "131.txt",
+          "domain": "announcements",
+          "similarity_score": null
+        },
+        {
+          "rank": 4,
+          "source": "131.txt",
+          "domain": "announcements",
+          "similarity_score": null
+        },
+        {
+          "rank": 5,
+          "source": "2568thv3_5th_1.txt",
+          "domain": "announcements",
+          "similarity_score": null
+        }
+      ],
+      "citation_validity_pass": true,
+      "citation_total": 4,
+      "citation_valid_count": 4,
+      "citation_issues": [],
+      "must_not_contain_pass": true,
+      "total_pass": false,
+      "total_latency_ms": 1105.12308300531,
+      "retrieval_latency_ms": 1023.0905820062617,
+      "generation_latency_ms": 82.03250099904835,
+      "contexts_count": 5,
+      "error": "",
+      "human_correctness_score": null,
+      "human_completeness_score": null,
+      "human_clarity_score": null,
+      "human_hallucination": null,
+      "answerable_handled_correctly": false,
+      "quality_score_avg": null,
+      "error_tags": [
+        "retrieve_not_found"
+      ],
+      "adaptive": {
+        "retrieval_adaptive_retry_triggered": 0.0,
+        "retrieval_adaptive_retry_succeeded": 0.0,
+        "retrieval_fallback_all_domains_triggered": 0.0,
+        "retrieval_fallback_all_domains_succeeded": 0.0,
+        "structured_rescue_triggered": 0.0,
+        "structured_rescue_succeeded": 0.0,
+        "curriculum_bypass_vector_triggered": 0.0,
+        "low_confidence_detected": 0.0,
+        "initial_retrieval_doc_count": 0.0,
+        "retry_retrieval_doc_count": 0.0,
+        "initial_top_score": 0.0,
+        "retry_top_score": 0.0
+      },
+      "answer_schema": {
+        "task": "announcement_procedure",
+        "repair_attempted": 1,
+        "repair_success": 1,
+        "missing_slots_before_count": 4,
+        "missing_slots_after_count": 0
+      }
+    },
+    {
+      "id": "qb_033",
+      "category": "uncategorized",
+      "question": "ถ้าเกิดเคส \"ขอออกจากห้องสอบชั่วคราวระหว่างทำข้อสอบ\" ขอขั้นตอนแบบทีละข้อหน่อย",
+      "question_domain": "regulations",
+      "expected_source_contains": [
+        "rule_exam",
+        "regulation"
+      ],
+      "expected_answer_keywords": [
+        "ออกจากห้องสอบ",
+        "อนุญาต",
+        "ระเบียบการสอบ"
+      ],
+      "reference_answer": null,
+      "expected_answerable": true,
+      "difficulty": "medium",
+      "question_type": "procedural",
+      "expected_domain": "regulations",
+      "expected_domains_any": [],
+      "answer": "ทำได้/ไม่ได้: ได้ (เมื่อได้รับอนุญาต)\nขั้นตอน: ขออนุญาตกรรมการคุมสอบก่อนออก และปฏิบัติตามข้อกำหนดระหว่างออกชั่วคราว\nต้องติดต่อ: กรรมการคุมสอบ\nเอกสารที่ใช้: โดยทั่วไปไม่ต้องใช้เอกสาร เว้นแต่มีการบันทึกเหตุการณ์\nเงื่อนไข/ข้อยกเว้น: ให้ออกจากห้องสอบได้เมื่อสอบผ่านไปแล้วอย่างน้อย 60 นาที และต้องอยู่ภายใต้ระเบียบการสอบ [discipline2566_fulltext.txt/1]",
+      "answer_hit_pass": true,
+      "answer_hit_coverage": 1.0,
+      "answer_keywords_matched": 3,
+      "answer_keywords_total": 3,
+      "retrieval_hit_pass": false,
+      "retrieval_domain_pass": true,
+      "retrieval_source_pass": false,
+      "retrieval_domains_found": [
+        "regulations"
+      ],
+      "retrieval_missing_source_tokens": [
+        "rule_exam"
+      ],
+      "retrieval_mrr": 0.0,
+      "retrieval_best_rank": null,
+      "retrieval_top_1_pass": false,
+      "retrieval_top_3_pass": false,
+      "retrieval_top_5_pass": false,
+      "retrieval_top_contexts": [
+        {
+          "rank": 1,
+          "source": "discipline2566_fulltext.txt",
+          "domain": "regulations",
+          "similarity_score": null
+        },
+        {
+          "rank": 2,
+          "source": "ruleg2568.txt",
+          "domain": "regulations",
+          "similarity_score": null
+        },
+        {
+          "rank": 3,
+          "source": "rule57_2.txt",
+          "domain": "regulations",
+          "similarity_score": null
+        },
+        {
+          "rank": 4,
+          "source": "exit_after_minutes",
+          "domain": "regulations",
+          "similarity_score": null
+        }
+      ],
+      "citation_validity_pass": true,
+      "citation_total": 1,
+      "citation_valid_count": 1,
+      "citation_issues": [],
+      "must_not_contain_pass": true,
+      "total_pass": false,
+      "total_latency_ms": 636.0025580070214,
+      "retrieval_latency_ms": 1896.8404839979485,
+      "generation_latency_ms": 0.0,
+      "contexts_count": 4,
+      "error": "",
+      "human_correctness_score": null,
+      "human_completeness_score": null,
+      "human_clarity_score": null,
+      "human_hallucination": null,
+      "answerable_handled_correctly": true,
+      "quality_score_avg": null,
+      "error_tags": [
+        "retrieve_not_found"
+      ],
+      "adaptive": {
+        "retrieval_adaptive_retry_triggered": 0.0,
+        "retrieval_adaptive_retry_succeeded": 0.0,
+        "retrieval_fallback_all_domains_triggered": 0.0,
+        "retrieval_fallback_all_domains_succeeded": 0.0,
+        "structured_rescue_triggered": 0.0,
+        "structured_rescue_succeeded": 0.0,
+        "curriculum_bypass_vector_triggered": 0.0,
+        "low_confidence_detected": 1.0,
+        "initial_retrieval_doc_count": 5.0,
+        "retry_retrieval_doc_count": 0.0,
+        "initial_top_score": 0.016129032258064516,
+        "retry_top_score": 0.0
+      },
+      "answer_schema": {
+        "task": "none",
+        "repair_attempted": 0,
+        "repair_success": 0,
+        "missing_slots_before_count": 0,
+        "missing_slots_after_count": 0
+      }
+    },
+    {
+      "id": "qb_054",
+      "category": "uncategorized",
+      "question": "ถ้าเลยกำหนดเรื่อง ค่าธรรมเนียมจัดส่งเอกสารทางไปรษณีย์ ไปแล้ว ยังมีทางแก้หรือยื่นคำร้องอะไรได้บ้าง",
+      "question_domain": "announcements",
+      "expected_source_contains": [
+        "announcement",
+        "calendar"
+      ],
+      "expected_answer_keywords": [
+        "ค่าธรรมเนียม",
+        "ไปรษณีย์",
+        "ประกาศ"
+      ],
+      "reference_answer": null,
+      "expected_answerable": true,
+      "difficulty": "hard",
+      "question_type": "multi-hop",
+      "expected_domain": "announcements",
+      "expected_domains_any": [],
+      "answer": "- แหล่งประกาศ: ยังยืนยันไม่ได้จากเอกสาร [announce_financ.txt/1]\n- ขั้นตอน: ยังยืนยันไม่ได้จากเอกสาร [announce_financ.txt/1]\n- เงื่อนไข: ยังยืนยันไม่ได้จากเอกสาร [announce_financ.txt/1]\n- ข้อจำกัด: ยังยืนยันไม่ได้จากเอกสาร [announce_financ.txt/1]",
+      "answer_hit_pass": false,
+      "answer_hit_coverage": 0.3333333333333333,
+      "answer_keywords_matched": 1,
+      "answer_keywords_total": 3,
+      "retrieval_hit_pass": false,
+      "retrieval_domain_pass": true,
+      "retrieval_source_pass": false,
+      "retrieval_domains_found": [
+        "announcements"
+      ],
+      "retrieval_missing_source_tokens": [
+        "calendar"
+      ],
+      "retrieval_mrr": 0.0,
+      "retrieval_best_rank": null,
+      "retrieval_top_1_pass": false,
+      "retrieval_top_3_pass": false,
+      "retrieval_top_5_pass": false,
+      "retrieval_top_contexts": [
+        {
+          "rank": 1,
+          "source": "announce_financ.txt",
+          "domain": "announcements",
+          "similarity_score": null
+        },
+        {
+          "rank": 2,
+          "source": "131.txt",
+          "domain": "announcements",
+          "similarity_score": null
+        },
+        {
+          "rank": 3,
+          "source": "calculator2023_2.txt",
+          "domain": "announcements",
+          "similarity_score": null
+        },
+        {
+          "rank": 4,
+          "source": "t_fee.txt",
+          "domain": "announcements",
+          "similarity_score": null
+        },
+        {
+          "rank": 5,
+          "source": "131.txt",
+          "domain": "announcements",
+          "similarity_score": null
+        }
+      ],
+      "citation_validity_pass": true,
+      "citation_total": 4,
+      "citation_valid_count": 4,
+      "citation_issues": [],
+      "must_not_contain_pass": true,
+      "total_pass": false,
+      "total_latency_ms": 1233.7899269914487,
+      "retrieval_latency_ms": 923.6792470037472,
+      "generation_latency_ms": 310.1106799877016,
+      "contexts_count": 5,
+      "error": "",
+      "human_correctness_score": null,
+      "human_completeness_score": null,
+      "human_clarity_score": null,
+      "human_hallucination": null,
+      "answerable_handled_correctly": false,
+      "quality_score_avg": null,
+      "error_tags": [
+        "retrieve_not_found"
+      ],
+      "adaptive": {
+        "retrieval_adaptive_retry_triggered": 0.0,
+        "retrieval_adaptive_retry_succeeded": 0.0,
+        "retrieval_fallback_all_domains_triggered": 0.0,
+        "retrieval_fallback_all_domains_succeeded": 0.0,
+        "structured_rescue_triggered": 0.0,
+        "structured_rescue_succeeded": 0.0,
+        "curriculum_bypass_vector_triggered": 0.0,
+        "low_confidence_detected": 0.0,
+        "initial_retrieval_doc_count": 0.0,
+        "retry_retrieval_doc_count": 0.0,
+        "initial_top_score": 0.0,
+        "retry_top_score": 0.0
+      },
+      "answer_schema": {
+        "task": "announcement_procedure",
+        "repair_attempted": 1,
+        "repair_success": 1,
+        "missing_slots_before_count": 4,
+        "missing_slots_after_count": 0
+      }
+    },
+    {
+      "id": "qb_070",
+      "category": "uncategorized",
+      "question": "ถ้าเลยกำหนดเรื่อง ประกาศหยุดเรียน/เลื่อนการเรียนการสอน ไปแล้ว ยังมีทางแก้หรือยื่นคำร้องอะไรได้บ้าง",
+      "question_domain": "announcements",
+      "expected_source_contains": [
+        "announcement",
+        "calendar"
+      ],
+      "expected_answer_keywords": [
+        "ประกาศ"
+      ],
+      "reference_answer": null,
+      "expected_answerable": true,
+      "difficulty": "hard",
+      "question_type": "multi-hop",
+      "expected_domain": "announcements",
+      "expected_domains_any": [],
+      "answer": "- แหล่งประกาศ: ยังยืนยันไม่ได้จากเอกสาร [131.txt/1]\n- ขั้นตอน: ยังยืนยันไม่ได้จากเอกสาร [131.txt/1]\n- เงื่อนไข: ยังยืนยันไม่ได้จากเอกสาร [131.txt/1]\n- ข้อจำกัด: ยังยืนยันไม่ได้จากเอกสาร [131.txt/1]",
+      "answer_hit_pass": true,
+      "answer_hit_coverage": 1.0,
+      "answer_keywords_matched": 1,
+      "answer_keywords_total": 1,
+      "retrieval_hit_pass": false,
+      "retrieval_domain_pass": true,
+      "retrieval_source_pass": false,
+      "retrieval_domains_found": [
+        "announcements"
+      ],
+      "retrieval_missing_source_tokens": [
+        "calendar"
+      ],
+      "retrieval_mrr": 0.0,
+      "retrieval_best_rank": null,
+      "retrieval_top_1_pass": false,
+      "retrieval_top_3_pass": false,
+      "retrieval_top_5_pass": false,
+      "retrieval_top_contexts": [
+        {
+          "rank": 1,
+          "source": "131.txt",
+          "domain": "announcements",
+          "similarity_score": null
+        },
+        {
+          "rank": 2,
+          "source": "announce_financ.txt",
+          "domain": "announcements",
+          "similarity_score": null
+        },
+        {
+          "rank": 3,
+          "source": "calculator2023_2.txt",
+          "domain": "announcements",
+          "similarity_score": null
+        },
+        {
+          "rank": 4,
+          "source": "131.txt",
+          "domain": "announcements",
+          "similarity_score": null
+        },
+        {
+          "rank": 5,
+          "source": "2568thv3_5th_1.txt",
+          "domain": "announcements",
+          "similarity_score": null
+        }
+      ],
+      "citation_validity_pass": true,
+      "citation_total": 4,
+      "citation_valid_count": 4,
+      "citation_issues": [],
+      "must_not_contain_pass": true,
+      "total_pass": false,
+      "total_latency_ms": 793.7448659940856,
+      "retrieval_latency_ms": 1187.1765209943987,
+      "generation_latency_ms": 0.0,
+      "contexts_count": 5,
+      "error": "",
+      "human_correctness_score": null,
+      "human_completeness_score": null,
+      "human_clarity_score": null,
+      "human_hallucination": null,
+      "answerable_handled_correctly": true,
+      "quality_score_avg": null,
+      "error_tags": [
+        "retrieve_not_found"
+      ],
+      "adaptive": {
+        "retrieval_adaptive_retry_triggered": 0.0,
+        "retrieval_adaptive_retry_succeeded": 0.0,
+        "retrieval_fallback_all_domains_triggered": 0.0,
+        "retrieval_fallback_all_domains_succeeded": 0.0,
+        "structured_rescue_triggered": 0.0,
+        "structured_rescue_succeeded": 0.0,
+        "curriculum_bypass_vector_triggered": 0.0,
+        "low_confidence_detected": 0.0,
+        "initial_retrieval_doc_count": 0.0,
+        "retry_retrieval_doc_count": 0.0,
+        "initial_top_score": 0.0,
+        "retry_top_score": 0.0
+      },
+      "answer_schema": {
+        "task": "announcement_procedure",
+        "repair_attempted": 1,
+        "repair_success": 1,
+        "missing_slots_before_count": 4,
+        "missing_slots_after_count": 0
+      }
+    },
+    {
+      "id": "qb_080",
+      "category": "uncategorized",
+      "question": "ถ้าเลยกำหนดเรื่อง ประกาศหยุดเรียน/เลื่อนการเรียนการสอน ไปแล้ว ยังมีทางแก้หรือยื่นคำร้องอะไรได้บ้าง",
+      "question_domain": "announcements",
+      "expected_source_contains": [
+        "announcement",
+        "calendar"
+      ],
+      "expected_answer_keywords": [
+        "ประกาศ"
+      ],
+      "reference_answer": null,
+      "expected_answerable": true,
+      "difficulty": "hard",
+      "question_type": "multi-hop",
+      "expected_domain": "announcements",
+      "expected_domains_any": [],
+      "answer": "- แหล่งประกาศ: ยังยืนยันไม่ได้จากเอกสาร [131.txt/1]\n- ขั้นตอน: ยังยืนยันไม่ได้จากเอกสาร [131.txt/1]\n- เงื่อนไข: ยังยืนยันไม่ได้จากเอกสาร [131.txt/1]\n- ข้อจำกัด: ยังยืนยันไม่ได้จากเอกสาร [131.txt/1]",
+      "answer_hit_pass": true,
+      "answer_hit_coverage": 1.0,
+      "answer_keywords_matched": 1,
+      "answer_keywords_total": 1,
+      "retrieval_hit_pass": false,
+      "retrieval_domain_pass": true,
+      "retrieval_source_pass": false,
+      "retrieval_domains_found": [
+        "announcements"
+      ],
+      "retrieval_missing_source_tokens": [
+        "calendar"
+      ],
+      "retrieval_mrr": 0.0,
+      "retrieval_best_rank": null,
+      "retrieval_top_1_pass": false,
+      "retrieval_top_3_pass": false,
+      "retrieval_top_5_pass": false,
+      "retrieval_top_contexts": [
+        {
+          "rank": 1,
+          "source": "131.txt",
+          "domain": "announcements",
+          "similarity_score": null
+        },
+        {
+          "rank": 2,
+          "source": "announce_financ.txt",
+          "domain": "announcements",
+          "similarity_score": null
+        },
+        {
+          "rank": 3,
+          "source": "calculator2023_2.txt",
+          "domain": "announcements",
+          "similarity_score": null
+        },
+        {
+          "rank": 4,
+          "source": "131.txt",
+          "domain": "announcements",
+          "similarity_score": null
+        },
+        {
+          "rank": 5,
+          "source": "2568thv3_5th_1.txt",
+          "domain": "announcements",
+          "similarity_score": null
+        }
+      ],
+      "citation_validity_pass": true,
+      "citation_total": 4,
+      "citation_valid_count": 4,
+      "citation_issues": [],
+      "must_not_contain_pass": true,
+      "total_pass": false,
+      "total_latency_ms": 727.304069994716,
+      "retrieval_latency_ms": 726.7873840028187,
+      "generation_latency_ms": 0.5166859918972477,
+      "contexts_count": 5,
+      "error": "",
+      "human_correctness_score": null,
+      "human_completeness_score": null,
+      "human_clarity_score": null,
+      "human_hallucination": null,
+      "answerable_handled_correctly": true,
+      "quality_score_avg": null,
+      "error_tags": [
+        "retrieve_not_found"
+      ],
+      "adaptive": {
+        "retrieval_adaptive_retry_triggered": 0.0,
+        "retrieval_adaptive_retry_succeeded": 0.0,
+        "retrieval_fallback_all_domains_triggered": 0.0,
+        "retrieval_fallback_all_domains_succeeded": 0.0,
+        "structured_rescue_triggered": 0.0,
+        "structured_rescue_succeeded": 0.0,
+        "curriculum_bypass_vector_triggered": 0.0,
+        "low_confidence_detected": 0.0,
+        "initial_retrieval_doc_count": 0.0,
+        "retry_retrieval_doc_count": 0.0,
+        "initial_top_score": 0.0,
+        "retry_top_score": 0.0
+      },
+      "answer_schema": {
+        "task": "announcement_procedure",
+        "repair_attempted": 1,
+        "repair_success": 1,
+        "missing_slots_before_count": 4,
+        "missing_slots_after_count": 0
+      }
+    },
+    {
+      "id": "qb_100",
+      "category": "uncategorized",
+      "question": "ถ้าจะจัดการเรื่อง ขั้นตอนขอหนังสือรับรองนักศึกษา ต้องเริ่มจากตรงไหน",
+      "question_domain": "announcements",
+      "expected_source_contains": [
+        "announcement",
+        "calendar"
+      ],
+      "expected_answer_keywords": [
+        "ประกาศ"
+      ],
+      "reference_answer": null,
+      "expected_answerable": true,
+      "difficulty": "medium",
+      "question_type": "procedural",
+      "expected_domain": "announcements",
+      "expected_domains_any": [],
+      "answer": "- แหล่งประกาศ: ยังยืนยันไม่ได้จากเอกสาร [schedule2565.txt/1]\n- ขั้นตอน: ยังยืนยันไม่ได้จากเอกสาร [schedule2565.txt/1]\n- เงื่อนไข: ยังยืนยันไม่ได้จากเอกสาร [schedule2565.txt/1]\n- ข้อจำกัด: ยังยืนยันไม่ได้จากเอกสาร [schedule2565.txt/1]",
+      "answer_hit_pass": true,
+      "answer_hit_coverage": 1.0,
+      "answer_keywords_matched": 1,
+      "answer_keywords_total": 1,
+      "retrieval_hit_pass": false,
+      "retrieval_domain_pass": true,
+      "retrieval_source_pass": false,
+      "retrieval_domains_found": [
+        "announcements",
+        "curriculum",
+        "regulations"
+      ],
+      "retrieval_missing_source_tokens": [
+        "calendar"
+      ],
+      "retrieval_mrr": 0.0,
+      "retrieval_best_rank": null,
+      "retrieval_top_1_pass": false,
+      "retrieval_top_3_pass": false,
+      "retrieval_top_5_pass": false,
+      "retrieval_top_contexts": [
+        {
+          "rank": 1,
+          "source": "schedule2565.txt",
+          "domain": "announcements",
+          "similarity_score": null
+        },
+        {
+          "rank": 2,
+          "source": "covid_19_2.txt",
+          "domain": "regulations",
+          "similarity_score": null
+        },
+        {
+          "rank": 3,
+          "source": "วศ_บ_วศวกรรมคอมพวเตอร_ปรบปรง_64.txt",
+          "domain": "curriculum",
+          "similarity_score": null
+        },
+        {
+          "rank": 4,
+          "source": "schedule2565.txt",
+          "domain": "announcements",
+          "similarity_score": null
+        },
+        {
+          "rank": 5,
+          "source": "covid_19_2.txt",
+          "domain": "regulations",
+          "similarity_score": null
+        }
+      ],
+      "citation_validity_pass": true,
+      "citation_total": 4,
+      "citation_valid_count": 4,
+      "citation_issues": [],
+      "must_not_contain_pass": true,
+      "total_pass": false,
+      "total_latency_ms": 730.887336001615,
+      "retrieval_latency_ms": 640.5763030052185,
+      "generation_latency_ms": 90.31103299639653,
+      "contexts_count": 5,
+      "error": "",
+      "human_correctness_score": null,
+      "human_completeness_score": null,
+      "human_clarity_score": null,
+      "human_hallucination": null,
+      "answerable_handled_correctly": true,
+      "quality_score_avg": null,
+      "error_tags": [
+        "retrieve_not_found"
+      ],
+      "adaptive": {
+        "retrieval_adaptive_retry_triggered": 0.0,
+        "retrieval_adaptive_retry_succeeded": 0.0,
+        "retrieval_fallback_all_domains_triggered": 0.0,
+        "retrieval_fallback_all_domains_succeeded": 0.0,
+        "structured_rescue_triggered": 0.0,
+        "structured_rescue_succeeded": 0.0,
+        "curriculum_bypass_vector_triggered": 0.0,
+        "low_confidence_detected": 0.0,
+        "initial_retrieval_doc_count": 0.0,
+        "retry_retrieval_doc_count": 0.0,
+        "initial_top_score": 0.0,
+        "retry_top_score": 0.0
+      },
+      "answer_schema": {
+        "task": "announcement_procedure",
+        "repair_attempted": 1,
+        "repair_success": 1,
+        "missing_slots_before_count": 2,
+        "missing_slots_after_count": 0
+      }
+    },
+    {
+      "id": "qb_116",
+      "category": "uncategorized",
+      "question": "ถ้าจะจัดการเรื่อง ค่าธรรมเนียมจัดส่งเอกสารทางไปรษณีย์ ต้องเริ่มจากตรงไหน",
+      "question_domain": "announcements",
+      "expected_source_contains": [
+        "announcement",
+        "calendar"
+      ],
+      "expected_answer_keywords": [
+        "ค่าธรรมเนียม",
+        "ไปรษณีย์",
+        "ประกาศ"
+      ],
+      "reference_answer": null,
+      "expected_answerable": true,
+      "difficulty": "medium",
+      "question_type": "procedural",
+      "expected_domain": "announcements",
+      "expected_domains_any": [],
+      "answer": "- แหล่งประกาศ: ยังยืนยันไม่ได้จากเอกสาร [t_fee.txt/1]\n- ขั้นตอน: ยังยืนยันไม่ได้จากเอกสาร [t_fee.txt/1]\n- เงื่อนไข: ยังยืนยันไม่ได้จากเอกสาร [t_fee.txt/1]\n- ข้อจำกัด: ยังยืนยันไม่ได้จากเอกสาร [t_fee.txt/1]",
+      "answer_hit_pass": false,
+      "answer_hit_coverage": 0.3333333333333333,
+      "answer_keywords_matched": 1,
+      "answer_keywords_total": 3,
+      "retrieval_hit_pass": false,
+      "retrieval_domain_pass": true,
+      "retrieval_source_pass": false,
+      "retrieval_domains_found": [
+        "announcements"
+      ],
+      "retrieval_missing_source_tokens": [
+        "calendar"
+      ],
+      "retrieval_mrr": 0.0,
+      "retrieval_best_rank": null,
+      "retrieval_top_1_pass": false,
+      "retrieval_top_3_pass": false,
+      "retrieval_top_5_pass": false,
+      "retrieval_top_contexts": [
+        {
+          "rank": 1,
+          "source": "t_fee.txt",
+          "domain": "announcements",
+          "similarity_score": null
+        },
+        {
+          "rank": 2,
+          "source": "schedule2565.txt",
+          "domain": "announcements",
+          "similarity_score": null
+        },
+        {
+          "rank": 3,
+          "source": "schedule2565.txt",
+          "domain": "announcements",
+          "similarity_score": null
+        },
+        {
+          "rank": 4,
+          "source": "announce_financ.txt",
+          "domain": "announcements",
+          "similarity_score": null
+        },
+        {
+          "rank": 5,
+          "source": "131.txt",
+          "domain": "announcements",
+          "similarity_score": null
+        }
+      ],
+      "citation_validity_pass": true,
+      "citation_total": 4,
+      "citation_valid_count": 4,
+      "citation_issues": [],
+      "must_not_contain_pass": true,
+      "total_pass": false,
+      "total_latency_ms": 718.6942090047523,
+      "retrieval_latency_ms": 653.9913199958391,
+      "generation_latency_ms": 64.70288900891319,
+      "contexts_count": 5,
+      "error": "",
+      "human_correctness_score": null,
+      "human_completeness_score": null,
+      "human_clarity_score": null,
+      "human_hallucination": null,
+      "answerable_handled_correctly": false,
+      "quality_score_avg": null,
+      "error_tags": [
+        "retrieve_not_found"
+      ],
+      "adaptive": {
+        "retrieval_adaptive_retry_triggered": 0.0,
+        "retrieval_adaptive_retry_succeeded": 0.0,
+        "retrieval_fallback_all_domains_triggered": 0.0,
+        "retrieval_fallback_all_domains_succeeded": 0.0,
+        "structured_rescue_triggered": 0.0,
+        "structured_rescue_succeeded": 0.0,
+        "curriculum_bypass_vector_triggered": 0.0,
+        "low_confidence_detected": 0.0,
+        "initial_retrieval_doc_count": 0.0,
+        "retry_retrieval_doc_count": 0.0,
+        "initial_top_score": 0.0,
+        "retry_top_score": 0.0
+      },
+      "answer_schema": {
+        "task": "announcement_procedure",
+        "repair_attempted": 1,
+        "repair_success": 1,
+        "missing_slots_before_count": 4,
+        "missing_slots_after_count": 0
+      }
+    },
+    {
+      "id": "qb_121",
+      "category": "uncategorized",
+      "question": "ถ้าจะจัดการเรื่อง ขั้นตอนขอหนังสือรับรองนักศึกษา ต้องเริ่มจากตรงไหน",
+      "question_domain": "announcements",
+      "expected_source_contains": [
+        "announcement",
+        "calendar"
+      ],
+      "expected_answer_keywords": [
+        "ประกาศ"
+      ],
+      "reference_answer": null,
+      "expected_answerable": true,
+      "difficulty": "medium",
+      "question_type": "procedural",
+      "expected_domain": "announcements",
+      "expected_domains_any": [],
+      "answer": "- แหล่งประกาศ: ยังยืนยันไม่ได้จากเอกสาร [schedule2565.txt/1]\n- ขั้นตอน: ยังยืนยันไม่ได้จากเอกสาร [schedule2565.txt/1]\n- เงื่อนไข: ยังยืนยันไม่ได้จากเอกสาร [schedule2565.txt/1]\n- ข้อจำกัด: ยังยืนยันไม่ได้จากเอกสาร [schedule2565.txt/1]",
+      "answer_hit_pass": true,
+      "answer_hit_coverage": 1.0,
+      "answer_keywords_matched": 1,
+      "answer_keywords_total": 1,
+      "retrieval_hit_pass": false,
+      "retrieval_domain_pass": true,
+      "retrieval_source_pass": false,
+      "retrieval_domains_found": [
+        "announcements",
+        "curriculum",
+        "regulations"
+      ],
+      "retrieval_missing_source_tokens": [
+        "calendar"
+      ],
+      "retrieval_mrr": 0.0,
+      "retrieval_best_rank": null,
+      "retrieval_top_1_pass": false,
+      "retrieval_top_3_pass": false,
+      "retrieval_top_5_pass": false,
+      "retrieval_top_contexts": [
+        {
+          "rank": 1,
+          "source": "schedule2565.txt",
+          "domain": "announcements",
+          "similarity_score": null
+        },
+        {
+          "rank": 2,
+          "source": "covid_19_2.txt",
+          "domain": "regulations",
+          "similarity_score": null
+        },
+        {
+          "rank": 3,
+          "source": "วศ_บ_วศวกรรมคอมพวเตอร_ปรบปรง_64.txt",
+          "domain": "curriculum",
+          "similarity_score": null
+        },
+        {
+          "rank": 4,
+          "source": "schedule2565.txt",
+          "domain": "announcements",
+          "similarity_score": null
+        },
+        {
+          "rank": 5,
+          "source": "covid_19_2.txt",
+          "domain": "regulations",
+          "similarity_score": null
+        }
+      ],
+      "citation_validity_pass": true,
+      "citation_total": 4,
+      "citation_valid_count": 4,
+      "citation_issues": [],
+      "must_not_contain_pass": true,
+      "total_pass": false,
+      "total_latency_ms": 644.622524996521,
+      "retrieval_latency_ms": 662.631960993167,
+      "generation_latency_ms": 0.0,
+      "contexts_count": 5,
+      "error": "",
+      "human_correctness_score": null,
+      "human_completeness_score": null,
+      "human_clarity_score": null,
+      "human_hallucination": null,
+      "answerable_handled_correctly": true,
+      "quality_score_avg": null,
+      "error_tags": [
+        "retrieve_not_found"
+      ],
+      "adaptive": {
+        "retrieval_adaptive_retry_triggered": 0.0,
+        "retrieval_adaptive_retry_succeeded": 0.0,
+        "retrieval_fallback_all_domains_triggered": 0.0,
+        "retrieval_fallback_all_domains_succeeded": 0.0,
+        "structured_rescue_triggered": 0.0,
+        "structured_rescue_succeeded": 0.0,
+        "curriculum_bypass_vector_triggered": 0.0,
+        "low_confidence_detected": 0.0,
+        "initial_retrieval_doc_count": 0.0,
+        "retry_retrieval_doc_count": 0.0,
+        "initial_top_score": 0.0,
+        "retry_top_score": 0.0
+      },
+      "answer_schema": {
+        "task": "announcement_procedure",
+        "repair_attempted": 1,
+        "repair_success": 1,
+        "missing_slots_before_count": 2,
+        "missing_slots_after_count": 0
+      }
+    },
+    {
+      "id": "qb_122",
+      "category": "uncategorized",
+      "question": "กรณี \"ขอออกจากห้องสอบชั่วคราวระหว่างทำข้อสอบ\" ถ้าโดนปฏิเสธหน้างาน ควรดำเนินการต่อยังไง",
+      "question_domain": "regulations",
+      "expected_source_contains": [
+        "rule_exam",
+        "regulation"
+      ],
+      "expected_answer_keywords": [
+        "ออกจากห้องสอบ",
+        "อนุญาต",
+        "ระเบียบการสอบ"
+      ],
+      "reference_answer": null,
+      "expected_answerable": true,
+      "difficulty": "hard",
+      "question_type": "procedural",
+      "expected_domain": "regulations",
+      "expected_domains_any": [],
+      "answer": "ทำได้/ไม่ได้: ได้ (เมื่อได้รับอนุญาต)\nขั้นตอน: ขออนุญาตกรรมการคุมสอบก่อนออก และปฏิบัติตามข้อกำหนดระหว่างออกชั่วคราว\nต้องติดต่อ: กรรมการคุมสอบ\nเอกสารที่ใช้: โดยทั่วไปไม่ต้องใช้เอกสาร เว้นแต่มีการบันทึกเหตุการณ์\nเงื่อนไข/ข้อยกเว้น: ให้ออกจากห้องสอบได้เมื่อสอบผ่านไปแล้วอย่างน้อย 60 นาที และต้องอยู่ภายใต้ระเบียบการสอบ [ruleg2568.txt/1]",
+      "answer_hit_pass": true,
+      "answer_hit_coverage": 1.0,
+      "answer_keywords_matched": 3,
+      "answer_keywords_total": 3,
+      "retrieval_hit_pass": false,
+      "retrieval_domain_pass": true,
+      "retrieval_source_pass": false,
+      "retrieval_domains_found": [
+        "regulations"
+      ],
+      "retrieval_missing_source_tokens": [
+        "rule_exam"
+      ],
+      "retrieval_mrr": 0.0,
+      "retrieval_best_rank": null,
+      "retrieval_top_1_pass": false,
+      "retrieval_top_3_pass": false,
+      "retrieval_top_5_pass": false,
+      "retrieval_top_contexts": [
+        {
+          "rank": 1,
+          "source": "ruleg2568.txt",
+          "domain": "regulations",
+          "similarity_score": null
+        },
+        {
+          "rank": 2,
+          "source": "discipline2566_fulltext.txt",
+          "domain": "regulations",
+          "similarity_score": null
+        },
+        {
+          "rank": 3,
+          "source": "ruleg2568.txt",
+          "domain": "regulations",
+          "similarity_score": null
+        },
+        {
+          "rank": 4,
+          "source": "exit_after_minutes",
+          "domain": "regulations",
+          "similarity_score": null
+        }
+      ],
+      "citation_validity_pass": true,
+      "citation_total": 1,
+      "citation_valid_count": 1,
+      "citation_issues": [],
+      "must_not_contain_pass": true,
+      "total_pass": false,
+      "total_latency_ms": 428.13108398695476,
+      "retrieval_latency_ms": 927.6984730095137,
+      "generation_latency_ms": 0.0,
+      "contexts_count": 4,
+      "error": "",
+      "human_correctness_score": null,
+      "human_completeness_score": null,
+      "human_clarity_score": null,
+      "human_hallucination": null,
+      "answerable_handled_correctly": true,
+      "quality_score_avg": null,
+      "error_tags": [
+        "retrieve_not_found"
+      ],
+      "adaptive": {
+        "retrieval_adaptive_retry_triggered": 0.0,
+        "retrieval_adaptive_retry_succeeded": 0.0,
+        "retrieval_fallback_all_domains_triggered": 0.0,
+        "retrieval_fallback_all_domains_succeeded": 0.0,
+        "structured_rescue_triggered": 0.0,
+        "structured_rescue_succeeded": 0.0,
+        "curriculum_bypass_vector_triggered": 0.0,
+        "low_confidence_detected": 0.0,
+        "initial_retrieval_doc_count": 5.0,
+        "retry_retrieval_doc_count": 0.0,
+        "initial_top_score": 0.09612903225806452,
+        "retry_top_score": 0.0
+      },
+      "answer_schema": {
+        "task": "none",
+        "repair_attempted": 0,
+        "repair_success": 0,
+        "missing_slots_before_count": 0,
+        "missing_slots_after_count": 0
+      }
+    },
+    {
+      "id": "qb_137",
+      "category": "uncategorized",
+      "question": "ขออัปเดต ประกาศทุนการศึกษา ล่าสุดหน่อยครับ",
+      "question_domain": "announcements",
+      "expected_source_contains": [
+        "announcement",
+        "calendar"
+      ],
+      "expected_answer_keywords": [
+        "ประกาศ",
+        "ทุนการศึกษา",
+        "ประกาศล่าสุด",
+        "กำหนดเวลา"
+      ],
+      "reference_answer": "ข้อมูลทุนการศึกษาต้องอ้างอิงประกาศรอบล่าสุดของมหาวิทยาลัย/คณะ เพราะเงื่อนไขและกำหนดเวลาเปลี่ยนตามรอบ",
+      "expected_answerable": true,
+      "difficulty": "easy",
+      "question_type": "factual",
+      "expected_domain": "announcements",
+      "expected_domains_any": [],
+      "answer": "- แหล่งประกาศ: ยังยืนยันไม่ได้จากเอกสาร [139.txt/1]\n- ขั้นตอน: ยังยืนยันไม่ได้จากเอกสาร [139.txt/1]\n- เงื่อนไข: ยังยืนยันไม่ได้จากเอกสาร [139.txt/1]\n- ข้อจำกัด: ยังยืนยันไม่ได้จากเอกสาร [139.txt/1]",
+      "answer_hit_pass": false,
+      "answer_hit_coverage": 0.25,
+      "answer_keywords_matched": 1,
+      "answer_keywords_total": 4,
+      "retrieval_hit_pass": false,
+      "retrieval_domain_pass": true,
+      "retrieval_source_pass": false,
+      "retrieval_domains_found": [
+        "announcements"
+      ],
+      "retrieval_missing_source_tokens": [
+        "calendar"
+      ],
+      "retrieval_mrr": 0.0,
+      "retrieval_best_rank": null,
+      "retrieval_top_1_pass": false,
+      "retrieval_top_3_pass": false,
+      "retrieval_top_5_pass": false,
+      "retrieval_top_contexts": [
+        {
+          "rank": 1,
+          "source": "139.txt",
+          "domain": "announcements",
+          "similarity_score": null
+        },
+        {
+          "rank": 2,
+          "source": "2018_06_08_15_13_16.txt",
+          "domain": "announcements",
+          "similarity_score": null
+        },
+        {
+          "rank": 3,
+          "source": "2018_06_08_15_13_16.txt",
+          "domain": "announcements",
+          "similarity_score": null
+        },
+        {
+          "rank": 4,
+          "source": "pre_co_obem2567.txt",
+          "domain": "announcements",
+          "similarity_score": null
+        },
+        {
+          "rank": 5,
+          "source": "131.txt",
+          "domain": "announcements",
+          "similarity_score": null
+        }
+      ],
+      "citation_validity_pass": true,
+      "citation_total": 4,
+      "citation_valid_count": 4,
+      "citation_issues": [],
+      "must_not_contain_pass": true,
+      "total_pass": false,
+      "total_latency_ms": 615.3714819956804,
+      "retrieval_latency_ms": 575.0709569983883,
+      "generation_latency_ms": 40.30052499729209,
+      "contexts_count": 5,
+      "error": "",
+      "human_correctness_score": null,
+      "human_completeness_score": null,
+      "human_clarity_score": null,
+      "human_hallucination": null,
+      "answerable_handled_correctly": false,
+      "quality_score_avg": null,
+      "error_tags": [
+        "retrieve_not_found"
+      ],
+      "adaptive": {
+        "retrieval_adaptive_retry_triggered": 0.0,
+        "retrieval_adaptive_retry_succeeded": 0.0,
+        "retrieval_fallback_all_domains_triggered": 0.0,
+        "retrieval_fallback_all_domains_succeeded": 0.0,
+        "structured_rescue_triggered": 0.0,
+        "structured_rescue_succeeded": 0.0,
+        "curriculum_bypass_vector_triggered": 0.0,
+        "low_confidence_detected": 0.0,
+        "initial_retrieval_doc_count": 0.0,
+        "retry_retrieval_doc_count": 0.0,
+        "initial_top_score": 0.0,
+        "retry_top_score": 0.0
+      },
+      "answer_schema": {
+        "task": "announcement_procedure",
+        "repair_attempted": 1,
+        "repair_success": 1,
+        "missing_slots_before_count": 2,
+        "missing_slots_after_count": 0
+      }
+    },
+    {
+      "id": "qb_139",
+      "category": "uncategorized",
+      "question": "ช่วยเช็กให้หน่อยว่า ประกาศหยุดเรียน/เลื่อนการเรียนการสอน มีประกาศใหม่แล้วหรือยัง",
+      "question_domain": "announcements",
+      "expected_source_contains": [
+        "announcement",
+        "calendar"
+      ],
+      "expected_answer_keywords": [
+        "ประกาศ"
+      ],
+      "reference_answer": null,
+      "expected_answerable": true,
+      "difficulty": "medium",
+      "question_type": "verification",
+      "expected_domain": "announcements",
+      "expected_domains_any": [],
+      "answer": "- แหล่งประกาศ: ยังยืนยันไม่ได้จากเอกสาร [2568thv3_5th_1.txt/1]\n- ขั้นตอน: ยังยืนยันไม่ได้จากเอกสาร [2568thv3_5th_1.txt/1]\n- เงื่อนไข: ยังยืนยันไม่ได้จากเอกสาร [2568thv3_5th_1.txt/1]\n- ข้อจำกัด: ยังยืนยันไม่ได้จากเอกสาร [2568thv3_5th_1.txt/1]",
+      "answer_hit_pass": true,
+      "answer_hit_coverage": 1.0,
+      "answer_keywords_matched": 1,
+      "answer_keywords_total": 1,
+      "retrieval_hit_pass": false,
+      "retrieval_domain_pass": true,
+      "retrieval_source_pass": false,
+      "retrieval_domains_found": [
+        "announcements"
+      ],
+      "retrieval_missing_source_tokens": [
+        "calendar"
+      ],
+      "retrieval_mrr": 0.0,
+      "retrieval_best_rank": null,
+      "retrieval_top_1_pass": false,
+      "retrieval_top_3_pass": false,
+      "retrieval_top_5_pass": false,
+      "retrieval_top_contexts": [
+        {
+          "rank": 1,
+          "source": "2568thv3_5th_1.txt",
+          "domain": "announcements",
+          "similarity_score": null
+        },
+        {
+          "rank": 2,
+          "source": "2568thv3_5th.txt",
+          "domain": "announcements",
+          "similarity_score": null
+        },
+        {
+          "rank": 3,
+          "source": "131.txt",
+          "domain": "announcements",
+          "similarity_score": null
+        },
+        {
+          "rank": 4,
+          "source": "131.txt",
+          "domain": "announcements",
+          "similarity_score": null
+        },
+        {
+          "rank": 5,
+          "source": "2568thv3_5th_1.txt",
+          "domain": "announcements",
+          "similarity_score": null
+        }
+      ],
+      "citation_validity_pass": true,
+      "citation_total": 4,
+      "citation_valid_count": 4,
+      "citation_issues": [],
+      "must_not_contain_pass": true,
+      "total_pass": false,
+      "total_latency_ms": 623.0024810065515,
+      "retrieval_latency_ms": 626.5846540045459,
+      "generation_latency_ms": 0.0,
+      "contexts_count": 5,
+      "error": "",
+      "human_correctness_score": null,
+      "human_completeness_score": null,
+      "human_clarity_score": null,
+      "human_hallucination": null,
+      "answerable_handled_correctly": true,
+      "quality_score_avg": null,
+      "error_tags": [
+        "retrieve_not_found"
+      ],
+      "adaptive": {
+        "retrieval_adaptive_retry_triggered": 0.0,
+        "retrieval_adaptive_retry_succeeded": 0.0,
+        "retrieval_fallback_all_domains_triggered": 0.0,
+        "retrieval_fallback_all_domains_succeeded": 0.0,
+        "structured_rescue_triggered": 0.0,
+        "structured_rescue_succeeded": 0.0,
+        "curriculum_bypass_vector_triggered": 0.0,
+        "low_confidence_detected": 0.0,
+        "initial_retrieval_doc_count": 0.0,
+        "retry_retrieval_doc_count": 0.0,
+        "initial_top_score": 0.0,
+        "retry_top_score": 0.0
+      },
+      "answer_schema": {
+        "task": "announcement_procedure",
+        "repair_attempted": 1,
+        "repair_success": 1,
+        "missing_slots_before_count": 4,
+        "missing_slots_after_count": 0
+      }
+    },
+    {
+      "id": "qb_154",
+      "category": "uncategorized",
+      "question": "ถ้าจะจัดการเรื่อง ประกาศหยุดเรียน/เลื่อนการเรียนการสอน ต้องเริ่มจากตรงไหน",
+      "question_domain": "announcements",
+      "expected_source_contains": [
+        "announcement",
+        "calendar"
+      ],
+      "expected_answer_keywords": [
+        "ประกาศ"
+      ],
+      "reference_answer": null,
+      "expected_answerable": true,
+      "difficulty": "medium",
+      "question_type": "procedural",
+      "expected_domain": "announcements",
+      "expected_domains_any": [],
+      "answer": "- แหล่งประกาศ: ยังยืนยันไม่ได้จากเอกสาร [schedule2565.txt/1]\n- ขั้นตอน: ยังยืนยันไม่ได้จากเอกสาร [schedule2565.txt/1]\n- เงื่อนไข: ยังยืนยันไม่ได้จากเอกสาร [schedule2565.txt/1]\n- ข้อจำกัด: ยังยืนยันไม่ได้จากเอกสาร [schedule2565.txt/1]",
+      "answer_hit_pass": true,
+      "answer_hit_coverage": 1.0,
+      "answer_keywords_matched": 1,
+      "answer_keywords_total": 1,
+      "retrieval_hit_pass": false,
+      "retrieval_domain_pass": true,
+      "retrieval_source_pass": false,
+      "retrieval_domains_found": [
+        "announcements"
+      ],
+      "retrieval_missing_source_tokens": [
+        "calendar"
+      ],
+      "retrieval_mrr": 0.0,
+      "retrieval_best_rank": null,
+      "retrieval_top_1_pass": false,
+      "retrieval_top_3_pass": false,
+      "retrieval_top_5_pass": false,
+      "retrieval_top_contexts": [
+        {
+          "rank": 1,
+          "source": "schedule2565.txt",
+          "domain": "announcements",
+          "similarity_score": null
+        },
+        {
+          "rank": 2,
+          "source": "schedule2565.txt",
+          "domain": "announcements",
+          "similarity_score": null
+        },
+        {
+          "rank": 3,
+          "source": "pre_requisite2567_final.txt",
+          "domain": "announcements",
+          "similarity_score": null
+        },
+        {
+          "rank": 4,
+          "source": "announce_financ.txt",
+          "domain": "announcements",
+          "similarity_score": null
+        },
+        {
+          "rank": 5,
+          "source": "tetet2562doctor.txt",
+          "domain": "announcements",
+          "similarity_score": null
+        }
+      ],
+      "citation_validity_pass": true,
+      "citation_total": 4,
+      "citation_valid_count": 4,
+      "citation_issues": [],
+      "must_not_contain_pass": true,
+      "total_pass": false,
+      "total_latency_ms": 668.5352740023518,
+      "retrieval_latency_ms": 609.6774059988093,
+      "generation_latency_ms": 58.857868003542535,
+      "contexts_count": 5,
+      "error": "",
+      "human_correctness_score": null,
+      "human_completeness_score": null,
+      "human_clarity_score": null,
+      "human_hallucination": null,
+      "answerable_handled_correctly": true,
+      "quality_score_avg": null,
+      "error_tags": [
+        "retrieve_not_found"
+      ],
+      "adaptive": {
+        "retrieval_adaptive_retry_triggered": 0.0,
+        "retrieval_adaptive_retry_succeeded": 0.0,
+        "retrieval_fallback_all_domains_triggered": 0.0,
+        "retrieval_fallback_all_domains_succeeded": 0.0,
+        "structured_rescue_triggered": 0.0,
+        "structured_rescue_succeeded": 0.0,
+        "curriculum_bypass_vector_triggered": 0.0,
+        "low_confidence_detected": 0.0,
+        "initial_retrieval_doc_count": 0.0,
+        "retry_retrieval_doc_count": 0.0,
+        "initial_top_score": 0.0,
+        "retry_top_score": 0.0
+      },
+      "answer_schema": {
+        "task": "announcement_procedure",
+        "repair_attempted": 1,
+        "repair_success": 1,
+        "missing_slots_before_count": 4,
+        "missing_slots_after_count": 0
+      }
+    },
+    {
+      "id": "qb_159",
+      "category": "uncategorized",
+      "question": "ถ้าจะจัดการเรื่อง ค่าธรรมเนียมจัดส่งเอกสารทางไปรษณีย์ ต้องเริ่มจากตรงไหน",
+      "question_domain": "announcements",
+      "expected_source_contains": [
+        "announcement",
+        "calendar"
+      ],
+      "expected_answer_keywords": [
+        "ประกาศ"
+      ],
+      "reference_answer": null,
+      "expected_answerable": true,
+      "difficulty": "medium",
+      "question_type": "procedural",
+      "expected_domain": "announcements",
+      "expected_domains_any": [],
+      "answer": "- แหล่งประกาศ: ยังยืนยันไม่ได้จากเอกสาร [t_fee.txt/1]\n- ขั้นตอน: ยังยืนยันไม่ได้จากเอกสาร [t_fee.txt/1]\n- เงื่อนไข: ยังยืนยันไม่ได้จากเอกสาร [t_fee.txt/1]\n- ข้อจำกัด: ยังยืนยันไม่ได้จากเอกสาร [t_fee.txt/1]",
+      "answer_hit_pass": true,
+      "answer_hit_coverage": 1.0,
+      "answer_keywords_matched": 1,
+      "answer_keywords_total": 1,
+      "retrieval_hit_pass": false,
+      "retrieval_domain_pass": true,
+      "retrieval_source_pass": false,
+      "retrieval_domains_found": [
+        "announcements"
+      ],
+      "retrieval_missing_source_tokens": [
+        "calendar"
+      ],
+      "retrieval_mrr": 0.0,
+      "retrieval_best_rank": null,
+      "retrieval_top_1_pass": false,
+      "retrieval_top_3_pass": false,
+      "retrieval_top_5_pass": false,
+      "retrieval_top_contexts": [
+        {
+          "rank": 1,
+          "source": "t_fee.txt",
+          "domain": "announcements",
+          "similarity_score": null
+        },
+        {
+          "rank": 2,
+          "source": "schedule2565.txt",
+          "domain": "announcements",
+          "similarity_score": null
+        },
+        {
+          "rank": 3,
+          "source": "schedule2565.txt",
+          "domain": "announcements",
+          "similarity_score": null
+        },
+        {
+          "rank": 4,
+          "source": "announce_financ.txt",
+          "domain": "announcements",
+          "similarity_score": null
+        },
+        {
+          "rank": 5,
+          "source": "131.txt",
+          "domain": "announcements",
+          "similarity_score": null
+        }
+      ],
+      "citation_validity_pass": true,
+      "citation_total": 4,
+      "citation_valid_count": 4,
+      "citation_issues": [],
+      "must_not_contain_pass": true,
+      "total_pass": false,
+      "total_latency_ms": 646.3143270084402,
+      "retrieval_latency_ms": 653.2613769959426,
+      "generation_latency_ms": 0.0,
+      "contexts_count": 5,
+      "error": "",
+      "human_correctness_score": null,
+      "human_completeness_score": null,
+      "human_clarity_score": null,
+      "human_hallucination": null,
+      "answerable_handled_correctly": true,
+      "quality_score_avg": null,
+      "error_tags": [
+        "retrieve_not_found"
+      ],
+      "adaptive": {
+        "retrieval_adaptive_retry_triggered": 0.0,
+        "retrieval_adaptive_retry_succeeded": 0.0,
+        "retrieval_fallback_all_domains_triggered": 0.0,
+        "retrieval_fallback_all_domains_succeeded": 0.0,
+        "structured_rescue_triggered": 0.0,
+        "structured_rescue_succeeded": 0.0,
+        "curriculum_bypass_vector_triggered": 0.0,
+        "low_confidence_detected": 0.0,
+        "initial_retrieval_doc_count": 0.0,
+        "retry_retrieval_doc_count": 0.0,
+        "initial_top_score": 0.0,
+        "retry_top_score": 0.0
+      },
+      "answer_schema": {
+        "task": "announcement_procedure",
+        "repair_attempted": 1,
+        "repair_success": 1,
+        "missing_slots_before_count": 4,
+        "missing_slots_after_count": 0
+      }
+    },
+    {
+      "id": "qb_170",
+      "category": "uncategorized",
+      "question": "ถ้าจะจัดการเรื่อง ประกาศหยุดเรียน/เลื่อนการเรียนการสอน ต้องเริ่มจากตรงไหน",
+      "question_domain": "announcements",
+      "expected_source_contains": [
+        "announcement",
+        "calendar"
+      ],
+      "expected_answer_keywords": [
+        "ประกาศ"
+      ],
+      "reference_answer": null,
+      "expected_answerable": true,
+      "difficulty": "medium",
+      "question_type": "procedural",
+      "expected_domain": "announcements",
+      "expected_domains_any": [],
+      "answer": "- แหล่งประกาศ: ยังยืนยันไม่ได้จากเอกสาร [schedule2565.txt/1]\n- ขั้นตอน: ยังยืนยันไม่ได้จากเอกสาร [schedule2565.txt/1]\n- เงื่อนไข: ยังยืนยันไม่ได้จากเอกสาร [schedule2565.txt/1]\n- ข้อจำกัด: ยังยืนยันไม่ได้จากเอกสาร [schedule2565.txt/1]",
+      "answer_hit_pass": true,
+      "answer_hit_coverage": 1.0,
+      "answer_keywords_matched": 1,
+      "answer_keywords_total": 1,
+      "retrieval_hit_pass": false,
+      "retrieval_domain_pass": true,
+      "retrieval_source_pass": false,
+      "retrieval_domains_found": [
+        "announcements"
+      ],
+      "retrieval_missing_source_tokens": [
+        "calendar"
+      ],
+      "retrieval_mrr": 0.0,
+      "retrieval_best_rank": null,
+      "retrieval_top_1_pass": false,
+      "retrieval_top_3_pass": false,
+      "retrieval_top_5_pass": false,
+      "retrieval_top_contexts": [
+        {
+          "rank": 1,
+          "source": "schedule2565.txt",
+          "domain": "announcements",
+          "similarity_score": null
+        },
+        {
+          "rank": 2,
+          "source": "schedule2565.txt",
+          "domain": "announcements",
+          "similarity_score": null
+        },
+        {
+          "rank": 3,
+          "source": "pre_requisite2567_final.txt",
+          "domain": "announcements",
+          "similarity_score": null
+        },
+        {
+          "rank": 4,
+          "source": "announce_financ.txt",
+          "domain": "announcements",
+          "similarity_score": null
+        },
+        {
+          "rank": 5,
+          "source": "tetet2562doctor.txt",
+          "domain": "announcements",
+          "similarity_score": null
+        }
+      ],
+      "citation_validity_pass": true,
+      "citation_total": 4,
+      "citation_valid_count": 4,
+      "citation_issues": [],
+      "must_not_contain_pass": true,
+      "total_pass": false,
+      "total_latency_ms": 619.9426789971767,
+      "retrieval_latency_ms": 616.9351720018312,
+      "generation_latency_ms": 3.007506995345466,
+      "contexts_count": 5,
+      "error": "",
+      "human_correctness_score": null,
+      "human_completeness_score": null,
+      "human_clarity_score": null,
+      "human_hallucination": null,
+      "answerable_handled_correctly": true,
+      "quality_score_avg": null,
+      "error_tags": [
+        "retrieve_not_found"
+      ],
+      "adaptive": {
+        "retrieval_adaptive_retry_triggered": 0.0,
+        "retrieval_adaptive_retry_succeeded": 0.0,
+        "retrieval_fallback_all_domains_triggered": 0.0,
+        "retrieval_fallback_all_domains_succeeded": 0.0,
+        "structured_rescue_triggered": 0.0,
+        "structured_rescue_succeeded": 0.0,
+        "curriculum_bypass_vector_triggered": 0.0,
+        "low_confidence_detected": 0.0,
+        "initial_retrieval_doc_count": 0.0,
+        "retry_retrieval_doc_count": 0.0,
+        "initial_top_score": 0.0,
+        "retry_top_score": 0.0
+      },
+      "answer_schema": {
+        "task": "announcement_procedure",
+        "repair_attempted": 1,
+        "repair_success": 1,
+        "missing_slots_before_count": 4,
+        "missing_slots_after_count": 0
+      }
+    },
+    {
+      "id": "qb_176",
+      "category": "uncategorized",
+      "question": "ช่วยยืนยันให้หน่อยว่า \"ขอออกจากห้องสอบชั่วคราวระหว่างทำข้อสอบ\" ทำได้หรือไม่ได้",
+      "question_domain": "regulations",
+      "expected_source_contains": [
+        "rule_exam",
+        "regulation"
+      ],
+      "expected_answer_keywords": [
+        "ออกจากห้องสอบ",
+        "อนุญาต",
+        "ระเบียบการสอบ"
+      ],
+      "reference_answer": null,
+      "expected_answerable": true,
+      "difficulty": "medium",
+      "question_type": "verification",
+      "expected_domain": "regulations",
+      "expected_domains_any": [],
+      "answer": "ทำได้/ไม่ได้: ได้ (เมื่อได้รับอนุญาต)\nขั้นตอน: ขออนุญาตกรรมการคุมสอบก่อนออก และปฏิบัติตามข้อกำหนดระหว่างออกชั่วคราว\nต้องติดต่อ: กรรมการคุมสอบ\nเอกสารที่ใช้: โดยทั่วไปไม่ต้องใช้เอกสาร เว้นแต่มีการบันทึกเหตุการณ์\nเงื่อนไข/ข้อยกเว้น: ให้ออกจากห้องสอบได้เมื่อสอบผ่านไปแล้วอย่างน้อย 60 นาที และต้องอยู่ภายใต้ระเบียบการสอบ [handbook2562g.txt/1]",
+      "answer_hit_pass": true,
+      "answer_hit_coverage": 1.0,
+      "answer_keywords_matched": 3,
+      "answer_keywords_total": 3,
+      "retrieval_hit_pass": false,
+      "retrieval_domain_pass": true,
+      "retrieval_source_pass": false,
+      "retrieval_domains_found": [
+        "regulations"
+      ],
+      "retrieval_missing_source_tokens": [
+        "rule_exam"
+      ],
+      "retrieval_mrr": 0.0,
+      "retrieval_best_rank": null,
+      "retrieval_top_1_pass": false,
+      "retrieval_top_3_pass": false,
+      "retrieval_top_5_pass": false,
+      "retrieval_top_contexts": [
+        {
+          "rank": 1,
+          "source": "handbook2562g.txt",
+          "domain": "regulations",
+          "similarity_score": null
+        },
+        {
+          "rank": 2,
+          "source": "handbook2562g.txt",
+          "domain": "regulations",
+          "similarity_score": null
+        },
+        {
+          "rank": 3,
+          "source": "discipline2566_fulltext.txt",
+          "domain": "regulations",
+          "similarity_score": null
+        },
+        {
+          "rank": 4,
+          "source": "exit_after_minutes",
+          "domain": "regulations",
+          "similarity_score": null
+        }
+      ],
+      "citation_validity_pass": true,
+      "citation_total": 1,
+      "citation_valid_count": 1,
+      "citation_issues": [],
+      "must_not_contain_pass": true,
+      "total_pass": false,
+      "total_latency_ms": 430.790104001062,
+      "retrieval_latency_ms": 926.713758992264,
+      "generation_latency_ms": 0.0,
+      "contexts_count": 4,
+      "error": "",
+      "human_correctness_score": null,
+      "human_completeness_score": null,
+      "human_clarity_score": null,
+      "human_hallucination": null,
+      "answerable_handled_correctly": true,
+      "quality_score_avg": null,
+      "error_tags": [
+        "retrieve_not_found"
+      ],
+      "adaptive": {
+        "retrieval_adaptive_retry_triggered": 0.0,
+        "retrieval_adaptive_retry_succeeded": 0.0,
+        "retrieval_fallback_all_domains_triggered": 0.0,
+        "retrieval_fallback_all_domains_succeeded": 0.0,
+        "structured_rescue_triggered": 0.0,
+        "structured_rescue_succeeded": 0.0,
+        "curriculum_bypass_vector_triggered": 0.0,
+        "low_confidence_detected": 1.0,
+        "initial_retrieval_doc_count": 5.0,
+        "retry_retrieval_doc_count": 0.0,
+        "initial_top_score": 0.03343934575193094,
+        "retry_top_score": 0.0
+      },
+      "answer_schema": {
+        "task": "none",
+        "repair_attempted": 0,
+        "repair_success": 0,
+        "missing_slots_before_count": 0,
+        "missing_slots_after_count": 0
+      }
+    },
+    {
+      "id": "qb_255",
+      "category": "uncategorized",
+      "question": "วิชานี้ยากไหม",
+      "question_domain": "curriculum",
+      "expected_source_contains": [
+        "foe10",
+        "curriculum"
+      ],
+      "expected_answer_keywords": [
+        "วิชา",
+        "เนื้อหา"
+      ],
+      "reference_answer": "ควรถามกลับว่าหมายถึงวิชาใดก่อนจึงจะตอบได้ตรง",
+      "expected_answerable": true,
+      "difficulty": "easy",
+      "question_type": "ambiguous",
+      "expected_domain": "curriculum",
+      "expected_domains_any": [],
+      "answer": "- วิชา CPE 111 คณิตศาสตร์ดิสครีตสำหรับวิศวกรคอมพิวเตอร์ 3 หน่วยกิต (Discrete Mathematics for Computer Engineers) [วศ_บ_วศวกรรมคอมพวเตอร_ปรบปรง_64.txt/1]\n- วิชา CPE 231 การออกแบบขั้นตอนวิธี 3 หน่วยกิต (Algorithm Design) [วศ_บ_วศวกรรมคอมพวเตอร_ปรบปรง_64.txt/1]\n- วิชา CPE 381 คอมพิวเตอร์กราฟิกส์ 3 หน่วยกิต (Computer Graphics) [วศ_บ_วศวกรรมคอมพวเตอร_ปรบปรง_64.txt/1]\n- วิชา CPE 384 คอมพิวเตอร์แอนิเมชัน 3 หน่วยกิต (Computer Animation) [วศ_บ_วศวกรรมคอมพวเตอร_ปรบปรง_64.txt/1]\n- วิชา CPE 385 การออกแบบและการพัฒนาเกม 3 หน่วยกิต (Game Design and Development) [วศ_บ_วศวกรรมคอมพวเตอร_ปรบปรง_64.txt/1]\n**คำถาม: วิชานี้ยากไหม**",
+      "answer_hit_pass": false,
+      "answer_hit_coverage": 0.5,
+      "answer_keywords_matched": 1,
+      "answer_keywords_total": 2,
+      "retrieval_hit_pass": false,
+      "retrieval_domain_pass": true,
+      "retrieval_source_pass": false,
+      "retrieval_domains_found": [
+        "announcements",
+        "curriculum",
+        "regulations"
+      ],
+      "retrieval_missing_source_tokens": [
+        "foe10"
+      ],
+      "retrieval_mrr": 0.0,
+      "retrieval_best_rank": null,
+      "retrieval_top_1_pass": false,
+      "retrieval_top_3_pass": false,
+      "retrieval_top_5_pass": false,
+      "retrieval_top_contexts": [
+        {
+          "rank": 1,
+          "source": "วศ_บ_วศวกรรมคอมพวเตอร_ปรบปรง_64.txt",
+          "domain": "curriculum",
+          "similarity_score": null
+        },
+        {
+          "rank": 2,
+          "source": "วศ_บ_วศวกรรมคอมพวเตอร_ปรบปรง_64.txt",
+          "domain": "curriculum",
+          "similarity_score": null
+        },
+        {
+          "rank": 3,
+          "source": "วศ_บ_วศวกรรมคอมพวเตอร_ปรบปรง_64.txt",
+          "domain": "curriculum",
+          "similarity_score": null
+        },
+        {
+          "rank": 4,
+          "source": "calculator2023_2.txt",
+          "domain": "announcements",
+          "similarity_score": null
+        },
+        {
+          "rank": 5,
+          "source": "rule57_2.txt",
+          "domain": "regulations",
+          "similarity_score": null
+        }
+      ],
+      "citation_validity_pass": true,
+      "citation_total": 5,
+      "citation_valid_count": 5,
+      "citation_issues": [],
+      "must_not_contain_pass": true,
+      "total_pass": false,
+      "total_latency_ms": 8177.028377001989,
+      "retrieval_latency_ms": 4000.303823995637,
+      "generation_latency_ms": 4176.724553006352,
+      "contexts_count": 5,
+      "error": "",
+      "human_correctness_score": null,
+      "human_completeness_score": null,
+      "human_clarity_score": null,
+      "human_hallucination": null,
+      "answerable_handled_correctly": false,
+      "quality_score_avg": null,
+      "error_tags": [
+        "retrieve_not_found"
+      ],
+      "adaptive": {
+        "retrieval_adaptive_retry_triggered": 0.0,
+        "retrieval_adaptive_retry_succeeded": 0.0,
+        "retrieval_fallback_all_domains_triggered": 0.0,
+        "retrieval_fallback_all_domains_succeeded": 0.0,
+        "structured_rescue_triggered": 0.0,
+        "structured_rescue_succeeded": 0.0,
+        "curriculum_bypass_vector_triggered": 0.0,
+        "low_confidence_detected": 0.0,
+        "initial_retrieval_doc_count": 0.0,
+        "retry_retrieval_doc_count": 0.0,
+        "initial_top_score": 0.0,
+        "retry_top_score": 0.0
+      },
+      "answer_schema": {
+        "task": "course_factual",
+        "repair_attempted": 0,
+        "repair_success": 0,
+        "missing_slots_before_count": 0,
+        "missing_slots_after_count": 0
+      }
+    },
+    {
+      "id": "qb_256",
+      "category": "uncategorized",
+      "question": "เอกสารที่ต้องใช้มีอะไรบ้าง",
+      "question_domain": "announcements",
+      "expected_source_contains": [
+        "announcement",
+        "calendar"
+      ],
+      "expected_answer_keywords": [
+        "เอกสาร",
+        "ขั้นตอน"
+      ],
+      "reference_answer": "ควรถามกลับว่าทำรายการใด เช่น ขอทรานสคริปต์หรือหนังสือรับรอง",
+      "expected_answerable": true,
+      "difficulty": "medium",
+      "question_type": "ambiguous",
+      "expected_domain": "announcements",
+      "expected_domains_any": [],
+      "answer": "- ประกาศณ วันที่ 6 มิถุนายนพ.ศ. 2562 [tetet2562doctor.txt/1]",
+      "answer_hit_pass": false,
+      "answer_hit_coverage": 0.0,
+      "answer_keywords_matched": 0,
+      "answer_keywords_total": 2,
+      "retrieval_hit_pass": false,
+      "retrieval_domain_pass": true,
+      "retrieval_source_pass": false,
+      "retrieval_domains_found": [
+        "announcements",
+        "curriculum",
+        "regulations"
+      ],
+      "retrieval_missing_source_tokens": [
+        "calendar"
+      ],
+      "retrieval_mrr": 0.0,
+      "retrieval_best_rank": null,
+      "retrieval_top_1_pass": false,
+      "retrieval_top_3_pass": false,
+      "retrieval_top_5_pass": false,
+      "retrieval_top_contexts": [
+        {
+          "rank": 1,
+          "source": "tetet2562doctor.txt",
+          "domain": "announcements",
+          "similarity_score": null
+        },
+        {
+          "rank": 2,
+          "source": "discipline2566_fulltext.txt",
+          "domain": "regulations",
+          "similarity_score": null
+        },
+        {
+          "rank": 3,
+          "source": "วิชา_lng_2562.txt",
+          "domain": "curriculum",
+          "similarity_score": null
+        },
+        {
+          "rank": 4,
+          "source": "pre_requisite2567_final.txt",
+          "domain": "announcements",
+          "similarity_score": null
+        },
+        {
+          "rank": 5,
+          "source": "rule_exam2560.txt",
+          "domain": "regulations",
+          "similarity_score": null
+        }
+      ],
+      "citation_validity_pass": true,
+      "citation_total": 1,
+      "citation_valid_count": 1,
+      "citation_issues": [],
+      "must_not_contain_pass": true,
+      "total_pass": false,
+      "total_latency_ms": 775.9289859968703,
+      "retrieval_latency_ms": 660.9884909994435,
+      "generation_latency_ms": 114.94049499742687,
+      "contexts_count": 5,
+      "error": "",
+      "human_correctness_score": null,
+      "human_completeness_score": null,
+      "human_clarity_score": null,
+      "human_hallucination": null,
+      "answerable_handled_correctly": false,
+      "quality_score_avg": null,
+      "error_tags": [
+        "retrieve_not_found"
+      ],
+      "adaptive": {
+        "retrieval_adaptive_retry_triggered": 0.0,
+        "retrieval_adaptive_retry_succeeded": 0.0,
+        "retrieval_fallback_all_domains_triggered": 0.0,
+        "retrieval_fallback_all_domains_succeeded": 0.0,
+        "structured_rescue_triggered": 0.0,
+        "structured_rescue_succeeded": 0.0,
+        "curriculum_bypass_vector_triggered": 0.0,
+        "low_confidence_detected": 0.0,
+        "initial_retrieval_doc_count": 0.0,
+        "retry_retrieval_doc_count": 0.0,
+        "initial_top_score": 0.0,
+        "retry_top_score": 0.0
+      },
+      "answer_schema": {
+        "task": "none",
+        "repair_attempted": 0,
+        "repair_success": 0,
+        "missing_slots_before_count": 0,
+        "missing_slots_after_count": 0
+      }
+    },
+    {
+      "id": "qb_257",
+      "category": "uncategorized",
+      "question": "ช่วยอธิบายเรื่อง ค่าประกันอุบัติเหตุนักศึกษา ตามประกาศล่าสุดให้หน่อย",
+      "question_domain": "announcements",
+      "expected_source_contains": [
+        "announcement",
+        "calendar"
+      ],
+      "expected_answer_keywords": [
+        "ประกาศ"
+      ],
+      "reference_answer": null,
+      "expected_answerable": true,
+      "difficulty": "medium",
+      "question_type": "noisy",
+      "expected_domain": "announcements",
+      "expected_domains_any": [],
+      "answer": "- แหล่งประกาศ: ยังยืนยันไม่ได้จากเอกสาร [eng_m2568.txt/1]\n- ขั้นตอน: ยังยืนยันไม่ได้จากเอกสาร [eng_m2568.txt/1]\n- เงื่อนไข: ยังยืนยันไม่ได้จากเอกสาร [eng_m2568.txt/1]\n- ข้อจำกัด: ยังยืนยันไม่ได้จากเอกสาร [eng_m2568.txt/1]",
+      "answer_hit_pass": true,
+      "answer_hit_coverage": 1.0,
+      "answer_keywords_matched": 1,
+      "answer_keywords_total": 1,
+      "retrieval_hit_pass": false,
+      "retrieval_domain_pass": true,
+      "retrieval_source_pass": false,
+      "retrieval_domains_found": [
+        "announcements"
+      ],
+      "retrieval_missing_source_tokens": [
+        "calendar"
+      ],
+      "retrieval_mrr": 0.0,
+      "retrieval_best_rank": null,
+      "retrieval_top_1_pass": false,
+      "retrieval_top_3_pass": false,
+      "retrieval_top_5_pass": false,
+      "retrieval_top_contexts": [
+        {
+          "rank": 1,
+          "source": "eng_m2568.txt",
+          "domain": "announcements",
+          "similarity_score": null
+        },
+        {
+          "rank": 2,
+          "source": "insurance_std_1.txt",
+          "domain": "announcements",
+          "similarity_score": null
+        },
+        {
+          "rank": 3,
+          "source": "insurance_std.txt",
+          "domain": "announcements",
+          "similarity_score": null
+        },
+        {
+          "rank": 4,
+          "source": "insurance_inter_std.txt",
+          "domain": "announcements",
+          "similarity_score": null
+        },
+        {
+          "rank": 5,
+          "source": "announce_financ.txt",
+          "domain": "announcements",
+          "similarity_score": null
+        }
+      ],
+      "citation_validity_pass": true,
+      "citation_total": 4,
+      "citation_valid_count": 4,
+      "citation_issues": [],
+      "must_not_contain_pass": true,
+      "total_pass": false,
+      "total_latency_ms": 900.288206001278,
+      "retrieval_latency_ms": 549.9588270031381,
+      "generation_latency_ms": 350.3293789981399,
+      "contexts_count": 5,
+      "error": "",
+      "human_correctness_score": null,
+      "human_completeness_score": null,
+      "human_clarity_score": null,
+      "human_hallucination": null,
+      "answerable_handled_correctly": true,
+      "quality_score_avg": null,
+      "error_tags": [
+        "retrieve_not_found"
+      ],
+      "adaptive": {
+        "retrieval_adaptive_retry_triggered": 0.0,
+        "retrieval_adaptive_retry_succeeded": 0.0,
+        "retrieval_fallback_all_domains_triggered": 0.0,
+        "retrieval_fallback_all_domains_succeeded": 0.0,
+        "structured_rescue_triggered": 0.0,
+        "structured_rescue_succeeded": 0.0,
+        "curriculum_bypass_vector_triggered": 0.0,
+        "low_confidence_detected": 0.0,
+        "initial_retrieval_doc_count": 0.0,
+        "retry_retrieval_doc_count": 0.0,
+        "initial_top_score": 0.0,
+        "retry_top_score": 0.0
+      },
+      "answer_schema": {
+        "task": "announcement_procedure",
+        "repair_attempted": 1,
+        "repair_success": 1,
+        "missing_slots_before_count": 4,
+        "missing_slots_after_count": 0
+      }
+    },
+    {
+      "id": "qb_265",
+      "category": "uncategorized",
+      "question": "ช่วยอธิบายเรื่อง ประกาศหยุดเรียน/เลื่อนการเรียนการสอน ตามประกาศล่าสุดให้หน่อย",
+      "question_domain": "announcements",
+      "expected_source_contains": [
+        "announcement",
+        "calendar"
+      ],
+      "expected_answer_keywords": [
+        "ประกาศ"
+      ],
+      "reference_answer": null,
+      "expected_answerable": true,
+      "difficulty": "hard",
+      "question_type": "policy_conflict",
+      "expected_domain": "announcements",
+      "expected_domains_any": [],
+      "answer": "- แหล่งประกาศ: ยังยืนยันไม่ได้จากเอกสาร [2568thv3_5th_1.txt/1]\n- ขั้นตอน: ยังยืนยันไม่ได้จากเอกสาร [2568thv3_5th_1.txt/1]\n- เงื่อนไข: ยังยืนยันไม่ได้จากเอกสาร [2568thv3_5th_1.txt/1]\n- ข้อจำกัด: ยังยืนยันไม่ได้จากเอกสาร [2568thv3_5th_1.txt/1]",
+      "answer_hit_pass": true,
+      "answer_hit_coverage": 1.0,
+      "answer_keywords_matched": 1,
+      "answer_keywords_total": 1,
+      "retrieval_hit_pass": false,
+      "retrieval_domain_pass": true,
+      "retrieval_source_pass": false,
+      "retrieval_domains_found": [
+        "announcements"
+      ],
+      "retrieval_missing_source_tokens": [
+        "calendar"
+      ],
+      "retrieval_mrr": 0.0,
+      "retrieval_best_rank": null,
+      "retrieval_top_1_pass": false,
+      "retrieval_top_3_pass": false,
+      "retrieval_top_5_pass": false,
+      "retrieval_top_contexts": [
+        {
+          "rank": 1,
+          "source": "2568thv3_5th_1.txt",
+          "domain": "announcements",
+          "similarity_score": null
+        },
+        {
+          "rank": 2,
+          "source": "2568thv3_5th.txt",
+          "domain": "announcements",
+          "similarity_score": null
+        },
+        {
+          "rank": 3,
+          "source": "131.txt",
+          "domain": "announcements",
+          "similarity_score": null
+        },
+        {
+          "rank": 4,
+          "source": "131.txt",
+          "domain": "announcements",
+          "similarity_score": null
+        },
+        {
+          "rank": 5,
+          "source": "2568thv3_5th_1.txt",
+          "domain": "announcements",
+          "similarity_score": null
+        }
+      ],
+      "citation_validity_pass": true,
+      "citation_total": 4,
+      "citation_valid_count": 4,
+      "citation_issues": [],
+      "must_not_contain_pass": true,
+      "total_pass": false,
+      "total_latency_ms": 631.3065249996725,
+      "retrieval_latency_ms": 812.4161879968597,
+      "generation_latency_ms": 0.0,
+      "contexts_count": 5,
+      "error": "",
+      "human_correctness_score": null,
+      "human_completeness_score": null,
+      "human_clarity_score": null,
+      "human_hallucination": null,
+      "answerable_handled_correctly": true,
+      "quality_score_avg": null,
+      "error_tags": [
+        "retrieve_not_found"
+      ],
+      "adaptive": {
+        "retrieval_adaptive_retry_triggered": 0.0,
+        "retrieval_adaptive_retry_succeeded": 0.0,
+        "retrieval_fallback_all_domains_triggered": 0.0,
+        "retrieval_fallback_all_domains_succeeded": 0.0,
+        "structured_rescue_triggered": 0.0,
+        "structured_rescue_succeeded": 0.0,
+        "curriculum_bypass_vector_triggered": 0.0,
+        "low_confidence_detected": 0.0,
+        "initial_retrieval_doc_count": 0.0,
+        "retry_retrieval_doc_count": 0.0,
+        "initial_top_score": 0.0,
+        "retry_top_score": 0.0
+      },
+      "answer_schema": {
+        "task": "announcement_procedure",
+        "repair_attempted": 1,
+        "repair_success": 1,
+        "missing_slots_before_count": 4,
+        "missing_slots_after_count": 0
+      }
+    },
+    {
+      "id": "qb_299",
+      "category": "uncategorized",
+      "question": "หากสอบไม่ผ่าน ต้องทำอย่างไรต่อ",
+      "question_domain": "regulations",
+      "expected_source_contains": [
+        "rule_exam",
+        "regulation"
+      ],
+      "expected_answer_keywords": [
+        "สอบ"
+      ],
+      "reference_answer": "ให้ยึดระเบียบการสอบฉบับปัจจุบันและคำชี้แจงของกรรมการคุมสอบ/รายวิชาเป็นหลัก",
+      "expected_answerable": true,
+      "difficulty": "medium",
+      "question_type": "procedural",
+      "expected_domain": "regulations",
+      "expected_domains_any": [],
+      "answer": "- หากสอบไม่ผ่าน นักศึกษาต้องชำระค่าบำรุงการศึกษาและค่าธรรมเนียมการศึกษาให้ครบถ้วนก่อนวันสอบวัดและประเมินผลลัพธ์การเรียนรู้ช่วงที่ 1 [ruleg2568.txt/1]\n- หากยังไม่สามารถชำระได้ครบถ้วนตามกำหนดเวลา นักศึกษาต้องยื่นเรื่องขอทำสัญญาผ่อนผันกับมหาวิทยาลัย [ruleg2568.txt/1]\n- หากไม่ชำระค่าบำรุงการศึกษาและค่าธรรมเนียมการศึกษาให้ครบถ้วนก่อนวันสอบ มหาวิทยาลัยจะไม่อนุญาตให้นักศึกษาเข้าสอบ [ruleg2568.txt/1]\n- นักศึกษาต้องชำระค่าบำรุงการศึกษาและค่าธรรมเนียมการศึกษาให้ครบถ้วนก่อนจะสามารถสำเร็จการศึกษาได้ [ruleg2568.txt/1]",
+      "answer_hit_pass": true,
+      "answer_hit_coverage": 1.0,
+      "answer_keywords_matched": 1,
+      "answer_keywords_total": 1,
+      "retrieval_hit_pass": false,
+      "retrieval_domain_pass": true,
+      "retrieval_source_pass": false,
+      "retrieval_domains_found": [
+        "announcements",
+        "regulations"
+      ],
+      "retrieval_missing_source_tokens": [
+        "rule_exam"
+      ],
+      "retrieval_mrr": 0.0,
+      "retrieval_best_rank": null,
+      "retrieval_top_1_pass": false,
+      "retrieval_top_3_pass": false,
+      "retrieval_top_5_pass": false,
+      "retrieval_top_contexts": [
+        {
+          "rank": 1,
+          "source": "ruleg2568.txt",
+          "domain": "regulations",
+          "similarity_score": null
+        },
+        {
+          "rank": 2,
+          "source": "pre_requisite2567_final.txt",
+          "domain": "announcements",
+          "similarity_score": null
+        },
+        {
+          "rank": 3,
+          "source": "eng_m2568.txt",
+          "domain": "announcements",
+          "similarity_score": null
+        },
+        {
+          "rank": 4,
+          "source": "eng_d2568.txt",
+          "domain": "announcements",
+          "similarity_score": null
+        },
+        {
+          "rank": 5,
+          "source": "schedule2565.txt",
+          "domain": "announcements",
+          "similarity_score": null
+        }
+      ],
+      "citation_validity_pass": true,
+      "citation_total": 4,
+      "citation_valid_count": 4,
+      "citation_issues": [],
+      "must_not_contain_pass": true,
+      "total_pass": false,
+      "total_latency_ms": 3984.0152179967845,
+      "retrieval_latency_ms": 554.6764919999987,
+      "generation_latency_ms": 3429.338725996786,
+      "contexts_count": 5,
+      "error": "",
+      "human_correctness_score": null,
+      "human_completeness_score": null,
+      "human_clarity_score": null,
+      "human_hallucination": null,
+      "answerable_handled_correctly": true,
+      "quality_score_avg": null,
+      "error_tags": [
+        "retrieve_not_found"
+      ],
+      "adaptive": {
+        "retrieval_adaptive_retry_triggered": 0.0,
+        "retrieval_adaptive_retry_succeeded": 0.0,
+        "retrieval_fallback_all_domains_triggered": 0.0,
+        "retrieval_fallback_all_domains_succeeded": 0.0,
+        "structured_rescue_triggered": 0.0,
+        "structured_rescue_succeeded": 0.0,
+        "curriculum_bypass_vector_triggered": 0.0,
+        "low_confidence_detected": 0.0,
+        "initial_retrieval_doc_count": 0.0,
+        "retry_retrieval_doc_count": 0.0,
+        "initial_top_score": 0.0,
+        "retry_top_score": 0.0
+      },
+      "answer_schema": {
+        "task": "none",
+        "repair_attempted": 0,
+        "repair_success": 0,
+        "missing_slots_before_count": 0,
+        "missing_slots_after_count": 0
+      }
+    },
+    {
+      "id": "qb_323",
+      "category": "uncategorized",
+      "question": "ช่วยเช็กให้หน่อยว่า ค่าประกันอุบัติเหตุนักศึกษา มีประกาศใหม่แล้วหรือยัง",
+      "question_domain": "announcements",
+      "expected_source_contains": [
+        "announcement",
+        "calendar"
+      ],
+      "expected_answer_keywords": [
+        "ประกาศ"
+      ],
+      "reference_answer": null,
+      "expected_answerable": true,
+      "difficulty": "medium",
+      "question_type": "verification",
+      "expected_domain": "announcements",
+      "expected_domains_any": [],
+      "answer": "- แหล่งประกาศ: ยังยืนยันไม่ได้จากเอกสาร [eng_m2568.txt/1]\n- ขั้นตอน: ยังยืนยันไม่ได้จากเอกสาร [eng_m2568.txt/1]\n- เงื่อนไข: ยังยืนยันไม่ได้จากเอกสาร [eng_m2568.txt/1]\n- ข้อจำกัด: ยังยืนยันไม่ได้จากเอกสาร [eng_m2568.txt/1]",
+      "answer_hit_pass": true,
+      "answer_hit_coverage": 1.0,
+      "answer_keywords_matched": 1,
+      "answer_keywords_total": 1,
+      "retrieval_hit_pass": false,
+      "retrieval_domain_pass": true,
+      "retrieval_source_pass": false,
+      "retrieval_domains_found": [
+        "announcements"
+      ],
+      "retrieval_missing_source_tokens": [
+        "calendar"
+      ],
+      "retrieval_mrr": 0.0,
+      "retrieval_best_rank": null,
+      "retrieval_top_1_pass": false,
+      "retrieval_top_3_pass": false,
+      "retrieval_top_5_pass": false,
+      "retrieval_top_contexts": [
+        {
+          "rank": 1,
+          "source": "eng_m2568.txt",
+          "domain": "announcements",
+          "similarity_score": null
+        },
+        {
+          "rank": 2,
+          "source": "insurance_std_1.txt",
+          "domain": "announcements",
+          "similarity_score": null
+        },
+        {
+          "rank": 3,
+          "source": "insurance_std.txt",
+          "domain": "announcements",
+          "similarity_score": null
+        },
+        {
+          "rank": 4,
+          "source": "insurance_inter_std.txt",
+          "domain": "announcements",
+          "similarity_score": null
+        },
+        {
+          "rank": 5,
+          "source": "announce_financ.txt",
+          "domain": "announcements",
+          "similarity_score": null
+        }
+      ],
+      "citation_validity_pass": true,
+      "citation_total": 4,
+      "citation_valid_count": 4,
+      "citation_issues": [],
+      "must_not_contain_pass": true,
+      "total_pass": false,
+      "total_latency_ms": 582.4576099985279,
+      "retrieval_latency_ms": 593.2101329963189,
+      "generation_latency_ms": 0.0,
+      "contexts_count": 5,
+      "error": "",
+      "human_correctness_score": null,
+      "human_completeness_score": null,
+      "human_clarity_score": null,
+      "human_hallucination": null,
+      "answerable_handled_correctly": true,
+      "quality_score_avg": null,
+      "error_tags": [
+        "retrieve_not_found"
+      ],
+      "adaptive": {
+        "retrieval_adaptive_retry_triggered": 0.0,
+        "retrieval_adaptive_retry_succeeded": 0.0,
+        "retrieval_fallback_all_domains_triggered": 0.0,
+        "retrieval_fallback_all_domains_succeeded": 0.0,
+        "structured_rescue_triggered": 0.0,
+        "structured_rescue_succeeded": 0.0,
+        "curriculum_bypass_vector_triggered": 0.0,
+        "low_confidence_detected": 0.0,
+        "initial_retrieval_doc_count": 0.0,
+        "retry_retrieval_doc_count": 0.0,
+        "initial_top_score": 0.0,
+        "retry_top_score": 0.0
+      },
+      "answer_schema": {
+        "task": "announcement_procedure",
+        "repair_attempted": 1,
+        "repair_success": 1,
+        "missing_slots_before_count": 4,
+        "missing_slots_after_count": 0
+      }
+    },
+    {
+      "id": "qb_326",
+      "category": "uncategorized",
+      "question": "ช่วยเช็กให้หน่อยว่า ประกาศหยุดเรียน/เลื่อนการเรียนการสอน มีประกาศใหม่แล้วหรือยัง",
+      "question_domain": "announcements",
+      "expected_source_contains": [
+        "announcement",
+        "calendar"
+      ],
+      "expected_answer_keywords": [
+        "ประกาศ"
+      ],
+      "reference_answer": null,
+      "expected_answerable": true,
+      "difficulty": "medium",
+      "question_type": "verification",
+      "expected_domain": "announcements",
+      "expected_domains_any": [],
+      "answer": "- แหล่งประกาศ: ยังยืนยันไม่ได้จากเอกสาร [2568thv3_5th_1.txt/1]\n- ขั้นตอน: ยังยืนยันไม่ได้จากเอกสาร [2568thv3_5th_1.txt/1]\n- เงื่อนไข: ยังยืนยันไม่ได้จากเอกสาร [2568thv3_5th_1.txt/1]\n- ข้อจำกัด: ยังยืนยันไม่ได้จากเอกสาร [2568thv3_5th_1.txt/1]",
+      "answer_hit_pass": true,
+      "answer_hit_coverage": 1.0,
+      "answer_keywords_matched": 1,
+      "answer_keywords_total": 1,
+      "retrieval_hit_pass": false,
+      "retrieval_domain_pass": true,
+      "retrieval_source_pass": false,
+      "retrieval_domains_found": [
+        "announcements"
+      ],
+      "retrieval_missing_source_tokens": [
+        "calendar"
+      ],
+      "retrieval_mrr": 0.0,
+      "retrieval_best_rank": null,
+      "retrieval_top_1_pass": false,
+      "retrieval_top_3_pass": false,
+      "retrieval_top_5_pass": false,
+      "retrieval_top_contexts": [
+        {
+          "rank": 1,
+          "source": "2568thv3_5th_1.txt",
+          "domain": "announcements",
+          "similarity_score": null
+        },
+        {
+          "rank": 2,
+          "source": "2568thv3_5th.txt",
+          "domain": "announcements",
+          "similarity_score": null
+        },
+        {
+          "rank": 3,
+          "source": "131.txt",
+          "domain": "announcements",
+          "similarity_score": null
+        },
+        {
+          "rank": 4,
+          "source": "131.txt",
+          "domain": "announcements",
+          "similarity_score": null
+        },
+        {
+          "rank": 5,
+          "source": "2568thv3_5th_1.txt",
+          "domain": "announcements",
+          "similarity_score": null
+        }
+      ],
+      "citation_validity_pass": true,
+      "citation_total": 4,
+      "citation_valid_count": 4,
+      "citation_issues": [],
+      "must_not_contain_pass": true,
+      "total_pass": false,
+      "total_latency_ms": 681.9160799932433,
+      "retrieval_latency_ms": 620.204865001142,
+      "generation_latency_ms": 61.711214992101304,
+      "contexts_count": 5,
+      "error": "",
+      "human_correctness_score": null,
+      "human_completeness_score": null,
+      "human_clarity_score": null,
+      "human_hallucination": null,
+      "answerable_handled_correctly": true,
+      "quality_score_avg": null,
+      "error_tags": [
+        "retrieve_not_found"
+      ],
+      "adaptive": {
+        "retrieval_adaptive_retry_triggered": 0.0,
+        "retrieval_adaptive_retry_succeeded": 0.0,
+        "retrieval_fallback_all_domains_triggered": 0.0,
+        "retrieval_fallback_all_domains_succeeded": 0.0,
+        "structured_rescue_triggered": 0.0,
+        "structured_rescue_succeeded": 0.0,
+        "curriculum_bypass_vector_triggered": 0.0,
+        "low_confidence_detected": 0.0,
+        "initial_retrieval_doc_count": 0.0,
+        "retry_retrieval_doc_count": 0.0,
+        "initial_top_score": 0.0,
+        "retry_top_score": 0.0
+      },
+      "answer_schema": {
+        "task": "announcement_procedure",
+        "repair_attempted": 1,
+        "repair_success": 1,
+        "missing_slots_before_count": 4,
+        "missing_slots_after_count": 0
+      }
+    },
+    {
+      "id": "qb_334",
+      "category": "uncategorized",
+      "question": "หากสอบตกสามารถลงใหม่ได้หรือไม่",
+      "question_domain": "regulations",
+      "expected_source_contains": [
+        "rule_exam",
+        "regulation"
+      ],
+      "expected_answer_keywords": [
+        "สอบ"
+      ],
+      "reference_answer": "ให้ยึดระเบียบการสอบฉบับปัจจุบันและคำชี้แจงของกรรมการคุมสอบ/รายวิชาเป็นหลัก",
+      "expected_answerable": true,
+      "difficulty": "medium",
+      "question_type": "verification",
+      "expected_domain": "regulations",
+      "expected_domains_any": [],
+      "answer": "- นักศึกษาที่สอบตกและพ้นสภาพการเป็นนักศึกษาเนื่องจากผลการเรียนไม่ผ่านเกณฑ์ สามารถลงเรียนใหม่ได้ โดยต้องผ่านกระบวนการคัดเลือกและสรรหาเข้าเป็นนักศึกษาใหม่ตามช่วงเวลาที่มหาวิทยาลัยกำหนดเปิดรับสมัคร [new_2558.txt/1]\n- การกลับเข้ามาศึกษาใหม่สามารถเข้าศึกษาในสาขาวิชาเดิมหรือสาขาวิชาใหม่ก็ได้ [new_2558.txt/1]\n- การโอนรายวิชาและหน่วยกิตที่ได้ศึกษามาแล้วเป็นไปตามข้อ 36.2 และข้อ 39 แห่งระเบียบมหาวิทยาลัยเทคโนโลยีพระจอมเกล้าธนบุรีว่าด้วยการศึกษาระดับปริญญาตรี พ.ศ. 2557 [new_2558.txt/1]",
+      "answer_hit_pass": true,
+      "answer_hit_coverage": 1.0,
+      "answer_keywords_matched": 1,
+      "answer_keywords_total": 1,
+      "retrieval_hit_pass": false,
+      "retrieval_domain_pass": true,
+      "retrieval_source_pass": false,
+      "retrieval_domains_found": [
+        "announcements",
+        "curriculum",
+        "regulations"
+      ],
+      "retrieval_missing_source_tokens": [
+        "rule_exam"
+      ],
+      "retrieval_mrr": 0.0,
+      "retrieval_best_rank": null,
+      "retrieval_top_1_pass": false,
+      "retrieval_top_3_pass": false,
+      "retrieval_top_5_pass": false,
+      "retrieval_top_contexts": [
+        {
+          "rank": 1,
+          "source": "new_2558.txt",
+          "domain": "announcements",
+          "similarity_score": null
+        },
+        {
+          "rank": 2,
+          "source": "handbook2562g.txt",
+          "domain": "regulations",
+          "similarity_score": null
+        },
+        {
+          "rank": 3,
+          "source": "วศ_บ_วศวกรรมคอมพวเตอร_ปรบปรง_64.txt",
+          "domain": "curriculum",
+          "similarity_score": null
+        },
+        {
+          "rank": 4,
+          "source": "academiccalendar2025th.txt",
+          "domain": "announcements",
+          "similarity_score": null
+        },
+        {
+          "rank": 5,
+          "source": "ruleg2568.txt",
+          "domain": "regulations",
+          "similarity_score": null
+        }
+      ],
+      "citation_validity_pass": true,
+      "citation_total": 3,
+      "citation_valid_count": 3,
+      "citation_issues": [],
+      "must_not_contain_pass": true,
+      "total_pass": false,
+      "total_latency_ms": 5363.274949006154,
+      "retrieval_latency_ms": 516.4928140002303,
+      "generation_latency_ms": 4846.782135005924,
+      "contexts_count": 5,
+      "error": "",
+      "human_correctness_score": null,
+      "human_completeness_score": null,
+      "human_clarity_score": null,
+      "human_hallucination": null,
+      "answerable_handled_correctly": true,
+      "quality_score_avg": null,
+      "error_tags": [
+        "retrieve_not_found"
+      ],
+      "adaptive": {
+        "retrieval_adaptive_retry_triggered": 0.0,
+        "retrieval_adaptive_retry_succeeded": 0.0,
+        "retrieval_fallback_all_domains_triggered": 0.0,
+        "retrieval_fallback_all_domains_succeeded": 0.0,
+        "structured_rescue_triggered": 0.0,
+        "structured_rescue_succeeded": 0.0,
+        "curriculum_bypass_vector_triggered": 0.0,
+        "low_confidence_detected": 0.0,
+        "initial_retrieval_doc_count": 0.0,
+        "retry_retrieval_doc_count": 0.0,
+        "initial_top_score": 0.0,
+        "retry_top_score": 0.0
+      },
+      "answer_schema": {
+        "task": "none",
+        "repair_attempted": 0,
+        "repair_success": 0,
+        "missing_slots_before_count": 0,
+        "missing_slots_after_count": 0
+      }
+    }
+  ]
+}

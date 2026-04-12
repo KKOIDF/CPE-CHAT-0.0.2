@@ -5,7 +5,9 @@
     "rag": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/run_rag_service.ps1",
     "client": "npm run dev --prefix client",
     "dev": "concurrently \"npm run rag\" \"npm run client\"",
-    "eval:gate": "bash scripts/run_regression_gate.sh"
+    "eval:gate": "bash scripts/run_regression_gate.sh",
+    "docs:diagrams:check": "bash scripts/validate_arch_diagrams.sh",
+    "docs:diagrams:render": "bash scripts/validate_arch_diagrams.sh --render"
   },
   "devDependencies": {
     "concurrently": "^9.2.1"

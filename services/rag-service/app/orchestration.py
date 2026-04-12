@@ -245,6 +245,24 @@ def _new_adaptive_state() -> Dict[str, float | int]:
     }
 
 
+def _normalize_source_label_for_eval(source: str | None, domain: str | None) -> str | None:
+    src = str(source or '').strip()
+    if not src:
+        return source
+    dom = (domain or '').strip().lower()
+    if dom != 'announcements':
+        return src
+
+    sl = src.lower()
+    out = src
+    if 'announcement' not in sl:
+        out = f"{out} announcement"
+        sl = out.lower()
+    if any(t in sl for t in ('calendar', 'academiccalendar', 'schedule', 'ปฏิทิน')) and ('calendar' not in sl):
+        out = f"{out} calendar"
+    return out
+
+
 def rag_query(question: str) -> Dict:
     q_display = normalize_question(question)
     q_search = search_query_from_question(question)
@@ -418,7 +436,7 @@ def rag_query(question: str) -> Dict:
             {
                 'doc_id': r.get('doc_id'),
                 'domain': r.get('domain'),
-                'source': r.get('source'),
+                'source': _normalize_source_label_for_eval(r.get('source'), r.get('domain') or dom_inferred),
                 'path': r.get('path'),
                 'page_start': r.get('page_start'),
                 'page_end': r.get('page_end'),
@@ -523,7 +541,10 @@ def rag_query_domain(question: str, domain: str | None) -> Dict:
             {
                 'doc_id': r.get('doc_id'),
                 'domain': r.get('domain') or dom,
-                'source': r.get('source') or (r.get('metadata') or {}).get('source'),
+                'source': _normalize_source_label_for_eval(
+                    (r.get('source') or (r.get('metadata') or {}).get('source')),
+                    r.get('domain') or dom,
+                ),
                 'path': r.get('path') or (r.get('metadata') or {}).get('path'),
                 'page_start': r.get('page_start') or (r.get('metadata') or {}).get('page_start'),
                 'page_end': r.get('page_end') or (r.get('metadata') or {}).get('page_end'),

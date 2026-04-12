@@ -139,7 +139,17 @@ def classify_intent(question: str) -> str:
         return 'instructor_lookup'
     if any(t in ql for t in ('หน่วยกิต', 'กี่หน่วยกิต', 'credit', 'credits')):
         return 'credit_lookup'
-    if any(t in ql for t in ('บังคับก่อน', 'ก่อนเรียน', 'พื้นฐาน', 'prerequisite', 'pre-requisite', 'pre requisite', 'pre-req', 'prereq', 'ต้องผ่าน')):
+    # Prerequisite detection should be curriculum-scoped only.
+    # Avoid false positives from regulations phrasing like "ต้องผ่านไปกี่นาที".
+    prerequisite_terms = ('บังคับก่อน', 'ก่อนเรียน', 'prerequisite', 'pre-requisite', 'pre requisite', 'pre-req', 'prereq')
+    has_course_signal = bool(re.search(r"\b[A-Za-z]{2,6}\s*[- ]?\s*\d{3}\b", q)) or any(
+        t in q for t in ('รายวิชา', 'รหัสวิชา', 'วิชา')
+    )
+    exam_room_signal = any(t in q for t in ('สอบ', 'ห้องสอบ', 'เข้าห้องสอบ', 'ออกห้องสอบ', 'นาที'))
+    if any(t in ql for t in prerequisite_terms):
+        if has_course_signal and not exam_room_signal:
+            return 'prerequisite_lookup'
+    if ('ต้องผ่าน' in ql) and has_course_signal and not exam_room_signal:
         return 'prerequisite_lookup'
 
     _exam_policy_terms = (

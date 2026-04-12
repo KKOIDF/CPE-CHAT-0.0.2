@@ -934,6 +934,73 @@ def apply_domain_prior(
     return out
 
 
+def apply_domain_intent_boosts(
+    items: List[Dict],
+    question: str,
+    inferred_domain: str | None,
+) -> List[Dict]:
+    """Apply lightweight domain-aware rerank features.
+
+    - announcements: boost newer-year/calendar-ish sources for temporal queries
+    - curriculum: boost exact course-code presence in source/text
+    - regulations: boost exact clause mentions when question asks specific clauses
+    """
+    if not items:
+        return items
+
+    q = (question or '').strip()
+    ql = q.lower()
+    dom = (inferred_domain or '').strip().lower()
+    course_codes = [
+        f"{(m.group(1) or '').upper()}{(m.group(2) or '').strip()}"
+        for m in re.finditer(r"\b([A-Za-z]{2,6})\s*[- ]?\s*(\d{3})\b", q)
+    ]
+    clause_ids = [
+        (m.group(1) or '').translate(str.maketrans("๐๑๒๓๔๕๖๗๘๙", "0123456789"))
+        for m in re.finditer(r"ข้อ\s*([๐-๙0-9]+(?:\.[๐-๙0-9]+)?)", q)
+    ]
+
+    out: List[Dict] = []
+    for d in items:
+        u = dict(d)
+        base = float(u.get('score_final') or u.get('score_rrf') or 0.0)
+        src = str(u.get('source') or u.get('path') or '')
+        txt = str(u.get('text') or '')
+        dom_row = str(u.get('domain') or '').strip().lower() or dom
+        src_l = src.lower()
+
+        # Announcements: prefer fresh schedule/calendar evidence for date/time questions.
+        if dom_row == 'announcements' and any(t in ql for t in ('ล่าสุด', 'ประกาศใหม่', 'กำหนดการ', 'deadline', 'ปฏิทิน', 'วัน', 'วันที่', 'เมื่อไร')):
+            if any(y in src_l for y in ('2569', '2026')):
+                base += 0.20
+            elif any(y in src_l for y in ('2568', '2025')):
+                base += 0.12
+            if any(k in src_l for k in ('calendar', 'ปฏิทิน', 'announcement', 'ประกาศ')):
+                base += 0.08
+
+        # Curriculum: exact code hit should dominate near-matches.
+        if dom_row == 'curriculum' and course_codes:
+            src_norm = re.sub(r"[^a-z0-9]+", "", src_l)
+            txt_norm = re.sub(r"[^a-z0-9ก-๙]+", "", txt.lower())
+            for code in course_codes:
+                c = code.lower()
+                if c in src_norm or c in txt_norm:
+                    base += 0.28
+
+        # Regulations: explicit clause lookup should prefer exact clause chunks.
+        if dom_row == 'regulations' and clause_ids:
+            for cid in clause_ids:
+                if re.search(rf"ข้อ\s*{re.escape(cid)}(?:\b|\s|\.|:)", txt, flags=re.IGNORECASE):
+                    base += 0.24
+
+        u['score_final'] = base
+        u['score_rrf'] = base
+        out.append(u)
+
+    out.sort(key=lambda x: float(x.get('score_rrf') or 0.0), reverse=True)
+    return out
+
+
 def apply_overbroad_source_penalty(
     items: List[Dict],
     inferred_domain: str | None,
@@ -1052,12 +1119,17 @@ def promote_exact_anchor_hits(items: List[Dict], anchors: List[str], bonus_per_h
             s = (a or '').strip().lower()
             if not s:
                 continue
+            local_bonus = float(bonus_per_hit)
+            if re.match(r"^[a-z]{2,6}\d{3}$", s, flags=re.IGNORECASE):
+                local_bonus = max(local_bonus, 0.24)
+            elif re.match(r"^(ข้อ|มาตรา)\s*\d", s):
+                local_bonus = max(local_bonus, 0.20)
             if s in blob:
-                bonus += float(bonus_per_hit)
+                bonus += local_bonus
                 continue
             s2 = re.sub(r"[^0-9a-zก-๙]+", "", s)
             if s2 and s2 in blob_norm:
-                bonus += float(bonus_per_hit)
+                bonus += local_bonus
 
         u = dict(d)
         base = float(u.get('score_rrf') or 0.0)
@@ -1196,6 +1268,7 @@ def retrieve_all_domains(
     # Exact-anchor promotion to avoid losing "ข้อ 12", course codes, etc.
     anchors = extract_lexical_anchors(question)
     merged = promote_exact_anchor_hits(merged, anchors)
+    merged = apply_domain_intent_boosts(merged, question, inferred)
 
     # Intent-aware boost: keep all-domain recall, but prioritize regulations
     # when the question clearly asks about exam rules/policies.
@@ -2700,6 +2773,7 @@ def retrieve_by_domain(
         merged = _apply_curriculum_rerank(merged, question, target_codes)
 
     merged = promote_exact_anchor_hits(merged, anchors)
+    merged = apply_domain_intent_boosts(merged, question, dom)
 
     if dom == 'curriculum' and exact_code_docs:
         # Force-include a few exact course-code hits before generic ranking.

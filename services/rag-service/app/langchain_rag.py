@@ -27,6 +27,7 @@ from .config import RRF_K, MAX_CONTEXTS
 from .llm import llm_engine
 from .chroma_client import embed_texts, semantic_search_domain, fetch_embeddings_for_docs
 from .neo4j_client import extract_course_codes
+from .rerank import fuse_rrf_lists
 
 
 _SYSTEM_MSG: dict[str, str] = {
@@ -41,34 +42,46 @@ _SYSTEM_MSG: dict[str, str] = {
     ),
 }
 
-_MULTIQUERY_ENABLE = os.getenv('RAG_LC_MULTIQUERY', '0') in ('1', 'true', 'True')
-_MULTIQUERY_N = int(os.getenv('RAG_LC_MULTIQUERY_N', '3') or '3')
+_MULTIQUERY_ENABLE = os.getenv('RAG_LC_MULTIQUERY', '1') in ('1', 'true', 'True')
+_MULTIQUERY_N = int(os.getenv('RAG_LC_MULTIQUERY_N', '4') or '4')
 _MULTIQUERY_ALL = os.getenv('RAG_LC_MULTIQUERY_ALL', '0') in ('1', 'true', 'True')
 
-_PARALLEL_ENABLE = os.getenv('RAG_LC_PARALLEL', '0') in ('1', 'true', 'True')
+_PARALLEL_ENABLE = os.getenv('RAG_LC_PARALLEL', '1') in ('1', 'true', 'True')
 _PARALLEL_WORKERS = int(os.getenv('RAG_LC_PARALLEL_WORKERS', '4') or '4')
 
-_RERANK_ENABLE = os.getenv('RAG_LC_RERANK', '0') in ('1', 'true', 'True')
-_RERANK_TOPN = int(os.getenv('RAG_LC_RERANK_TOPN', '8') or '8')
-_RERANK_ALL = os.getenv('RAG_LC_RERANK_ALL', '0') in ('1', 'true', 'True')
+_RERANK_ENABLE = os.getenv('RAG_LC_RERANK', '1') in ('1', 'true', 'True')
+_RERANK_TOPN = int(os.getenv('RAG_LC_RERANK_TOPN', '24') or '24')
+_RERANK_ALL = os.getenv('RAG_LC_RERANK_ALL', '1') in ('1', 'true', 'True')
 
-_COMPRESS_ENABLE = os.getenv('RAG_LC_COMPRESS', '0') in ('1', 'true', 'True')
+_COMPRESS_ENABLE = os.getenv('RAG_LC_COMPRESS', '1') in ('1', 'true', 'True')
 _COMPRESS_MAX_CHARS = int(os.getenv('RAG_LC_COMPRESS_MAX_CHARS', '700') or '700')
-_COMPRESS_ALL = os.getenv('RAG_LC_COMPRESS_ALL', '0') in ('1', 'true', 'True')
+_COMPRESS_ALL = os.getenv('RAG_LC_COMPRESS_ALL', '1') in ('1', 'true', 'True')
 
 _ROUTE_LLM_ENABLE = os.getenv('RAG_LC_ROUTE_LLM', '0') in ('1', 'true', 'True')
 
 _STRUCTURED_ENABLE = os.getenv('RAG_LC_STRUCTURED', '0') in ('1', 'true', 'True')
 
-_ENFORCE_CITATIONS = os.getenv('RAG_LC_ENFORCE_CITATIONS', '0') in ('1', 'true', 'True')
+_ENFORCE_CITATIONS = os.getenv('RAG_LC_ENFORCE_CITATIONS', '1') in ('1', 'true', 'True')
 _SEARCH_ALL_DOMAINS = os.getenv('RAG_SEARCH_ALL_DOMAINS', '1') in ('1', 'true', 'True')
+_ADAPTIVE_ORCHESTRATION = (os.getenv('RAG_ADAPTIVE_ORCHESTRATION', '1') or '1').strip().lower() in (
+    '1', 'true', 'yes', 'on'
+)
+try:
+    _LOW_SCORE_THRESHOLD = float(os.getenv('RAG_ADAPTIVE_LOW_SCORE', '0.06') or '0.06')
+except Exception:
+    _LOW_SCORE_THRESHOLD = 0.06
+try:
+    _MIN_DOCS_FOR_CONFIDENT = max(1, int(os.getenv('RAG_ADAPTIVE_MIN_DOCS', '2') or '2'))
+except Exception:
+    _MIN_DOCS_FOR_CONFIDENT = 2
 
 
 def _boost_regulations_for_exam_intent(items: List[Dict], question: str) -> List[Dict]:
     ql = (question or '').strip().lower()
+    exam_core = any(t in ql for t in ('สอบ', 'ห้องสอบ', 'คุมสอบ', 'มาสาย', 'ทุจริต', 'อุทธรณ์', 'ออกจากห้องสอบ', 'สอบไม่ผ่าน', 'สอบตก'))
+    policy_shape = any(t in ql for t in ('ได้กี่', 'กี่นาที', 'กี่วัน', 'ระเบียบ', 'ข้อ', 'นโยบาย', 'อนุญาต', 'ขั้นตอน', 'ทำได้หรือไม่ได้', 'ต้องทำอย่างไร', 'ดำเนินการต่อ'))
     exam_policy_intent = (
-        any(t in ql for t in ('สอบ', 'ห้องสอบ', 'คุมสอบ', 'มาสาย', 'ทุจริต', 'อุทธรณ์'))
-        and any(t in ql for t in ('ได้กี่', 'กี่นาที', 'กี่วัน', 'ระเบียบ', 'ข้อ', 'นโยบาย', 'อนุญาต'))
+        exam_core and policy_shape
     )
     if not exam_policy_intent or not items:
         return items
@@ -80,9 +93,15 @@ def _boost_regulations_for_exam_intent(items: List[Dict], question: str) -> List
         src = str(u.get('source') or '').strip().lower()
         score = float(u.get('score_rrf') or 0.0)
         if dom == 'regulations':
-            score += 0.25
+            score += 0.35
         if ('rule_exam' in src) or ('สอบ' in src and 'ระเบียบ' in src):
-            score += 0.55
+            score += 0.70
+        if 'regulation' in src:
+            score += 0.18
+        if ('ออกจากห้องสอบ' in ql or 'ชั่วคราว' in ql) and ('ข้อ 12' in src or 'rule_exam' in src):
+            score += 0.35
+        if ('สอบไม่ผ่าน' in ql or 'สอบตก' in ql) and ('rule_exam' in src or 'regulation' in src):
+            score += 0.28
         if src.endswith('forms.txt'):
             score -= 0.20
         if dom == 'curriculum':
@@ -102,12 +121,28 @@ def _inject_exam_rule_anchors(items: List[Dict], question: str, cap: int) -> Lis
         ('สอบ' in ql or 'ห้องสอบ' in ql)
         and ('มาสาย' in ql or 'สาย' in ql or 'เข้าห้องสอบ' in ql)
     )
-    if (not exam_late_intent) or (not items):
+    exam_temp_leave_intent = (
+        ('สอบ' in ql or 'ห้องสอบ' in ql)
+        and ('ออกจากห้องสอบ' in ql or 'ชั่วคราว' in ql)
+    )
+    exam_fail_intent = (
+        ('สอบไม่ผ่าน' in ql or 'สอบตก' in ql)
+        and any(t in ql for t in ('ทำอย่างไร', 'ทำยังไง', 'ดำเนินการ', 'ต่อ', 'ยื่น', 'แก้'))
+    )
+    if (not (exam_late_intent or exam_temp_leave_intent or exam_fail_intent)) or (not items):
         return items[:cap]
+
+    anchor_query = 'ข้อสอบ ระเบียบการสอบ rule_exam regulation ออกจากห้องสอบชั่วคราว สอบไม่ผ่าน สอบตก'
+    if exam_late_intent:
+        anchor_query = 'ข้อ 12 ห้องสอบ มาสาย สิบห้านาที 15 หกสิบนาที 60 ระเบียบการสอบ rule_exam regulation'
+    elif exam_temp_leave_intent:
+        anchor_query = 'ข้อ 12 ออกจากห้องสอบชั่วคราว ระหว่างสอบ อนุญาต ระเบียบการสอบ rule_exam regulation'
+    elif exam_fail_intent:
+        anchor_query = 'สอบไม่ผ่าน สอบตก ขั้นตอน ดำเนินการต่อ ระเบียบการสอบ rule_exam regulation'
 
     try:
         regs = semantic_search_domain(
-            'ข้อ 12 ห้องสอบ มาสาย สิบห้านาที 15 หกสิบนาที 60',
+            anchor_query,
             top_k=40,
             domain='regulations',
             source_allowlist=None,
@@ -121,7 +156,19 @@ def _inject_exam_rule_anchors(items: List[Dict], question: str, cap: int) -> Lis
     for d in regs:
         src = str(d.get('source') or '').strip().lower()
         txt = str(d.get('text') or '')
-        if ('rule_exam' in src) or ('ข้อ 12' in txt and 'ห้องสอบ' in txt and ('สิบห้านาที' in txt or '15' in txt)):
+        if ('rule_exam' in src) or ('regulation' in src):
+            anchors.append(d)
+            if len(anchors) >= 2:
+                break
+        if exam_late_intent and ('ข้อ 12' in txt and 'ห้องสอบ' in txt and ('สิบห้านาที' in txt or '15' in txt)):
+            anchors.append(d)
+            if len(anchors) >= 2:
+                break
+        if exam_temp_leave_intent and ('ออกจากห้องสอบ' in txt or 'ชั่วคราว' in txt):
+            anchors.append(d)
+            if len(anchors) >= 2:
+                break
+        if exam_fail_intent and ('สอบไม่ผ่าน' in txt or 'สอบตก' in txt):
             anchors.append(d)
             if len(anchors) >= 2:
                 break
@@ -453,19 +500,61 @@ def _rerank_by_embedding(query: str, items: List[Dict], topn: int) -> List[Dict]
 
 def _fuse_rrf(lists: List[Tuple[str, List[Dict]]], cap: int) -> List[Dict]:
     """Fuse multiple ranked lists via Reciprocal Rank Fusion."""
-    bank: Dict[str, Dict] = {}
-    ranks: Dict[str, float] = {}
-    for _q, items in lists:
-        for r, d in enumerate(items or [], 1):
-            dom = (d.get('domain') or '').strip().lower() or 'unknown'
-            doc_id = d.get('doc_id') or d.get('source') or f'unk_{r}'
-            key = f"{dom}:{doc_id}"
-            if key not in bank:
-                bank[key] = {**d, 'doc_id': doc_id, 'domain': dom}
-            ranks[key] = ranks.get(key, 0.0) + 1.0 / (RRF_K + r)
-    merged = [{**bank[k], 'score_rrf': v} for k, v in ranks.items()]
-    merged.sort(key=lambda x: x.get('score_rrf', 0.0), reverse=True)
+    ranked_lists = [items for _q, items in (lists or [])]
+    merged = fuse_rrf_lists(ranked_lists, k=RRF_K)
     return merged[:cap]
+
+
+def _top_retrieval_score(items: List[Dict]) -> float:
+    top = 0.0
+    for it in (items or []):
+        try:
+            s = float(it.get('score_final') or it.get('score_rrf') or 0.0)
+        except Exception:
+            s = 0.0
+        if s > top:
+            top = s
+    return top
+
+
+def _is_low_confidence(items: List[Dict]) -> bool:
+    if len(items or []) < _MIN_DOCS_FOR_CONFIDENT:
+        return True
+    return _top_retrieval_score(items) < _LOW_SCORE_THRESHOLD
+
+
+def _expand_query_for_retry(question: str, domain: str | None) -> str:
+    q = (question or '').strip()
+    dom = (domain or '').strip().lower()
+    if not q:
+        return q
+
+    dom_hints = {
+        'curriculum': 'รายวิชา course code หน่วยกิต วิชาบังคับก่อน ปีที่ ภาคการศึกษา',
+        'regulations': 'ข้อบังคับ ระเบียบการสอบ regulation rule_exam เกณฑ์ เงื่อนไข ประกาศ เครื่องคำนวณ calculator calc อุทธรณ์ appeal ออกจากห้องสอบชั่วคราว leave exam room สอบไม่ผ่าน สอบตก ขั้นตอน ดำเนินการต่อ นาที',
+        'announcements': 'ประกาศ กำหนดการ วันเวลา หมายเหตุ',
+    }
+    hints = dom_hints.get(dom, 'รายละเอียด เงื่อนไข เอกสารอ้างอิง')
+    subqs = decompose_question(q, max_parts=2)
+    if subqs:
+        q = f"{q} {' '.join(subqs)}"
+    return f"{q} {hints}".strip()
+
+
+def _is_anchored_regulations_query(question: str, domain: str | None) -> bool:
+    dom = (domain or '').strip().lower()
+    if dom != 'regulations':
+        return False
+    q = (question or '').strip().lower()
+    if not q:
+        return False
+    if bool(re.search(r"ข้อ\s*[๐-๙0-9]+(?:\.[๐-๙0-9]+)?", question or '')):
+        return True
+    exam_late_anchor = (
+        ('สอบ' in q or 'ห้องสอบ' in q)
+        and ('มาสาย' in q or 'สาย' in q or 'เข้าห้องสอบ' in q)
+    )
+    return exam_late_anchor
 
 
 def _normalize_code_text(text: str) -> str:
@@ -888,6 +977,36 @@ def _build_rag_prompt_langchain(question: str, domain: Optional[str] = None) -> 
         retrieved = _filter_chunks_by_reference(retrieved, question, strict=has_ref)
     except Exception:
         pass
+
+    add_metric('initial_retrieval_doc_count', len(retrieved or []))
+    add_metric('initial_top_score', _top_retrieval_score(retrieved))
+    if _is_low_confidence(retrieved):
+        add_metric('low_confidence_detected', 1)
+
+    skip_adaptive_retry = _is_anchored_regulations_query(question, dom)
+    if _ADAPTIVE_ORCHESTRATION and (not has_ref) and _is_low_confidence(retrieved) and (not skip_adaptive_retry):
+        add_metric('retrieval_adaptive_retry_triggered', 1)
+        retry_q = _expand_query_for_retry(question, dom)
+        try:
+            if dom and not _SEARCH_ALL_DOMAINS:
+                retry = retrieve_by_domain(retry_q, domain=dom)
+                add_metric('retry_retrieval_doc_count', len(retry or []))
+                add_metric('retry_top_score', _top_retrieval_score(retry))
+                if _is_low_confidence(retry):
+                    add_metric('retrieval_fallback_all_domains_triggered', 1)
+                    retry = retrieve_all_domains(retry_q, domains=fallback_domains_for_domain(dom, q_display))
+                    if retry:
+                        add_metric('retrieval_fallback_all_domains_succeeded', 1)
+            else:
+                retry = retrieve_all_domains(retry_q)
+                add_metric('retry_retrieval_doc_count', len(retry or []))
+                add_metric('retry_top_score', _top_retrieval_score(retry))
+
+            if (_top_retrieval_score(retry) > _top_retrieval_score(retrieved)) or (len(retry or []) > len(retrieved or [])):
+                retrieved = retry
+                add_metric('retrieval_adaptive_retry_succeeded', 1)
+        except Exception:
+            pass
 
     # Optional rerank (embedding-based) to reduce noise.
     if _RERANK_ENABLE and retrieved and (_RERANK_ALL or (dom == 'curriculum')):
