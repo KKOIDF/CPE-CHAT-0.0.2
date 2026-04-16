@@ -29,6 +29,28 @@ python3 eval_runner.py --input eval_cases.json --compare-baseline reports/baseli
 ```
 If your new code falls behind the baseline MRR or hit rates, the script returns a non-zero exit code.
 
+### 4. Week 2 Hardening Workflow (recommended)
+This workflow executes:
+- double canary smoke runs,
+- ranking robustness checks,
+- baseline refresh from current commit,
+- baseline alias update for canary guard.
+
+```bash
+bash scripts/run_week2_hardening.sh
+```
+
+Useful overrides:
+```bash
+BASE_URL=http://127.0.0.1:8001 LIMIT=40 BASELINE_COMMIT=$(git rev-parse --short HEAD) bash scripts/run_week2_hardening.sh
+```
+
+### 5. Ranking Robustness Check (standalone)
+Run this on any eval JSON output to ensure retrieval ranking stays healthy by domain:
+```bash
+python3 scripts/check_ranking_robustness.py --report-json qball_canary_guard.json
+```
+
 ## Per-Question Schema (eval_cases.json)
 `eval_runner.py` now supports richer metadata per question for thesis-style evaluation.
 

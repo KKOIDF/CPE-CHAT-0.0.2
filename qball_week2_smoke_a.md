@@ -1,6 +1,6 @@
 # Regression Eval Summary
 
-Generated: 2026-04-16T20:14:13.379441
+Generated: 2026-04-16T20:06:41.632970
 Input: eval_cases.json
 Base URL: http://127.0.0.1:8001
 
@@ -32,15 +32,15 @@ Base URL: http://127.0.0.1:8001
 - runtime error count: 0
 
 ### Latency Metrics
-- avg total latency ms: 305.82
-- median total latency ms: 247.56
-- p95 total latency ms: 779.99
-- avg retrieval latency ms: 297.57
-- median retrieval latency ms: 247.56
-- p95 retrieval latency ms: 779.99
-- avg generation latency ms: 329.92
-- median generation latency ms: 329.92
-- p95 generation latency ms: 329.92
+- avg total latency ms: 294.94
+- median total latency ms: 253.83
+- p95 total latency ms: 765.04
+- avg retrieval latency ms: 290.66
+- median retrieval latency ms: 253.83
+- p95 retrieval latency ms: 765.04
+- avg generation latency ms: 171.25
+- median generation latency ms: 171.25
+- p95 generation latency ms: 171.25
 
 ## Coverage
 
@@ -58,10 +58,10 @@ Base URL: http://127.0.0.1:8001
 
 ## Domain Monitor
 
-- announcements: total=8, overall=1.0000, answer=1.0000, retrieval=1.0000, citation=1.0000, avg_latency_ms=187.62, p95_latency_ms=489.68
-- curriculum: total=19, overall=1.0000, answer=1.0000, retrieval=1.0000, citation=1.0000, avg_latency_ms=163.73, p95_latency_ms=256.86
-- multi: total=3, overall=1.0000, answer=1.0000, retrieval=1.0000, citation=1.0000, avg_latency_ms=628.30, p95_latency_ms=779.99
-- regulations: total=10, overall=1.0000, answer=1.0000, retrieval=1.0000, citation=1.0000, avg_latency_ms=573.62, p95_latency_ms=1125.27
+- announcements: total=8, overall=1.0000, answer=1.0000, retrieval=1.0000, citation=1.0000, avg_latency_ms=185.68, p95_latency_ms=479.65
+- curriculum: total=19, overall=1.0000, answer=1.0000, retrieval=1.0000, citation=1.0000, avg_latency_ms=169.40, p95_latency_ms=266.22
+- multi: total=3, overall=1.0000, answer=1.0000, retrieval=1.0000, citation=1.0000, avg_latency_ms=646.18, p95_latency_ms=796.92
+- regulations: total=10, overall=1.0000, answer=1.0000, retrieval=1.0000, citation=1.0000, avg_latency_ms=515.49, p95_latency_ms=1048.02
 
 ## By Category
 

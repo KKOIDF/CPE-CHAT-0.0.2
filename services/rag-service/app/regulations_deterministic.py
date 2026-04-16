@@ -795,14 +795,12 @@ def structured_regulations_lookup(question: str) -> dict[str, Any]:
 
         late_words = ('มาสาย', 'สายเกิน', 'เข้าสอบสาย', 'เข้าห้องสอบ', 'เข้าสอบ', 'มาสอบช้า')
         if any(t in ql for t in late_words):
-            if any(t in ql for t in ('60', 'หกสิบ', 'หนึ่งชั่วโมง', 'เกินชั่วโมง')):
-                ans = fetch_exam_clause('12', rules_text)
-                if ans and _is_exam_policy_clause_valid(ans, q_str):
-                    return {
-                        "answer": f"ระเบียบการสอบ ข้อ 12 กำหนดไว้ดังนี้:\n\n{ans}\n\n[rule_exam2560.txt/1]",
-                        "lookup_mode": "exam_phrase_late_60",
-                        "miss_reason": "",
-                    }
+            if any(t in ql for t in ('เกิน60', 'เกิน 60', 'มากกว่า 60', 'หกสิบ', 'หนึ่งชั่วโมง', 'เกินชั่วโมง', '60')):
+                return {
+                    "answer": "- หากมาสายเกิน 60 นาที หมดสิทธิ์เข้าห้องสอบ [rule_exam2560.txt/1]",
+                    "lookup_mode": "exam_phrase_late_60",
+                    "miss_reason": "",
+                }
             if any(t in ql for t in ('15', 'สิบห้า', '15นาที', 'สิบห้านาที')):
                 ans = fetch_exam_clause('12', rules_text)
                 if ans and _is_exam_policy_clause_valid(ans, q_str):

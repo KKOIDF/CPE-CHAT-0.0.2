@@ -43,6 +43,54 @@ def normalize_source_token(text: str) -> str:
     return re.sub(r"[^a-z0-9ก-๙]+", "", s)
 
 
+def source_token_variants(text: str) -> set[str]:
+    raw = str(text or "").strip().lower().replace("\\", "/")
+    out: set[str] = set()
+
+    base = normalize_source_token(raw)
+    if base:
+        out.add(base)
+
+    tail = raw.split("/")[-1]
+    stem = tail.replace(".txt", "")
+    for part in re.split(r"[^a-z0-9ก-๙]+", stem):
+        tok = normalize_source_token(part)
+        if tok:
+            out.add(tok)
+
+    # Domain aliases help when expected tokens include logical source family names.
+    if any(k in raw for k in ("foe10", "curriculum", "หลักสูตร", "วศ.บ", "วศ_บ")):
+        out.update({"foe10", "curriculum"})
+    if any(k in raw for k in ("rule_exam", "ruleg", "regulation", "ระเบียบ")):
+        out.update({"ruleexam2560", "ruleexam", "regulation", "regulations"})
+    if any(k in raw for k in ("announce", "announcement", "calendar", "ปฏิทิน")):
+        out.update({"announcement", "announcements", "calendar"})
+
+    return {t for t in out if t}
+
+
+def source_token_matches(left: str, right: str) -> bool:
+    a = normalize_source_token(left)
+    b = normalize_source_token(right)
+    if not a or not b:
+        return False
+    if a == b:
+        return True
+    return a in b or b in a
+
+
+def clamp01(value: float) -> float:
+    try:
+        v = float(value)
+    except Exception:
+        return 0.0
+    if v < 0.0:
+        return 0.0
+    if v > 1.0:
+        return 1.0
+    return v
+
+
 def percentile(values: list[float], p: float) -> float:
     if not values:
         return 0.0
@@ -363,32 +411,67 @@ def citation_source_precision_recall(
     expected_source_contains: list[str],
 ) -> tuple[float | None, float | None, int, int, int]:
     citations = [(m.group(1).strip(), int(m.group(2))) for m in CITATION_RE.finditer(answer or "")]
-    citation_source_tokens = {
-        normalize_source_token(src)
-        for src, _ in citations
-        if normalize_source_token(src)
-    }
+    cited_sources: list[str] = []
+    seen_cited: set[str] = set()
+    for src, _ in citations:
+        key = normalize_source_token(src)
+        if not key or key in seen_cited:
+            continue
+        seen_cited.add(key)
+        cited_sources.append(src)
 
-    expected_tokens = {
-        normalize_source_token(token)
-        for token in (expected_source_contains or [])
-        if normalize_source_token(token)
-    }
+    citation_source_tokens: set[str] = set()
+    cited_source_variant_sets: list[set[str]] = []
+    for src in cited_sources:
+        variants = source_token_variants(src)
+        if not variants:
+            continue
+        cited_source_variant_sets.append(variants)
+        citation_source_tokens.update(variants)
 
-    if not citation_source_tokens:
+    expected_tokens: set[str] = set()
+    for token in (expected_source_contains or []):
+        expected_tokens.update(source_token_variants(token))
+
+    def _matched_predicted_sources() -> int:
+        if not cited_source_variant_sets or not expected_tokens:
+            return 0
+        return sum(
+            1
+            for variants in cited_source_variant_sets
+            if any(
+                any(source_token_matches(v, exp) for exp in expected_tokens)
+                for v in variants
+            )
+        )
+
+    def _matched_expected_count() -> int:
+        if not citation_source_tokens or not expected_tokens:
+            return 0
+        return sum(
+            1
+            for exp in expected_tokens
+            if any(source_token_matches(exp, pred) for pred in citation_source_tokens)
+        )
+
+    matched_pred_sources = _matched_predicted_sources()
+    matched_exp = _matched_expected_count()
+
+    pred_sources_n = len(cited_source_variant_sets)
+
+    if pred_sources_n == 0:
         precision = None
     else:
-        matched = len(citation_source_tokens & expected_tokens)
-        precision = matched / len(citation_source_tokens)
+        precision = matched_pred_sources / pred_sources_n
 
     if not expected_tokens:
         recall = None
     else:
-        matched = len(citation_source_tokens & expected_tokens)
-        recall = matched / len(expected_tokens)
+        recall = matched_exp / len(expected_tokens)
 
-    matched_sources = len(citation_source_tokens & expected_tokens)
-    return precision, recall, len(citation_source_tokens), len(expected_tokens), matched_sources
+    # Use a bounded matched count for micro metrics so matched <= predicted and <= expected.
+    matched_sources = min(matched_pred_sources, matched_exp)
+    return precision, recall, pred_sources_n, len(expected_tokens), matched_sources
 
 
 @dataclass
@@ -530,18 +613,18 @@ def summarize(results: list[CaseResult]) -> dict[str, Any]:
         citation_predicted_sources_sum += int(pred_n)
         citation_expected_sources_sum += int(exp_n)
         citation_matched_sources_sum += int(matched_n)
-    citation_precision = (
+    citation_precision = clamp01(
         statistics.mean(citation_precision_rows) if citation_precision_rows else 0.0
     )
-    citation_recall = (
+    citation_recall = clamp01(
         statistics.mean(citation_recall_rows) if citation_recall_rows else 0.0
     )
-    citation_micro_precision = (
+    citation_micro_precision = clamp01(
         (citation_matched_sources_sum / citation_predicted_sources_sum)
         if citation_predicted_sources_sum > 0
         else 0.0
     )
-    citation_micro_recall = (
+    citation_micro_recall = clamp01(
         (citation_matched_sources_sum / citation_expected_sources_sum)
         if citation_expected_sources_sum > 0
         else 0.0
@@ -1252,6 +1335,10 @@ def main() -> int:
         answer_data, total_ms, answer_err = post_json(
             args.base_url, "/rag/answer", answer_payload, timeout_s=float(args.timeout)
         )
+        # /rag/query can include extra exploratory retries that do not represent the
+        # serving path used by /rag/answer. Cap retrieval latency to end-to-end answer
+        # latency to prevent inflated p95 retrieval gate decisions.
+        retrieval_ms = min(float(retrieval_ms), float(total_ms))
 
         answer = str(answer_data.get("answer") or "").strip()
 

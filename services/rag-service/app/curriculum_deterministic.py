@@ -1248,7 +1248,10 @@ def structured_curriculum_lookup(question: str) -> dict[str, Any]:
         any(s in q for s in _vit_subjects)
         and any(t in q for t in ("กี่", "ทั้งหมด", "รวม"))
     )
-    if "หน่วยกิต" in q and _credit_broad:
+    # Do not answer program-total credits when the user asks about a specific course code.
+    # Course-level questions like "CPE 401 ... มีกี่หน่วยกิต" should continue to exact code lookup.
+    has_course_code_hint = bool(re.search(r"\b[A-Za-z]{2,6}\s*[- ]?\s*\d{3}\b", q))
+    if "หน่วยกิต" in q and _credit_broad and not has_course_code_hint:
         tot = totals.get("total")
         if tot is not None:
             return {

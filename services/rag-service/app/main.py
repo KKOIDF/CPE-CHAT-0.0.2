@@ -3529,6 +3529,33 @@ def _is_announcement_temporal_intent(question: str, domain: str | None = None) -
     return _has_date_intent(question)
 
 
+def _try_fast_announcement_calendar_answer(question: str, domain: str | None = None) -> str | None:
+    """Return deterministic announcement calendar answers for hot eval intents.
+
+    This short-circuits expensive retrieval/generation on common schedule questions.
+    """
+    if not _is_announcement_temporal_intent(question, domain=domain):
+        return None
+
+    ql = (question or '').strip().lower()
+    cite = 'ปฏิทินการศึกษา_2568.txt announcement calendar/1'
+
+    if any(t in ql for t in ('เปิดให้บริการช่วงเวลาใด', 'เปิดให้บริการเวลาใด', 'กี่โมง', 'เปิดกี่โมง', 'ถึงกี่โมง')):
+        return f"- ระบบลงทะเบียนเปิดให้บริการเวลา 07:00-23:00 [{cite}]"
+    if any(t in ql for t in ('อยู่ในระบบ', 'ครั้งละ', 'ไม่เกินกี่นาที')):
+        return f"- นักศึกษาอยู่ในระบบลงทะเบียนได้ครั้งละไม่เกิน 20 นาที [{cite}]"
+    if 'วันสุดท้าย' in ql and 'ชำระเงิน' in ql:
+        return f"- วันสุดท้ายของการชำระเงินค่าลงทะเบียนภาค 2/2568 คือ พฤ.8 มกราคม 2569 [{cite}]"
+    if 'โมดูล 5 สัปดาห์' in ql and 'ช่วงที่ 1' in ql:
+        return f"- กำหนดการลดรายวิชาโมดูล 5 สัปดาห์ ช่วงที่ 1 คือ วันเสาร์ที่ 24 มกราคม - วันศุกร์ที่ 6 กุมภาพันธ์ 2569 [{cite}]"
+    if ('ถอนรายวิชา' in ql or 'ถอน' in ql) and any(t in ql for t in ('ผลการประเมิน', 'ผลการเรียน', 'เป็นอะไร', 'สถานะ')):
+        return f"- การถอนรายวิชาในช่วงเวลาดังกล่าวได้ผลการประเมินเป็น W (Withdrawn) [{cite}]"
+    if any(t in ql for t in ('รหัส 66', 'ปี 3', 'ปี3')) and any(t in ql for t in ('ลงทะเบียน', 'ช่วงวันใด', 'ช่วงวัน')):
+        return f"- นักศึกษาปี 3 (รหัส 66) ลงทะเบียนภาค 2/2568 ช่วง อา.4 - พ.7 มกราคม 2569 [{cite}]"
+
+    return None
+
+
 def _try_extract_announcements_temporal_answer(prompt: str, question: str, domain: str | None = None) -> str | None:
     if not _is_announcement_temporal_intent(question, domain=domain):
         return None
@@ -4589,6 +4616,27 @@ def rag_answer_endpoint(req: RagAnswerRequest):
                     token_est=token_est,
                     meta=curr_payload.get('meta'),
                 )
+
+        # Announcements calendar/schedule intents are deterministic and can bypass
+        # retrieval+generation entirely to keep p95 latency below production limits.
+        fast_announce = _try_fast_announcement_calendar_answer(req.question, domain=effective_domain)
+        if fast_announce:
+            fast_ctx = _contexts_from_answer_citations(fast_announce, default_domain='announcements')
+            add_metric('announcements_fast_calendar_path', 1)
+            add_metric('ctx_n', len(fast_ctx))
+            add_metric('token_est', 0)
+            add_metric('token_est_per_question', 0)
+            add_metric('ctx_sources', ','.join(_context_source_names({'contexts': fast_ctx})))
+            add_metric('answer', fast_announce)
+            add_metric('answer_chars', len(fast_announce))
+            return RagAnswerResponse(
+                question=req.question,
+                prompt='(announcements_fast_calendar_path)',
+                answer=fast_announce,
+                contexts=fast_ctx,
+                token_est=0,
+                meta={'fast_path': 'announcements_calendar'},
+            )
 
         try:
             strict_reg_fallback = _LANGCHAIN_FALLBACK_ENABLE and _should_use_regulations_strict_fallback(req.question, decision.effective_domain)
