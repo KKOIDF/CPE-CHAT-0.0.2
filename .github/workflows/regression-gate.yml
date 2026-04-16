@@ -59,6 +59,9 @@ jobs:
       - name: Run regression gate
         run: bash scripts/run_regression_gate.sh
 
+      - name: Run canary 10% baseline guard
+        run: bash scripts/run_canary_guard.sh
+
       - name: Upload reports
         if: always()
         uses: actions/upload-artifact@v4

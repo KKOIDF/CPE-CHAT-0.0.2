@@ -100,8 +100,8 @@ def normalize_question(question: str) -> str:
         # but simple string replace is safe enough for these specific abbreviations.
         q = q.replace(src, dst)
 
-    # Normalize alphanumeric course codes without space: CPE342 -> CPE 342
-    q = re.sub(r"\b([A-Za-z]{2,6})\s*(\d{3})\b", r"\1 \2", q)
+    # Normalize alphanumeric course codes without/with dash: CPE342 / CPE-342 -> CPE 342
+    q = re.sub(r"\b([A-Za-z]{2,6})\s*[- ]?\s*(\d{3})\b", r"\1 \2", q)
     # Handle OCR/typo ambiguity in numeric part: CPE 34O / CPE34O -> CPE 340
     q = re.sub(
         r"\b([A-Za-z]{2,6})\s*[- ]?\s*(\d{2})[oO]\b",
@@ -190,6 +190,13 @@ def search_query_from_question(question: str) -> str:
     q = normalize_question(question)
     if not q:
         return ''
+
+    # LNG questions are often asked in mixed formats (LNG120 / LNG 120) or by
+    # intent words like "language course". Add a compact bilingual hint to improve recall.
+    ql = q.lower()
+    if re.search(r"\blng\s*[- ]?\s*\d{3}\b", q, flags=re.IGNORECASE) and ('language course' not in ql):
+        q = f"{q} (language course รายวิชาภาษา)"
+
     variants = _expand_course_code_variants(q)
     if not variants:
         return q

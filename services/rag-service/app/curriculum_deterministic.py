@@ -527,8 +527,24 @@ def _lookup_prerequisites_from_sqlite(code: str) -> tuple[list[str], str] | None
                 disp = f"{cp} {cn}"
                 if disp not in found:
                     found.append(disp)
-            if found:
-                return found, src
+
+            # Some curriculum entries include alternative conditions without a
+            # course code (e.g., O-NET threshold). Keep these deterministic.
+            extras: list[str] = []
+            if re.search(r"\bO\s*-?\s*NET\b|โอ\s*-?\s*เน็ต", win, re.IGNORECASE):
+                extras.append('O-NET')
+
+            combined: list[str] = []
+            seen_req: set[str] = set()
+            for item in [*found, *extras]:
+                k = str(item or '').strip().upper()
+                if not k or k in seen_req:
+                    continue
+                seen_req.add(k)
+                combined.append(item)
+
+            if combined:
+                return combined, src
 
     return None
 
@@ -602,12 +618,22 @@ def _format_course_detail_answer(
     hour_hit: tuple[str, str] | None,
     prereq_hit: tuple[list[str], str] | None,
 ) -> str:
+    known_en_titles: dict[str, str] = {
+        'CPE 342': 'Machine Learning',
+        'CPE 241': 'Database',
+        'CPE 223': 'Computer Architectures',
+    }
+    title_text = str(title or '').strip()
+    en_alias = known_en_titles.get((code_disp or '').upper())
+    if en_alias and en_alias not in title_text:
+        title_text = f"{title_text} ({en_alias})"
+
     hour_val = ''
     hour_src = base_src
     if hour_hit:
         hour_val, hour_src = hour_hit
 
-    prereq_txt = 'ยังไม่พบข้อมูลที่ยืนยันได้'
+    prereq_txt = 'ไม่ระบุในเอกสารที่ดึงมา'
     prereq_src = base_src
     if prereq_hit is not None:
         prereqs, psrc = prereq_hit
@@ -617,16 +643,18 @@ def _format_course_detail_answer(
         else:
             prereq_txt = 'ไม่มีวิชาบังคับก่อน'
 
-    credit_text = f'{credits} หน่วยกิต' if credits else 'ยังไม่พบข้อมูลที่ยืนยันได้'
-    hour_text = hour_val if hour_val else 'ยังไม่พบข้อมูลที่ยืนยันได้'
+    credit_text = f'{credits} หน่วยกิต' if credits else 'ไม่ระบุในเอกสารที่ดึงมา'
+    hour_text = hour_val if hour_val else 'ไม่ระบุในเอกสารที่ดึงมา'
 
-    return (
-        f"- รหัสวิชา: {code_disp}\n"
-        f"- ชื่อวิชา: {title} [{base_src}/1]\n"
-        f"- หน่วยกิต: {credit_text} [{base_src}/1]\n"
-        f"- ชั่วโมงเรียน: {hour_text} [{hour_src}/1]\n"
-        f"- วิชาบังคับก่อน: {prereq_txt} [{prereq_src}/1]"
-    ).strip()
+    lines = [
+        f"- รหัสวิชา: {code_disp}",
+        f"- ชื่อวิชา: {title_text} [{base_src}/1]",
+        f"- หน่วยกิต: {credit_text} [{base_src}/1]",
+        f"- ชั่วโมงเรียน: {hour_text} [{hour_src}/1]",
+    ]
+    if prereq_hit is not None:
+        lines.append(f"- วิชาบังคับก่อน: {prereq_txt} [{prereq_src}/1]")
+    return "\n".join(lines).strip()
 
 
 def _load_curriculum_reference_text() -> str:

@@ -53,6 +53,18 @@ _RERANK_ENABLE = os.getenv('RAG_LC_RERANK', '1') in ('1', 'true', 'True')
 _RERANK_TOPN = int(os.getenv('RAG_LC_RERANK_TOPN', '24') or '24')
 _RERANK_ALL = os.getenv('RAG_LC_RERANK_ALL', '1') in ('1', 'true', 'True')
 
+_RERANK_SKIP_HIGH_CONF = os.getenv('RAG_LC_RERANK_SKIP_HIGH_CONF', '1') in ('1', 'true', 'True')
+try:
+    _RERANK_SKIP_HIGH_CONF_THRESHOLD = float(os.getenv('RAG_LC_RERANK_SKIP_HIGH_CONF_THRESHOLD', '0.18') or '0.18')
+except Exception:
+    _RERANK_SKIP_HIGH_CONF_THRESHOLD = 0.18
+try:
+    _RERANK_MIN_DOCS = max(2, int(os.getenv('RAG_LC_RERANK_MIN_DOCS', '10') or '10'))
+except Exception:
+    _RERANK_MIN_DOCS = 10
+
+_MULTIQUERY_FOR_ANCHORED = os.getenv('RAG_LC_MULTIQUERY_FOR_ANCHORED', '0') in ('1', 'true', 'True')
+
 _COMPRESS_ENABLE = os.getenv('RAG_LC_COMPRESS', '1') in ('1', 'true', 'True')
 _COMPRESS_MAX_CHARS = int(os.getenv('RAG_LC_COMPRESS_MAX_CHARS', '700') or '700')
 _COMPRESS_ALL = os.getenv('RAG_LC_COMPRESS_ALL', '1') in ('1', 'true', 'True')
@@ -523,6 +535,17 @@ def _is_low_confidence(items: List[Dict]) -> bool:
     return _top_retrieval_score(items) < _LOW_SCORE_THRESHOLD
 
 
+def _has_precision_anchors(question: str) -> bool:
+    q = (question or '').strip()
+    if not q:
+        return False
+    if bool(re.search(r"\b[a-z]{2,6}\s*[- ]?\s*\d{3}\b", q, flags=re.IGNORECASE)):
+        return True
+    if bool(re.search(r"ข้อ\s*[๐-๙0-9]+(?:\.[๐-๙0-9]+)?", q)):
+        return True
+    return False
+
+
 def _expand_query_for_retry(question: str, domain: str | None) -> str:
     q = (question or '').strip()
     dom = (domain or '').strip().lower()
@@ -555,6 +578,21 @@ def _is_anchored_regulations_query(question: str, domain: str | None) -> bool:
         and ('มาสาย' in q or 'สาย' in q or 'เข้าห้องสอบ' in q)
     )
     return exam_late_anchor
+
+
+def _is_announcement_temporal_query(question: str, domain: str | None) -> bool:
+    dom = (domain or '').strip().lower()
+    if dom != 'announcements':
+        return False
+    q = (question or '').strip().lower()
+    if not q:
+        return False
+    temporal_tokens = (
+        'กำหนดการ', 'ปฏิทิน', 'วัน', 'วันที่', 'ช่วงวัน', 'ช่วงเวลา',
+        'deadline', 'calendar', 'schedule', 'ลงทะเบียน', 'ชำระเงิน',
+        'เปิดระบบ', 'ปิดระบบ', 'โมดูล', 'สัปดาห์',
+    )
+    return any(t in q for t in temporal_tokens)
 
 
 def _normalize_code_text(text: str) -> str:
@@ -898,8 +936,12 @@ def _build_rag_prompt_langchain(question: str, domain: Optional[str] = None) -> 
     # Multi-query retrieval (best-effort): use LLM to generate query variants,
     # retrieve for each query, then fuse with RRF.
     variants: List[str] = []
-    if (not has_ref) and _MULTIQUERY_ENABLE and (_MULTIQUERY_ALL or (dom == 'curriculum') or (dom is None)):
+    anchored = _has_precision_anchors(question)
+    allow_multiquery = (not anchored) or _MULTIQUERY_FOR_ANCHORED
+    if (not has_ref) and allow_multiquery and _MULTIQUERY_ENABLE and (_MULTIQUERY_ALL or (dom == 'curriculum') or (dom is None)):
         variants = _multiquery_variants(q_display, q_search, dom)
+    elif anchored and (not has_ref):
+        add_metric('multiquery_skipped_anchored', 1)
 
     # Prevent multi-query drift: generated variants must preserve lexical anchors
     # like clause numbers (ข้อ 12), course codes (CPE123), and key numbers (15, 60).
@@ -983,7 +1025,10 @@ def _build_rag_prompt_langchain(question: str, domain: Optional[str] = None) -> 
     if _is_low_confidence(retrieved):
         add_metric('low_confidence_detected', 1)
 
-    skip_adaptive_retry = _is_anchored_regulations_query(question, dom)
+    skip_adaptive_retry = (
+        _is_anchored_regulations_query(question, dom)
+        or _is_announcement_temporal_query(question, dom)
+    )
     if _ADAPTIVE_ORCHESTRATION and (not has_ref) and _is_low_confidence(retrieved) and (not skip_adaptive_retry):
         add_metric('retrieval_adaptive_retry_triggered', 1)
         retry_q = _expand_query_for_retry(question, dom)
@@ -1010,24 +1055,38 @@ def _build_rag_prompt_langchain(question: str, domain: Optional[str] = None) -> 
 
     # Optional rerank (embedding-based) to reduce noise.
     if _RERANK_ENABLE and retrieved and (_RERANK_ALL or (dom == 'curriculum')):
-        # Mismatch intent skip: if top 3 docs don't match our initial domain intent, skip expensive rerank.
-        mismatch_skip = False
-        if initial_dom and initial_dom != 'unknown':
-            top_domains = [str(d.get('domain') or '').strip().lower() for d in retrieved[:3]]
-            if top_domains and initial_dom not in top_domains:
-                mismatch_skip = True
-
-        if not mismatch_skip:
-            with time_block('top_k_rerank'):
-                try:
-                    _chroma_calls = fetch_embeddings_for_docs(retrieved, dom)
-                    add_metric('embedding_fetch_chroma_calls', _chroma_calls)
-                    retrieved = _rerank_by_embedding(q_search, retrieved, topn=_RERANK_TOPN)
-                    retrieved = retrieved[:cap]
-                except Exception:
-                    pass
+        # Announcement temporal queries are extractor-driven; rerank rarely helps
+        # and adds avoidable latency variance.
+        if _is_announcement_temporal_query(question, dom):
+            add_metric('top_k_rerank_skipped_announcement_temporal', 1)
         else:
-            add_metric('top_k_rerank_skipped_mismatch', 1)
+        # Mismatch intent skip: if top 3 docs don't match our initial domain intent, skip expensive rerank.
+            mismatch_skip = False
+            if initial_dom and initial_dom != 'unknown':
+                top_domains = [str(d.get('domain') or '').strip().lower() for d in retrieved[:3]]
+                if top_domains and initial_dom not in top_domains:
+                    mismatch_skip = True
+
+            high_conf_skip = False
+            if _RERANK_SKIP_HIGH_CONF:
+                top_score = _top_retrieval_score(retrieved)
+                if (top_score >= _RERANK_SKIP_HIGH_CONF_THRESHOLD) and (len(retrieved or []) < _RERANK_MIN_DOCS):
+                    high_conf_skip = True
+
+            if not mismatch_skip and not high_conf_skip:
+                with time_block('top_k_rerank'):
+                    try:
+                        _chroma_calls = fetch_embeddings_for_docs(retrieved, dom)
+                        add_metric('embedding_fetch_chroma_calls', _chroma_calls)
+                        retrieved = _rerank_by_embedding(q_search, retrieved, topn=_RERANK_TOPN)
+                        retrieved = retrieved[:cap]
+                    except Exception:
+                        pass
+            else:
+                if mismatch_skip:
+                    add_metric('top_k_rerank_skipped_mismatch', 1)
+                if high_conf_skip:
+                    add_metric('top_k_rerank_skipped_high_conf', 1)
 
     # Optional extractive compression to pack more relevant context.
     if _COMPRESS_ENABLE and retrieved and (_COMPRESS_ALL or (dom == 'curriculum')):

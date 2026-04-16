@@ -24,6 +24,13 @@ DEFAULT_PRODUCTION_CATEGORY_MIN_OVERALL = {
     "announcements": 0.75,
 }
 
+DEFAULT_PRODUCTION_DOMAIN_MAX_P95_LATENCY_MS = {
+    "announcements": 1400.0,
+    "regulations": 2500.0,
+    "curriculum": 2000.0,
+    "multi": 2200.0,
+}
+
 
 def normalize_text(text: str) -> str:
     return re.sub(r"\s+", " ", (text or "").strip().lower())
@@ -351,6 +358,39 @@ def citation_validity(answer: str, contexts: list[dict[str, Any]]) -> tuple[bool
     return valid_count == total, total, valid_count, issues
 
 
+def citation_source_precision_recall(
+    answer: str,
+    expected_source_contains: list[str],
+) -> tuple[float | None, float | None, int, int, int]:
+    citations = [(m.group(1).strip(), int(m.group(2))) for m in CITATION_RE.finditer(answer or "")]
+    citation_source_tokens = {
+        normalize_source_token(src)
+        for src, _ in citations
+        if normalize_source_token(src)
+    }
+
+    expected_tokens = {
+        normalize_source_token(token)
+        for token in (expected_source_contains or [])
+        if normalize_source_token(token)
+    }
+
+    if not citation_source_tokens:
+        precision = None
+    else:
+        matched = len(citation_source_tokens & expected_tokens)
+        precision = matched / len(citation_source_tokens)
+
+    if not expected_tokens:
+        recall = None
+    else:
+        matched = len(citation_source_tokens & expected_tokens)
+        recall = matched / len(expected_tokens)
+
+    matched_sources = len(citation_source_tokens & expected_tokens)
+    return precision, recall, len(citation_source_tokens), len(expected_tokens), matched_sources
+
+
 @dataclass
 class CaseResult:
     id: str
@@ -473,6 +513,39 @@ def summarize(results: list[CaseResult]) -> dict[str, Any]:
     retrieval_top_3_rate = sum(1 for r in results if r.retrieval_top_3_pass) / total if total else 0.0
     retrieval_top_5_rate = sum(1 for r in results if r.retrieval_top_5_pass) / total if total else 0.0
     citation_validity_rate = sum(1 for r in results if r.citation_validity_pass) / total if total else 0.0
+    citation_precision_rows: list[float] = []
+    citation_recall_rows: list[float] = []
+    citation_matched_sources_sum = 0
+    citation_predicted_sources_sum = 0
+    citation_expected_sources_sum = 0
+    for r in results:
+        c_prec, c_rec, pred_n, exp_n, matched_n = citation_source_precision_recall(
+            r.answer,
+            r.expected_source_contains,
+        )
+        if c_prec is not None:
+            citation_precision_rows.append(float(c_prec))
+        if c_rec is not None:
+            citation_recall_rows.append(float(c_rec))
+        citation_predicted_sources_sum += int(pred_n)
+        citation_expected_sources_sum += int(exp_n)
+        citation_matched_sources_sum += int(matched_n)
+    citation_precision = (
+        statistics.mean(citation_precision_rows) if citation_precision_rows else 0.0
+    )
+    citation_recall = (
+        statistics.mean(citation_recall_rows) if citation_recall_rows else 0.0
+    )
+    citation_micro_precision = (
+        (citation_matched_sources_sum / citation_predicted_sources_sum)
+        if citation_predicted_sources_sum > 0
+        else 0.0
+    )
+    citation_micro_recall = (
+        (citation_matched_sources_sum / citation_expected_sources_sum)
+        if citation_expected_sources_sum > 0
+        else 0.0
+    )
     must_not_pass_rate = sum(1 for r in results if r.must_not_contain_pass) / total if total else 0.0
     overall_pass_rate = sum(1 for r in results if r.total_pass) / total if total else 0.0
 
@@ -554,6 +627,13 @@ def summarize(results: list[CaseResult]) -> dict[str, Any]:
                 "top5": 0,
                 "mrr_sum": 0.0,
                 "retrieval_hit": 0,
+                "overall_pass": 0,
+                "answer_hit": 0,
+                "citation_validity": 0,
+                "must_not_contain_pass": 0,
+                "lat_total": [],
+                "lat_retrieval": [],
+                "lat_generation": [],
             },
         )
         dom_bucket["total"] += 1
@@ -562,6 +642,13 @@ def summarize(results: list[CaseResult]) -> dict[str, Any]:
         dom_bucket["top5"] += int(r.retrieval_top_5_pass)
         dom_bucket["mrr_sum"] += r.retrieval_mrr
         dom_bucket["retrieval_hit"] += int(r.retrieval_hit_pass)
+        dom_bucket["overall_pass"] += int(r.total_pass)
+        dom_bucket["answer_hit"] += int(r.answer_hit_pass)
+        dom_bucket["citation_validity"] += int(r.citation_validity_pass)
+        dom_bucket["must_not_contain_pass"] += int(r.must_not_contain_pass)
+        dom_bucket["lat_total"].append(float(r.total_latency_ms))
+        dom_bucket["lat_retrieval"].append(float(r.retrieval_latency_ms))
+        dom_bucket["lat_generation"].append(float(r.generation_latency_ms))
 
     by_category_rates: dict[str, dict[str, float]] = {}
     for cat, m in by_category.items():
@@ -581,13 +668,26 @@ def summarize(results: list[CaseResult]) -> dict[str, Any]:
     by_domain_rates: dict[str, dict[str, float]] = {}
     for dom, m in by_domain.items():
         n = max(1, int(m["total"]))
+        lat_total_dom = list(m.get("lat_total") or [])
+        lat_ret_dom = list(m.get("lat_retrieval") or [])
+        lat_gen_dom = list(m.get("lat_generation") or [])
         by_domain_rates[dom] = {
             "total": float(m["total"]),
+            "overall_pass_rate": float(m["overall_pass"]) / n,
+            "answer_hit_rate": float(m["answer_hit"]) / n,
             "retrieval_hit_rate": float(m["retrieval_hit"]) / n,
             "retrieval_top_1_rate": float(m["top1"]) / n,
             "retrieval_top_3_rate": float(m["top3"]) / n,
             "retrieval_top_5_rate": float(m["top5"]) / n,
             "retrieval_mrr": float(m["mrr_sum"]) / n,
+            "citation_validity_rate": float(m["citation_validity"]) / n,
+            "must_not_contain_pass_rate": float(m["must_not_contain_pass"]) / n,
+            "avg_latency_ms": statistics.mean(lat_total_dom) if lat_total_dom else 0.0,
+            "p95_latency_ms": percentile(lat_total_dom, 95),
+            "avg_retrieval_latency_ms": statistics.mean(lat_ret_dom) if lat_ret_dom else 0.0,
+            "p95_retrieval_latency_ms": percentile(lat_ret_dom, 95),
+            "avg_generation_latency_ms": statistics.mean(lat_gen_dom) if lat_gen_dom else 0.0,
+            "p95_generation_latency_ms": percentile(lat_gen_dom, 95),
         }
 
     adaptive_acc = default_adaptive()
@@ -683,6 +783,10 @@ def summarize(results: list[CaseResult]) -> dict[str, Any]:
         "retrieval_top_3_rate": retrieval_top_3_rate,
         "retrieval_top_5_rate": retrieval_top_5_rate,
         "citation_validity_rate": citation_validity_rate,
+        "citation_precision": citation_precision,
+        "citation_recall": citation_recall,
+        "citation_micro_precision": citation_micro_precision,
+        "citation_micro_recall": citation_micro_recall,
         "must_not_contain_pass_rate": must_not_pass_rate,
         "avg_quality_score": avg_quality_score,
         "pct_correct_answers": pct_correct_answers,
@@ -742,6 +846,10 @@ def to_markdown(summary: dict[str, Any], input_path: Path, base_url: str) -> str
     lines.append(f"- % hallucination: {summary.get('pct_hallucination', 0.0):.4f}")
     lines.append(f"- % answerable handled correctly: {summary.get('pct_answerable_handled_correctly', 0.0):.4f}")
     lines.append(f"- citation validity (groundedness): {summary['citation_validity_rate']:.4f}")
+    lines.append(f"- citation precision: {summary.get('citation_precision', 0.0):.4f}")
+    lines.append(f"- citation recall: {summary.get('citation_recall', 0.0):.4f}")
+    lines.append(f"- citation micro precision: {summary.get('citation_micro_precision', 0.0):.4f}")
+    lines.append(f"- citation micro recall: {summary.get('citation_micro_recall', 0.0):.4f}")
     lines.append(f"- must-not contain pass rate: {summary.get('must_not_contain_pass_rate', 0.0):.4f}")
     lines.append(f"- runtime error rate: {summary.get('runtime_error_rate', 0.0):.4f}")
     lines.append(f"- runtime error count: {int(summary.get('runtime_error_count', 0))}")
@@ -783,6 +891,18 @@ def to_markdown(summary: dict[str, Any], input_path: Path, base_url: str) -> str
             f"- {dom}: total={int(row.get('total', 0))}, top1={row.get('retrieval_top_1_rate', 0.0):.4f}, "
             f"top3={row.get('retrieval_top_3_rate', 0.0):.4f}, top5={row.get('retrieval_top_5_rate', 0.0):.4f}, "
             f"mrr={row.get('retrieval_mrr', 0.0):.4f}"
+        )
+    lines.append("")
+
+    lines.append("## Domain Monitor")
+    lines.append("")
+    for dom in sorted((summary.get("by_domain") or {}).keys()):
+        row = (summary.get("by_domain") or {}).get(dom) or {}
+        lines.append(
+            f"- {dom}: total={int(row.get('total', 0))}, overall={row.get('overall_pass_rate', 0.0):.4f}, "
+            f"answer={row.get('answer_hit_rate', 0.0):.4f}, retrieval={row.get('retrieval_hit_rate', 0.0):.4f}, "
+            f"citation={row.get('citation_validity_rate', 0.0):.4f}, "
+            f"avg_latency_ms={row.get('avg_latency_ms', 0.0):.2f}, p95_latency_ms={row.get('p95_latency_ms', 0.0):.2f}"
         )
     lines.append("")
 
@@ -934,10 +1054,15 @@ def apply_production_gate(
     min_answer_hit_rate: float,
     min_retrieval_hit_rate: float,
     min_citation_validity_rate: float,
+    min_citation_precision: float,
+    min_citation_recall: float,
+    max_hallucination_rate: float,
     min_must_not_contain_pass_rate: float,
     max_p95_latency_ms: float,
     max_p95_retrieval_latency_ms: float,
     category_min_overall_pass_rate: dict[str, float],
+    domain_min_overall_pass_rate: dict[str, float],
+    domain_max_p95_latency_ms: dict[str, float],
 ) -> list[str]:
     failures: list[str] = []
 
@@ -952,7 +1077,15 @@ def apply_production_gate(
     _check_min("answer_hit_rate", min_answer_hit_rate, "answer hit rate")
     _check_min("retrieval_hit_rate", min_retrieval_hit_rate, "retrieval hit rate")
     _check_min("citation_validity_rate", min_citation_validity_rate, "citation validity rate")
+    _check_min("citation_precision", min_citation_precision, "citation precision")
+    _check_min("citation_recall", min_citation_recall, "citation recall")
     _check_min("must_not_contain_pass_rate", min_must_not_contain_pass_rate, "must-not-contain pass rate")
+
+    cur_hallucination = float(summary.get("pct_hallucination", 0.0))
+    if cur_hallucination > float(max_hallucination_rate):
+        failures.append(
+            f"hallucination rate above production threshold: current={cur_hallucination:.4f}, threshold={float(max_hallucination_rate):.4f}"
+        )
 
     cur_p95 = float(summary.get("p95_latency_ms", 0.0))
     if cur_p95 > float(max_p95_latency_ms):
@@ -972,6 +1105,21 @@ def apply_production_gate(
         if cur < float(threshold):
             failures.append(
                 f"category overall pass rate below production threshold: {cat} current={cur:.4f}, threshold={float(threshold):.4f}"
+            )
+
+    by_dom = summary.get("by_domain") or {}
+    for dom, threshold in sorted((domain_min_overall_pass_rate or {}).items()):
+        cur = float(((by_dom.get(dom) or {}).get("overall_pass_rate", 0.0)))
+        if cur < float(threshold):
+            failures.append(
+                f"domain overall pass rate below production threshold: {dom} current={cur:.4f}, threshold={float(threshold):.4f}"
+            )
+
+    for dom, threshold in sorted((domain_max_p95_latency_ms or {}).items()):
+        cur = float(((by_dom.get(dom) or {}).get("p95_latency_ms", 0.0)))
+        if cur > float(threshold):
+            failures.append(
+                f"domain p95 latency above production threshold: {dom} current={cur:.2f} ms, threshold={float(threshold):.2f} ms"
             )
 
     return failures
@@ -1001,6 +1149,9 @@ def main() -> int:
     ap.add_argument("--prod-min-answer-hit-rate", type=float, default=0.80)
     ap.add_argument("--prod-min-retrieval-hit-rate", type=float, default=0.85)
     ap.add_argument("--prod-min-citation-validity-rate", type=float, default=0.95)
+    ap.add_argument("--prod-min-citation-precision", type=float, default=0.0)
+    ap.add_argument("--prod-min-citation-recall", type=float, default=0.0)
+    ap.add_argument("--prod-max-hallucination-rate", type=float, default=1.0)
     ap.add_argument("--prod-min-must-not-contain-pass-rate", type=float, default=0.98)
     ap.add_argument("--prod-max-p95-latency-ms", type=float, default=7000.0)
     ap.add_argument("--prod-max-p95-retrieval-latency-ms", type=float, default=2500.0)
@@ -1008,6 +1159,16 @@ def main() -> int:
         "--prod-category-min-overall-pass-rate",
         default=",".join(f"{k}={v}" for k, v in DEFAULT_PRODUCTION_CATEGORY_MIN_OVERALL.items()),
         help="Comma-separated category threshold map, e.g. regulations=0.9,curriculum_fact_lookup=0.9",
+    )
+    ap.add_argument(
+        "--prod-domain-min-overall-pass-rate",
+        default="",
+        help="Comma-separated domain threshold map, e.g. announcements=0.8,regulations=0.4",
+    )
+    ap.add_argument(
+        "--prod-domain-max-p95-latency-ms",
+        default=",".join(f"{k}={v}" for k, v in DEFAULT_PRODUCTION_DOMAIN_MAX_P95_LATENCY_MS.items()),
+        help="Comma-separated domain p95 latency limits in ms, e.g. announcements=1400,regulations=2500",
     )
     ap.add_argument(
         "--max-runtime-error-rate",
@@ -1311,16 +1472,23 @@ def main() -> int:
 
     if args.production_gate:
         prod_cat_thresholds = parse_category_thresholds(args.prod_category_min_overall_pass_rate)
+        prod_dom_min_thresholds = parse_category_thresholds(args.prod_domain_min_overall_pass_rate)
+        prod_dom_p95_thresholds = parse_category_thresholds(args.prod_domain_max_p95_latency_ms)
         prod_gate_failures = apply_production_gate(
             summary,
             min_overall_pass_rate=float(args.prod_min_overall_pass_rate),
             min_answer_hit_rate=float(args.prod_min_answer_hit_rate),
             min_retrieval_hit_rate=float(args.prod_min_retrieval_hit_rate),
             min_citation_validity_rate=float(args.prod_min_citation_validity_rate),
+            min_citation_precision=float(args.prod_min_citation_precision),
+            min_citation_recall=float(args.prod_min_citation_recall),
+            max_hallucination_rate=float(args.prod_max_hallucination_rate),
             min_must_not_contain_pass_rate=float(args.prod_min_must_not_contain_pass_rate),
             max_p95_latency_ms=float(args.prod_max_p95_latency_ms),
             max_p95_retrieval_latency_ms=float(args.prod_max_p95_retrieval_latency_ms),
             category_min_overall_pass_rate=prod_cat_thresholds,
+            domain_min_overall_pass_rate=prod_dom_min_thresholds,
+            domain_max_p95_latency_ms=prod_dom_p95_thresholds,
         )
         gate_failures.extend(prod_gate_failures)
         if prod_gate_failures:

@@ -1,0 +1,151 @@
+[
+  {
+    "id": "regulations_001",
+    "category": "regulations",
+    "question": "ตามระเบียบการสอบ 2560 ถ้ามาสายเกิน 15 นาทีแต่ไม่เกิน 60 นาทีต้องทำอย่างไร",
+    "expected_domain": "regulations",
+    "expected_answer_keywords": [
+      "ยื่นคำร้อง",
+      "อนุญาต",
+      "ห้องสอบ"
+    ],
+    "expected_source_contains": [
+      "rule_exam2560",
+      "regulation"
+    ],
+    "must_not_contain": [
+      "ไม่พบข้อมูล"
+    ],
+    "notes": "late arrival rule"
+  },
+  {
+    "id": "regulations_002",
+    "category": "regulations",
+    "question": "ถ้ามาสายเกิน 60 นาทีตามระเบียบการสอบจะเกิดอะไรขึ้น",
+    "expected_domain": "regulations",
+    "expected_answer_keywords": [
+      "หมดสิทธิ์",
+      "ห้องสอบ"
+    ],
+    "expected_source_contains": [
+      "rule_exam2560",
+      "regulation"
+    ],
+    "must_not_contain": [
+      "ไม่พบข้อมูล"
+    ],
+    "notes": "late arrival hard limit"
+  },
+  {
+    "id": "regulations_003",
+    "category": "regulations",
+    "question": "ข้อ 9 ระเบียบการสอบกำหนดเรื่องอุปกรณ์สื่อสารอย่างไร",
+    "expected_domain": "regulations",
+    "expected_answer_keywords": [
+      "ห้าม",
+      "อุปกรณ์",
+      "สื่อสาร"
+    ],
+    "expected_source_contains": [
+      "rule_exam2560",
+      "regulation"
+    ],
+    "must_not_contain": [
+      "ไม่พบข้อมูล"
+    ],
+    "notes": "communication devices"
+  },
+  {
+    "id": "regulations_004",
+    "category": "regulations",
+    "question": "นำเครื่องคำนวณเข้าห้องสอบได้เงื่อนไขใดและได้กี่เครื่อง",
+    "expected_domain": "regulations",
+    "expected_answer_keywords": [
+      "1",
+      "เครื่อง",
+      "สติกเกอร์"
+    ],
+    "expected_source_contains": [
+      "rule_exam2560",
+      "calculator"
+    ],
+    "must_not_contain": [
+      "ไม่พบข้อมูล"
+    ],
+    "notes": "calculator policy"
+  },
+  {
+    "id": "regulations_005",
+    "category": "regulations",
+    "question": "นักศึกษาจะออกจากห้องสอบได้เมื่อผ่านไปกี่นาที",
+    "expected_domain": "regulations",
+    "expected_answer_keywords": [
+      "60",
+      "นาที"
+    ],
+    "expected_source_contains": [
+      "rule_exam2560",
+      "regulation"
+    ],
+    "must_not_contain": [
+      "ไม่พบข้อมูล"
+    ],
+    "notes": "exit timing"
+  },
+  {
+    "id": "regulations_006",
+    "category": "regulations",
+    "question": "การออกจากห้องสอบชั่วคราวต้องปฏิบัติอย่างไร",
+    "expected_domain": "regulations",
+    "expected_answer_keywords": [
+      "อนุญาต",
+      "กรรมการคุมสอบ",
+      "ห้ามนำ"
+    ],
+    "expected_source_contains": [
+      "rule_exam2560",
+      "regulation"
+    ],
+    "must_not_contain": [
+      "ไม่พบข้อมูล"
+    ],
+    "notes": "temporary leave"
+  },
+  {
+    "id": "regulations_007",
+    "category": "regulations",
+    "question": "ตามข้อ 28.1 ของระเบียบการสอบ ต้องยื่นอุทธรณ์ภายในกี่วัน",
+    "expected_domain": "regulations",
+    "expected_answer_keywords": [
+      "15",
+      "วัน",
+      "อุทธรณ์"
+    ],
+    "expected_source_contains": [
+      "rule_exam2560",
+      "appeal"
+    ],
+    "must_not_contain": [
+      "ไม่พบข้อมูล"
+    ],
+    "notes": "appeal window"
+  },
+  {
+    "id": "regulations_008",
+    "category": "regulations",
+    "question": "การอุทธรณ์ตามข้อ 28.2 ทำแทนผู้อื่นได้หรือไม่",
+    "expected_domain": "regulations",
+    "expected_answer_keywords": [
+      "ไม่ได้",
+      "เฉพาะตนเอง"
+    ],
+    "expected_source_contains": [
+      "rule_exam2560",
+      "appeal"
+    ],
+    "must_not_contain": [
+      "ไม่พบข้อมูล"
+    ],
+    "notes": "appeal self-only"
+  }
+]

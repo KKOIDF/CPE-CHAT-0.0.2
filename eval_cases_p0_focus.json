@@ -1,0 +1,95 @@
+[
+  {
+    "id": "prereq_001",
+    "category": "prerequisite_course_code",
+    "question": "LNG 120 มี Pre-requisite อะไร",
+    "expected_domain": "curriculum",
+    "expected_answer_keywords": [
+      "LNG 120",
+      "ไม่มี"
+    ],
+    "expected_source_contains": [
+      "lng"
+    ],
+    "must_not_contain": [
+      "ไม่พบข้อมูล"
+    ],
+    "notes": "no prerequisite"
+  },
+  {
+    "id": "prereq_002",
+    "category": "prerequisite_course_code",
+    "question": "LNG 220 ต้องผ่านวิชาใดก่อน",
+    "expected_domain": "curriculum",
+    "expected_answer_keywords": [
+      "LNG 120"
+    ],
+    "expected_source_contains": [
+      "lng"
+    ],
+    "must_not_contain": [
+      "ไม่พบข้อมูล"
+    ],
+    "notes": "single prerequisite"
+  },
+  {
+    "id": "prereq_003",
+    "category": "prerequisite_course_code",
+    "question": "LNG 222 มีเงื่อนไขก่อนเรียนอย่างไร",
+    "expected_domain": "curriculum",
+    "expected_answer_keywords": [
+      "LNG 221",
+      "O-NET"
+    ],
+    "expected_source_contains": [
+      "lng"
+    ],
+    "must_not_contain": [
+      "ไม่พบข้อมูล"
+    ],
+    "notes": "alternative prerequisite"
+  },
+  {
+    "id": "regulations_004",
+    "category": "regulations",
+    "question": "นำเครื่องคำนวณเข้าห้องสอบได้เงื่อนไขใดและได้กี่เครื่อง",
+    "expected_domain": "regulations",
+    "expected_answer_keywords": [
+      "1",
+      "เครื่อง",
+      "สติกเกอร์"
+    ],
+    "expected_source_contains": [
+      "rule_exam2560",
+      "calculator"
+    ],
+    "must_not_contain": [
+      "ไม่พบข้อมูล"
+    ],
+    "notes": "calculator policy"
+  },
+  {
+    "id": "multi_003",
+    "category": "multi_intent_multi_doc",
+    "question": "ขอสองคำตอบพร้อมกัน: LNG 120 มี pre-requisite หรือไม่ และระบบลงทะเบียนเปิดกี่โมงถึงกี่โมง",
+    "expected_domain": "multi",
+    "expected_domains_any": [
+      "curriculum",
+      "announcements"
+    ],
+    "expected_answer_keywords": [
+      "LNG 120",
+      "ไม่มี",
+      "07:00",
+      "23:00"
+    ],
+    "expected_source_contains": [
+      "lng",
+      "ปฏิทิน"
+    ],
+    "must_not_contain": [
+      "ไม่พบข้อมูล"
+    ],
+    "notes": "cross doc with schedule"
+  }
+]

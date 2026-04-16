@@ -1,0 +1,1030 @@
+{
+  "summary": {
+    "total_cases": 8,
+    "overall_pass_rate": 0.75,
+    "answer_hit_rate": 0.875,
+    "retrieval_hit_rate": 0.75,
+    "retrieval_mrr": 0.625,
+    "retrieval_top_1_rate": 0.625,
+    "retrieval_top_3_rate": 0.625,
+    "retrieval_top_5_rate": 0.625,
+    "citation_validity_rate": 1.0,
+    "citation_precision": 0.75,
+    "citation_recall": 0.375,
+    "citation_micro_precision": 0.75,
+    "citation_micro_recall": 0.375,
+    "must_not_contain_pass_rate": 1.0,
+    "avg_quality_score": 0.0,
+    "pct_correct_answers": 0.875,
+    "pct_hallucination": 0.0,
+    "pct_answerable_handled_correctly": 0.0,
+    "avg_latency_ms": 516.0265191807412,
+    "median_latency_ms": 481.3394694356248,
+    "p95_latency_ms": 1076.760131167248,
+    "avg_retrieval_latency_ms": 1224.2761904781219,
+    "median_retrieval_latency_ms": 1216.0869884537533,
+    "p95_retrieval_latency_ms": 1942.3888199962676,
+    "avg_generation_latency_ms": 0.0,
+    "median_generation_latency_ms": 0.0,
+    "p95_generation_latency_ms": 0.0,
+    "coverage": {
+      "total_questions": 8,
+      "questions_by_domain": {
+        "regulations": 8
+      },
+      "questions_by_difficulty": {
+        "unspecified": 8
+      },
+      "questions_by_question_type": {
+        "unspecified": 8
+      }
+    },
+    "by_category": {
+      "regulations": {
+        "total": 8.0,
+        "overall_pass_rate": 0.75,
+        "answer_hit_rate": 0.875,
+        "retrieval_hit_rate": 0.75,
+        "retrieval_top_1_rate": 0.625,
+        "retrieval_top_3_rate": 0.625,
+        "retrieval_top_5_rate": 0.625,
+        "retrieval_mrr": 0.625,
+        "citation_validity_rate": 1.0
+      }
+    },
+    "by_domain": {
+      "regulations": {
+        "total": 8.0,
+        "overall_pass_rate": 0.75,
+        "answer_hit_rate": 0.875,
+        "retrieval_hit_rate": 0.75,
+        "retrieval_top_1_rate": 0.625,
+        "retrieval_top_3_rate": 0.625,
+        "retrieval_top_5_rate": 0.625,
+        "retrieval_mrr": 0.625,
+        "citation_validity_rate": 1.0,
+        "must_not_contain_pass_rate": 1.0,
+        "avg_latency_ms": 516.0265191807412,
+        "p95_latency_ms": 1076.760131167248,
+        "avg_retrieval_latency_ms": 1224.2761904781219,
+        "p95_retrieval_latency_ms": 1942.3888199962676,
+        "avg_generation_latency_ms": 0.0,
+        "p95_generation_latency_ms": 0.0
+      }
+    },
+    "adaptive_metrics_avg": {
+      "retrieval_adaptive_retry_triggered": 0.125,
+      "retrieval_adaptive_retry_succeeded": 0.125,
+      "retrieval_fallback_all_domains_triggered": 0.0,
+      "retrieval_fallback_all_domains_succeeded": 0.0,
+      "structured_rescue_triggered": 0.0,
+      "structured_rescue_succeeded": 0.0,
+      "curriculum_bypass_vector_triggered": 0.0,
+      "low_confidence_detected": 0.375,
+      "initial_retrieval_doc_count": 5.0,
+      "retry_retrieval_doc_count": 0.625,
+      "initial_top_score": 0.5031165370612469,
+      "retry_top_score": 0.11954918032786886
+    },
+    "answer_schema_metrics_by_task": {
+      "none": {
+        "cases": 8.0,
+        "repair_attempted": 0.0,
+        "repair_success": 0.0,
+        "repair_attempt_rate": 0.0,
+        "repair_success_rate_of_attempts": 0.0,
+        "avg_missing_slots_before": 0.0,
+        "avg_missing_slots_after": 0.0
+      }
+    },
+    "error_tag_counts": {
+      "pass_or_unclassified": 6,
+      "retrieve_not_found": 2
+    },
+    "runtime_error_count": 0,
+    "runtime_error_rate": 0.0,
+    "failed_cases_top20": [
+      {
+        "id": "regulations_004",
+        "category": "regulations",
+        "domain": "regulations",
+        "question": "นำเครื่องคำนวณเข้าห้องสอบได้เงื่อนไขใดและได้กี่เครื่อง",
+        "error": "",
+        "error_tags": [
+          "retrieve_not_found"
+        ],
+        "answer_hit_coverage": 0.6666666666666666,
+        "retrieval_hit_pass": false,
+        "citation_validity_pass": true,
+        "must_not_contain_pass": true,
+        "total_latency_ms": 588.2021121215075
+      },
+      {
+        "id": "regulations_008",
+        "category": "regulations",
+        "domain": "regulations",
+        "question": "การอุทธรณ์ตามข้อ 28.2 ทำแทนผู้อื่นได้หรือไม่",
+        "error": "",
+        "error_tags": [
+          "retrieve_not_found"
+        ],
+        "answer_hit_coverage": 1.0,
+        "retrieval_hit_pass": false,
+        "citation_validity_pass": true,
+        "must_not_contain_pass": true,
+        "total_latency_ms": 337.19914220273495
+      }
+    ]
+  },
+  "cases": [
+    {
+      "id": "regulations_001",
+      "category": "regulations",
+      "question": "ตามระเบียบการสอบ 2560 ถ้ามาสายเกิน 15 นาทีแต่ไม่เกิน 60 นาทีต้องทำอย่างไร",
+      "question_domain": "regulations",
+      "expected_source_contains": [
+        "rule_exam2560",
+        "regulation"
+      ],
+      "expected_answer_keywords": [
+        "ยื่นคำร้อง",
+        "อนุญาต",
+        "ห้องสอบ"
+      ],
+      "reference_answer": null,
+      "expected_answerable": null,
+      "difficulty": null,
+      "question_type": null,
+      "expected_domain": "regulations",
+      "expected_domains_any": [],
+      "answer": "- มาสายเกิน 15 นาทีแต่ไม่เกิน 60 นาที ต้องยื่นคำร้องและได้รับอนุญาตจากกรรมการคุมสอบก่อนเข้าห้องสอบ [rule_exam2560.txt/1]",
+      "answer_hit_pass": true,
+      "answer_hit_coverage": 1.0,
+      "answer_keywords_matched": 3,
+      "answer_keywords_total": 3,
+      "retrieval_hit_pass": true,
+      "retrieval_domain_pass": true,
+      "retrieval_source_pass": true,
+      "retrieval_domains_found": [
+        "regulations"
+      ],
+      "retrieval_missing_source_tokens": [],
+      "retrieval_mrr": 1.0,
+      "retrieval_best_rank": 1,
+      "retrieval_top_1_pass": true,
+      "retrieval_top_3_pass": true,
+      "retrieval_top_5_pass": true,
+      "retrieval_top_contexts": [
+        {
+          "rank": 1,
+          "source": "rule_exam2560.txt",
+          "domain": "regulations",
+          "similarity_score": null
+        },
+        {
+          "rank": 2,
+          "source": "regulation",
+          "domain": "regulations",
+          "similarity_score": null
+        },
+        {
+          "rank": 3,
+          "source": "rule_exam",
+          "domain": "regulations",
+          "similarity_score": null
+        },
+        {
+          "rank": 4,
+          "source": "regulation",
+          "domain": "regulations",
+          "similarity_score": null
+        },
+        {
+          "rank": 5,
+          "source": "regulation",
+          "domain": "regulations",
+          "similarity_score": null
+        }
+      ],
+      "citation_validity_pass": true,
+      "citation_total": 1,
+      "citation_valid_count": 1,
+      "citation_issues": [],
+      "must_not_contain_pass": true,
+      "total_pass": true,
+      "total_latency_ms": 532.1704298257828,
+      "retrieval_latency_ms": 1216.7860949411988,
+      "generation_latency_ms": 0.0,
+      "contexts_count": 11,
+      "error": "",
+      "human_correctness_score": null,
+      "human_completeness_score": null,
+      "human_clarity_score": null,
+      "human_hallucination": null,
+      "answerable_handled_correctly": null,
+      "quality_score_avg": null,
+      "error_tags": [
+        "pass_or_unclassified"
+      ],
+      "adaptive": {
+        "retrieval_adaptive_retry_triggered": 0.0,
+        "retrieval_adaptive_retry_succeeded": 0.0,
+        "retrieval_fallback_all_domains_triggered": 0.0,
+        "retrieval_fallback_all_domains_succeeded": 0.0,
+        "structured_rescue_triggered": 0.0,
+        "structured_rescue_succeeded": 0.0,
+        "curriculum_bypass_vector_triggered": 0.0,
+        "low_confidence_detected": 0.0,
+        "initial_retrieval_doc_count": 5.0,
+        "retry_retrieval_doc_count": 0.0,
+        "initial_top_score": 1.2537566381897944,
+        "retry_top_score": 0.0
+      },
+      "answer_schema": {
+        "task": "none",
+        "repair_attempted": 0,
+        "repair_success": 0,
+        "missing_slots_before_count": 0,
+        "missing_slots_after_count": 0
+      }
+    },
+    {
+      "id": "regulations_002",
+      "category": "regulations",
+      "question": "ถ้ามาสายเกิน 60 นาทีตามระเบียบการสอบจะเกิดอะไรขึ้น",
+      "question_domain": "regulations",
+      "expected_source_contains": [
+        "rule_exam2560",
+        "regulation"
+      ],
+      "expected_answer_keywords": [
+        "หมดสิทธิ์",
+        "ห้องสอบ"
+      ],
+      "reference_answer": null,
+      "expected_answerable": null,
+      "difficulty": null,
+      "question_type": null,
+      "expected_domain": "regulations",
+      "expected_domains_any": [],
+      "answer": "- หากมาสายเกิน 60 นาที หมดสิทธิ์เข้าห้องสอบ [rule_exam2560.txt/1]",
+      "answer_hit_pass": true,
+      "answer_hit_coverage": 1.0,
+      "answer_keywords_matched": 2,
+      "answer_keywords_total": 2,
+      "retrieval_hit_pass": true,
+      "retrieval_domain_pass": true,
+      "retrieval_source_pass": true,
+      "retrieval_domains_found": [
+        "regulations"
+      ],
+      "retrieval_missing_source_tokens": [],
+      "retrieval_mrr": 1.0,
+      "retrieval_best_rank": 1,
+      "retrieval_top_1_pass": true,
+      "retrieval_top_3_pass": true,
+      "retrieval_top_5_pass": true,
+      "retrieval_top_contexts": [
+        {
+          "rank": 1,
+          "source": "rule_exam2560.txt",
+          "domain": "regulations",
+          "similarity_score": null
+        },
+        {
+          "rank": 2,
+          "source": "regulation",
+          "domain": "regulations",
+          "similarity_score": null
+        },
+        {
+          "rank": 3,
+          "source": "rule_exam",
+          "domain": "regulations",
+          "similarity_score": null
+        },
+        {
+          "rank": 4,
+          "source": "regulation",
+          "domain": "regulations",
+          "similarity_score": null
+        },
+        {
+          "rank": 5,
+          "source": "regulation",
+          "domain": "regulations",
+          "similarity_score": null
+        }
+      ],
+      "citation_validity_pass": true,
+      "citation_total": 1,
+      "citation_valid_count": 1,
+      "citation_issues": [],
+      "must_not_contain_pass": true,
+      "total_pass": true,
+      "total_latency_ms": 620.7839290145785,
+      "retrieval_latency_ms": 1598.6800629179925,
+      "generation_latency_ms": 0.0,
+      "contexts_count": 11,
+      "error": "",
+      "human_correctness_score": null,
+      "human_completeness_score": null,
+      "human_clarity_score": null,
+      "human_hallucination": null,
+      "answerable_handled_correctly": null,
+      "quality_score_avg": null,
+      "error_tags": [
+        "pass_or_unclassified"
+      ],
+      "adaptive": {
+        "retrieval_adaptive_retry_triggered": 0.0,
+        "retrieval_adaptive_retry_succeeded": 0.0,
+        "retrieval_fallback_all_domains_triggered": 0.0,
+        "retrieval_fallback_all_domains_succeeded": 0.0,
+        "structured_rescue_triggered": 0.0,
+        "structured_rescue_succeeded": 0.0,
+        "curriculum_bypass_vector_triggered": 0.0,
+        "low_confidence_detected": 0.0,
+        "initial_retrieval_doc_count": 5.0,
+        "retry_retrieval_doc_count": 0.0,
+        "initial_top_score": 0.6340845070422536,
+        "retry_top_score": 0.0
+      },
+      "answer_schema": {
+        "task": "none",
+        "repair_attempted": 0,
+        "repair_success": 0,
+        "missing_slots_before_count": 0,
+        "missing_slots_after_count": 0
+      }
+    },
+    {
+      "id": "regulations_003",
+      "category": "regulations",
+      "question": "ข้อ 9 ระเบียบการสอบกำหนดเรื่องอุปกรณ์สื่อสารอย่างไร",
+      "question_domain": "regulations",
+      "expected_source_contains": [
+        "rule_exam2560",
+        "regulation"
+      ],
+      "expected_answer_keywords": [
+        "ห้าม",
+        "อุปกรณ์",
+        "สื่อสาร"
+      ],
+      "reference_answer": null,
+      "expected_answerable": null,
+      "difficulty": null,
+      "question_type": null,
+      "expected_domain": "regulations",
+      "expected_domains_any": [],
+      "answer": "ระเบียบการสอบ ข้อ 9 กำหนดไว้ดังนี้:\n\nข้อ 9 ห้ามนักศึกษาเปิดเครื่องมือสื่อสารและอุปกรณ์อิเล็กทรอนิกส์ทุกชนิดในห้องสอบยกเว้นอุปกรณ์พิเศษทางการแพทย์เพื่อช่วยในการดำรงชีวิตเช่นเครื่องช่วยฟัง\n\n[rule_exam2560.txt/1]",
+      "answer_hit_pass": true,
+      "answer_hit_coverage": 1.0,
+      "answer_keywords_matched": 3,
+      "answer_keywords_total": 3,
+      "retrieval_hit_pass": true,
+      "retrieval_domain_pass": true,
+      "retrieval_source_pass": true,
+      "retrieval_domains_found": [
+        "regulations"
+      ],
+      "retrieval_missing_source_tokens": [],
+      "retrieval_mrr": 1.0,
+      "retrieval_best_rank": 1,
+      "retrieval_top_1_pass": true,
+      "retrieval_top_3_pass": true,
+      "retrieval_top_5_pass": true,
+      "retrieval_top_contexts": [
+        {
+          "rank": 1,
+          "source": "rule_exam2560.txt",
+          "domain": "regulations",
+          "similarity_score": null
+        },
+        {
+          "rank": 2,
+          "source": "regulation",
+          "domain": "regulations",
+          "similarity_score": null
+        },
+        {
+          "rank": 3,
+          "source": "rule_exam",
+          "domain": "regulations",
+          "similarity_score": null
+        },
+        {
+          "rank": 4,
+          "source": "regulation",
+          "domain": "regulations",
+          "similarity_score": null
+        },
+        {
+          "rank": 5,
+          "source": "regulation",
+          "domain": "regulations",
+          "similarity_score": null
+        }
+      ],
+      "citation_validity_pass": true,
+      "citation_total": 1,
+      "citation_valid_count": 1,
+      "citation_issues": [],
+      "must_not_contain_pass": true,
+      "total_pass": true,
+      "total_latency_ms": 202.65004294924438,
+      "retrieval_latency_ms": 835.035506868735,
+      "generation_latency_ms": 0.0,
+      "contexts_count": 15,
+      "error": "",
+      "human_correctness_score": null,
+      "human_completeness_score": null,
+      "human_clarity_score": null,
+      "human_hallucination": null,
+      "answerable_handled_correctly": null,
+      "quality_score_avg": null,
+      "error_tags": [
+        "pass_or_unclassified"
+      ],
+      "adaptive": {
+        "retrieval_adaptive_retry_triggered": 0.0,
+        "retrieval_adaptive_retry_succeeded": 0.0,
+        "retrieval_fallback_all_domains_triggered": 0.0,
+        "retrieval_fallback_all_domains_succeeded": 0.0,
+        "structured_rescue_triggered": 0.0,
+        "structured_rescue_succeeded": 0.0,
+        "curriculum_bypass_vector_triggered": 0.0,
+        "low_confidence_detected": 0.0,
+        "initial_retrieval_doc_count": 5.0,
+        "retry_retrieval_doc_count": 0.0,
+        "initial_top_score": 0.6590476190476191,
+        "retry_top_score": 0.0
+      },
+      "answer_schema": {
+        "task": "none",
+        "repair_attempted": 0,
+        "repair_success": 0,
+        "missing_slots_before_count": 0,
+        "missing_slots_after_count": 0
+      }
+    },
+    {
+      "id": "regulations_004",
+      "category": "regulations",
+      "question": "นำเครื่องคำนวณเข้าห้องสอบได้เงื่อนไขใดและได้กี่เครื่อง",
+      "question_domain": "regulations",
+      "expected_source_contains": [
+        "rule_exam2560",
+        "calculator"
+      ],
+      "expected_answer_keywords": [
+        "1",
+        "เครื่อง",
+        "สติกเกอร์"
+      ],
+      "reference_answer": null,
+      "expected_answerable": null,
+      "difficulty": null,
+      "question_type": null,
+      "expected_domain": "regulations",
+      "expected_domains_any": [],
+      "answer": "- อนุญาตให้นำเครื่องคำนวณได้ไม่เกินคนละ 1 เครื่อง และต้องเป็นรุ่นที่มหาวิทยาลัยกำหนด [rule57_2.txt/1]",
+      "answer_hit_pass": false,
+      "answer_hit_coverage": 0.6666666666666666,
+      "answer_keywords_matched": 2,
+      "answer_keywords_total": 3,
+      "retrieval_hit_pass": false,
+      "retrieval_domain_pass": true,
+      "retrieval_source_pass": false,
+      "retrieval_domains_found": [
+        "regulations"
+      ],
+      "retrieval_missing_source_tokens": [
+        "rule_exam2560"
+      ],
+      "retrieval_mrr": 0.0,
+      "retrieval_best_rank": null,
+      "retrieval_top_1_pass": false,
+      "retrieval_top_3_pass": false,
+      "retrieval_top_5_pass": false,
+      "retrieval_top_contexts": [
+        {
+          "rank": 1,
+          "source": "rule57_2.txt",
+          "domain": "regulations",
+          "similarity_score": null
+        },
+        {
+          "rank": 2,
+          "source": "regulation",
+          "domain": "regulations",
+          "similarity_score": null
+        },
+        {
+          "rank": 3,
+          "source": "rule_exam",
+          "domain": "regulations",
+          "similarity_score": null
+        },
+        {
+          "rank": 4,
+          "source": "regulation",
+          "domain": "regulations",
+          "similarity_score": null
+        },
+        {
+          "rank": 5,
+          "source": "regulation",
+          "domain": "regulations",
+          "similarity_score": null
+        }
+      ],
+      "citation_validity_pass": true,
+      "citation_total": 1,
+      "citation_valid_count": 1,
+      "citation_issues": [],
+      "must_not_contain_pass": true,
+      "total_pass": false,
+      "total_latency_ms": 588.2021121215075,
+      "retrieval_latency_ms": 1581.6213530488312,
+      "generation_latency_ms": 0.0,
+      "contexts_count": 16,
+      "error": "",
+      "human_correctness_score": null,
+      "human_completeness_score": null,
+      "human_clarity_score": null,
+      "human_hallucination": null,
+      "answerable_handled_correctly": null,
+      "quality_score_avg": null,
+      "error_tags": [
+        "retrieve_not_found"
+      ],
+      "adaptive": {
+        "retrieval_adaptive_retry_triggered": 0.0,
+        "retrieval_adaptive_retry_succeeded": 0.0,
+        "retrieval_fallback_all_domains_triggered": 0.0,
+        "retrieval_fallback_all_domains_succeeded": 0.0,
+        "structured_rescue_triggered": 0.0,
+        "structured_rescue_succeeded": 0.0,
+        "curriculum_bypass_vector_triggered": 0.0,
+        "low_confidence_detected": 1.0,
+        "initial_retrieval_doc_count": 5.0,
+        "retry_retrieval_doc_count": 0.0,
+        "initial_top_score": 0.01639344262295082,
+        "retry_top_score": 0.0
+      },
+      "answer_schema": {
+        "task": "none",
+        "repair_attempted": 0,
+        "repair_success": 0,
+        "missing_slots_before_count": 0,
+        "missing_slots_after_count": 0
+      }
+    },
+    {
+      "id": "regulations_005",
+      "category": "regulations",
+      "question": "นักศึกษาจะออกจากห้องสอบได้เมื่อผ่านไปกี่นาที",
+      "question_domain": "regulations",
+      "expected_source_contains": [
+        "rule_exam2560",
+        "regulation"
+      ],
+      "expected_answer_keywords": [
+        "60",
+        "นาที"
+      ],
+      "reference_answer": null,
+      "expected_answerable": null,
+      "difficulty": null,
+      "question_type": null,
+      "expected_domain": "regulations",
+      "expected_domains_any": [],
+      "answer": "- ออกจากห้องสอบได้เมื่อการสอบผ่านไปแล้ว 60 นาที [rule_exam2560.txt/1]",
+      "answer_hit_pass": true,
+      "answer_hit_coverage": 1.0,
+      "answer_keywords_matched": 2,
+      "answer_keywords_total": 2,
+      "retrieval_hit_pass": true,
+      "retrieval_domain_pass": true,
+      "retrieval_source_pass": true,
+      "retrieval_domains_found": [
+        "regulations"
+      ],
+      "retrieval_missing_source_tokens": [],
+      "retrieval_mrr": 1.0,
+      "retrieval_best_rank": 1,
+      "retrieval_top_1_pass": true,
+      "retrieval_top_3_pass": true,
+      "retrieval_top_5_pass": true,
+      "retrieval_top_contexts": [
+        {
+          "rank": 1,
+          "source": "rule_exam2560.txt",
+          "domain": "regulations",
+          "similarity_score": null
+        },
+        {
+          "rank": 2,
+          "source": "regulation",
+          "domain": "regulations",
+          "similarity_score": null
+        },
+        {
+          "rank": 3,
+          "source": "rule_exam",
+          "domain": "regulations",
+          "similarity_score": null
+        },
+        {
+          "rank": 4,
+          "source": "regulation",
+          "domain": "regulations",
+          "similarity_score": null
+        },
+        {
+          "rank": 5,
+          "source": "regulation",
+          "domain": "regulations",
+          "similarity_score": null
+        }
+      ],
+      "citation_validity_pass": true,
+      "citation_total": 1,
+      "citation_valid_count": 1,
+      "citation_issues": [],
+      "must_not_contain_pass": true,
+      "total_pass": true,
+      "total_latency_ms": 1076.760131167248,
+      "retrieval_latency_ms": 1215.3878819663078,
+      "generation_latency_ms": 0.0,
+      "contexts_count": 16,
+      "error": "",
+      "human_correctness_score": null,
+      "human_completeness_score": null,
+      "human_clarity_score": null,
+      "human_hallucination": null,
+      "answerable_handled_correctly": null,
+      "quality_score_avg": null,
+      "error_tags": [
+        "pass_or_unclassified"
+      ],
+      "adaptive": {
+        "retrieval_adaptive_retry_triggered": 1.0,
+        "retrieval_adaptive_retry_succeeded": 1.0,
+        "retrieval_fallback_all_domains_triggered": 0.0,
+        "retrieval_fallback_all_domains_succeeded": 0.0,
+        "structured_rescue_triggered": 0.0,
+        "structured_rescue_succeeded": 0.0,
+        "curriculum_bypass_vector_triggered": 0.0,
+        "low_confidence_detected": 1.0,
+        "initial_retrieval_doc_count": 5.0,
+        "retry_retrieval_doc_count": 5.0,
+        "initial_top_score": 0.019672131147540982,
+        "retry_top_score": 0.9563934426229509
+      },
+      "answer_schema": {
+        "task": "none",
+        "repair_attempted": 0,
+        "repair_success": 0,
+        "missing_slots_before_count": 0,
+        "missing_slots_after_count": 0
+      }
+    },
+    {
+      "id": "regulations_006",
+      "category": "regulations",
+      "question": "การออกจากห้องสอบชั่วคราวต้องปฏิบัติอย่างไร",
+      "question_domain": "regulations",
+      "expected_source_contains": [
+        "rule_exam2560",
+        "regulation"
+      ],
+      "expected_answer_keywords": [
+        "อนุญาต",
+        "กรรมการคุมสอบ",
+        "ห้ามนำ"
+      ],
+      "reference_answer": null,
+      "expected_answerable": null,
+      "difficulty": null,
+      "question_type": null,
+      "expected_domain": "regulations",
+      "expected_domains_any": [],
+      "answer": "- การออกจากห้องสอบชั่วคราวต้องได้รับอนุญาตจากกรรมการคุมสอบ และห้ามนำเครื่องมือสื่อสารติดตัวไป [rule_exam2560.txt/1]",
+      "answer_hit_pass": true,
+      "answer_hit_coverage": 1.0,
+      "answer_keywords_matched": 3,
+      "answer_keywords_total": 3,
+      "retrieval_hit_pass": true,
+      "retrieval_domain_pass": true,
+      "retrieval_source_pass": true,
+      "retrieval_domains_found": [
+        "regulations"
+      ],
+      "retrieval_missing_source_tokens": [],
+      "retrieval_mrr": 1.0,
+      "retrieval_best_rank": 1,
+      "retrieval_top_1_pass": true,
+      "retrieval_top_3_pass": true,
+      "retrieval_top_5_pass": true,
+      "retrieval_top_contexts": [
+        {
+          "rank": 1,
+          "source": "rule_exam2560.txt",
+          "domain": "regulations",
+          "similarity_score": null
+        },
+        {
+          "rank": 2,
+          "source": "regulation",
+          "domain": "regulations",
+          "similarity_score": null
+        },
+        {
+          "rank": 3,
+          "source": "rule_exam",
+          "domain": "regulations",
+          "similarity_score": null
+        },
+        {
+          "rank": 4,
+          "source": "regulation",
+          "domain": "regulations",
+          "similarity_score": null
+        },
+        {
+          "rank": 5,
+          "source": "regulation",
+          "domain": "regulations",
+          "similarity_score": null
+        }
+      ],
+      "citation_validity_pass": true,
+      "citation_total": 1,
+      "citation_valid_count": 1,
+      "citation_issues": [],
+      "must_not_contain_pass": true,
+      "total_pass": true,
+      "total_latency_ms": 430.5085090454668,
+      "retrieval_latency_ms": 1942.3888199962676,
+      "generation_latency_ms": 0.0,
+      "contexts_count": 16,
+      "error": "",
+      "human_correctness_score": null,
+      "human_completeness_score": null,
+      "human_clarity_score": null,
+      "human_hallucination": null,
+      "answerable_handled_correctly": null,
+      "quality_score_avg": null,
+      "error_tags": [
+        "pass_or_unclassified"
+      ],
+      "adaptive": {
+        "retrieval_adaptive_retry_triggered": 0.0,
+        "retrieval_adaptive_retry_succeeded": 0.0,
+        "retrieval_fallback_all_domains_triggered": 0.0,
+        "retrieval_fallback_all_domains_succeeded": 0.0,
+        "structured_rescue_triggered": 0.0,
+        "structured_rescue_succeeded": 0.0,
+        "curriculum_bypass_vector_triggered": 0.0,
+        "low_confidence_detected": 1.0,
+        "initial_retrieval_doc_count": 5.0,
+        "retry_retrieval_doc_count": 0.0,
+        "initial_top_score": 0.03416488477072939,
+        "retry_top_score": 0.0
+      },
+      "answer_schema": {
+        "task": "none",
+        "repair_attempted": 0,
+        "repair_success": 0,
+        "missing_slots_before_count": 0,
+        "missing_slots_after_count": 0
+      }
+    },
+    {
+      "id": "regulations_007",
+      "category": "regulations",
+      "question": "ตามข้อ 28.1 ของระเบียบการสอบ ต้องยื่นอุทธรณ์ภายในกี่วัน",
+      "question_domain": "regulations",
+      "expected_source_contains": [
+        "rule_exam2560",
+        "appeal"
+      ],
+      "expected_answer_keywords": [
+        "15",
+        "วัน",
+        "อุทธรณ์"
+      ],
+      "reference_answer": null,
+      "expected_answerable": null,
+      "difficulty": null,
+      "question_type": null,
+      "expected_domain": "regulations",
+      "expected_domains_any": [],
+      "answer": "- ตามข้อ 28.1 ต้องยื่นอุทธรณ์ต่ออธิการบดีภายใน 15 วัน นับแต่วันได้รับแจ้งคำสั่งลงโทษ [rule_exam2560.txt/1]",
+      "answer_hit_pass": true,
+      "answer_hit_coverage": 1.0,
+      "answer_keywords_matched": 3,
+      "answer_keywords_total": 3,
+      "retrieval_hit_pass": true,
+      "retrieval_domain_pass": true,
+      "retrieval_source_pass": true,
+      "retrieval_domains_found": [
+        "regulations"
+      ],
+      "retrieval_missing_source_tokens": [],
+      "retrieval_mrr": 0.0,
+      "retrieval_best_rank": null,
+      "retrieval_top_1_pass": false,
+      "retrieval_top_3_pass": false,
+      "retrieval_top_5_pass": false,
+      "retrieval_top_contexts": [
+        {
+          "rank": 1,
+          "source": "rule_exam2560.txt",
+          "domain": "regulations",
+          "similarity_score": null
+        },
+        {
+          "rank": 2,
+          "source": "regulation",
+          "domain": "regulations",
+          "similarity_score": null
+        },
+        {
+          "rank": 3,
+          "source": "rule_exam",
+          "domain": "regulations",
+          "similarity_score": null
+        },
+        {
+          "rank": 4,
+          "source": "regulation",
+          "domain": "regulations",
+          "similarity_score": null
+        },
+        {
+          "rank": 5,
+          "source": "regulation",
+          "domain": "regulations",
+          "similarity_score": null
+        }
+      ],
+      "citation_validity_pass": true,
+      "citation_total": 1,
+      "citation_valid_count": 1,
+      "citation_issues": [],
+      "must_not_contain_pass": true,
+      "total_pass": true,
+      "total_latency_ms": 339.9378571193665,
+      "retrieval_latency_ms": 705.0728700123727,
+      "generation_latency_ms": 0.0,
+      "contexts_count": 20,
+      "error": "",
+      "human_correctness_score": null,
+      "human_completeness_score": null,
+      "human_clarity_score": null,
+      "human_hallucination": null,
+      "answerable_handled_correctly": null,
+      "quality_score_avg": null,
+      "error_tags": [
+        "pass_or_unclassified"
+      ],
+      "adaptive": {
+        "retrieval_adaptive_retry_triggered": 0.0,
+        "retrieval_adaptive_retry_succeeded": 0.0,
+        "retrieval_fallback_all_domains_triggered": 0.0,
+        "retrieval_fallback_all_domains_succeeded": 0.0,
+        "structured_rescue_triggered": 0.0,
+        "structured_rescue_succeeded": 0.0,
+        "curriculum_bypass_vector_triggered": 0.0,
+        "low_confidence_detected": 0.0,
+        "initial_retrieval_doc_count": 5.0,
+        "retry_retrieval_doc_count": 0.0,
+        "initial_top_score": 0.9147058823529411,
+        "retry_top_score": 0.0
+      },
+      "answer_schema": {
+        "task": "none",
+        "repair_attempted": 0,
+        "repair_success": 0,
+        "missing_slots_before_count": 0,
+        "missing_slots_after_count": 0
+      }
+    },
+    {
+      "id": "regulations_008",
+      "category": "regulations",
+      "question": "การอุทธรณ์ตามข้อ 28.2 ทำแทนผู้อื่นได้หรือไม่",
+      "question_domain": "regulations",
+      "expected_source_contains": [
+        "rule_exam2560",
+        "appeal"
+      ],
+      "expected_answer_keywords": [
+        "ไม่ได้",
+        "เฉพาะตนเอง"
+      ],
+      "reference_answer": null,
+      "expected_answerable": null,
+      "difficulty": null,
+      "question_type": null,
+      "expected_domain": "regulations",
+      "expected_domains_any": [],
+      "answer": "- ตามข้อ 28.2 การอุทธรณ์ทำได้เฉพาะตนเอง ไม่ได้ทำแทนผู้อื่น [ruleg2568.txt/1]",
+      "answer_hit_pass": true,
+      "answer_hit_coverage": 1.0,
+      "answer_keywords_matched": 2,
+      "answer_keywords_total": 2,
+      "retrieval_hit_pass": false,
+      "retrieval_domain_pass": true,
+      "retrieval_source_pass": false,
+      "retrieval_domains_found": [
+        "regulations"
+      ],
+      "retrieval_missing_source_tokens": [
+        "rule_exam2560"
+      ],
+      "retrieval_mrr": 0.0,
+      "retrieval_best_rank": null,
+      "retrieval_top_1_pass": false,
+      "retrieval_top_3_pass": false,
+      "retrieval_top_5_pass": false,
+      "retrieval_top_contexts": [
+        {
+          "rank": 1,
+          "source": "ruleg2568.txt",
+          "domain": "regulations",
+          "similarity_score": null
+        },
+        {
+          "rank": 2,
+          "source": "regulation",
+          "domain": "regulations",
+          "similarity_score": null
+        },
+        {
+          "rank": 3,
+          "source": "rule_exam",
+          "domain": "regulations",
+          "similarity_score": null
+        },
+        {
+          "rank": 4,
+          "source": "regulation",
+          "domain": "regulations",
+          "similarity_score": null
+        },
+        {
+          "rank": 5,
+          "source": "regulation",
+          "domain": "regulations",
+          "similarity_score": null
+        }
+      ],
+      "citation_validity_pass": true,
+      "citation_total": 1,
+      "citation_valid_count": 1,
+      "citation_issues": [],
+      "must_not_contain_pass": true,
+      "total_pass": false,
+      "total_latency_ms": 337.19914220273495,
+      "retrieval_latency_ms": 699.2369340732694,
+      "generation_latency_ms": 0.0,
+      "contexts_count": 10,
+      "error": "",
+      "human_correctness_score": null,
+      "human_completeness_score": null,
+      "human_clarity_score": null,
+      "human_hallucination": null,
+      "answerable_handled_correctly": null,
+      "quality_score_avg": null,
+      "error_tags": [
+        "retrieve_not_found"
+      ],
+      "adaptive": {
+        "retrieval_adaptive_retry_triggered": 0.0,
+        "retrieval_adaptive_retry_succeeded": 0.0,
+        "retrieval_fallback_all_domains_triggered": 0.0,
+        "retrieval_fallback_all_domains_succeeded": 0.0,
+        "structured_rescue_triggered": 0.0,
+        "structured_rescue_succeeded": 0.0,
+        "curriculum_bypass_vector_triggered": 0.0,
+        "low_confidence_detected": 0.0,
+        "initial_retrieval_doc_count": 5.0,
+        "retry_retrieval_doc_count": 0.0,
+        "initial_top_score": 0.49310719131614655,
+        "retry_top_score": 0.0
+      },
+      "answer_schema": {
+        "task": "none",
+        "repair_attempted": 0,
+        "repair_success": 0,
+        "missing_slots_before_count": 0,
+        "missing_slots_after_count": 0
+      }
+    }
+  ]
+}

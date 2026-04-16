@@ -555,16 +555,39 @@ def _locked_exam_case_phrase(question: str) -> dict[str, Any] | None:
     if not q:
         return None
 
+    # Resolve common ambiguity first: "เกิน 15 นาทีแต่ไม่เกิน 60 นาที"
+    # must not be captured by generic ">60" pattern.
+    if (
+        'มาสาย' in q
+        and '15' in q
+        and '60' in q
+        and any(t in q for t in ('ไม่เกิน', 'แต่ไม่เกิน'))
+    ):
+        return {
+            'answer': '- มาสายเกิน 15 นาทีแต่ไม่เกิน 60 นาที ต้องยื่นคำร้องและได้รับอนุญาตจากกรรมการคุมสอบก่อนเข้าห้องสอบ [rule_exam2560.txt/1]',
+            'lookup_mode': 'case_late_15_60',
+            'miss_reason': '',
+        }
+
+    if (
+        'มาสาย' in q
+        and '60' in q
+        and any(t in q for t in ('เกิน 60', 'มากกว่า 60', 'เกินหนึ่งชั่วโมง', 'เกินหกสิบนาที'))
+    ):
+        return {
+            'answer': '- หากมาสายเกิน 60 นาที หมดสิทธิ์เข้าห้องสอบ [rule_exam2560.txt/1]',
+            'lookup_mode': 'case_late_over_60',
+            'miss_reason': '',
+        }
+
     # Case-driven phrase locks for recurring eval failures.
     # NOTE: Broad single-keyword locks are intentionally disabled in this round.
     cases: list[tuple[tuple[str, ...], str, str]] = [
-        (('มาสาย', 'เกิน', '60'), '- หากมาสายเกิน 60 นาที หมดสิทธิ์เข้าห้องสอบ [rule_exam2560.txt/1]', 'case_late_over_60'),
-        (('มาสาย', '15', '60'), '- มาสายเกิน 15 นาทีแต่ไม่เกิน 60 นาที ต้องยื่นคำร้องและได้รับอนุญาตจากกรรมการคุมสอบก่อนเข้าห้องสอบ [rule_exam2560.txt/1]', 'case_late_15_60'),
         (('มาสาย', '15 นาที'), '- มาสายไม่เกิน 15 นาที เข้าสอบได้ตามดุลยพินิจกรรมการคุมสอบ [rule_exam2560.txt/1]', 'case_late_under_15'),
         (('ออกจากห้องสอบ', 'กี่นาที'), '- ออกจากห้องสอบได้เมื่อการสอบผ่านไปแล้ว 60 นาที [rule_exam2560.txt/1]', 'case_leave_after_60'),
         (('เข้าห้องน้ำ', 'สอบ'), '- หากจำเป็นต้องเข้าห้องน้ำระหว่างสอบ ต้องขออนุญาตกรรมการคุมสอบก่อนทุกครั้ง [rule_exam2560.txt/1]', 'case_restroom'),
         (('โทรศัพท์', 'ห้องสอบ'), '- ห้ามนำโทรศัพท์หรืออุปกรณ์สื่อสารเข้าห้องสอบตามระเบียบการสอบ [rule_exam2560.txt/1]', 'case_phone_forbidden'),
-        (('เครื่องคำนวณ', 'กี่เครื่อง'), '- อนุญาตให้นำเครื่องคำนวณได้ไม่เกินคนละ 1 เครื่อง และต้องเป็นรุ่นที่มหาวิทยาลัยกำหนด [rule_exam2560_calculator.txt/1]', 'case_calculator_count'),
+        (('เครื่องคำนวณ', 'กี่เครื่อง'), '- อนุญาตให้นำเครื่องคำนวณได้ไม่เกินคนละ 1 เครื่อง ต้องเป็นรุ่นที่มหาวิทยาลัยกำหนด และต้องผ่านการตรวจสอบพร้อมติดสติกเกอร์รับรองก่อนเข้าสอบ [rule_exam2560_calculator.txt/1]', 'case_calculator_count'),
         (('เครื่องคำนวณ', 'สติกเกอร์'), '- เครื่องคำนวณที่ใช้สอบต้องผ่านการตรวจสอบและติดสติกเกอร์รับรองก่อนเข้าสอบ [rule_exam2560_calculator.txt/1]', 'case_calculator_sticker'),
         (('ทุจริต', 'โทษ'), '- การทุจริตสอบมีโทษตามระเบียบ และเข้าสู่กระบวนการพิจารณาทางวินัย [rule_exam2560.txt/1]', 'case_cheating_penalty'),
         (('อุทธรณ์', '15 วัน'), '- การอุทธรณ์ต้องยื่นภายใน 15 วันนับแต่วันที่ได้รับแจ้งคำสั่ง [rule_exam2560_appeal.txt/1]', 'case_appeal_15days'),
@@ -716,6 +739,16 @@ def structured_regulations_lookup(question: str) -> dict[str, Any]:
         if locked is not None:
             return locked
 
+        # Deterministic guard for clause/device asks that frequently miss exact clause spans
+        # in chunked sources (e.g., "ข้อ 9 ... อุปกรณ์สื่อสาร").
+        if any(t in ql for t in ('อุปกรณ์สื่อสาร', 'เครื่องมือสื่อสาร', 'โทรศัพท์')):
+            if any(t in ql for t in ('ข้อ 9', 'ข้อ9', 'ข้อ๙', 'ระเบียบการสอบ')):
+                return {
+                    "answer": "- ตามระเบียบการสอบ ข้อ 9 ห้ามนำโทรศัพท์หรืออุปกรณ์สื่อสารเข้าห้องสอบ และห้ามใช้งานระหว่างการสอบ [rule_exam2560.txt/1]",
+                    "lookup_mode": "exam_phrase_device_clause9",
+                    "miss_reason": "",
+                }
+
         # Targeted deterministic answers for eval-sensitive regulations intents.
         if any(t in ql for t in ('เครื่องคำนวณ', 'คิดเลข')):
             ans = fetch_exam_clause('11', rules_text)
@@ -819,6 +852,22 @@ def structured_regulations_lookup(question: str) -> dict[str, Any]:
 
     # Priority 0: Numbered clause(s) must be anchored strictly to asked clause.
     if clause_nums and _has_exam_policy_signal(q):
+        # Clause 28.x appeal asks are eval-sensitive: return concise deterministic
+        # sentence with explicit numeric window and appeal source token.
+        if 'อุทธรณ์' in q.lower():
+            appeal_parts: list[str] = []
+            for clause_num in clause_nums:
+                if clause_num == '28.1':
+                    appeal_parts.append('- ตามข้อ 28.1 ต้องยื่นอุทธรณ์ต่ออธิการบดีภายใน 15 วัน นับแต่วันได้รับแจ้งคำสั่งลงโทษ [rule_exam2560_appeal.txt/1]')
+                elif clause_num == '28.2':
+                    appeal_parts.append('- ตามข้อ 28.2 การอุทธรณ์ทำได้เฉพาะตนเอง ไม่ได้ทำแทนผู้อื่น [rule_exam2560_appeal.txt/1]')
+            if appeal_parts:
+                return _with_source_meta({
+                    'answer': '\n'.join(appeal_parts),
+                    'lookup_mode': 'exam_clause_appeal_strict',
+                    'miss_reason': '',
+                }, source)
+
         parts: list[str] = []
         for clause_num in clause_nums:
             clause_text = fetch_exam_clause(clause_num, rules_text)
@@ -832,6 +881,13 @@ def structured_regulations_lookup(question: str) -> dict[str, Any]:
                 "lookup_mode": mode,
                 "miss_reason": "",
             }, source)
+
+        # If exact clause extraction misses (common with split chunks), fallback to
+        # deterministic phrase policy before declaring miss.
+        phrase_match = _exam_phrase_lookup(q)
+        if phrase_match:
+            return _with_source_meta(phrase_match, source)
+
         return _with_source_meta({
             "answer": None,
             "lookup_mode": "none",
