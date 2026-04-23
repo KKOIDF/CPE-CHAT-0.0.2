@@ -9,7 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Any
 from .orchestration import rag_query, rag_query_domain, structured_curriculum_answer, structured_curriculum_lookup
-from .llm import llm_engine
+from .llm import generate_text, list_configured_models
 from .config import KNOWN_DOMAINS
 from .normalization import normalize_question
 from .sqlite_client import close_thread_connections
@@ -357,7 +357,7 @@ def _repair_answer_with_citations(answer: str, prompt: str) -> str:
         "คำตอบเดิม:\n"
         f"{(answer or '').strip()}\n"
     )
-    repaired = llm_engine.generate(repair_prompt)
+    repaired = generate_text(repair_prompt, task='answer')
     return repaired or answer
 
 
@@ -530,6 +530,7 @@ class RagResponse(BaseModel):
 class RagAnswerRequest(BaseModel):
     question: str
     domain: str | None = None
+    model: str | None = None
     eval_mode: bool = False
     session_id: str | None = None
 
@@ -714,7 +715,7 @@ def _maybe_rewrite_user_question(text: str, domain: str | None = None) -> str:
         "role": "user",
         "content": f"domain={domain or 'auto'}\nquestion={q}",
     }
-    raw = llm_engine.generate("(question rewrite)", messages=[system_msg, user_msg])
+    raw = generate_text("(question rewrite)", messages=[system_msg, user_msg], task='rewrite')
     cleaned = _clean_rewritten_question(raw, q)
     if cleaned != q:
         add_metric('question_rewrite_llm_succeeded', 1)
@@ -1573,7 +1574,7 @@ def _claim_verification_fallback_answer(
             "- บรรทัดถัดไปอธิบายสั้น ๆ จากหลักฐานที่มี\n"
         )
         with time_block('claim_fallback_generate'):
-            generated = llm_engine.generate(f"{prompt}{strict_block}") or ''
+            generated = generate_text(f"{prompt}{strict_block}", task='answer') or ''
         if require_citations:
             with time_block('claim_fallback_citations'):
                 generated = _force_answer_citations(generated, prompt, contexts)
@@ -3616,7 +3617,7 @@ def _repair_answer_by_task_schema(
     )
 
     add_metric('answer_schema_repair_attempt', 1)
-    repaired = llm_engine.generate(repair_prompt)
+    repaired = generate_text(repair_prompt, task='answer')
     repaired = str(repaired or '').strip()
     if not repaired:
         return ans
@@ -4171,7 +4172,6 @@ def _process_multi_intent(
     
     from .regulations_deterministic import structured_regulations_lookup
     from .curriculum_deterministic import structured_curriculum_lookup
-    from .llm import llm_engine
     use_langchain_subq = bool(_USE_LANGCHAIN and _LANGCHAIN_READY and _langchain_rag is not None)
     lc_subq = _langchain_rag
     
@@ -4287,7 +4287,7 @@ def _process_multi_intent(
                     else:
                         sys_msg = { 'role': 'system', 'content': 'ตอบคำถามอย่างกระชับและตรงไปตรงมาตามข้อมูลที่ให้มาเท่านั้น' }
                         usr_msg = { 'role': 'user', 'content': res['prompt'] }
-                        ans = llm_engine.generate(res['prompt'], messages=[sys_msg, usr_msg])
+                        ans = generate_text(res['prompt'], messages=[sys_msg, usr_msg], task='answer')
                 else:
                     ans = "ไม่พบข้อมูลที่เกี่ยวข้อง"
 
@@ -4833,7 +4833,11 @@ def rag_answer_endpoint(req: RagAnswerRequest):
                             langchain_query_only_mode = True
                             result = lc.rag_query_langchain(req.question, effective_domain)
                         else:
-                            result = lc.rag_answer_langchain(req.question, effective_domain)
+                            result = lc.rag_answer_langchain(
+                                req.question,
+                                effective_domain,
+                                requested_model=str(req.model or ''),
+                            )
                     if _LANGCHAIN_FALLBACK_ENABLE and _needs_langchain_retrieval_fallback(result.get('contexts') or []):
                         add_metric('langchain_low_confidence_fallback', 1)
                         add_metric('path_nonstructured_used', 1)
@@ -4952,10 +4956,20 @@ def rag_answer_endpoint(req: RagAnswerRequest):
                                                     # Query-only langchain path may intentionally skip generation.
                                                     if not (answer or '').strip():
                                                         with time_block('llm_generate'):
-                                                            answer = llm_engine.generate(result['prompt'], messages=[system_msg, user_msg])
+                                                            answer = generate_text(
+                                                                result['prompt'],
+                                                                messages=[system_msg, user_msg],
+                                                                task='answer',
+                                                                requested_model=str(req.model or ''),
+                                                            )
                                                 else:
                                                     with time_block('llm_generate'):
-                                                        answer = llm_engine.generate(result['prompt'], messages=[system_msg, user_msg])
+                                                        answer = generate_text(
+                                                            result['prompt'],
+                                                            messages=[system_msg, user_msg],
+                                                            task='answer',
+                                                            requested_model=str(req.model or ''),
+                                                        )
 
                     answer = _enforce_answer_completeness(
                         req.question,
@@ -5052,17 +5066,21 @@ def rag_answer_endpoint(req: RagAnswerRequest):
 def list_models():
     """OpenAI API compatible models endpoint for OpenWeb-UI."""
     import time
-    from .config import LLM_MODEL
     
+    configured = list_configured_models()
+    if not configured:
+        configured = [{'id': 'typhoon-rag', 'provider': 'unknown', 'role': 'primary'}]
+
     return {
         "object": "list",
         "data": [
             {
-                "id": LLM_MODEL or "typhoon-v2.5-30b-a3b-instruct",
+                "id": str(m.get('id') or 'typhoon-rag'),
                 "object": "model",
                 "created": int(time.time()),
-                "owned_by": "cpe-chat-rag"
+                "owned_by": f"cpe-chat-rag-{str(m.get('role') or 'primary')}-{str(m.get('provider') or 'unknown')}"
             }
+            for m in configured
         ]
     }
 
@@ -5432,7 +5450,7 @@ def openai_compatible_endpoint(request: dict):
             if use_langchain and lc is not None:
                 add_metric('path_langchain_used', 1)
                 with time_block('langchain_rag'):
-                    result = lc.rag_answer_langchain(question, domain)
+                    result = lc.rag_answer_langchain(question, domain, requested_model=str(request.get('model', '') or ''))
             else:
                 add_metric('path_nonstructured_used', 1)
                 with time_block('rag_query'):
@@ -5503,7 +5521,12 @@ def openai_compatible_endpoint(request: dict):
                                             answer = result.get('answer') or ''
                                         else:
                                             with time_block('llm_generate'):
-                                                answer = llm_engine.generate(result['prompt'], messages=[system_msg, user_msg])
+                                                answer = generate_text(
+                                                    result['prompt'],
+                                                    messages=[system_msg, user_msg],
+                                                    task='answer',
+                                                    requested_model=str(request.get('model', '') or ''),
+                                                )
 
             if not (answer or '').strip().startswith('('):
                 answer = _strip_false_abstain(_strip_spurious_abstain_phrases(answer))
@@ -5581,12 +5604,20 @@ def _public_config() -> dict:
         "LLM_ENABLE",
         "LLM_PROVIDER",
         "LLM_MODEL",
+        "LLM_AUX_PROVIDER",
+        "LLM_AUX_MODEL",
+        "LLM_AUX_FOR_REWRITE",
+        "LLM_AUX_FOR_MULTIQUERY",
+        "LLM_AUX_FOR_ROUTING",
+        "LLM_AUX_FALLBACK_FOR_ANSWER",
         "LLM_MAX_TOKENS",
         "LLM_TEMPERATURE",
         "OPENAI_BASE_URL",
         "OPENAI_TIMEOUT_S",
         "TYPHOON_BASE_URL",
         "TYPHOON_TIMEOUT_S",
+        "OLLAMA_BASE_URL",
+        "OLLAMA_TIMEOUT_S",
         "NEO4J_URI",
         "NEO4J_USERNAME",
         "NEO4J_USER",
@@ -5633,8 +5664,16 @@ def _public_config() -> dict:
         "LLM_ENABLE": getattr(cfg, "LLM_ENABLE", None),
         "LLM_PROVIDER": getattr(cfg, "LLM_PROVIDER", ""),
         "LLM_MODEL": getattr(cfg, "LLM_MODEL", ""),
+        "LLM_AUX_PROVIDER": getattr(cfg, "LLM_AUX_PROVIDER", ""),
+        "LLM_AUX_MODEL": getattr(cfg, "LLM_AUX_MODEL", ""),
+        "LLM_AUX_FOR_REWRITE": getattr(cfg, "LLM_AUX_FOR_REWRITE", None),
+        "LLM_AUX_FOR_MULTIQUERY": getattr(cfg, "LLM_AUX_FOR_MULTIQUERY", None),
+        "LLM_AUX_FOR_ROUTING": getattr(cfg, "LLM_AUX_FOR_ROUTING", None),
+        "LLM_AUX_FALLBACK_FOR_ANSWER": getattr(cfg, "LLM_AUX_FALLBACK_FOR_ANSWER", None),
         "LLM_MAX_TOKENS": getattr(cfg, "LLM_MAX_TOKENS", None),
         "LLM_TEMPERATURE": getattr(cfg, "LLM_TEMPERATURE", None),
+        "OLLAMA_BASE_URL": getattr(cfg, "OLLAMA_BASE_URL", ""),
+        "OLLAMA_TIMEOUT_S": getattr(cfg, "OLLAMA_TIMEOUT_S", None),
     }
 
     # Redact any accidental secrets.

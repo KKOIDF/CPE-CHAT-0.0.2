@@ -3,11 +3,7 @@ import json
 import re
 import math
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from functools import lru_cache
 from typing import Any, Dict, Optional, List, Tuple
-
-from langchain_core.output_parsers import StrOutputParser
-from langchain_core.runnables import RunnableLambda
 
 from .normalization import normalize_question, search_query_from_question, extract_lexical_anchors
 from .routing import (
@@ -24,7 +20,7 @@ from .context_packing import pack_context, pack_context_grouped, est_tokens
 from .prompting import build_prompt
 from .perf import time_block, add_metric
 from .config import RRF_K, MAX_CONTEXTS
-from .llm import llm_engine
+from .llm import generate_text
 from .chroma_client import embed_texts, semantic_search_domain, fetch_embeddings_for_docs
 from .neo4j_client import extract_course_codes
 from .rerank import fuse_rrf_lists
@@ -310,7 +306,7 @@ def _multiquery_variants(question_display: str, base_query: str, domain: str | N
         "ตอบกลับเป็น JSON array ของ string เท่านั้น เช่น [\"...\", \"...\"]"
     )
 
-    raw = llm_engine.generate(prompt)
+    raw = generate_text(prompt, task='multiquery')
     if not raw or raw.strip().startswith('('):
         return []
     candidates = _parse_query_list(raw)
@@ -346,7 +342,7 @@ def _route_domain_llm(question_display: str) -> Optional[str]:
         f"คำถาม: {question_display}\n\n"
         "ตอบเป็น JSON เท่านั้น เช่น {\"domain\":\"curriculum\",\"confidence\":0.7}"
     )
-    raw = llm_engine.generate(prompt)
+    raw = generate_text(prompt, task='routing')
     if not raw or raw.strip().startswith('('):
         return None
     obj = _safe_json_obj(raw)
@@ -701,17 +697,7 @@ def _boost_faculty_relation_for_teacher_intent(
     return boosted
 
 
-def _generate_with_engine(prompt: str) -> str:
-    user_msg = {'role': 'user', 'content': prompt}
-    return llm_engine.generate(prompt, messages=[_SYSTEM_MSG, user_msg])
-
-
-@lru_cache(maxsize=1)
-def _answer_chain():
-    return RunnableLambda(_generate_with_engine) | StrOutputParser()
-
-
-def rag_answer_langchain(question: str, domain: Optional[str] = None) -> Dict[str, Any]:
+def rag_answer_langchain(question: str, domain: Optional[str] = None, requested_model: str = '') -> Dict[str, Any]:
     """End-to-end RAG using LangChain (LCEL) for orchestration.
 
     Returns the same shape as the legacy endpoint:
@@ -743,8 +729,14 @@ def rag_answer_langchain(question: str, domain: Optional[str] = None) -> Dict[st
     follow_up_question = ''
     if retrieved:
         from .llm import LLMTimeoutError
+        user_msg = {'role': 'user', 'content': prompt}
         try:
-            raw = _answer_chain().invoke(prompt)  # type: ignore[no-any-return]
+            raw = generate_text(
+                prompt,
+                messages=[_SYSTEM_MSG, user_msg],
+                task='answer',
+                requested_model=requested_model,
+            )
         except LLMTimeoutError as e:
             raw = "(TIMEOUT_FALLBACK)"
             add_metric('fallback_reason', f"{e.stage}_timeout")
@@ -776,7 +768,13 @@ def rag_answer_langchain(question: str, domain: Optional[str] = None) -> Dict[st
                     "รูปแบบ: {\"answer\":\"...\",\"follow_up_question\":\"\",\"citations\":[\"source/page\"]}"
                 )
                 try:
-                    raw2 = _answer_chain().invoke(retry_prompt)  # type: ignore[no-any-return]
+                    retry_user_msg = {'role': 'user', 'content': retry_prompt}
+                    raw2 = generate_text(
+                        retry_prompt,
+                        messages=[_SYSTEM_MSG, retry_user_msg],
+                        task='answer',
+                        requested_model=requested_model,
+                    )
                     structured = _safe_json_obj(raw2)
                 except Exception:
                     raw2 = raw

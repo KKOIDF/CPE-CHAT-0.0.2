@@ -85,14 +85,28 @@ LLM_PIPELINE = os.getenv('LLM_PIPELINE', '0') in ('1','true','True')
 LLM_CPU_FALLBACK = os.getenv('LLM_CPU_FALLBACK', '1') in ('1','true','True')  # attempt CPU/offload if GPU OOM
 LLM_DEVICE_MAP = os.getenv('LLM_DEVICE_MAP', 'auto')  # override accelerate device_map
 
-# Remote LLM (OpenAI) settings (optional)
-LLM_PROVIDER = os.getenv('LLM_PROVIDER', '').strip().lower()  # '', 'hf', 'openai', 'typhoon'
+# Remote LLM settings (optional)
+LLM_PROVIDER = os.getenv('LLM_PROVIDER', '').strip().lower()  # '', 'hf', 'openai', 'typhoon', 'ollama'
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY', '')
 OPENAI_BASE_URL = os.getenv('OPENAI_BASE_URL', 'https://api.openai.com/v1')
 OPENAI_TIMEOUT_S = float(os.getenv('OPENAI_TIMEOUT_S', '60'))
+
+# Optional secondary/auxiliary model. Intended for lightweight sub-tasks
+# such as rewrite/routing/multi-query while the primary model focuses on final answers.
+LLM_AUX_PROVIDER = os.getenv('LLM_AUX_PROVIDER', '').strip().lower()
+LLM_AUX_MODEL = os.getenv('LLM_AUX_MODEL', '').strip()
+LLM_AUX_FOR_REWRITE = os.getenv('LLM_AUX_FOR_REWRITE', '1') in ('1', 'true', 'True')
+LLM_AUX_FOR_MULTIQUERY = os.getenv('LLM_AUX_FOR_MULTIQUERY', '1') in ('1', 'true', 'True')
+LLM_AUX_FOR_ROUTING = os.getenv('LLM_AUX_FOR_ROUTING', '1') in ('1', 'true', 'True')
+LLM_AUX_FALLBACK_FOR_ANSWER = os.getenv('LLM_AUX_FALLBACK_FOR_ANSWER', '1') in ('1', 'true', 'True')
 
 # Typhoon API settings (optional)
 TYPHOON_API_KEY = os.getenv('TYPHOON_API_KEY', '')
 TYPHOON_BASE_URL = os.getenv('TYPHOON_BASE_URL', 'https://api.opentyphoon.ai/v1')
 TYPHOON_TIMEOUT_S = float(os.getenv('TYPHOON_TIMEOUT_S', '60'))
 
+# Ollama API settings (optional)
+OLLAMA_API_KEY = os.getenv('OLLAMA_API_KEY', '')
+OLLAMA_BASE_URL = os.getenv('OLLAMA_BASE_URL', 'http://localhost:11434')
+OLLAMA_TIMEOUT_S = float(os.getenv('OLLAMA_TIMEOUT_S', '120'))
+OLLAMA_THINK = os.getenv('OLLAMA_THINK', '0') in ('1', 'true', 'True')

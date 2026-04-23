@@ -61,18 +61,28 @@ if [ ! -f ".env" ]; then
     if [ -f ".env.example" ]; then
         print_info "Creating .env from .env.example..."
         cp .env.example .env
-        print_info "Created .env - Please update TYPHOON_API_KEY!"
+        print_info "Created .env - Please update your LLM provider settings."
     else
         print_error ".env file not found and .env.example not available"
         exit 1
     fi
 fi
 
-# Verify TYPHOON_API_KEY is set
-if ! grep -q "^TYPHOON_API_KEY=" .env || grep "^TYPHOON_API_KEY=your_typhoon_api_key_here" .env; then
-    print_error "TYPHOON_API_KEY is not configured in .env"
-    echo "Please update .env with your Typhoon API key"
-    exit 1
+LLM_PROVIDER=$(grep "^LLM_PROVIDER=" .env | cut -d '=' -f 2 | tr -d '\r')
+LLM_PROVIDER=${LLM_PROVIDER:-typhoon}
+
+if [ "$LLM_PROVIDER" = "typhoon" ]; then
+    if ! grep -q "^TYPHOON_API_KEY=" .env || grep "^TYPHOON_API_KEY=your_typhoon_api_key_here" .env > /dev/null; then
+        print_error "TYPHOON_API_KEY is not configured in .env"
+        echo "Please update .env with your Typhoon API key"
+        exit 1
+    fi
+elif [ "$LLM_PROVIDER" = "ollama" ]; then
+    if ! grep -q "^OLLAMA_BASE_URL=" .env; then
+        print_error "OLLAMA_BASE_URL is not configured in .env"
+        echo "Please update .env with your Ollama base URL"
+        exit 1
+    fi
 fi
 
 print_info ".env configuration found ✓"
@@ -133,7 +143,7 @@ echo ""
 
 echo "Next steps:"
 echo "1. Open http://localhost:${OPENWEB_PORT} in your browser"
-echo "2. Configure model settings (should auto-detect RAG service)"
+echo "2. Confirm the loaded model in OpenWeb-UI (should auto-detect RAG service)"
 echo "3. Try asking a question in Thai"
 echo ""
 

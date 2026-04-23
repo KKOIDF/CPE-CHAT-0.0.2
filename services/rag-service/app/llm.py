@@ -3,6 +3,7 @@ import torch
 from typing import Optional, List, Dict, Union, Any
 from .config import (
     LLM_MODEL,
+    LLM_AUX_MODEL,
     LLM_MAX_TOKENS,
     LLM_TEMPERATURE,
     LLM_ENABLE,
@@ -11,12 +12,21 @@ from .config import (
     LLM_CPU_FALLBACK,
     LLM_DEVICE_MAP,
     LLM_PROVIDER,
+    LLM_AUX_PROVIDER,
+    LLM_AUX_FOR_REWRITE,
+    LLM_AUX_FOR_MULTIQUERY,
+    LLM_AUX_FOR_ROUTING,
+    LLM_AUX_FALLBACK_FOR_ANSWER,
     OPENAI_API_KEY,
     OPENAI_BASE_URL,
     OPENAI_TIMEOUT_S,
     TYPHOON_API_KEY,
     TYPHOON_BASE_URL,
     TYPHOON_TIMEOUT_S,
+    OLLAMA_API_KEY,
+    OLLAMA_BASE_URL,
+    OLLAMA_TIMEOUT_S,
+    OLLAMA_THINK,
 )
 
 import os
@@ -181,8 +191,60 @@ except Exception:
     pipeline = None  # type: ignore
 
 
-# Reuse HTTP connections to remote providers (OpenAI/Typhoon) to reduce latency.
+# Reuse HTTP connections to remote providers (OpenAI/Typhoon/Ollama) to reduce latency.
 _HTTP = requests.Session()
+_LOCAL_ENGINE_CACHE: Dict[str, "LLMEngine"] = {}
+
+
+def _normalize_provider(provider: str, model_name: str = '') -> str:
+    p = (provider or '').strip().lower()
+    if p:
+        return p
+    if (model_name or '').startswith('gpt-'):
+        return 'openai'
+    return p
+
+
+def _aux_is_configured() -> bool:
+    return bool((LLM_AUX_PROVIDER or '').strip() and (LLM_AUX_MODEL or '').strip())
+
+
+def _selection_matches(provider: str, model_name: str, other_provider: str, other_model: str) -> bool:
+    return _normalize_provider(provider, model_name) == _normalize_provider(other_provider, other_model) and (model_name or '').strip() == (other_model or '').strip()
+
+
+def _is_diagnostic_response(text: str) -> bool:
+    t = str(text or '').strip()
+    if not t:
+        return True
+    if t == '(empty response)':
+        return True
+    return t.startswith('(')
+
+
+def _resolve_task_selection(task: str = 'answer', requested_model: str = '') -> tuple[str, str]:
+    req = (requested_model or '').strip()
+    primary_provider = _normalize_provider(LLM_PROVIDER, LLM_MODEL)
+    primary_model = (LLM_MODEL or '').strip()
+    aux_provider = _normalize_provider(LLM_AUX_PROVIDER, LLM_AUX_MODEL)
+    aux_model = (LLM_AUX_MODEL or '').strip()
+
+    if req:
+        if req == primary_model:
+            return primary_provider, primary_model
+        if _aux_is_configured() and req == aux_model:
+            return aux_provider, aux_model
+
+    task_key = (task or 'answer').strip().lower()
+    if _aux_is_configured():
+        if task_key == 'rewrite' and LLM_AUX_FOR_REWRITE:
+            return aux_provider, aux_model
+        if task_key == 'multiquery' and LLM_AUX_FOR_MULTIQUERY:
+            return aux_provider, aux_model
+        if task_key == 'routing' and LLM_AUX_FOR_ROUTING:
+            return aux_provider, aux_model
+
+    return primary_provider, primary_model
 
 class LLMEngine:
     def __init__(self, model_name: str):
@@ -195,12 +257,13 @@ class LLMEngine:
         self._load_error: Optional[str] = None
         self._warned = False
 
-    def load(self):
+    def load(self, provider_override: Optional[str] = None):
         if not LLM_ENABLE:
             return
 
-        # Remote provider has no local loading.
-        if (LLM_PROVIDER or '').strip().lower() == 'openai' or (self.model_name or '').startswith('gpt-'):
+        provider = _normalize_provider(provider_override or LLM_PROVIDER, self.model_name)
+        # Remote providers have no local loading.
+        if provider in ('openai', 'typhoon', 'ollama') or (self.model_name or '').startswith('gpt-'):
             return
         # Auto recommend 4-bit for very large models if not already enabled.
         if ("30" in self.model_name or "70" in self.model_name) and not LLM_4BIT and not self._warned:
@@ -295,17 +358,35 @@ class LLMEngine:
             self._load_error = str(e)
             print(f"[LLM] Load failed: {e}")
 
-    def generate(self, prompt: str, messages: Optional[List[Dict[str, str]]] = None) -> str:
+    def generate(
+        self,
+        prompt: str,
+        messages: Optional[List[Dict[str, str]]] = None,
+        provider_override: Optional[str] = None,
+        model_override: Optional[str] = None,
+    ) -> str:
         if not LLM_ENABLE:
             return "(LLM disabled: set LLM_ENABLE=1 to enable generation)"
 
-        provider = (LLM_PROVIDER or '').strip().lower()
+        model_name = (model_override or self.model_name or '').strip()
+        provider = _normalize_provider(provider_override or LLM_PROVIDER, model_name)
+
+        if model_name and model_name != (self.model_name or '').strip() and provider not in ('openai', 'typhoon', 'ollama'):
+            temp_engine = _LOCAL_ENGINE_CACHE.get(model_name)
+            if temp_engine is None:
+                temp_engine = LLMEngine(model_name)
+                _LOCAL_ENGINE_CACHE[model_name] = temp_engine
+            return temp_engine.generate(prompt, messages=messages, provider_override=provider, model_override=model_name)
+
         try:
-            if provider == 'openai' or (provider == '' and (self.model_name or '').startswith('gpt-')):
-                return self._generate_openai(prompt=prompt, messages=messages)
+            if provider == 'openai':
+                return self._generate_openai(prompt=prompt, messages=messages, model_name=model_name)
             
             if provider == 'typhoon':
-                return self._generate_typhoon(prompt=prompt, messages=messages)
+                return self._generate_typhoon(prompt=prompt, messages=messages, model_name=model_name)
+
+            if provider == 'ollama':
+                return self._generate_ollama(prompt=prompt, messages=messages, model_name=model_name)
         except LLMTimeoutError as e:
             add_metric('fallback_reason', f"{e.stage}_timeout")
             add_metric('timeout_stage', e.stage)
@@ -319,7 +400,7 @@ class LLMEngine:
             print(f"[LLM][ERROR] generate failed: {e}")
             return f"(Error: {e})"
 
-        self.load()
+        self.load(provider_override=provider)
         # Pipeline path
         if LLM_PIPELINE:
             if self.pipe is None:
@@ -457,13 +538,14 @@ class LLMEngine:
                     
         return "(LLM Generation Failed)"
 
-    def _generate_openai(self, prompt: str, messages: Optional[List[Dict[str, str]]] = None) -> str:
+    def _generate_openai(self, prompt: str, messages: Optional[List[Dict[str, str]]] = None, model_name: Optional[str] = None) -> str:
         if not OPENAI_API_KEY:
             return "(OpenAI unavailable: set OPENAI_API_KEY)"
 
         base = (OPENAI_BASE_URL or 'https://api.openai.com/v1').rstrip('/')
         debug = os.getenv('OPENAI_DEBUG', '0') in ('1', 'true', 'True')
-        is_gpt5 = (self.model_name or '').startswith('gpt-5')
+        selected_model = (model_name or self.model_name or '').strip()
+        is_gpt5 = selected_model.startswith('gpt-5')
         headers = {
             'Authorization': f'Bearer {OPENAI_API_KEY}',
             'Content-Type': 'application/json',
@@ -479,7 +561,7 @@ class LLMEngine:
             prompt_tokens = _estimate_messages_tokens(msgs)
         url = f"{base}/chat/completions"
         payload: Dict[str, Any] = {
-            'model': self.model_name,
+            'model': selected_model,
             'messages': msgs,
             'stream': True,
         }
@@ -514,10 +596,11 @@ class LLMEngine:
                 add_metric('llm_first_token_ms', 0)
             raise e
 
-    def _generate_typhoon(self, prompt: str, messages: Optional[List[Dict[str, str]]] = None) -> str:
+    def _generate_typhoon(self, prompt: str, messages: Optional[List[Dict[str, str]]] = None, model_name: Optional[str] = None) -> str:
         if not TYPHOON_API_KEY:
             return "(Typhoon unavailable: set TYPHOON_API_KEY)"
 
+        selected_model = (model_name or self.model_name or '').strip()
         base = (TYPHOON_BASE_URL or 'https://api.opentyphoon.ai/v1').rstrip('/')
         debug = os.getenv('TYPHOON_DEBUG', '0') in ('1', 'true', 'True')
         
@@ -543,7 +626,7 @@ class LLMEngine:
         url = f"{base}/chat/completions"
 
         payload: Dict[str, Any] = {
-            'model': self.model_name,
+            'model': selected_model,
             'messages': msgs,
             'temperature': LLM_TEMPERATURE,
             'max_completion_tokens': completion_tokens,
@@ -572,6 +655,168 @@ class LLMEngine:
                 add_metric('llm_total_ms', 0)
                 add_metric('llm_first_token_ms', 0)
             raise e
+
+    def _generate_ollama(self, prompt: str, messages: Optional[List[Dict[str, str]]] = None, model_name: Optional[str] = None) -> str:
+        selected_model = (model_name or self.model_name or '').strip()
+        base = (OLLAMA_BASE_URL or 'http://localhost:11434').rstrip('/')
+        debug = os.getenv('OLLAMA_DEBUG', '0') in ('1', 'true', 'True')
+
+        headers = {
+            'Content-Type': 'application/json',
+        }
+        if OLLAMA_API_KEY:
+            headers['Authorization'] = f'Bearer {OLLAMA_API_KEY}'
+
+        msgs = messages or [{'role': 'user', 'content': prompt}]
+        model_limit = int(os.getenv('LLM_MODEL_CONTEXT_LIMIT', '8192') or '8192')
+        reserve_output = max(64, int(os.getenv('LLM_OUTPUT_RESERVE_TOKENS', '256') or '256'))
+        prompt_tokens = _estimate_messages_tokens(msgs)
+        if prompt_tokens + reserve_output > model_limit:
+            add_metric('prompt_oversized_guard_triggered', 1)
+            msgs = _trim_messages_to_budget(msgs, max(512, model_limit - reserve_output))
+
+        url = f"{base}/api/chat"
+        payload: Dict[str, Any] = {
+            'model': selected_model,
+            'messages': msgs,
+            'stream': True,
+            'think': bool(OLLAMA_THINK),
+            'options': {
+                'temperature': LLM_TEMPERATURE,
+                'num_predict': LLM_MAX_TOKENS,
+            },
+        }
+
+        first_token_timeout = float(os.getenv('OLLAMA_FIRST_TOKEN_TIMEOUT_S', '10.0'))
+        overall_timeout = float(os.getenv('OLLAMA_OVERALL_TIMEOUT_S', str(OLLAMA_TIMEOUT_S or 120.0)))
+        backoff_s = 0.5
+        max_retries = 1
+
+        for attempt in range(max_retries + 1):
+            try:
+                start_t = time.time()
+                if debug:
+                    print(f"[Ollama][stream] Attempt {attempt+1}/{max_retries+1}")
+                resp = _HTTP.post(url, headers=headers, json=payload, stream=True, timeout=(3.0, first_token_timeout))
+            except requests.exceptions.Timeout:
+                if attempt < max_retries:
+                    time.sleep(backoff_s)
+                    continue
+                add_metric('llm_retry_count', attempt)
+                raise LLMTimeoutError("Ollama network timeout on start", "first_token_network")
+            except Exception:
+                if attempt < max_retries:
+                    time.sleep(backoff_s)
+                    continue
+                add_metric('llm_retry_count', attempt)
+                raise
+
+            if resp.status_code >= 300:
+                is_transient = (resp.status_code == 429 or 500 <= resp.status_code <= 599)
+                if is_transient and attempt < max_retries:
+                    resp.close()
+                    time.sleep(backoff_s)
+                    continue
+                body = resp.text[:300]
+                resp.close()
+                add_metric('llm_retry_count', attempt)
+                raise RuntimeError(f"Ollama HTTP {resp.status_code}: {body}")
+
+            add_metric('llm_retry_count', attempt)
+            first_token_t = None
+            accumulated = []
+            try:
+                for line in resp.iter_lines():
+                    curr_t = time.time()
+                    if first_token_t is None and curr_t - start_t > first_token_timeout:
+                        resp.close()
+                        raise LLMTimeoutError(f"Ollama first-token timeout exceeded {first_token_timeout}s", "first_token")
+                    if curr_t - start_t > overall_timeout:
+                        resp.close()
+                        raise LLMTimeoutError(f"Ollama overall timeout exceeded {overall_timeout}s", "overall")
+                    if not line:
+                        continue
+
+                    try:
+                        chunk = json.loads(line.decode('utf-8'))
+                    except json.JSONDecodeError:
+                        continue
+
+                    content = str((((chunk.get('message') or {}).get('content')) or ''))
+                    if content:
+                        accumulated.append(content)
+                        if first_token_t is None:
+                            first_token_t = time.time()
+                            add_metric('llm_first_token_ms', int((first_token_t - start_t) * 1000))
+                    if chunk.get('done'):
+                        break
+            finally:
+                resp.close()
+                end_t = time.time()
+                if first_token_t is None:
+                    add_metric('llm_first_token_ms', int((end_t - start_t) * 1000))
+                add_metric('llm_total_ms', int((end_t - start_t) * 1000))
+
+            out = "".join(accumulated).strip()
+            return out or '(empty response)'
+
+        return "(Ollama Generation Failed)"
+
+
+def generate_text(
+    prompt: str,
+    messages: Optional[List[Dict[str, str]]] = None,
+    *,
+    task: str = 'answer',
+    requested_model: str = '',
+) -> str:
+    provider, model_name = _resolve_task_selection(task=task, requested_model=requested_model)
+    add_metric('llm_task', task)
+    add_metric('llm_selected_provider', provider or 'local')
+    add_metric('llm_selected_model', model_name or llm_engine.model_name or '')
+
+    out = llm_engine.generate(
+        prompt,
+        messages=messages,
+        provider_override=provider,
+        model_override=model_name or None,
+    )
+
+    if task == 'answer' and not (requested_model or '').strip() and _aux_is_configured() and LLM_AUX_FALLBACK_FOR_ANSWER:
+        primary_provider = _normalize_provider(LLM_PROVIDER, LLM_MODEL)
+        primary_model = (LLM_MODEL or '').strip()
+        aux_provider = _normalize_provider(LLM_AUX_PROVIDER, LLM_AUX_MODEL)
+        aux_model = (LLM_AUX_MODEL or '').strip()
+        used_primary = _selection_matches(provider, model_name, primary_provider, primary_model)
+        if used_primary and _is_diagnostic_response(out):
+            add_metric('llm_aux_fallback_attempt', 1)
+            aux_out = llm_engine.generate(
+                prompt,
+                messages=messages,
+                provider_override=aux_provider,
+                model_override=aux_model or None,
+            )
+            if not _is_diagnostic_response(aux_out):
+                add_metric('llm_aux_fallback_success', 1)
+                add_metric('llm_selected_provider', aux_provider or 'local')
+                add_metric('llm_selected_model', aux_model or '')
+                return aux_out
+    return out
+
+
+def list_configured_models() -> List[Dict[str, str]]:
+    models: List[Dict[str, str]] = []
+    primary_provider = _normalize_provider(LLM_PROVIDER, LLM_MODEL) or 'local'
+    primary_model = (LLM_MODEL or '').strip()
+    if primary_model:
+        models.append({'id': primary_model, 'provider': primary_provider, 'role': 'primary'})
+
+    aux_provider = _normalize_provider(LLM_AUX_PROVIDER, LLM_AUX_MODEL) or 'local'
+    aux_model = (LLM_AUX_MODEL or '').strip()
+    if aux_model and not any(m.get('id') == aux_model for m in models):
+        models.append({'id': aux_model, 'provider': aux_provider, 'role': 'aux'})
+    return models
+
 
 # Singleton
 llm_engine = LLMEngine(LLM_MODEL)

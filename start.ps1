@@ -20,6 +20,10 @@ function Print-Error {
     Write-Host "[ERROR] $($args -join ' ')" -ForegroundColor Red
 }
 
+function Print-Warning {
+    Write-Host "[WARNING] $($args -join ' ')" -ForegroundColor Yellow
+}
+
 function Print-Success {
     Write-Host "[SUCCESS] $($args -join ' ')" -ForegroundColor Green
 }
@@ -58,7 +62,7 @@ if (-not (Test-Path ".env")) {
     if (Test-Path ".env.example") {
         Print-Info "Creating .env from .env.example..."
         Copy-Item ".env.example" ".env"
-        Print-Warning ".env created - Please update TYPHOON_API_KEY!"
+        Print-Warning ".env created - Please update your LLM provider settings!"
         notepad .env
     } else {
         Print-Error ".env file not found"
@@ -66,12 +70,23 @@ if (-not (Test-Path ".env")) {
     }
 }
 
-# Verify TYPHOON_API_KEY
-$envContent = Get-Content ".env" | Select-String "^TYPHOON_API_KEY"
-if (-not $envContent -or $envContent -match "your_typhoon_api_key_here") {
-    Print-Error "TYPHOON_API_KEY is not configured in .env"
-    Write-Host "Please update .env with your Typhoon API key"
-    exit 1
+$llmProviderLine = Get-Content ".env" | Select-String "^LLM_PROVIDER="
+$llmProvider = if ($llmProviderLine) { $llmProviderLine.ToString().Split('=')[1].Trim() } else { "typhoon" }
+
+if ($llmProvider -eq "typhoon") {
+    $envContent = Get-Content ".env" | Select-String "^TYPHOON_API_KEY"
+    if (-not $envContent -or $envContent -match "your_typhoon_api_key_here") {
+        Print-Error "TYPHOON_API_KEY is not configured in .env"
+        Write-Host "Please update .env with your Typhoon API key"
+        exit 1
+    }
+} elseif ($llmProvider -eq "ollama") {
+    $envContent = Get-Content ".env" | Select-String "^OLLAMA_BASE_URL="
+    if (-not $envContent) {
+        Print-Error "OLLAMA_BASE_URL is not configured in .env"
+        Write-Host "Please update .env with your Ollama base URL"
+        exit 1
+    }
 }
 
 Print-Success ".env configuration found"
@@ -149,7 +164,7 @@ Write-Host ""
 
 Write-Host "Next steps:" -ForegroundColor Green
 Write-Host "1. Open http://localhost:$openwPort in your browser"
-Write-Host "2. Configure model settings"
+Write-Host "2. Confirm the loaded model in OpenWeb-UI"
 Write-Host "3. Try asking a question in Thai"
 Write-Host ""
 

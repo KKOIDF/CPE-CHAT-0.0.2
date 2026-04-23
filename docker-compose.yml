@@ -24,10 +24,16 @@ services:
       TOKEN_BUDGET: "${TOKEN_BUDGET:-1200}"
       MAX_CONTEXTS: "${MAX_CONTEXTS:-8}"
       
-      # LLM Configuration - Using Typhoon API
+      # LLM Configuration - configurable remote provider
       LLM_ENABLE: "1"
-      LLM_PROVIDER: "typhoon"
-      LLM_MODEL: "typhoon-v2.5-30b-a3b-instruct"
+      LLM_PROVIDER: "${LLM_PROVIDER:-typhoon}"
+      LLM_MODEL: "${LLM_MODEL:-typhoon-v2.5-30b-a3b-instruct}"
+      LLM_AUX_PROVIDER: "${LLM_AUX_PROVIDER:-}"
+      LLM_AUX_MODEL: "${LLM_AUX_MODEL:-}"
+      LLM_AUX_FOR_REWRITE: "${LLM_AUX_FOR_REWRITE:-1}"
+      LLM_AUX_FOR_MULTIQUERY: "${LLM_AUX_FOR_MULTIQUERY:-1}"
+      LLM_AUX_FOR_ROUTING: "${LLM_AUX_FOR_ROUTING:-1}"
+      LLM_AUX_FALLBACK_FOR_ANSWER: "${LLM_AUX_FALLBACK_FOR_ANSWER:-1}"
       LLM_MAX_TOKENS: "${LLM_MAX_TOKENS:-512}"
       LLM_TEMPERATURE: "0.4"
       
@@ -35,6 +41,14 @@ services:
       TYPHOON_API_KEY: "${TYPHOON_API_KEY}"
       TYPHOON_BASE_URL: "${TYPHOON_BASE_URL:-https://api.opentyphoon.ai/v1}"
       TYPHOON_TIMEOUT_S: "60"
+
+      # Ollama API Configuration
+      OLLAMA_API_KEY: "${OLLAMA_API_KEY:-}"
+      OLLAMA_BASE_URL: "${OLLAMA_BASE_URL:-http://host.docker.internal:11434}"
+      OLLAMA_TIMEOUT_S: "${OLLAMA_TIMEOUT_S:-120}"
+      OLLAMA_THINK: "${OLLAMA_THINK:-0}"
+      OLLAMA_FIRST_TOKEN_TIMEOUT_S: "${OLLAMA_FIRST_TOKEN_TIMEOUT_S:-10}"
+      OLLAMA_OVERALL_TIMEOUT_S: "${OLLAMA_OVERALL_TIMEOUT_S:-120}"
       
       # CORS Configuration for OpenWeb-UI
       CORS_ORIGINS: "http://localhost:3000,http://localhost:8080,${OPENWEB_UI_URL:-http://localhost:3000}"
