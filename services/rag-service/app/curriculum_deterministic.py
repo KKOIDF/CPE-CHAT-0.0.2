@@ -74,6 +74,11 @@ _TITLE_STOPWORDS_EN = {
     "please", "tell", "me",
 }
 
+_TEACHER_ASSIGNMENT_SOURCE_ALLOWLIST = (
+    "teacher_profiles_by_course.txt",
+    "teacher_profiles_by_course.csv",
+)
+
 
 def _extract_prefix_from_question(question: str) -> str | None:
     q = (question or "")
@@ -285,7 +290,12 @@ def _format_study_plan_answer(question: str, courses: list[Course], source_name:
 
 
 def _lookup_instructors_for_course(code: str) -> tuple[list[tuple[str, str]], bool, bool]:
-    """Return (instructors, relation_hit, contact_hit) for a normalized course code."""
+    """Return (instructors, relation_hit, contact_hit) for a normalized course code.
+
+    Instructor lookup is intentionally restricted to the curriculum SQLite rows
+    derived from `teacher_profiles_by_course` so this path never depends on
+    local source-file parsing at answer time.
+    """
     code = (code or "").strip().upper()
     m = re.match(r"^([A-Z]{2,6})\s*(\d{3})$", code)
     if not m:
@@ -293,76 +303,48 @@ def _lookup_instructors_for_course(code: str) -> tuple[list[tuple[str, str]], bo
 
     pref = m.group(1)
     num = m.group(2)
+    target_code = f"{pref} {num}"
     db_path = domain_sqlite_path("curriculum")
 
     dids: list[str] = []
     seen_ids: set[str] = set()
-    needles = [f"{pref} {num}", f"{pref}{num}", f"รายวิชา: {pref}"]
+    needles = [target_code, f"{pref}{num}"]
     for needle in needles:
-        for did in keyword_search(needle, limit=600, sqlite_path=db_path):
+        for did in keyword_search(
+            needle,
+            limit=120,
+            sqlite_path=db_path,
+            source_allowlist=_TEACHER_ASSIGNMENT_SOURCE_ALLOWLIST,
+        ):
             if did and did not in seen_ids:
                 dids.append(did)
                 seen_ids.add(did)
-        if len(dids) >= 500:
+        if len(dids) >= 80:
             break
 
     docs = fetch_docs_with_path(dids, sqlite_path=db_path)
     if not docs:
         return [], False, False
 
-    code_re = re.compile(rf"\b{re.escape(pref)}\s*[- ]?\s*{re.escape(num)}\b", re.IGNORECASE)
-    title_name_re = re.compile(r"((?:ศ\.ดร\.|รศ\.ดร\.|ผศ\.ดร\.|ดร\.|อ\.)\s*[^\n\[\]]{2,120})")
-    stop_tokens = (
-        'Assoc.', 'Assistant Professor', 'Professor', 'ภาระงานสอน',
-        'ประวัติการศึกษา', 'รายวิชา', 'อนุมัติจากสภา', 'International'
-    )
-    rel_hint_re = re.compile(r"(ผู้สอน|อาจารย์|lecturer|instructor|teacher)", re.IGNORECASE)
-
     found: list[tuple[str, str]] = []
-    relation_hit = False
-    contact_hit = False
     for d in docs:
         txt = str(d.get("text") or "")
         if not txt:
             continue
         src = str(d.get("source") or "").strip() or "curriculum"
-        src_l = src.lower()
         cite = f"{src}/1"
-
-        doc_is_contact = ('contact' in src_l) or ('faculty' in src_l)
-        if doc_is_contact:
-            contact_hit = True
-
-        match_positions = list(code_re.finditer(txt))
-        if not match_positions:
-            continue
-
-        for m_code in match_positions:
-            s = max(0, m_code.start() - 260)
-            e = min(len(txt), m_code.end() + 560)
-            window = txt[s:e]
-            has_rel_hint = rel_hint_re.search(window) is not None
-            if (not has_rel_hint) and (not doc_is_contact):
+        for line in txt.splitlines():
+            row = [part.strip() for part in line.split("|")]
+            if len(row) < 6:
                 continue
-            if has_rel_hint:
-                relation_hit = True
-
-            for m_name in title_name_re.finditer(window):
-                raw = (m_name.group(1) or "").strip()
-                if not raw:
-                    continue
-                cleaned = raw
-                for tok in stop_tokens:
-                    pos = cleaned.find(tok)
-                    if pos > 0:
-                        cleaned = cleaned[:pos].strip()
-                cleaned = re.split(r"\s+-\s+|\s+\(|\s+Assoc\.|\s+Professor", cleaned, maxsplit=1)[0].strip()
-                cleaned = cleaned.strip(' -,:;()[]')
-                if len(cleaned) < 6:
-                    continue
-                if not re.search(r"[\u0E00-\u0E7F]", cleaned):
-                    continue
-                found.append((cleaned, cite))
+            name, _teaching_part, _level, row_code = row[:4]
+            row_norm = re.sub(r"\s+", " ", row_code or "").strip().upper()
+            if row_norm != target_code:
+                continue
+            clean_name = re.sub(r"\s+", " ", name or "").strip()
+            if len(clean_name) < 4:
+                continue
+            found.append((clean_name, cite))
 
     # Deduplicate while preserving order.
     uniq: list[tuple[str, str]] = []
@@ -374,7 +356,7 @@ def _lookup_instructors_for_course(code: str) -> tuple[list[tuple[str, str]], bo
         seen_names.add(norm)
         uniq.append((name, cite))
 
-    return uniq, relation_hit, contact_hit
+    return uniq, bool(uniq), False
 
 
 def _lookup_nearby_names_for_course(code: str) -> list[str]:
@@ -387,39 +369,40 @@ def _lookup_nearby_names_for_course(code: str) -> list[str]:
         return []
 
     pref, num = m.group(1), m.group(2)
+    target_code = f"{pref} {num}"
     db_path = domain_sqlite_path("curriculum")
     dids: list[str] = []
     seen_ids: set[str] = set()
-    for needle in [f"{pref} {num}", f"{pref}{num}"]:
-        for did in keyword_search(needle, limit=300, sqlite_path=db_path):
+    for needle in [target_code, f"{pref}{num}"]:
+        for did in keyword_search(
+            needle,
+            limit=80,
+            sqlite_path=db_path,
+            source_allowlist=_TEACHER_ASSIGNMENT_SOURCE_ALLOWLIST,
+        ):
             if did and did not in seen_ids:
                 dids.append(did)
                 seen_ids.add(did)
 
     docs = fetch_docs_with_path(dids, sqlite_path=db_path)
-    code_re = re.compile(rf"\b{re.escape(pref)}\s*[- ]?\s*{re.escape(num)}\b", re.IGNORECASE)
-    title_name_re = re.compile(r"((?:ศ\.ดร\.|รศ\.ดร\.|ผศ\.ดร\.|ดร\.|อ\.)\s*[^\n\[\]]{2,80})")
-    stop_tokens = ("Assoc.", "Assistant Professor", "Professor", "ภาระงานสอน", "ประวัติการศึกษา", "รายวิชา")
 
     names: list[str] = []
     seen: set[str] = set()
     for d in docs:
         txt = str(d.get("text") or "")
-        for mc in code_re.finditer(txt):
-            s, e = max(0, mc.start() - 200), min(len(txt), mc.end() + 400)
-            for mn in title_name_re.finditer(txt[s:e]):
-                raw = (mn.group(1) or "").strip()
-                for tok in stop_tokens:
-                    pos = raw.find(tok)
-                    if pos > 0:
-                        raw = raw[:pos].strip()
-                raw = re.split(r"\s+-\s+|\s+\(|\s+Assoc\.", raw, maxsplit=1)[0].strip(' -,:;()[]')
-                if len(raw) < 6 or not re.search(r"[\u0E00-\u0E7F]", raw):
-                    continue
-                norm = re.sub(r"\s+", "", raw)
-                if norm not in seen:
-                    seen.add(norm)
-                    names.append(raw)
+        for line in txt.splitlines():
+            row = [part.strip() for part in line.split("|")]
+            if len(row) < 6:
+                continue
+            raw, _teaching_part, _level, row_code = row[:4]
+            row_norm = re.sub(r"\s+", " ", row_code or "").strip().upper()
+            if row_norm != target_code:
+                continue
+            norm = re.sub(r"\s+", "", raw or "")
+            if not norm or norm in seen:
+                continue
+            seen.add(norm)
+            names.append(re.sub(r"\s+", " ", raw or "").strip())
     return names[:4]
 
 
@@ -1158,10 +1141,15 @@ def structured_curriculum_lookup(question: str) -> dict[str, Any]:
       - miss_reason: no_exact_match|no_alias_match|no_studyplan_match|ambiguous_match|no_deterministic_match
     """
     q = normalize_question(question)
-    totals = load_credit_totals_2564()
-    curriculum = load_cpe_curriculum_2564()
-    source_name = curriculum.source_path.name if curriculum else "curriculum_sqlite"
+    instructor_intent = any(t in q for t in ("ใครสอน", "ผู้สอน", "อาจารย์", "คนสอน"))
+    source_name = "curriculum_sqlite"
+    totals: dict[str, int] = {}
     qtype = _classify_curriculum_question_type(q)
+
+    if not instructor_intent:
+        totals = load_credit_totals_2564()
+        curriculum = load_cpe_curriculum_2564()
+        source_name = curriculum.source_path.name if curriculum else "curriculum_sqlite"
 
     if qtype == 'sum_credits':
         sum_answer = _sum_credits_answer(q, source_name, totals)
@@ -1187,13 +1175,14 @@ def structured_curriculum_lookup(question: str) -> dict[str, Any]:
             "miss_reason": "claim_not_supported",
         }
 
-    program_answer = _program_metadata_answer(q, source_name)
-    if program_answer:
-        return {
-            "answer": program_answer,
-            "lookup_mode": "program_metadata",
-            "miss_reason": "",
-        }
+    if not instructor_intent:
+        program_answer = _program_metadata_answer(q, source_name)
+        if program_answer:
+            return {
+                "answer": program_answer,
+                "lookup_mode": "program_metadata",
+                "miss_reason": "",
+            }
 
     # Category totals lookup.
     if "หน่วยกิต" in q or "กี่กิต" in q:
@@ -1284,7 +1273,6 @@ def structured_curriculum_lookup(question: str) -> dict[str, Any]:
         return {"answer": None, "lookup_mode": "none", "miss_reason": "no_studyplan_match"}
 
     # Exact course-code/title lookups.
-    instructor_intent = any(t in q for t in ("ใครสอน", "ผู้สอน", "อาจารย์", "คนสอน"))
     prereq_intent = any(t in q for t in (
         "ต้องผ่าน", "บังคับก่อน", "วิชาบังคับก่อน", "ผ่านอะไรก่อน", "ก่อนเรียน", "พื้นฐาน", "prereq", "pre-req", "prerequisite", "เงื่อนไขก่อน"
     ))
@@ -1321,7 +1309,9 @@ def structured_curriculum_lookup(question: str) -> dict[str, Any]:
             followup_codes = _codes_in_order(tail)
 
     codes = followup_codes or _codes_in_order(q)
-    all_courses = load_all_courses_2564()
+    all_courses: dict[str, Course] = {}
+    if not instructor_intent:
+        all_courses = load_all_courses_2564()
 
     if prereq_intent and not instructor_intent:
         if not codes:

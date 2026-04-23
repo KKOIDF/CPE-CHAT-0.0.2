@@ -11,6 +11,7 @@ from typing import Any
 from .orchestration import rag_query, rag_query_domain, structured_curriculum_answer, structured_curriculum_lookup
 from .llm import llm_engine
 from .config import KNOWN_DOMAINS
+from .normalization import normalize_question
 from .sqlite_client import close_thread_connections
 from .neo4j_client import close_driver
 from .perf import request_timing, time_block, add_metric, set_observer
@@ -70,6 +71,14 @@ _CITE_CAPTURE_RE = re.compile(r"\[([^\]]+?/\d+)\]")
 _CITE_MATCH_RE = re.compile(r"\[[^\]]+?/\d+\]")
 _BRACKET_RE = re.compile(r"\[[^\]]*\]")
 _INLINE_CITE_RE = re.compile(r"\s*\[[^\]]+?/\d+\]")
+_QUERY_REWRITE_ENABLE = (os.getenv('RAG_QUERY_REWRITE_ENABLE', '1') or '1').strip().lower() in ('1', 'true', 'yes', 'on')
+_QUERY_REWRITE_MAX_CHARS = max(20, int(os.getenv('RAG_QUERY_REWRITE_MAX_CHARS', '160') or '160'))
+_QUERY_REWRITE_MAX_WORDS = max(4, int(os.getenv('RAG_QUERY_REWRITE_MAX_WORDS', '24') or '24'))
+_QUERY_REWRITE_COLLOQUIAL_RE = re.compile(
+    r"(เรียนไร|วิชาไร|มีไร|คือไร|ทำไร|เอาไร|ใช้ไร|ได้ไร|ไรบ้าง|ยังไง|ได้ปะ|มั้ย|งับ|ค้าบ|คั้บ|อารัย|อะรัย)",
+    re.IGNORECASE,
+)
+_QUERY_REWRITE_PREFIX_RE = re.compile(r"^(?:คำถามที่ปรับแล้ว|rewritten question|rewrite|normalized question)\s*[:：-]\s*", re.IGNORECASE)
 
 
 def _extract_allowed_cites(prompt: str) -> list[str]:
@@ -615,11 +624,108 @@ def _normalize_noisy_question_text(text: str) -> str:
     q = q.replace('อารัย', 'อะไร')
     q = q.replace('ได้ปะ', 'ได้ไหม')
     q = q.replace('ได้มั้ย', 'ได้ไหม')
+    q = q.replace('เรียนไรบ้าง', 'เรียนอะไรบ้าง')
+    q = q.replace('เรียนไร', 'เรียนอะไร')
+    q = q.replace('วิชาไรบ้าง', 'วิชาอะไรบ้าง')
+    q = q.replace('วิชาไร', 'วิชาอะไร')
+    q = q.replace('มีไรบ้าง', 'มีอะไรบ้าง')
+    q = q.replace('มีไร', 'มีอะไร')
+    q = q.replace('คือไร', 'คืออะไร')
+    q = q.replace('ทำไร', 'ทำอะไร')
+    q = q.replace('เอาไร', 'เอาอะไร')
+    q = q.replace('ใช้ไร', 'ใช้อะไร')
+    q = q.replace('ได้ไร', 'ได้อะไร')
 
     # Normalize numeric-unit spacing: 60นาที -> 60 นาที
     q = re.sub(r"(\d{1,3})\s*(นาที|วัน|เครื่อง|ชม\.?|ชั่วโมง)", r"\1 \2", q)
     q = re.sub(r"\s+", " ", q).strip()
     return q
+
+
+def _should_try_llm_question_rewrite(question: str, domain: str | None = None) -> bool:
+    q = (question or '').strip()
+    if not q or not _QUERY_REWRITE_ENABLE:
+        return False
+    if len(q) > _QUERY_REWRITE_MAX_CHARS:
+        return False
+    if len(q.split()) > _QUERY_REWRITE_MAX_WORDS:
+        return False
+    if not re.search(r"[\u0E00-\u0E7F]", q):
+        return False
+    if not _QUERY_REWRITE_COLLOQUIAL_RE.search(q):
+        return False
+    dom = (domain or '').strip().lower()
+    return dom in ('', 'auto', 'curriculum', 'regulations', 'announcements')
+
+
+def _clean_rewritten_question(raw: str, fallback: str) -> str:
+    txt = (raw or '').strip()
+    if not txt:
+        return fallback
+    if txt.startswith('(') and txt.endswith(')'):
+        return fallback
+    if 'TIMEOUT_FALLBACK' in txt or 'LLM disabled' in txt or txt.startswith('(Error:'):
+        return fallback
+    txt = txt.replace('```', ' ').strip()
+    txt = _QUERY_REWRITE_PREFIX_RE.sub('', txt).strip()
+    if '\n' in txt:
+        txt = txt.splitlines()[0].strip()
+    txt = txt.strip(' "\'')
+    txt = re.sub(r"\s+", " ", txt).strip()
+    if not txt:
+        return fallback
+    if len(txt) > _QUERY_REWRITE_MAX_CHARS:
+        return fallback
+    if 'ตอบ' in txt and not re.search(r"[\?？]$", txt) and txt.count(' ') > 10:
+        return fallback
+    return txt
+
+
+def _maybe_rewrite_user_question(text: str, domain: str | None = None) -> str:
+    q = _normalize_noisy_question_text(text)
+    normalized = normalize_question(q)
+    rule_changed = normalized != q
+    if normalized != q:
+        add_metric('question_rewrite_rule_applied', 1)
+        q = normalized
+    else:
+        add_metric('question_rewrite_rule_applied', 0)
+
+    if rule_changed:
+        add_metric('question_rewrite_llm_attempted', 0)
+        add_metric('question_rewrite_llm_succeeded', 0)
+        return q
+
+    if not _should_try_llm_question_rewrite(q, domain):
+        add_metric('question_rewrite_llm_attempted', 0)
+        add_metric('question_rewrite_llm_succeeded', 0)
+        return q
+
+    add_metric('question_rewrite_llm_attempted', 1)
+    system_msg = {
+        "role": "system",
+        "content": (
+            "Rewrite Thai user questions into concise standard Thai for search/routing. "
+            "Fix typos, slang, and shorthand only. Preserve meaning, entities, year/term/course codes, and domain. "
+            "Do not answer. Output exactly one rewritten question."
+        ),
+    }
+    user_msg = {
+        "role": "user",
+        "content": f"domain={domain or 'auto'}\nquestion={q}",
+    }
+    raw = llm_engine.generate("(question rewrite)", messages=[system_msg, user_msg])
+    cleaned = _clean_rewritten_question(raw, q)
+    if cleaned != q:
+        add_metric('question_rewrite_llm_succeeded', 1)
+        return _normalize_noisy_question_text(cleaned)
+    add_metric('question_rewrite_llm_succeeded', 0)
+    return q
+
+
+def _prepare_user_question(text: str, domain: str | None = None) -> str:
+    cleaned = _sanitize_user_question_text(text)
+    return _maybe_rewrite_user_question(cleaned, domain)
 
 
 def _sanitize_user_question_text(text: str) -> str:
@@ -3867,7 +3973,7 @@ def _observe_default_request_metrics(*, structured_eligible: bool, structured_re
 
 @app.post('/rag/query', response_model=RagResponse)
 def rag_endpoint(req: RagRequest):
-    req.question = _sanitize_user_question_text(req.question)
+    req.question = _prepare_user_question(req.question, req.domain)
     with request_timing('rag_query', endpoint='/rag/query', domain=req.domain, session_id=req.session_id):
         use_langchain = bool(_USE_LANGCHAIN and _LANGCHAIN_READY and _langchain_rag is not None)
         lc = _langchain_rag
@@ -4463,7 +4569,7 @@ def run_structured_curriculum_path(
 
 @app.post('/rag/answer', response_model=RagAnswerResponse)
 def rag_answer_endpoint(req: RagAnswerRequest):
-    req.question = _sanitize_user_question_text(req.question)
+    req.question = _prepare_user_question(req.question, req.domain)
     with request_timing('rag_answer', endpoint='/rag/answer', domain=req.domain, session_id=req.session_id):
         require_citations = bool(req.eval_mode) or _require_citations()
         
@@ -4980,7 +5086,7 @@ def openai_compatible_endpoint(request: dict):
             raw_last_user = _content_to_text(msg.get('content', ''))
             break
 
-    question = _sanitize_user_question_text(_build_effective_question(messages, raw_last_user))
+    question = _prepare_user_question(_build_effective_question(messages, raw_last_user), domain)
     question, domain, lock_applied, lock_reason = _apply_session_followup_lock(question, domain, session_id)
     followup_meta = _analyze_followup_entities(messages, question)
     decision = analyze_route(question, domain)

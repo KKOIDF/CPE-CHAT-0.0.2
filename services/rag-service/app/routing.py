@@ -171,7 +171,20 @@ def classify_intent(question: str) -> str:
     # Study-plan style questions (e.g., "ปี 1 เรียนอะไรบ้าง") should be
     # treated as curriculum lookup so they can use deterministic routing.
     year_hint = re.search(r"(?:ชั้นปีที่|ปีที่|ปี)\s*[1-4]", q) is not None
-    study_plan_hint = any(t in q for t in ('เรียนอะไร', 'เรียนอะไรบ้าง', 'วิชาอะไร', 'รายวิชา', 'ภาคการศึกษา', 'เทอม'))
+    study_plan_hint = any(
+        t in q
+        for t in (
+            'เรียนอะไร',
+            'เรียนอะไรบ้าง',
+            'วิชาอะไร',
+            'มีอะไรบ้าง',
+            'มีวิชาอะไร',
+            'ลงอะไร',
+            'รายวิชา',
+            'ภาคการศึกษา',
+            'เทอม',
+        )
+    )
     if year_hint and study_plan_hint:
         return 'curriculum_course_info'
     
