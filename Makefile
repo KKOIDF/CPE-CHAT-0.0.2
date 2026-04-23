@@ -1,4 +1,4 @@
-.PHONY: eval-regression eval-qball eval-qball-gate eval-qball-compare eval-domain-monitor eval-canary-guard ingest run-server
+.PHONY: eval-regression eval-qball eval-qball-gate eval-qball-compare eval-domain-monitor eval-canary-guard eval-metric-sanity eval-week3-gates test-week3-regression ingest run-server
 
 eval-regression:
 	@echo "Running regression evaluation against eval_cases.json..."
@@ -23,6 +23,18 @@ eval-domain-monitor:
 eval-canary-guard:
 	@echo "Running canary 10% baseline guard (hold/continue)..."
 	@bash scripts/run_canary_guard.sh
+
+eval-metric-sanity:
+	@echo "Checking eval metric sanity from report JSON..."
+	@python3 scripts/check_eval_metric_sanity.py --report-json $${REPORT_JSON:-qball_canary_guard.json}
+
+eval-week3-gates:
+	@echo "Running Week 3 CI gates (fast + full + robustness)..."
+	@bash scripts/run_week3_ci_gates.sh
+
+test-week3-regression:
+	@echo "Running deterministic Week 3 regression tests..."
+	@python3 -m unittest tests.test_check_eval_metric_sanity tests.test_run_week3_ci_gates
 
 ingest:
 	@echo "Running reproducible ingestion pipeline for all domains locally..."

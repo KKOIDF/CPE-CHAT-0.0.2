@@ -57,17 +57,26 @@ jobs:
           exit 1
 
       - name: Run regression gate
+        env:
+          INPUT: scripts/regression_gate_50.csv
         run: bash scripts/run_regression_gate.sh
 
-      - name: Run canary 10% baseline guard
-        run: bash scripts/run_canary_guard.sh
+      - name: Run week3 fast/full canary gates
+        run: bash scripts/run_week3_ci_gates.sh
 
       - name: Upload reports
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: regression-gate-reports
-          path: reports/testqa_v2_live_eval_*
+          path: |
+            reports/testqa_v2_live_eval_*
+            qball_week3_*.json
+            qball_week3_*.md
+            qball_canary_guard.json
+            qball_canary_guard.md
+            reports/baseline_*.json
+            reports/baseline_*.md
           if-no-files-found: warn
 
       - name: Dump service logs on failure

@@ -1,4 +1,5 @@
 import math, time, re
+import csv
 import hashlib
 from pathlib import Path
 from typing import List, Dict, Optional
@@ -35,6 +36,13 @@ def _split_table_cells(line: str) -> List[str]:
     s = (line or '').strip()
     if not s:
         return []
+    if ',' in s and '|' not in s:
+        # CSV rows (e.g., teacher_profiles_by_course.csv)
+        try:
+            row = next(csv.reader([s]))
+            return [str(c).strip() for c in row]
+        except Exception:
+            pass
     if '|' in s:
         parts = [p.strip() for p in s.split('|')]
         # Trim at most one leading/trailing boundary cell caused by leading/trailing pipes.
@@ -1843,6 +1851,84 @@ def _make_chunks_curriculum_course(paragraphs: List[Dict], source_path: str) -> 
 
     # File-specific parsing: SSC.txt style: "SSC 241 : ..."
     name_lower = Path(source_path).name.lower()
+    if 'teacher_profiles_by_course' in name_lower:
+        lines: List[str] = []
+        pages: List[int] = []
+        for p in paragraphs:
+            page = _safe_int(p.get('page', 0), 0)
+            txt = (p.get('text') or '').strip()
+            if not txt:
+                continue
+            for raw_ln in txt.splitlines():
+                ln = (raw_ln or '').strip()
+                if not ln:
+                    continue
+                lines.append(ln)
+                pages.append(page)
+
+        out: List[Dict] = []
+        for ln, pg in zip(lines, pages):
+            cells = _split_table_cells(ln)
+            # Expected row shape from today's export:
+            # name | teaching_part | level | course_code | course_title_th | credits
+            if len(cells) < 6:
+                continue
+
+            person_name_th = (cells[0] or '').strip()
+            teaching_part = (cells[1] or '').strip()
+            level = (cells[2] or '').strip()
+            course_code_raw = (cells[3] or '').strip()
+            course_title_th = (cells[4] or '').strip()
+            credits = (cells[5] or '').strip()
+
+            if not person_name_th or not course_code_raw:
+                continue
+            if not _COURSE_CODE_ANYWHERE_RE.search(course_code_raw):
+                continue
+
+            course_code_norm = _course_code_norm(course_code_raw)
+            relation_text = "\n".join([
+                person_name_th,
+                teaching_part or 'ภาระงานสอน',
+                level or 'ไม่ระบุระดับ',
+                f"{course_code_raw} {course_title_th}".strip(),
+                f"{credits} หน่วยกิต" if credits else '',
+            ]).strip()
+
+            person_id = f"kmuttt:{_sha1_32(f'{year}|{person_name_th}')[:16]}"
+            scope_key = teaching_part or 'unknown'
+            clause_id = f"{person_id}:{scope_key}:{course_code_norm}"
+
+            out.append(_make_curriculum_chunk(
+                source_path=source_path,
+                resolved_source=resolved_source,
+                resolved_path=resolved_path,
+                pages=[pg],
+                text=relation_text,
+                doc_type='faculty_course_relation',
+                year=year,
+                section='FacultyCourseRelation',
+                section_heading=f"{person_name_th} {course_code_norm}"[:120],
+                section_path=['Faculty', person_name_th, 'TeachingLoad', scope_key, course_code_norm],
+                clause_id=clause_id,
+                extra_meta={
+                    'person_id': person_id,
+                    'person_name_th': person_name_th,
+                    'course_code': course_code_raw,
+                    'course_code_norm': course_code_norm,
+                    'course_th': course_title_th,
+                    'credits': credits,
+                    'teaching_part': teaching_part,
+                    'degree_level': level,
+                    'teaching_in_program': [course_code_norm] if 'หลักสูตรนี้' in teaching_part else [],
+                    'teaching_current': [course_code_norm] if 'ปัจจุบัน' in teaching_part else [],
+                },
+            ))
+
+        for idx, ch in enumerate(out):
+            ch.setdefault('chunk_id', idx)
+        return out
+
     if 'ssc' in name_lower:
         lines: List[str] = []
         pages: List[int] = []

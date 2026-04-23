@@ -329,20 +329,23 @@ def _lookup_instructors_for_course(code: str) -> tuple[list[tuple[str, str]], bo
         src_l = src.lower()
         cite = f"{src}/1"
 
-        if ('contact' in src_l) or ('faculty' in src_l):
+        doc_is_contact = ('contact' in src_l) or ('faculty' in src_l)
+        if doc_is_contact:
             contact_hit = True
 
         match_positions = list(code_re.finditer(txt))
         if not match_positions:
             continue
-        relation_hit = True
 
         for m_code in match_positions:
             s = max(0, m_code.start() - 260)
             e = min(len(txt), m_code.end() + 560)
             window = txt[s:e]
-            if (not rel_hint_re.search(window)) and (not contact_hit):
+            has_rel_hint = rel_hint_re.search(window) is not None
+            if (not has_rel_hint) and (not doc_is_contact):
                 continue
+            if has_rel_hint:
+                relation_hit = True
 
             for m_name in title_name_re.finditer(window):
                 raw = (m_name.group(1) or "").strip()
@@ -371,7 +374,7 @@ def _lookup_instructors_for_course(code: str) -> tuple[list[tuple[str, str]], bo
         seen_names.add(norm)
         uniq.append((name, cite))
 
-    return uniq[:8], relation_hit, contact_hit
+    return uniq, relation_hit, contact_hit
 
 
 def _lookup_nearby_names_for_course(code: str) -> list[str]:
@@ -1402,36 +1405,33 @@ def structured_curriculum_lookup(question: str) -> dict[str, Any]:
             if not pairs:
                 continue
 
-            if len(pairs) == 1:
-                n, cite = pairs[0]
-                return {
-                    "answer": f"- รายวิชา {code_disp} ระบุผู้สอนเป็น {n} [{cite}]",
-                    "lookup_mode": "instructor_exact_code",
-                    "miss_reason": "",
-                    "instructor_lookup_exact_code_hit": exact_code_hit,
-                    "instructor_lookup_relation_hit": int(relation_hit_any),
-                    "instructor_lookup_contact_hit": int(contact_hit_any),
-                    "instructor_assignment_candidates_n": 1,
-                    "instructor_assignment_confident": 1,
-                    "instructor_assignment_multi_match": 0,
-                    "instructor_assignment_soft_answer_used": 0,
-                }
-
-            out = [f"- พบผู้สอนที่เกี่ยวข้องกับรายวิชา {code_disp} ในข้อมูล ได้แก่"]
-            for n, cite in pairs[:6]:
+            out = [f"- รายวิชา {code_disp} พบผู้สอนทั้งหมดที่พบในข้อมูล ({len(pairs)} คน) ได้แก่"]
+            for n, cite in pairs:
                 out.append(f"  - {n} [{cite}]")
-            out.append("- แต่เอกสารไม่ยืนยันว่าเป็นผู้สอนประจำในภาคการศึกษานี้")
+            if relation_hit and (not contact_hit):
+                lookup_mode = "instructor_exact_code"
+                miss_reason = ""
+                confident = 1
+                multi_match = int(len(pairs) > 1)
+                soft_used = 0
+            else:
+                lookup_mode = "instructor_soft"
+                miss_reason = "multiple_candidates_no_resolution"
+                confident = 0
+                multi_match = int(len(pairs) > 1)
+                soft_used = 1
+                out.append("- แต่เอกสารไม่ยืนยันว่าเป็นผู้สอนประจำในภาคการศึกษานี้")
             return {
                 "answer": "\n".join(out).strip(),
-                "lookup_mode": "instructor_soft",
-                "miss_reason": "multiple_candidates_no_resolution",
+                "lookup_mode": lookup_mode,
+                "miss_reason": miss_reason,
                 "instructor_lookup_exact_code_hit": exact_code_hit,
                 "instructor_lookup_relation_hit": int(relation_hit_any),
                 "instructor_lookup_contact_hit": int(contact_hit_any),
                 "instructor_assignment_candidates_n": len(pairs),
-                "instructor_assignment_confident": 0,
-                "instructor_assignment_multi_match": 1,
-                "instructor_assignment_soft_answer_used": 1,
+                "instructor_assignment_confident": confident,
+                "instructor_assignment_multi_match": multi_match,
+                "instructor_assignment_soft_answer_used": soft_used,
             }
 
         if relation_hit_any:

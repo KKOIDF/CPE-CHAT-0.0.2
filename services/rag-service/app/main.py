@@ -1649,6 +1649,78 @@ def _has_exact_date_intent(question: str) -> bool:
     return exact_date_signal
 
 
+def _classify_announcement_intent_v2(question: str, domain: str | None = None) -> str:
+    """Classify announcements questions into policy-oriented intents.
+
+    Returns one of:
+    - date_lookup
+    - verification_update_exists
+    - what_should_i_do
+    - after_deadline_remedy
+    - where_to_follow_updates
+    - none
+    """
+    q = (question or '').strip()
+    if not q:
+        return 'none'
+    ql = q.lower()
+    dom = (domain or '').strip().lower()
+
+    announcement_signals = (
+        'ประกาศ', 'announcement', 'กำหนดการ', 'ปฏิทิน', 'calendar', 'deadline', 'เดดไลน์',
+        'ลงทะเบียน', 'เพิ่มถอน', 'เพิ่ม-ลด', 'add/drop', 'ทุน', 'เปิดภาค', 'ปิดภาค',
+        'เปิดระบบ', 'ปิดระบบ', 'ช่องทางติดตาม', 'อัปเดต', 'update',
+    )
+    is_announcement_scope = (dom == 'announcements') or any(t in ql for t in announcement_signals)
+    if not is_announcement_scope:
+        return 'none'
+
+    after_deadline_markers = (
+        'เลยกำหนด', 'พ้นกำหนด', 'หมดเขต', 'เกินกำหนด', 'ไม่ทัน', 'late', 'เลยเดดไลน์',
+        'หลังเดดไลน์', 'ผ่านเดดไลน์', 'เลย deadline',
+    )
+    remedy_markers = ('ทำยังไง', 'ทำอย่างไร', 'ทางแก้', 'ยื่นคำร้อง', 'อุทธรณ์', 'แก้ไขยังไง', 'ดำเนินการต่อยังไง')
+    if any(t in ql for t in after_deadline_markers) or (
+        any(t in ql for t in ('เลย', 'พ้น', 'หมด')) and any(t in ql for t in ('กำหนด', 'deadline', 'เดดไลน์', 'วันสุดท้าย'))
+    ):
+        if any(t in ql for t in remedy_markers) or any(t in ql for t in ('ยังไงต่อ', 'ควรทำอะไรต่อ')):
+            return 'after_deadline_remedy'
+        return 'after_deadline_remedy'
+
+    follow_markers = (
+        'ช่องทางติดตาม', 'ติดตามประกาศ', 'ติดตามอัปเดต', 'ดูประกาศที่ไหน', 'ดูอัปเดตที่ไหน',
+        'ตามข่าวที่ไหน', 'where to follow', 'follow updates', 'เพจ', 'เว็บไซต์', 'เว็บภาค',
+    )
+    if any(t in ql for t in follow_markers) or (
+        ('ที่ไหน' in ql or 'ช่องทาง' in ql) and any(t in ql for t in ('ประกาศ', 'อัปเดต', 'update', 'ข่าว'))
+    ):
+        return 'where_to_follow_updates'
+
+    verification_markers = (
+        'มีประกาศใหม่', 'ประกาศใหม่หรือยัง', 'อัปเดตแล้วหรือยัง', 'อัปเดตหรือยัง', 'ล่าสุดหรือยัง',
+        'เช็กให้หน่อย', 'ช่วยเช็ก', 'ยืนยัน', 'verify', 'verification', 'จริงไหม', 'ใช่ไหม',
+        'ถูกไหม', 'หรือยัง',
+    )
+    if any(t in ql for t in verification_markers):
+        return 'verification_update_exists'
+
+    procedure_markers = (
+        'ต้องเริ่มจากตรงไหน', 'เริ่มจากตรงไหน', 'ต้องทำอะไร', 'ควรทำอะไร', 'ทำยังไง', 'ทำอย่างไร',
+        'ขั้นตอน', 'แนะนำหน่อย', 'ควรดำเนินการอย่างไร', 'ต้องไปที่ไหน', 'ต้องติดต่อใคร',
+    )
+    if any(t in ql for t in procedure_markers):
+        return 'what_should_i_do'
+
+    if _has_exact_date_intent(q) or _has_date_intent(q):
+        return 'date_lookup'
+
+    # Default to actionable guidance for announcement-domain questions to avoid
+    # forcing temporal/date answers on open procedural asks.
+    if dom == 'announcements':
+        return 'what_should_i_do'
+    return 'none'
+
+
 def _try_extract_exam_exit_rule(prompt: str, question: str) -> str | None:
     """Extract exam-room exit timing rule (ข้อ 15) from context if present."""
     q = (question or '').strip()
@@ -1981,6 +2053,8 @@ def _find_instructors_from_sqlite_by_codes(domain: str | None, codes: list[str],
             pref, num = code[:-3], code[-3:]
             like1 = f"%{pref} {num}%"
             like2 = f"%{pref}{num}%"
+            code_re = re.compile(rf"\b{re.escape(pref)}\s*[- ]?\s*{re.escape(num)}\b", re.IGNORECASE)
+            rel_hint_re = re.compile(r"(ผู้สอน|อาจารย์|lecturer|instructor|teacher)", re.IGNORECASE)
             rows = con.execute(
                 "SELECT text FROM documents WHERE text LIKE ? OR text LIKE ? LIMIT ?",
                 (like1, like2, int(limit_rows)),
@@ -1990,30 +2064,39 @@ def _find_instructors_from_sqlite_by_codes(domain: str | None, codes: list[str],
                 txt = str((row or [''])[0] or '')
                 if not txt:
                     continue
-                for m in title_name_re.finditer(txt):
-                    raw = (m.group(1) or '').strip()
-                    if not raw:
+                match_positions = list(code_re.finditer(txt))
+                if not match_positions:
+                    continue
+                for m_code in match_positions:
+                    s = max(0, m_code.start() - 260)
+                    e = min(len(txt), m_code.end() + 560)
+                    window = txt[s:e]
+                    if not rel_hint_re.search(window):
                         continue
+                    for m in title_name_re.finditer(window):
+                        raw = (m.group(1) or '').strip()
+                        if not raw:
+                            continue
 
-                    cleaned = raw
-                    for tok in stop_tokens:
-                        pos = cleaned.find(tok)
-                        if pos > 0:
-                            cleaned = cleaned[:pos].strip()
-                    # Drop trailing qualification/noise after separators.
-                    cleaned = re.split(r"\s+-\s+|\s+\(|\s+Assoc\.|\s+Professor", cleaned, maxsplit=1)[0].strip()
-                    cleaned = cleaned.strip(' -,:;()[]')
-                    if len(cleaned) < 6:
-                        continue
-                    if not re.search(r"[\u0E00-\u0E7F]", cleaned):
-                        continue
+                        cleaned = raw
+                        for tok in stop_tokens:
+                            pos = cleaned.find(tok)
+                            if pos > 0:
+                                cleaned = cleaned[:pos].strip()
+                        # Drop trailing qualification/noise after separators.
+                        cleaned = re.split(r"\s+-\s+|\s+\(|\s+Assoc\.|\s+Professor", cleaned, maxsplit=1)[0].strip()
+                        cleaned = cleaned.strip(' -,:;()[]')
+                        if len(cleaned) < 6:
+                            continue
+                        if not re.search(r"[\u0E00-\u0E7F]", cleaned):
+                            continue
 
-                    norm = re.sub(r"\s+", "", cleaned)
-                    if norm in seen:
-                        continue
-                    seen.add(norm)
-                    # We don't have exact source/page here; use sqlite-domain citation.
-                    out.append((cleaned, "sqlite_lookup/1"))
+                        norm = re.sub(r"\s+", "", cleaned)
+                        if norm in seen:
+                            continue
+                        seen.add(norm)
+                        # We don't have exact source/page here; use sqlite-domain citation.
+                        out.append((cleaned, "sqlite_lookup/1"))
     except Exception:
         return out
     finally:
@@ -2116,12 +2199,8 @@ def _try_extract_course_instructors(
         return None
 
     code_disp = f"{target_codes[0][:-3]} {target_codes[0][-3:]}"
-    if len(uniq_names) == 1:
-        n = uniq_names[0]
-        return f"- รายวิชา {code_disp} ระบุผู้สอนเป็น {n} [{first_cite.get(n, '')}]"
-
-    out = [f"- รายวิชา {code_disp} พบชื่อผู้สอนที่เกี่ยวข้องในเอกสารดังนี้"]
-    for n in uniq_names[:6]:
+    out = [f"- รายวิชา {code_disp} พบผู้สอนทั้งหมดที่พบในข้อมูล ({len(uniq_names)} คน) ได้แก่"]
+    for n in uniq_names:
         out.append(f"- {n} [{first_cite.get(n, '')}]")
     return "\n".join(out)
 
@@ -3071,6 +3150,7 @@ def _detect_answer_task(question: str, domain: str | None) -> str:
     intent = _infer_primary_intent(q)
     dom = (domain or '').strip().lower()
     ql = q.lower()
+    ann_intent = _classify_announcement_intent_v2(q, dom)
 
     is_study_plan = (
         _has_course_code(q)
@@ -3080,34 +3160,14 @@ def _detect_answer_task(question: str, domain: str | None) -> str:
         any(t in ql for t in ('สอบ', 'ห้องสอบ', 'มาสาย', 'เข้าสอบสาย', 'ทุจริต', 'อุทธรณ์', 'วินัย', 'เหตุฉุกเฉิน'))
         and any(t in ql for t in ('ขั้นตอน', 'ควรดำเนินการ', 'ทำยังไง', 'ต้องแจ้ง', 'แจ้งใคร', 'เตรียมเอกสาร', 'เอกสารอะไร'))
     )
-    is_announcement_procedure = (
-        any(
-            t in ql
-            for t in (
-                'ประกาศ', 'ทุน', 'เปิดภาค', 'ลงทะเบียน', 'ปฏิทิน', 'deadline', 'เดดไลน์',
-                'ล่าสุด', 'อัปเดต', 'update', 'หยุดเรียน', 'เลื่อนการเรียนการสอน',
-                'หนังสือรับรอง', 'ค่าธรรมเนียมจัดส่งเอกสาร',
-            )
-        )
-        and any(
-            t in ql
-            for t in (
-                'ขั้นตอน', 'ทำยังไง', 'ต้องทำอะไร', 'ช่องทาง', 'ติดตาม',
-                'ต้องเริ่มจากตรงไหน', 'เริ่มจากตรงไหน', 'ช่วยเช็ก', 'เช็กให้หน่อย',
-                'อธิบายเรื่อง', 'มีประกาศใหม่', 'ล่าสุด', 'ทางแก้', 'ยื่นคำร้อง',
-            )
-        )
-    )
-    is_announcement_verification = (
-        any(t in ql for t in ('ประกาศ', 'deadline', 'เดดไลน์', 'กำหนดการ', 'เปิดระบบ', 'ปิดระบบ'))
-        and any(t in ql for t in ('จริงไหม', 'ใช่ไหม', 'ถูกไหม', 'ยืนยัน', 'verify', 'verification', 'ถูกต้องไหม'))
-    )
+    is_announcement_procedure = ann_intent in ('what_should_i_do', 'after_deadline_remedy', 'where_to_follow_updates')
+    is_announcement_verification = ann_intent == 'verification_update_exists'
 
     if intent == 'unanswerable' or is_unanswerable_query(q):
         return 'unanswerable_refusal'
     # Keep announcements temporal QA on lightweight extractor path and avoid
     # regulation-procedure schema repair (which can add an extra LLM call).
-    if _is_announcement_temporal_intent(q, domain=dom):
+    if ann_intent == 'date_lookup':
         return 'announcement_temporal'
     if is_announcement_verification:
         return 'announcement_verification'
@@ -3156,11 +3216,13 @@ def _enforce_task_template(task: str, question: str, answer: str) -> str:
         steps = _extract_labeled_value(a, ['ขั้นตอน']) or default_unknown
         conditions = _extract_labeled_value(a, ['เงื่อนไข']) or default_unknown
         limitations = _extract_labeled_value(a, ['ข้อจำกัด']) or default_unknown
+        next_step = _extract_labeled_value(a, ['ขั้นตอนถัดไป']) or default_unknown
         return (
             f"- แหล่งประกาศ: {source}\n"
             f"- ขั้นตอน: {steps}\n"
             f"- เงื่อนไข: {conditions}\n"
-            f"- ข้อจำกัด: {limitations}"
+            f"- ข้อจำกัด: {limitations}\n"
+            f"- ขั้นตอนถัดไป: {next_step}"
         )
 
     if task == 'regulation_procedure':
@@ -3187,10 +3249,12 @@ def _enforce_task_template(task: str, question: str, answer: str) -> str:
             else:
                 verdict = 'ยังยืนยันไม่ได้'
         reason = _extract_labeled_value(a, ['เหตุผล/หลักฐาน']) or default_unknown
+        next_step = _extract_labeled_value(a, ['ขั้นตอนถัดไป']) or default_unknown
         return (
             f"- ข้อความประกาศ: {statement}\n"
             f"- ผลการตรวจสอบ: {verdict}\n"
-            f"- เหตุผล/หลักฐาน: {reason}"
+            f"- เหตุผล/หลักฐาน: {reason}\n"
+            f"- ขั้นตอนถัดไป: {next_step}"
         )
 
     if task == 'prerequisite':
@@ -3242,12 +3306,15 @@ def _task_missing_slots(task: str, question: str, answer: str) -> list[str]:
         has_statement = ('ข้อความประกาศ:' in a) or ('ประกาศ' in al)
         has_verdict = ('ผลการตรวจสอบ:' in a) or bool(re.search(r'\b(ใช่|ไม่ใช่|ยังยืนยันไม่ได้|ไม่พบข้อมูล)\b', al))
         has_reason = ('เหตุผล/หลักฐาน:' in a) or any(t in al for t in ('เหตุผล', 'หลักฐาน', 'เนื่องจาก', 'เพราะ'))
+        has_next_step = ('ขั้นตอนถัดไป:' in a) or any(t in al for t in ('ควร', 'แนะนำ', 'ติดตาม', 'ต่อไป', 'ขั้นตอนถัดไป'))
         if not has_statement:
             missing.append('statement')
         if not has_verdict:
             missing.append('verdict')
         if not has_reason:
             missing.append('reason')
+        if not has_next_step:
+            missing.append('next_step')
         return missing
 
     if task == 'unanswerable_refusal':
@@ -3301,6 +3368,8 @@ def _task_missing_slots(task: str, question: str, answer: str) -> list[str]:
             missing.append('conditions')
         if 'ข้อจำกัด:' not in a and not any(t in al for t in ('ข้อจำกัด', 'จำกัด', 'ไม่เกิน', 'ยกเว้น')):
             missing.append('limitations')
+        if 'ขั้นตอนถัดไป:' not in a and not any(t in al for t in ('แนะนำ', 'ควร', 'ติดต่อ', 'ติดตาม', 'ถัดไป')):
+            missing.append('next_step')
         return missing
 
     if task == 'regulation_procedure':
@@ -3395,12 +3464,14 @@ def _repair_answer_by_task_schema(
             '- แหล่งประกาศ: ...\n'
             '- ขั้นตอน: ...\n'
             '- เงื่อนไข: ...\n'
-            '- ข้อจำกัด: ...'
+            '- ข้อจำกัด: ...\n'
+            '- ขั้นตอนถัดไป: ...'
         ),
         'announcement_verification': (
             '- ข้อความประกาศ: ...\n'
             '- ผลการตรวจสอบ: ใช่/ไม่ใช่/ยังยืนยันไม่ได้\n'
-            '- เหตุผล/หลักฐาน: ...'
+            '- เหตุผล/หลักฐาน: ...\n'
+            '- ขั้นตอนถัดไป: ...'
         ),
         'prerequisite': (
             '- รายวิชา: ...\n'
@@ -3520,13 +3591,7 @@ def _repair_answer_by_task_schema_with_meta(
 
 
 def _is_announcement_temporal_intent(question: str, domain: str | None = None) -> bool:
-    q = (question or '').strip().lower()
-    dom = (domain or '').strip().lower()
-    if dom == 'announcements':
-        return True
-    if any(t in q for t in ('ลงทะเบียน', 'เพิ่มถอน', 'เพิ่ม-ลด', 'ปฏิทิน', 'calendar', 'deadline', 'กำหนดการ', 'เปิดระบบ', 'ปิดระบบ', 'module', 'โมดูล', 'สัปดาห์')):
-        return True
-    return _has_date_intent(question)
+    return _classify_announcement_intent_v2(question, domain) == 'date_lookup'
 
 
 def _try_fast_announcement_calendar_answer(question: str, domain: str | None = None) -> str | None:
@@ -4406,6 +4471,7 @@ def rag_answer_endpoint(req: RagAnswerRequest):
         strategy = select_resolution_strategy(decision)
         structured_reg_eligible = bool(decision.structured_kind == 'regulations')
         effective_domain = decision.effective_domain
+        add_metric('announcement_intent_v2', _classify_announcement_intent_v2(req.question, effective_domain))
         
         add_metric('route_version', 'v3_unified')
         add_metric('resolution_path', strategy.resolution_path)
@@ -4920,6 +4986,7 @@ def openai_compatible_endpoint(request: dict):
     decision = analyze_route(question, domain)
     structured_eligible = bool(decision.structured_kind == 'curriculum' and decision.structured_eligible)
     structured_reg_eligible = bool(decision.structured_kind == 'regulations')
+    add_metric('announcement_intent_v2', _classify_announcement_intent_v2(question, decision.effective_domain))
     use_langchain = bool(_USE_LANGCHAIN and _LANGCHAIN_READY and _langchain_rag is not None)
     lc = _langchain_rag
 

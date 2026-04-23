@@ -93,3 +93,7 @@ temp/
 รายงานความคืบหน้าโปรเจค CPE ChatBot  - ชีต1.csv
 รายงานความคืบหน้าโปรเจค CPE ChatBot  - ชีต1 (1).csv
 รายงาน.xlsx
+
+# AI agent private notes
+.agents/private/*
+!.agents/private/.gitkeep
