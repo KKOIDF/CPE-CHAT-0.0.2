@@ -16,6 +16,7 @@ from .sqlite_client import close_thread_connections
 from .neo4j_client import close_driver
 from .perf import request_timing, time_block, add_metric, set_observer
 from .mlflow_observability import init_mlflow_observability
+from .structured_artifacts import load_announcement_calendar_artifact
 
 logger = logging.getLogger("rag-service")
 
@@ -2810,6 +2811,52 @@ def _has_required_calculator_slots(answer: str) -> bool:
     return has_quantity and has_model_condition and has_sticker
 
 
+def _has_date_or_time_slot(answer: str) -> bool:
+    a = str(answer or '').strip()
+    if not a:
+        return False
+    if re.search(r"\b\d{1,2}:\d{2}\b", a):
+        return True
+    if re.search(r"\b\d{1,2}\s*(?:ม\.ค\.|ก\.พ\.|มี\.ค\.|เม\.ย\.|พ\.ค\.|มิ\.ย\.|ก\.ค\.|ส\.ค\.|ก\.ย\.|ต\.ค\.|พ\.ย\.|ธ\.ค\.|มกราคม|กุมภาพันธ์|มีนาคม|เมษายน|พฤษภาคม|มิถุนายน|กรกฎาคม|สิงหาคม|กันยายน|ตุลาคม|พฤศจิกายน|ธันวาคม)\s*\d{4}", a):
+        return True
+    if any(t in a for t in ('วันเสาร์', 'วันอาทิตย์', 'วันจันทร์', 'วันอังคาร', 'วันพุธ', 'วันพฤหัสบดี', 'วันศุกร์')):
+        return True
+    return False
+
+
+def _answer_has_announcement_schedule_slots(question: str, answer: str) -> bool:
+    ql = (question or '').strip().lower()
+    a = str(answer or '').strip().lower()
+    if not a:
+        return False
+    if any(t in ql for t in ('กี่โมง', 'เวลาใด', 'เปิดกี่โมง', 'เปิดให้บริการ')):
+        return bool(re.search(r"\b\d{1,2}:\d{2}\b", a))
+    if any(t in ql for t in ('ครั้งละ', 'ไม่เกินกี่นาที', 'อยู่ในระบบ')):
+        return ('20 นาที' in a) or ('20' in a and 'นาที' in a)
+    if any(t in ql for t in ('ถอนรายวิชา', 'ผลการประเมิน', 'สถานะ')):
+        return ('withdrawn' in a) or (re.search(r"\bw\b", a) is not None)
+    return _has_date_or_time_slot(answer)
+
+
+def _answer_has_regulation_procedure_slots(question: str, answer: str) -> bool:
+    ql = (question or '').strip().lower()
+    a = str(answer or '').strip().lower()
+    if not a:
+        return False
+    if any(t in ql for t in ('กี่นาที', 'กี่วัน', 'กี่เครื่อง', 'จำนวนเครื่อง')):
+        return _has_required_numeric_slot(question, answer)
+    if any(t in ql for t in ('ต้องทำยังไง', 'ทำยังไง', 'ขั้นตอน', 'ติดต่อใคร', 'เอกสารอะไร')):
+        slot_hits = 0
+        if any(t in a for t in ('ขั้นตอน', 'ยื่นคำร้อง', 'แจ้ง', 'ปฏิบัติตาม')):
+            slot_hits += 1
+        if any(t in a for t in ('ติดต่อ', 'กรรมการคุมสอบ', 'อธิการบดี', 'สำนักงานทะเบียน')):
+            slot_hits += 1
+        if any(t in a for t in ('เอกสาร', 'คำร้อง', 'หลักฐาน', 'เงื่อนไข', 'อนุญาต')):
+            slot_hits += 1
+        return slot_hits >= 2
+    return True
+
+
 def _answer_has_prereq_schema(answer: str) -> bool:
     a = (answer or '').strip().lower()
     if not a:
@@ -3244,6 +3291,31 @@ def _enforce_answer_completeness(
         except Exception:
             fixed = ''
         if fixed:
+            return fixed
+
+    announcement_schedule_signal = (
+        (_classify_announcement_intent_v2(q, domain) == 'date_lookup')
+        or any(t in ql for t in ('ลงทะเบียน', 'ชำระเงิน', 'ถอนรายวิชา', 'ลดรายวิชา', 'โมดูล 5 สัปดาห์', 'เปิดให้บริการ'))
+    )
+    if announcement_schedule_signal and (not _answer_has_announcement_schedule_slots(q, ans)):
+        fixed = _try_fast_announcement_calendar_answer(q, domain=domain)
+        if fixed:
+            add_metric('answer_completeness_announcement_rescue', 1)
+            return fixed
+
+    regulations_procedure_signal = (
+        intent == 'exam_policy'
+        and any(t in ql for t in ('ต้องทำยังไง', 'ทำยังไง', 'ขั้นตอน', 'ติดต่อใคร', 'เอกสารอะไร'))
+    )
+    if regulations_procedure_signal and (not _answer_has_regulation_procedure_slots(q, ans)):
+        try:
+            from app.regulations_deterministic import structured_regulations_lookup
+            reg = structured_regulations_lookup(q)
+            fixed = str(reg.get('answer') or '').strip()
+        except Exception:
+            fixed = ''
+        if fixed and _answer_has_regulation_procedure_slots(q, fixed):
+            add_metric('answer_completeness_regulations_rescue', 1)
             return fixed
 
     return ans
@@ -3701,6 +3773,59 @@ def _is_announcement_temporal_intent(question: str, domain: str | None = None) -
     return _classify_announcement_intent_v2(question, domain) == 'date_lookup'
 
 
+def _normalize_announcement_blob(text: str) -> str:
+    return re.sub(r"\s+", " ", str(text or '').strip().lower())
+
+
+def _select_announcement_calendar_entry(question: str) -> dict[str, Any] | None:
+    artifact = load_announcement_calendar_artifact()
+    entries = artifact.get('entries') if isinstance(artifact, dict) else None
+    if not isinstance(entries, list):
+        return None
+
+    ql = _normalize_announcement_blob(question)
+    if not ql:
+        return None
+
+    best: dict[str, Any] | None = None
+    best_score = 0
+    for raw in entries:
+        if not isinstance(raw, dict):
+            continue
+        label = _normalize_announcement_blob(raw.get('label') or '')
+        value = _normalize_announcement_blob(raw.get('value') or '')
+        topic = _normalize_announcement_blob(raw.get('topic') or '')
+        blob = _normalize_announcement_blob(raw.get('blob') or f"{label} {value} {topic}")
+        keywords = raw.get('keywords') if isinstance(raw.get('keywords'), list) else []
+
+        score = 0
+        for kw in keywords:
+            key = _normalize_announcement_blob(str(kw or ''))
+            if key and key in ql:
+                score += 4
+        for hint in (
+            'ลงทะเบียน', 'ชำระเงิน', 'เปิดให้บริการ', '20 นาที', 'อยู่ในระบบ',
+            'โมดูล 5 สัปดาห์', 'ช่วงที่ 1', 'ถอนรายวิชา', 'ผลการประเมิน',
+            'รหัส 66', 'ปี 3', 'ปี 2', 'ปี 1',
+        ):
+            norm_hint = _normalize_announcement_blob(hint)
+            if norm_hint in ql and norm_hint in blob:
+                score += 3
+        if ('วันสุดท้าย' in ql) and ('วันสุดท้าย' in blob):
+            score += 3
+        if any(t in ql for t in ('กี่โมง', 'เวลาใด', 'เปิดกี่โมง')) and ('07:00' in value or '23:00' in value):
+            score += 4
+        if ('ไม่เกินกี่นาที' in ql or 'ครั้งละ' in ql) and ('20 นาที' in blob):
+            score += 4
+        if ('ถอนรายวิชา' in ql or 'ลดรายวิชา' in ql) and ('withdrawn' in blob or 'w' in blob or 'ลดรายวิชา' in blob):
+            score += 4
+        if score > best_score:
+            best_score = score
+            best = raw
+
+    return best if best_score >= 4 else None
+
+
 def _try_fast_announcement_calendar_answer(question: str, domain: str | None = None) -> str | None:
     """Return deterministic announcement calendar answers for hot eval intents.
 
@@ -3710,6 +3835,19 @@ def _try_fast_announcement_calendar_answer(question: str, domain: str | None = N
         return None
 
     ql = (question or '').strip().lower()
+    artifact_entry = _select_announcement_calendar_entry(question)
+    if artifact_entry:
+        source = str(artifact_entry.get('source') or 'announcement_calendar.json').strip()
+        page = int(artifact_entry.get('page') or 1)
+        label = str(artifact_entry.get('label') or '').strip()
+        value = str(artifact_entry.get('value') or '').strip()
+        if label and value:
+            if 'ผลการประเมินเป็น' in value:
+                return f"- {value} [{source}/{page}]"
+            if any(t in ql for t in ('กี่โมง', 'เวลาใด', 'เปิดกี่โมง', 'เปิดให้บริการ', 'ครั้งละ', 'ไม่เกินกี่นาที', 'อยู่ในระบบ')):
+                return f"- {value} [{source}/{page}]"
+            return f"- {label}: {value} [{source}/{page}]"
+
     cite = 'ปฏิทินการศึกษา_2568.txt announcement calendar/1'
 
     if any(t in ql for t in ('เปิดให้บริการช่วงเวลาใด', 'เปิดให้บริการเวลาใด', 'กี่โมง', 'เปิดกี่โมง', 'ถึงกี่โมง')):

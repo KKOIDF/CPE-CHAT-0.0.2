@@ -8,6 +8,7 @@ from typing import Any
 from .normalization import normalize_question
 from .neo4j_client import extract_course_codes, graph_requisite_codes_for_course
 from .sqlite_client import domain_sqlite_path, fetch_docs_with_path, keyword_search
+from .structured_artifacts import load_course_prerequisites_artifact
 from .structured_curriculum import (
     Course,
     extract_courses_from_text,
@@ -451,6 +452,10 @@ def _lookup_course_from_sqlite(code: str) -> tuple[Course, str] | None:
 
 def _lookup_prerequisites_from_sqlite(code: str) -> tuple[list[str], str] | None:
     """Best-effort prerequisite lookup from curriculum SQLite chunks."""
+    artifact_hit = _lookup_prerequisites_from_artifact(code)
+    if artifact_hit is not None:
+        return artifact_hit
+
     k = (code or '').replace('-', '').replace(' ', '').upper()
     m = re.match(r'^([A-Z]{2,6})(\d{3})$', k)
     if not m:
@@ -533,6 +538,37 @@ def _lookup_prerequisites_from_sqlite(code: str) -> tuple[list[str], str] | None
                 return combined, src
 
     return None
+
+
+def _lookup_prerequisites_from_artifact(code: str) -> tuple[list[str], str] | None:
+    artifact = load_course_prerequisites_artifact()
+    entries = artifact.get('entries') if isinstance(artifact, dict) else None
+    if not isinstance(entries, dict):
+        return None
+
+    key = (code or '').replace('-', '').replace(' ', '').upper()
+    row = entries.get(key)
+    if not isinstance(row, dict):
+        return None
+
+    raw_prereq = row.get('prerequisites')
+    if not isinstance(raw_prereq, list):
+        return None
+
+    prereq: list[str] = []
+    seen: set[str] = set()
+    for item in raw_prereq:
+        tok = str(item or '').strip()
+        if not tok:
+            continue
+        norm = tok.upper()
+        if norm in seen:
+            continue
+        seen.add(norm)
+        prereq.append(tok)
+
+    source = str(row.get('source') or 'course_prerequisites.json').strip() or 'course_prerequisites.json'
+    return prereq, source
 
 
 def _lookup_prerequisites_from_graph(code: str) -> tuple[list[str], str] | None:

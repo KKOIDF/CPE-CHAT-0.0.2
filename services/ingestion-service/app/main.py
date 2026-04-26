@@ -45,6 +45,7 @@ def run_ingest(input_dir: str, output_base: str, store: bool = True, embed: bool
     from .db import init_db, insert_chunks, log_ocr_quality
     from .quality import is_valid_ocr, make_quality_entry
     from .config import EMBED_FLAGGED, REVIEW_DIR, DOMAIN
+    from .structured_artifacts import write_structured_artifacts
     from .toon_converter import write_toon
     try:
         from .neo4j_graph import upsert_chunks_to_neo4j
@@ -108,6 +109,10 @@ def run_ingest(input_dir: str, output_base: str, store: bool = True, embed: bool
         init_db()
         insert_chunks(enriched_chunks)
         log_ocr_quality(quality_entries)
+
+    artifact_outputs = write_structured_artifacts(files)
+    for artifact_path in artifact_outputs:
+        print(f"Wrote structured artifact -> {artifact_path}")
     # Prepare review file for flagged chunks when not embedding them
     flagged_chunks = [c for c in enriched_chunks if c.get('status') == 'flagged']
     embed_candidates = enriched_chunks if EMBED_FLAGGED else [c for c in enriched_chunks if c.get('status') != 'flagged']

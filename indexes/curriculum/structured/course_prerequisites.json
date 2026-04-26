@@ -1,0 +1,368 @@
+{
+  "domain": "curriculum",
+  "kind": "course_prerequisites",
+  "entries": {
+    "CPE112": {
+      "course_code": "CPE112",
+      "prerequisites": [
+        "CPE 100"
+      ],
+      "source": "วศ.บ.-วศวกรรมคอมพวเตอร-ปรบปรง.64.txt",
+      "page": 1
+    },
+    "CPE402": {
+      "course_code": "CPE402",
+      "prerequisites": [
+        "CPE 401"
+      ],
+      "source": "วศ.บ.-วศวกรรมคอมพวเตอร-ปรบปรง.64.txt",
+      "page": 1
+    },
+    "LNG200": {
+      "course_code": "LNG200",
+      "prerequisites": [
+        "LNG 220",
+        "LNG 222"
+      ],
+      "source": "วิชา LNG 2562.txt",
+      "page": 1
+    },
+    "LNG201": {
+      "course_code": "LNG201",
+      "prerequisites": [
+        "LNG 220",
+        "LNG 222",
+        "LNG 321"
+      ],
+      "source": "วิชา LNG 2562.txt",
+      "page": 1
+    },
+    "LNG202": {
+      "course_code": "LNG202",
+      "prerequisites": [
+        "LNG 220",
+        "LNG 222",
+        "LNG 321"
+      ],
+      "source": "วิชา LNG 2562.txt",
+      "page": 1
+    },
+    "LNG206": {
+      "course_code": "LNG206",
+      "prerequisites": [
+        "LNG 220",
+        "LNG 222",
+        "LNG 321"
+      ],
+      "source": "วิชา LNG 2562.txt",
+      "page": 1
+    },
+    "LNG220": {
+      "course_code": "LNG220",
+      "prerequisites": [
+        "LNG 120",
+        "O-NET"
+      ],
+      "source": "วิชา LNG 2562.txt",
+      "page": 1
+    },
+    "LNG222": {
+      "course_code": "LNG222",
+      "prerequisites": [
+        "LNG 221",
+        "O-NET"
+      ],
+      "source": "วิชา LNG 2562.txt",
+      "page": 1
+    },
+    "LNG223": {
+      "course_code": "LNG223",
+      "prerequisites": [
+        "LNG 220",
+        "LNG 222",
+        "LNG 321"
+      ],
+      "source": "วิชา LNG 2562.txt",
+      "page": 1
+    },
+    "LNG224": {
+      "course_code": "LNG224",
+      "prerequisites": [
+        "LNG 220",
+        "LNG 222",
+        "LNG 321"
+      ],
+      "source": "วิชา LNG 2562.txt",
+      "page": 1
+    },
+    "LNG271": {
+      "course_code": "LNG271",
+      "prerequisites": [
+        "LNG 270"
+      ],
+      "source": "วิชา LNG 2562.txt",
+      "page": 1
+    },
+    "LNG273": {
+      "course_code": "LNG273",
+      "prerequisites": [
+        "LNG 272"
+      ],
+      "source": "วิชา LNG 2562.txt",
+      "page": 1
+    },
+    "LNG276": {
+      "course_code": "LNG276",
+      "prerequisites": [
+        "LNG 275"
+      ],
+      "source": "วิชา LNG 2562.txt",
+      "page": 1
+    },
+    "LNG301": {
+      "course_code": "LNG301",
+      "prerequisites": [
+        "LNG 220",
+        "LNG 222",
+        "LNG 321"
+      ],
+      "source": "วิชา LNG 2562.txt",
+      "page": 1
+    },
+    "LNG302": {
+      "course_code": "LNG302",
+      "prerequisites": [
+        "LNG 220",
+        "LNG 222",
+        "LNG 321"
+      ],
+      "source": "วิชา LNG 2562.txt",
+      "page": 1
+    },
+    "LNG303": {
+      "course_code": "LNG303",
+      "prerequisites": [
+        "LNG 220",
+        "LNG 222",
+        "LNG 321"
+      ],
+      "source": "วิชา LNG 2562.txt",
+      "page": 1
+    },
+    "LNG304": {
+      "course_code": "LNG304",
+      "prerequisites": [
+        "LNG 220",
+        "LNG 222",
+        "LNG 321"
+      ],
+      "source": "วิชา LNG 2562.txt",
+      "page": 1
+    },
+    "LNG307": {
+      "course_code": "LNG307",
+      "prerequisites": [
+        "LNG 220",
+        "LNG 222",
+        "LNG 321"
+      ],
+      "source": "วิชา LNG 2562.txt",
+      "page": 1
+    },
+    "LNG308": {
+      "course_code": "LNG308",
+      "prerequisites": [
+        "LNG 220",
+        "LNG 222",
+        "LNG 321"
+      ],
+      "source": "วิชา LNG 2562.txt",
+      "page": 1
+    },
+    "LNG320": {
+      "course_code": "LNG320",
+      "prerequisites": [
+        "LNG 220",
+        "LNG 222",
+        "LNG 321"
+      ],
+      "source": "วิชา LNG 2562.txt",
+      "page": 1
+    },
+    "LNG321": {
+      "course_code": "LNG321",
+      "prerequisites": [
+        "LNG 221",
+        "LNG 222",
+        "O-NET"
+      ],
+      "source": "วิชา LNG 2562.txt",
+      "page": 1
+    },
+    "LNG322": {
+      "course_code": "LNG322",
+      "prerequisites": [
+        "LNG 220",
+        "LNG 222",
+        "LNG 321"
+      ],
+      "source": "วิชา LNG 2562.txt",
+      "page": 1
+    },
+    "LNG323": {
+      "course_code": "LNG323",
+      "prerequisites": [
+        "LNG 220",
+        "LNG 222",
+        "LNG 321"
+      ],
+      "source": "วิชา LNG 2562.txt",
+      "page": 1
+    },
+    "LNG324": {
+      "course_code": "LNG324",
+      "prerequisites": [
+        "LNG 220",
+        "LNG 222"
+      ],
+      "source": "วิชา LNG 2562.txt",
+      "page": 1
+    },
+    "LNG327": {
+      "course_code": "LNG327",
+      "prerequisites": [
+        "LNG 224"
+      ],
+      "source": "วิชา LNG 2562.txt",
+      "page": 1
+    },
+    "LNG328": {
+      "course_code": "LNG328",
+      "prerequisites": [
+        "LNG 220",
+        "LNG 222",
+        "LNG 321"
+      ],
+      "source": "วิชา LNG 2562.txt",
+      "page": 1
+    },
+    "LNG329": {
+      "course_code": "LNG329",
+      "prerequisites": [
+        "LNG 220",
+        "LNG 222",
+        "LNG 321"
+      ],
+      "source": "วิชา LNG 2562.txt",
+      "page": 1
+    },
+    "LNG330": {
+      "course_code": "LNG330",
+      "prerequisites": [
+        "LNG 220",
+        "LNG 222",
+        "LNG 321"
+      ],
+      "source": "วิชา LNG 2562.txt",
+      "page": 1
+    },
+    "LNG331": {
+      "course_code": "LNG331",
+      "prerequisites": [
+        "LNG 220",
+        "LNG 222",
+        "LNG 321"
+      ],
+      "source": "วิชา LNG 2562.txt",
+      "page": 1
+    },
+    "LNG332": {
+      "course_code": "LNG332",
+      "prerequisites": [
+        "LNG 220",
+        "LNG 222"
+      ],
+      "source": "วิชา LNG 2562.txt",
+      "page": 1
+    },
+    "LNG333": {
+      "course_code": "LNG333",
+      "prerequisites": [
+        "LNG 220",
+        "LNG 321"
+      ],
+      "source": "วิชา LNG 2562.txt",
+      "page": 1
+    },
+    "LNG420": {
+      "course_code": "LNG420",
+      "prerequisites": [
+        "LNG 322"
+      ],
+      "source": "วิชา LNG 2562.txt",
+      "page": 1
+    },
+    "LNG421": {
+      "course_code": "LNG421",
+      "prerequisites": [
+        "LNG 220",
+        "LNG 222",
+        "LNG 321"
+      ],
+      "source": "วิชา LNG 2562.txt",
+      "page": 1
+    },
+    "LNG422": {
+      "course_code": "LNG422",
+      "prerequisites": [
+        "LNG 220",
+        "LNG 222",
+        "LNG 321"
+      ],
+      "source": "วิชา LNG 2562.txt",
+      "page": 1
+    },
+    "LNG425": {
+      "course_code": "LNG425",
+      "prerequisites": [
+        "LNG 220",
+        "LNG 222",
+        "LNG 321"
+      ],
+      "source": "วิชา LNG 2562.txt",
+      "page": 1
+    },
+    "MTH102": {
+      "course_code": "MTH102",
+      "prerequisites": [
+        "MTH 101"
+      ],
+      "source": "วศ.บ.-วศวกรรมคอมพวเตอร-ปรบปรง.64.txt",
+      "page": 1
+    },
+    "MTH234": {
+      "course_code": "MTH234",
+      "prerequisites": [
+        "MTH 101"
+      ],
+      "source": "วศ.บ.-วศวกรรมคอมพวเตอร-ปรบปรง.64.txt",
+      "page": 1
+    },
+    "PHY104": {
+      "course_code": "PHY104",
+      "prerequisites": [
+        "PHY 103"
+      ],
+      "source": "วศ.บ.-วศวกรรมคอมพวเตอร-ปรบปรง.64.txt",
+      "page": 1
+    },
+    "STA302": {
+      "course_code": "STA302",
+      "prerequisites": [
+        "MTH 102"
+      ],
+      "source": "วศ.บ.-วศวกรรมคอมพวเตอร-ปรบปรง.64.txt",
+      "page": 1
+    }
+  }
+}

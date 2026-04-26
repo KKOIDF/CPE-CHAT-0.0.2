@@ -5,6 +5,7 @@ import sqlite3
 from typing import Any
 
 from .sqlite_client import domain_sqlite_path
+from .structured_artifacts import load_regulation_clauses_artifact
 
 
 _THAI_DIGIT_TRANS = str.maketrans("๐๑๒๓๔๕๖๗๘๙", "0123456789")
@@ -611,6 +612,10 @@ def _locked_exam_case_phrase(question: str) -> dict[str, Any] | None:
 
 def fetch_exam_clause(clause_num: str, rules_text: str | None = None) -> str | None:
     """Return the text of a specific numbered clause from exam rules."""
+    artifact_hit = _fetch_exam_clause_from_artifact(clause_num)
+    if artifact_hit:
+        return artifact_hit
+
     txt = rules_text if rules_text is not None else _read_exam_rules()
     if not txt:
         return None
@@ -628,6 +633,18 @@ def fetch_exam_clause(clause_num: str, rules_text: str | None = None) -> str | N
         if m_parent:
             return m_parent.group(1).strip()
     return None
+
+
+def _fetch_exam_clause_from_artifact(clause_num: str) -> str | None:
+    artifact = load_regulation_clauses_artifact()
+    entries = artifact.get('entries') if isinstance(artifact, dict) else None
+    if not isinstance(entries, dict):
+        return None
+    key = _normalize_clause_token(clause_num)
+    row = entries.get(key)
+    if not isinstance(row, dict):
+        return None
+    return str(row.get('text') or '').strip() or None
 
 
 # ---------------------------------------------------------------------------
