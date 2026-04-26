@@ -27,6 +27,7 @@ from .config import (
     OLLAMA_BASE_URL,
     OLLAMA_TIMEOUT_S,
     OLLAMA_THINK,
+    OLLAMA_KEEP_ALIVE,
 )
 
 import os
@@ -686,6 +687,8 @@ class LLMEngine:
                 'num_predict': LLM_MAX_TOKENS,
             },
         }
+        if OLLAMA_KEEP_ALIVE:
+            payload['keep_alive'] = OLLAMA_KEEP_ALIVE
 
         first_token_timeout = float(os.getenv('OLLAMA_FIRST_TOKEN_TIMEOUT_S', '10.0'))
         overall_timeout = float(os.getenv('OLLAMA_OVERALL_TIMEOUT_S', str(OLLAMA_TIMEOUT_S or 120.0)))

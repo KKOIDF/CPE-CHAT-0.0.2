@@ -1,6 +1,6 @@
 # CPE-CHAT 0.0.2
 
-ระบบแชตบอท RAG สำหรับงานข้อมูลภาควิชา/มหาวิทยาลัย โดยรองรับการสืบค้นหลายโดเมน เช่น announcements, regulations และ curriculum พร้อมเชื่อมต่อ LLM ผ่าน Typhoon API หรือ Ollama และใช้งานผ่าน OpenWeb-UI ได้
+ระบบแชตบอท RAG สำหรับงานข้อมูลภาควิชา/มหาวิทยาลัย โดยรองรับการสืบค้นหลายโดเมน เช่น announcements, regulations และ curriculum พร้อมเชื่อมต่อ LLM ผ่าน Ollama หรือ Typhoon และใช้งานผ่าน OpenWeb-UI ได้
 
 ## Features
 
@@ -15,7 +15,7 @@
 
 บริการหลักใน docker-compose:
 
-- rag-service: FastAPI backend + retrieval + Typhoon/Ollama LLM integration
+- rag-service: FastAPI backend + retrieval + Ollama/Typhoon LLM integration
 - openweb-ui: web chat interface
 - mlflow: tracking/observability (optional แต่เปิดไว้โดยค่าเริ่มต้น)
 
@@ -36,16 +36,6 @@ cp .env.example .env
 2. ตั้งค่าอย่างน้อยในไฟล์ `.env`
 
 ```env
-LLM_PROVIDER=typhoon
-LLM_MODEL=typhoon-v2.5-30b-a3b-instruct
-TYPHOON_API_KEY=your_real_api_key
-RAG_PORT=8001
-OPENWEB_UI_PORT=3000
-```
-
-ตัวอย่างสำหรับ Ollama บน GPU host:
-
-```env
 LLM_PROVIDER=ollama
 LLM_MODEL=gemma4:26b
 OLLAMA_BASE_URL=http://gpu06.slurm.cpe.kmutt.ac.th:11434
@@ -54,19 +44,27 @@ RAG_PORT=8001
 OPENWEB_UI_PORT=3000
 ```
 
-ตัวอย่างที่แนะนำสำหรับใช้งานสองโมเดลพร้อมกัน:
+ตัวอย่างสำหรับ Typhoon เป็น fallback:
 
 ```env
-LLM_PROVIDER=typhoon
-LLM_MODEL=typhoon-v2.5-30b-a3b-instruct
-LLM_AUX_PROVIDER=ollama
-LLM_AUX_MODEL=gemma4:26b
+LLM_PROVIDER=ollama
+LLM_MODEL=gemma4:26b
+LLM_AUX_PROVIDER=typhoon
+LLM_AUX_MODEL=typhoon-v2.5-30b-a3b-instruct
+LLM_AUX_FOR_REWRITE=0
+LLM_AUX_FOR_MULTIQUERY=0
+LLM_AUX_FOR_ROUTING=0
+LLM_AUX_FALLBACK_FOR_ANSWER=1
+TYPHOON_API_KEY=your_real_api_key
 OLLAMA_BASE_URL=http://gpu06.slurm.cpe.kmutt.ac.th:11434
 OLLAMA_API_KEY=sk-ollama-dummy
-OLLAMA_THINK=0
+RAG_PORT=8001
+OPENWEB_UI_PORT=3000
 ```
 
-แนวทางนี้ให้ Typhoon เป็นโมเดลหลักสำหรับคำตอบสุดท้าย และให้ Ollama ช่วยงาน rewrite/routing/multi-query รวมถึงรับช่วง fallback เวลาตัวหลักมีปัญหา
+แนวทางนี้ให้ gemma4:26b เป็นโมเดลหลักสำหรับคำตอบปกติ และให้ Typhoon รับช่วงเฉพาะตอน answer fallback เมื่อตัวหลักล้มเหลว
+
+หากต้องการให้ Typhoon เป็นตัวหลักกลับไปอีกครั้ง ให้สลับ `LLM_PROVIDER` และ `LLM_MODEL` ใน `.env` แล้วเปิด `LLM_AUX_*` ตามรูปแบบเดิม
 
 3. ตรวจว่ามีดัชนีแล้วในโฟลเดอร์ `indexes/`
 
@@ -221,7 +219,7 @@ curl -X POST http://localhost:8001/rag/answer \
 curl -X POST http://localhost:8001/v1/chat/completions \
   -H "Content-Type: application/json" \
   -d '{
-    "model": "typhoon-rag",
+    "model": "gemma4:26b",
     "messages": [
       {"role": "user", "content": "หลักสูตรต้องมีหน่วยกิตกี่หน่วย"}
     ]

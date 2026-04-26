@@ -69,7 +69,7 @@ if [ ! -f ".env" ]; then
 fi
 
 LLM_PROVIDER=$(grep "^LLM_PROVIDER=" .env | cut -d '=' -f 2 | tr -d '\r')
-LLM_PROVIDER=${LLM_PROVIDER:-typhoon}
+LLM_PROVIDER=${LLM_PROVIDER:-ollama}
 
 if [ "$LLM_PROVIDER" = "typhoon" ]; then
     if ! grep -q "^TYPHOON_API_KEY=" .env || grep "^TYPHOON_API_KEY=your_typhoon_api_key_here" .env > /dev/null; then

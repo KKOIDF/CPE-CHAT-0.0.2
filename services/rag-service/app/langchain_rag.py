@@ -19,7 +19,7 @@ from .retrieval import retrieve_by_domain, retrieve_all_domains, retrieve_multi_
 from .context_packing import pack_context, pack_context_grouped, est_tokens
 from .prompting import build_prompt
 from .perf import time_block, add_metric
-from .config import RRF_K, MAX_CONTEXTS
+from .config import RRF_K, MAX_CONTEXTS, RAG_RESPONSE_PROFILE, RAG_FAST_MAX_CONTEXTS
 from .llm import generate_text
 from .chroma_client import embed_texts, semantic_search_domain, fetch_embeddings_for_docs
 from .neo4j_client import extract_course_codes
@@ -74,6 +74,7 @@ _SEARCH_ALL_DOMAINS = os.getenv('RAG_SEARCH_ALL_DOMAINS', '1') in ('1', 'true', 
 _ADAPTIVE_ORCHESTRATION = (os.getenv('RAG_ADAPTIVE_ORCHESTRATION', '1') or '1').strip().lower() in (
     '1', 'true', 'yes', 'on'
 )
+_FAST_PROFILE = RAG_RESPONSE_PROFILE == 'fast'
 try:
     _LOW_SCORE_THRESHOLD = float(os.getenv('RAG_ADAPTIVE_LOW_SCORE', '0.06') or '0.06')
 except Exception:
@@ -862,6 +863,10 @@ def _build_rag_prompt_langchain(question: str, domain: Optional[str] = None) -> 
             dom = _route_domain_llm(q_display) or ''
             initial_dom = dom or 'unknown'
     dom = dom or None
+    search_all_domains = _SEARCH_ALL_DOMAINS
+    if _FAST_PROFILE and dom:
+        search_all_domains = False
+        add_metric('fast_profile_domain_scoped', 1)
 
     add_metric('routing_domain_initial', initial_dom)
     add_metric('routing_domain_final', str(dom) if dom else 'auto')
@@ -936,7 +941,9 @@ def _build_rag_prompt_langchain(question: str, domain: Optional[str] = None) -> 
     variants: List[str] = []
     anchored = _has_precision_anchors(question)
     allow_multiquery = (not anchored) or _MULTIQUERY_FOR_ANCHORED
-    if (not has_ref) and allow_multiquery and _MULTIQUERY_ENABLE and (_MULTIQUERY_ALL or (dom == 'curriculum') or (dom is None)):
+    if _FAST_PROFILE:
+        add_metric('multiquery_skipped_fast_profile', 1)
+    elif (not has_ref) and allow_multiquery and _MULTIQUERY_ENABLE and (_MULTIQUERY_ALL or (dom == 'curriculum') or (dom is None)):
         variants = _multiquery_variants(q_display, q_search, dom)
     elif anchored and (not has_ref):
         add_metric('multiquery_skipped_anchored', 1)
@@ -977,12 +984,16 @@ def _build_rag_prompt_langchain(question: str, domain: Optional[str] = None) -> 
         'LNG' in q_display.upper()
         and any(t in q_display for t in ('เลือกเรียน', 'มีวิชา', 'วิชาอะไร', 'เลือกได้', 'ตัวเลือก'))
     )
-    cap = max(MAX_CONTEXTS, 20) if wants_listy else MAX_CONTEXTS
+    if _FAST_PROFILE:
+        fast_cap = max(2, int(RAG_FAST_MAX_CONTEXTS or 4))
+        cap = max(fast_cap, min(max(MAX_CONTEXTS, 20), 8)) if wants_listy else min(MAX_CONTEXTS, fast_cap)
+    else:
+        cap = max(MAX_CONTEXTS, 20) if wants_listy else MAX_CONTEXTS
 
     retrieved_lists: List[Tuple[str, List[Dict]]] = []
 
     def _retrieve_one(q: str) -> Tuple[str, List[Dict]]:
-        if dom and not _SEARCH_ALL_DOMAINS:
+        if dom and not search_all_domains:
             items = retrieve_by_domain(q, domain=dom)
             if (not has_ref) and len(items) < fallback_min_results():
                 doms = fallback_domains_for_domain(dom, q_display)
@@ -1031,7 +1042,7 @@ def _build_rag_prompt_langchain(question: str, domain: Optional[str] = None) -> 
         add_metric('retrieval_adaptive_retry_triggered', 1)
         retry_q = _expand_query_for_retry(question, dom)
         try:
-            if dom and not _SEARCH_ALL_DOMAINS:
+            if dom and not search_all_domains:
                 retry = retrieve_by_domain(retry_q, domain=dom)
                 add_metric('retry_retrieval_doc_count', len(retry or []))
                 add_metric('retry_top_score', _top_retrieval_score(retry))
@@ -1053,9 +1064,11 @@ def _build_rag_prompt_langchain(question: str, domain: Optional[str] = None) -> 
 
     # Optional rerank (embedding-based) to reduce noise.
     if _RERANK_ENABLE and retrieved and (_RERANK_ALL or (dom == 'curriculum')):
+        if _FAST_PROFILE:
+            add_metric('top_k_rerank_skipped_fast_profile', 1)
         # Announcement temporal queries are extractor-driven; rerank rarely helps
         # and adds avoidable latency variance.
-        if _is_announcement_temporal_query(question, dom):
+        elif _is_announcement_temporal_query(question, dom):
             add_metric('top_k_rerank_skipped_announcement_temporal', 1)
         else:
         # Mismatch intent skip: if top 3 docs don't match our initial domain intent, skip expensive rerank.

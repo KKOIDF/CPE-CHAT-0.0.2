@@ -74,6 +74,10 @@ EMBEDDING_DIM = int(os.getenv('EMBEDDING_DIM', '512'))
 TOKEN_BUDGET = int(os.getenv('TOKEN_BUDGET', '1200'))
 RRF_K = int(os.getenv('RRF_K', '60'))
 MAX_CONTEXTS = int(os.getenv('MAX_CONTEXTS', '8'))
+RAG_RESPONSE_PROFILE = (os.getenv('RAG_RESPONSE_PROFILE', 'balanced') or 'balanced').strip().lower()
+if RAG_RESPONSE_PROFILE not in ('fast', 'balanced', 'quality'):
+	RAG_RESPONSE_PROFILE = 'balanced'
+RAG_FAST_MAX_CONTEXTS = max(2, int(os.getenv('RAG_FAST_MAX_CONTEXTS', '4') or '4'))
 
 # LLM settings (default switched to lighter 7B for 6GB GPUs)
 LLM_MODEL = os.getenv('LLM_MODEL', 'Qwen/Qwen2.5-7B-Instruct')
@@ -110,3 +114,4 @@ OLLAMA_API_KEY = os.getenv('OLLAMA_API_KEY', '')
 OLLAMA_BASE_URL = os.getenv('OLLAMA_BASE_URL', 'http://localhost:11434')
 OLLAMA_TIMEOUT_S = float(os.getenv('OLLAMA_TIMEOUT_S', '120'))
 OLLAMA_THINK = os.getenv('OLLAMA_THINK', '0') in ('1', 'true', 'True')
+OLLAMA_KEEP_ALIVE = (os.getenv('OLLAMA_KEEP_ALIVE', '30m') or '30m').strip()

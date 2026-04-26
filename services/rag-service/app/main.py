@@ -5108,6 +5108,9 @@ def openai_compatible_endpoint(request: dict):
     question, domain, lock_applied, lock_reason = _apply_session_followup_lock(question, domain, session_id)
     followup_meta = _analyze_followup_entities(messages, question)
     decision = analyze_route(question, domain)
+    configured_models = list_configured_models()
+    default_model_id = str(configured_models[0].get('id') or 'typhoon-rag') if configured_models else 'typhoon-rag'
+    request_model = str(request.get('model') or default_model_id)
     structured_eligible = bool(decision.structured_kind == 'curriculum' and decision.structured_eligible)
     structured_reg_eligible = bool(decision.structured_kind == 'regulations')
     add_metric('announcement_intent_v2', _classify_announcement_intent_v2(question, decision.effective_domain))
@@ -5124,7 +5127,7 @@ def openai_compatible_endpoint(request: dict):
         'v1_chat_completions',
         endpoint='/v1/chat/completions',
         domain=domain,
-        model=request.get('model', 'typhoon-rag'),
+        model=request_model,
         msg_n=len(messages or []),
         session_id=session_id or None,
     ):
@@ -5160,7 +5163,7 @@ def openai_compatible_endpoint(request: dict):
                 "id": f"chatcpe-{uuid.uuid4().hex[:12]}",
                 "object": "chat.completion",
                 "created": int(time.time()),
-                "model": request.get('model', 'typhoon-rag'),
+                "model": request_model,
                 "choices": [
                     {
                         "index": 0,
@@ -5186,7 +5189,7 @@ def openai_compatible_endpoint(request: dict):
                 "id": f"chatcpe-{uuid.uuid4().hex[:12]}",
                 "object": "chat.completion",
                 "created": int(time.time()),
-                "model": request.get('model', 'typhoon-rag'),
+                "model": request_model,
                 "choices": [
                     {
                         "index": 0,
@@ -5210,7 +5213,7 @@ def openai_compatible_endpoint(request: dict):
                 "id": f"chatcpe-{uuid.uuid4().hex[:12]}",
                 "object": "chat.completion",
                 "created": int(time.time()),
-                "model": request.get('model', 'typhoon-rag'),
+                "model": request_model,
                 "choices": [
                     {
                         "index": 0,
@@ -5238,7 +5241,7 @@ def openai_compatible_endpoint(request: dict):
                 "id": f"chatcpe-{uuid.uuid4().hex[:12]}",
                 "object": "chat.completion",
                 "created": int(time.time()),
-                "model": request.get('model', 'typhoon-rag'),
+                "model": request_model,
                 "choices": [
                     {
                         "index": 0,
@@ -5268,7 +5271,7 @@ def openai_compatible_endpoint(request: dict):
                 "id": f"chatcpe-{uuid.uuid4().hex[:12]}",
                 "object": "chat.completion",
                 "created": int(time.time()),
-                "model": request.get('model', 'typhoon-rag'),
+                "model": request_model,
                 "choices": [
                     {
                         "index": 0,
@@ -5290,7 +5293,7 @@ def openai_compatible_endpoint(request: dict):
                     "id": f"chatcpe-{uuid.uuid4().hex[:12]}",
                     "object": "chat.completion",
                     "created": int(time.time()),
-                    "model": request.get('model', 'typhoon-rag'),
+                    "model": request_model,
                     "choices": [
                         {
                             "index": 0,
@@ -5337,7 +5340,7 @@ def openai_compatible_endpoint(request: dict):
                 "id": f"chatcpe-{uuid.uuid4().hex[:12]}",
                 "object": "chat.completion",
                 "created": int(time.time()),
-                "model": request.get('model', 'typhoon-rag'),
+                "model": request_model,
                 "choices": [
                     {
                         "index": 0,
@@ -5372,7 +5375,7 @@ def openai_compatible_endpoint(request: dict):
                     "id": f"chatcpe-{uuid.uuid4().hex[:12]}",
                     "object": "chat.completion",
                     "created": int(time.time()),
-                    "model": request.get('model', 'typhoon-rag'),
+                    "model": request_model,
                     "choices": [
                         {
                             "index": 0,
@@ -5393,7 +5396,7 @@ def openai_compatible_endpoint(request: dict):
                     "id": f"chatcpe-{uuid.uuid4().hex[:12]}",
                     "object": "chat.completion",
                     "created": int(time.time()),
-                    "model": request.get('model', 'typhoon-rag'),
+                    "model": request_model,
                     "choices": [
                         {
                             "index": 0,
@@ -5427,7 +5430,7 @@ def openai_compatible_endpoint(request: dict):
                     "id": f"chatcpe-{uuid.uuid4().hex[:12]}",
                     "object": "chat.completion",
                     "created": int(time.time()),
-                    "model": request.get('model', 'typhoon-rag'),
+                    "model": request_model,
                     "choices": [
                         {
                             "index": 0,
@@ -5557,7 +5560,7 @@ def openai_compatible_endpoint(request: dict):
             "id": f"chatcpe-{uuid.uuid4().hex[:12]}",
             "object": "chat.completion",
             "created": int(time.time()),
-            "model": request.get('model', 'typhoon-rag'),
+            "model": request_model,
             "choices": [
                 {
                     "index": 0,
@@ -5618,6 +5621,9 @@ def _public_config() -> dict:
         "TYPHOON_TIMEOUT_S",
         "OLLAMA_BASE_URL",
         "OLLAMA_TIMEOUT_S",
+        "OLLAMA_KEEP_ALIVE",
+        "RAG_RESPONSE_PROFILE",
+        "RAG_FAST_MAX_CONTEXTS",
         "NEO4J_URI",
         "NEO4J_USERNAME",
         "NEO4J_USER",
@@ -5674,6 +5680,9 @@ def _public_config() -> dict:
         "LLM_TEMPERATURE": getattr(cfg, "LLM_TEMPERATURE", None),
         "OLLAMA_BASE_URL": getattr(cfg, "OLLAMA_BASE_URL", ""),
         "OLLAMA_TIMEOUT_S": getattr(cfg, "OLLAMA_TIMEOUT_S", None),
+        "OLLAMA_KEEP_ALIVE": getattr(cfg, "OLLAMA_KEEP_ALIVE", ""),
+        "RAG_RESPONSE_PROFILE": getattr(cfg, "RAG_RESPONSE_PROFILE", ""),
+        "RAG_FAST_MAX_CONTEXTS": getattr(cfg, "RAG_FAST_MAX_CONTEXTS", None),
     }
 
     # Redact any accidental secrets.
