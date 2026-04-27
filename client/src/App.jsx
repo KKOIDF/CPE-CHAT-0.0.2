@@ -35,12 +35,30 @@ function citeLabelFromContext(ctx) {
   return `${name}/${page}`;
 }
 
+function createSessionId() {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  return `chatcpe-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function historyToMessages(history, nextUserMessage) {
+  const messages = [];
+  for (const turn of history || []) {
+    if (turn?.user) messages.push({ role: "user", content: turn.user });
+    if (turn?.bot) messages.push({ role: "assistant", content: turn.bot });
+  }
+  if (nextUserMessage) messages.push({ role: "user", content: nextUserMessage });
+  return messages;
+}
+
 function App() {
   const [message, setMessage] = useState("");
   const [domain, setDomain] = useState("auto");
   const [history, setHistory] = useState([]);
   const [isSending, setIsSending] = useState(false);
   const chatContainerRef = useRef(null);
+  const sessionIdRef = useRef(createSessionId());
 
   useEffect(() => {
     if (chatContainerRef.current) {
@@ -53,12 +71,16 @@ function App() {
     const q = (message || "").trim();
     if (!q || isSending) return;
 
-    const chosenDomain = domain === "auto" ? inferDomain(q) : domain;
+    const chosenDomain = domain === "auto" ? null : domain;
+    const displayDomain = domain === "auto" ? inferDomain(q) : domain;
+    const messages = historyToMessages(history, q);
     setIsSending(true);
     try {
       const res = await axios.post("/api/rag/answer", {
         question: q,
         domain: chosenDomain,
+        session_id: sessionIdRef.current,
+        messages,
       });
 
       const data = res?.data || {};
@@ -71,7 +93,7 @@ function App() {
         ...prev,
         {
           user: q,
-          domain: chosenDomain,
+          domain: displayDomain,
           bot: data.answer || "",
           sources,
         },
@@ -82,7 +104,7 @@ function App() {
         ...prev,
         {
           user: q,
-          domain: chosenDomain,
+          domain: displayDomain,
           bot: "เกิดข้อผิดพลาดในการเชื่อมต่อบริการตอบคำถาม",
           sources: [],
         },

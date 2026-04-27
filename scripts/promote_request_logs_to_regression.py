@@ -5,11 +5,13 @@ import argparse
 import csv
 import glob
 import json
+import os
 import re
 from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse
 
 
 def _norm_question(text: str) -> str:
@@ -18,11 +20,16 @@ def _norm_question(text: str) -> str:
 
 def _iter_events(patterns: list[str]) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
+    seen_files: set[str] = set()
     for pattern in patterns:
         for path_str in glob.glob(pattern, recursive=True):
             path = Path(path_str)
             if not path.is_file():
                 continue
+            norm_path = str(path.resolve())
+            if norm_path in seen_files:
+                continue
+            seen_files.add(norm_path)
             try:
                 for line in path.read_text(encoding='utf-8', errors='ignore').splitlines():
                     line = line.strip()
@@ -34,6 +41,69 @@ def _iter_events(patterns: list[str]) -> list[dict[str, Any]]:
             except Exception:
                 continue
     return rows
+
+
+def _parse_tracking_uri(uri: str) -> Path | None:
+    raw = str(uri or "").strip()
+    if not raw:
+        return None
+    parsed = urlparse(raw)
+    if parsed.scheme in ("", "file"):
+        if parsed.scheme == "file":
+            path = parsed.path or ""
+            if os.name == "nt" and path.startswith("/"):
+                path = path[1:]
+            return Path(path).expanduser().resolve()
+        return Path(raw).expanduser().resolve()
+    return None
+
+
+def _mlflow_local_globs(tracking_uri: str, request_dir: str) -> list[str]:
+    root = _parse_tracking_uri(tracking_uri)
+    if root is None:
+        return []
+
+    req = str(request_dir or "requests").strip().strip("/") or "requests"
+    roots = [root]
+    if root.name == "mlruns":
+        roots.append(root.parent / "mlartifacts")
+    if root.name == "mlartifacts":
+        roots.append(root.parent / "mlruns")
+
+    patterns: list[str] = []
+    seen: set[str] = set()
+    for base in roots:
+        for pat in (
+            base / "**" / "artifacts" / req / "*.jsonl",
+            base / "**" / req / "*.jsonl",
+        ):
+            key = str(pat)
+            if key in seen:
+                continue
+            seen.add(key)
+            patterns.append(key)
+    return patterns
+
+
+def _expand_input_dirs(input_dirs: list[str], request_dir: str) -> list[str]:
+    patterns: list[str] = []
+    seen: set[str] = set()
+    req = str(request_dir or "requests").strip().strip("/") or "requests"
+    for item in input_dirs:
+        base = Path(str(item or "").strip()).expanduser()
+        if not str(base):
+            continue
+        for pat in (
+            base / "**" / "*.jsonl",
+            base / "**" / req / "*.jsonl",
+            base / "**" / "artifacts" / req / "*.jsonl",
+        ):
+            key = str(pat)
+            if key in seen:
+                continue
+            seen.add(key)
+            patterns.append(key)
+    return patterns
 
 
 def _looks_bad(evt: dict[str, Any]) -> tuple[bool, list[str]]:
@@ -72,16 +142,47 @@ def main() -> int:
         action='append',
         default=[
             'mlruns/**/artifacts/requests/*.jsonl',
+            'mlartifacts/**/artifacts/requests/*.jsonl',
             'reports/requests/*.jsonl',
             'requests/*.jsonl',
         ],
         help='Glob for request-log JSONL artifacts. Can be repeated.',
     )
+    ap.add_argument(
+        '--input-dir',
+        action='append',
+        default=[],
+        help='Directory containing exported request logs or MLflow artifact trees. Can be repeated.',
+    )
+    ap.add_argument(
+        '--tracking-uri',
+        default=(os.getenv('MLFLOW_TRACKING_URI') or '').strip(),
+        help='Optional MLflow tracking URI. Local file/file:// URIs are expanded into artifact globs automatically.',
+    )
+    ap.add_argument(
+        '--request-log-dir',
+        default=(os.getenv('MLFLOW_OBS_REQUEST_LOG_DIR') or 'requests').strip() or 'requests',
+        help='Artifact subdirectory name used by request logs (default: requests).',
+    )
     ap.add_argument('--top-k', type=int, default=200)
     ap.add_argument('--out-dir', default='reports')
     args = ap.parse_args()
 
-    events = _iter_events(list(args.input_glob or []))
+    patterns: list[str] = list(args.input_glob or [])
+    patterns.extend(_expand_input_dirs(list(args.input_dir or []), str(args.request_log_dir or 'requests')))
+    if args.tracking_uri:
+        patterns.extend(_mlflow_local_globs(str(args.tracking_uri), str(args.request_log_dir or 'requests')))
+
+    uniq_patterns: list[str] = []
+    seen_patterns: set[str] = set()
+    for pat in patterns:
+        key = str(pat or '').strip()
+        if not key or key in seen_patterns:
+            continue
+        seen_patterns.add(key)
+        uniq_patterns.append(key)
+
+    events = _iter_events(uniq_patterns)
     grouped: dict[str, list[dict[str, Any]]] = defaultdict(list)
     for evt in events:
         key = _norm_question(str(evt.get('question') or ''))
@@ -151,6 +252,9 @@ def main() -> int:
             flat['reasons'] = '; '.join([f'{k}:{v}' for k, v in row.get('reasons', [])])
             writer.writerow(flat)
 
+    print(f'scanned_patterns={len(uniq_patterns)}')
+    print(f'events_total={len(events)}')
+    print(f'candidates_total={len(ranked)}')
     print(f'wrote {out_json}')
     print(f'wrote {out_csv}')
     return 0

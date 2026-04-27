@@ -382,6 +382,7 @@ def load_credit_totals_2564() -> dict[str, int]:
     sp = _grab(r"หมวดวิชาเฉพาะ\s+(\d+)\s+หน่วยกิต")
     core = _grab(r"วิชาแกน\s+(\d+)\s+หน่วยกิต")
     spec_area = _grab(r"วิชาเฉพาะด้าน\s+(\d+)\s+หน่วยกิต")
+    spec_elective = _grab(r"-\s*วิชาเลือก\s+(\d+)\s+หน่วยกิต")
     fe = _grab(r"หมวดวิชาเลือกเสรี\s+(\d+)\s+หน่วยกิต")
     tot = _grab(r"จำนวนหน่วยกิตรวมตลอดหลักสูตร\s+(\d+)\s+หน่วยกิต")
 
@@ -393,6 +394,8 @@ def load_credit_totals_2564() -> dict[str, int]:
         totals['core'] = core
     if spec_area is not None:
         totals['specific_area'] = spec_area
+    if spec_elective is not None:
+        totals['specific_elective'] = spec_elective
     if fe is not None:
         totals['free_elective'] = fe
     if tot is not None:

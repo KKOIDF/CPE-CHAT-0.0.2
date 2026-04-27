@@ -16,7 +16,7 @@ from .sqlite_client import close_thread_connections
 from .neo4j_client import close_driver
 from .perf import request_timing, time_block, add_metric, set_observer
 from .mlflow_observability import init_mlflow_observability
-from .structured_artifacts import load_announcement_calendar_artifact
+from .announcement_deterministic import render_fast_announcement_calendar_answer
 
 logger = logging.getLogger("rag-service")
 
@@ -534,6 +534,7 @@ class RagAnswerRequest(BaseModel):
     model: str | None = None
     eval_mode: bool = False
     session_id: str | None = None
+    messages: list[dict[str, Any]] | None = None
 
 class RagAnswerResponse(BaseModel):
     question: str
@@ -566,6 +567,11 @@ try:
     _SESSION_FOLLOWUP_MAX = max(32, int((os.getenv('RAG_SESSION_FOLLOWUP_MAX', '512') or '512').strip()))
 except Exception:
     _SESSION_FOLLOWUP_MAX = 512
+_SESSION_CHAT_MEMORY: dict[str, list[str]] = {}
+try:
+    _SESSION_CHAT_TURNS_MAX = max(2, int((os.getenv('RAG_SESSION_CHAT_TURNS_MAX', '6') or '6').strip()))
+except Exception:
+    _SESSION_CHAT_TURNS_MAX = 6
 
 _STANDALONE_CODE_RE = re.compile(r"^\s*[A-Za-z]{2,6}\s*[- ]?\s*\d{3}\s*$")
 
@@ -804,6 +810,29 @@ def _coerce_chat_messages(messages: object) -> list[dict[str, Any]]:
             continue
         normalized.append({'role': 'user', 'content': txt})
     return normalized
+
+
+def _session_chat_get(session_id: str) -> list[str]:
+    sid = (session_id or '').strip()
+    if not sid:
+        return []
+    vals = _SESSION_CHAT_MEMORY.get(sid) or []
+    return [str(v or '').strip() for v in vals if str(v or '').strip()]
+
+
+def _session_chat_put(session_id: str, user_question: str) -> None:
+    sid = (session_id or '').strip()
+    txt = str(user_question or '').strip()
+    if not sid or not txt:
+        return
+    prev = _SESSION_CHAT_MEMORY.get(sid) or []
+    prev.append(txt)
+    _SESSION_CHAT_MEMORY[sid] = prev[-_SESSION_CHAT_TURNS_MAX:]
+    while len(_SESSION_CHAT_MEMORY) > _SESSION_FOLLOWUP_MAX:
+        try:
+            _SESSION_CHAT_MEMORY.pop(next(iter(_SESSION_CHAT_MEMORY)))
+        except Exception:
+            break
 
 
 def _extract_session_id_from_request(payload: dict[str, Any] | None) -> str:
@@ -3773,59 +3802,6 @@ def _is_announcement_temporal_intent(question: str, domain: str | None = None) -
     return _classify_announcement_intent_v2(question, domain) == 'date_lookup'
 
 
-def _normalize_announcement_blob(text: str) -> str:
-    return re.sub(r"\s+", " ", str(text or '').strip().lower())
-
-
-def _select_announcement_calendar_entry(question: str) -> dict[str, Any] | None:
-    artifact = load_announcement_calendar_artifact()
-    entries = artifact.get('entries') if isinstance(artifact, dict) else None
-    if not isinstance(entries, list):
-        return None
-
-    ql = _normalize_announcement_blob(question)
-    if not ql:
-        return None
-
-    best: dict[str, Any] | None = None
-    best_score = 0
-    for raw in entries:
-        if not isinstance(raw, dict):
-            continue
-        label = _normalize_announcement_blob(raw.get('label') or '')
-        value = _normalize_announcement_blob(raw.get('value') or '')
-        topic = _normalize_announcement_blob(raw.get('topic') or '')
-        blob = _normalize_announcement_blob(raw.get('blob') or f"{label} {value} {topic}")
-        keywords = raw.get('keywords') if isinstance(raw.get('keywords'), list) else []
-
-        score = 0
-        for kw in keywords:
-            key = _normalize_announcement_blob(str(kw or ''))
-            if key and key in ql:
-                score += 4
-        for hint in (
-            'ลงทะเบียน', 'ชำระเงิน', 'เปิดให้บริการ', '20 นาที', 'อยู่ในระบบ',
-            'โมดูล 5 สัปดาห์', 'ช่วงที่ 1', 'ถอนรายวิชา', 'ผลการประเมิน',
-            'รหัส 66', 'ปี 3', 'ปี 2', 'ปี 1',
-        ):
-            norm_hint = _normalize_announcement_blob(hint)
-            if norm_hint in ql and norm_hint in blob:
-                score += 3
-        if ('วันสุดท้าย' in ql) and ('วันสุดท้าย' in blob):
-            score += 3
-        if any(t in ql for t in ('กี่โมง', 'เวลาใด', 'เปิดกี่โมง')) and ('07:00' in value or '23:00' in value):
-            score += 4
-        if ('ไม่เกินกี่นาที' in ql or 'ครั้งละ' in ql) and ('20 นาที' in blob):
-            score += 4
-        if ('ถอนรายวิชา' in ql or 'ลดรายวิชา' in ql) and ('withdrawn' in blob or 'w' in blob or 'ลดรายวิชา' in blob):
-            score += 4
-        if score > best_score:
-            best_score = score
-            best = raw
-
-    return best if best_score >= 4 else None
-
-
 def _try_fast_announcement_calendar_answer(question: str, domain: str | None = None) -> str | None:
     """Return deterministic announcement calendar answers for hot eval intents.
 
@@ -3833,37 +3809,7 @@ def _try_fast_announcement_calendar_answer(question: str, domain: str | None = N
     """
     if not _is_announcement_temporal_intent(question, domain=domain):
         return None
-
-    ql = (question or '').strip().lower()
-    artifact_entry = _select_announcement_calendar_entry(question)
-    if artifact_entry:
-        source = str(artifact_entry.get('source') or 'announcement_calendar.json').strip()
-        page = int(artifact_entry.get('page') or 1)
-        label = str(artifact_entry.get('label') or '').strip()
-        value = str(artifact_entry.get('value') or '').strip()
-        if label and value:
-            if 'ผลการประเมินเป็น' in value:
-                return f"- {value} [{source}/{page}]"
-            if any(t in ql for t in ('กี่โมง', 'เวลาใด', 'เปิดกี่โมง', 'เปิดให้บริการ', 'ครั้งละ', 'ไม่เกินกี่นาที', 'อยู่ในระบบ')):
-                return f"- {value} [{source}/{page}]"
-            return f"- {label}: {value} [{source}/{page}]"
-
-    cite = 'ปฏิทินการศึกษา_2568.txt announcement calendar/1'
-
-    if any(t in ql for t in ('เปิดให้บริการช่วงเวลาใด', 'เปิดให้บริการเวลาใด', 'กี่โมง', 'เปิดกี่โมง', 'ถึงกี่โมง')):
-        return f"- ระบบลงทะเบียนเปิดให้บริการเวลา 07:00-23:00 [{cite}]"
-    if any(t in ql for t in ('อยู่ในระบบ', 'ครั้งละ', 'ไม่เกินกี่นาที')):
-        return f"- นักศึกษาอยู่ในระบบลงทะเบียนได้ครั้งละไม่เกิน 20 นาที [{cite}]"
-    if 'วันสุดท้าย' in ql and 'ชำระเงิน' in ql:
-        return f"- วันสุดท้ายของการชำระเงินค่าลงทะเบียนภาค 2/2568 คือ พฤ.8 มกราคม 2569 [{cite}]"
-    if 'โมดูล 5 สัปดาห์' in ql and 'ช่วงที่ 1' in ql:
-        return f"- กำหนดการลดรายวิชาโมดูล 5 สัปดาห์ ช่วงที่ 1 คือ วันเสาร์ที่ 24 มกราคม - วันศุกร์ที่ 6 กุมภาพันธ์ 2569 [{cite}]"
-    if ('ถอนรายวิชา' in ql or 'ถอน' in ql) and any(t in ql for t in ('ผลการประเมิน', 'ผลการเรียน', 'เป็นอะไร', 'สถานะ')):
-        return f"- การถอนรายวิชาในช่วงเวลาดังกล่าวได้ผลการประเมินเป็น W (Withdrawn) [{cite}]"
-    if any(t in ql for t in ('รหัส 66', 'ปี 3', 'ปี3')) and any(t in ql for t in ('ลงทะเบียน', 'ช่วงวันใด', 'ช่วงวัน')):
-        return f"- นักศึกษาปี 3 (รหัส 66) ลงทะเบียนภาค 2/2568 ช่วง อา.4 - พ.7 มกราคม 2569 [{cite}]"
-
-    return None
+    return render_fast_announcement_calendar_answer(question)
 
 
 def _try_extract_announcements_temporal_answer(prompt: str, question: str, domain: str | None = None) -> str | None:
@@ -4707,7 +4653,35 @@ def run_structured_curriculum_path(
 
 @app.post('/rag/answer', response_model=RagAnswerResponse)
 def rag_answer_endpoint(req: RagAnswerRequest):
-    req.question = _prepare_user_question(req.question, req.domain)
+    raw_input_question = str(req.question or '').strip()
+    messages = _coerce_chat_messages(req.messages)
+    effective_session_id = (req.session_id or '').strip()
+    if (not messages) and effective_session_id:
+        remembered = _session_chat_get(effective_session_id)
+        if remembered:
+            messages = [{'role': 'user', 'content': txt} for txt in remembered]
+            if raw_input_question:
+                messages.append({'role': 'user', 'content': raw_input_question})
+
+    raw_last_user = ''
+    for msg in reversed(messages):
+        if (msg.get('role') or '').strip().lower() == 'user':
+            raw_last_user = _content_to_text(msg.get('content', ''))
+            break
+
+    effective_question = _build_effective_question(messages, raw_last_user or req.question)
+    effective_domain = req.domain
+    effective_question = _prepare_user_question(effective_question or req.question, effective_domain)
+    effective_question, effective_domain, lock_applied, lock_reason = _apply_session_followup_lock(
+        effective_question,
+        effective_domain,
+        effective_session_id,
+    )
+    followup_meta = _analyze_followup_entities(messages, effective_question)
+
+    req.question = effective_question
+    req.domain = effective_domain
+
     with request_timing('rag_answer', endpoint='/rag/answer', domain=req.domain, session_id=req.session_id):
         require_citations = bool(req.eval_mode) or _require_citations()
         
@@ -4724,6 +4698,12 @@ def rag_answer_endpoint(req: RagAnswerRequest):
         add_metric('needs_exact_schema', int(bool(getattr(decision, 'needs_exact_schema', False))))
         add_metric('timeout_policy', str(getattr(decision, 'timeout_policy', 'normal') or 'normal'))
         add_metric('session_has_id', int(bool((req.session_id or '').strip())))
+        add_metric('followup_latest_entity', str(followup_meta.get('followup_latest_entity') or ''))
+        add_metric('followup_previous_entity', str(followup_meta.get('followup_previous_entity') or ''))
+        add_metric('followup_entity_overridden', int(followup_meta.get('followup_entity_overridden') or 0))
+        add_metric('followup_entity_conflict', int(followup_meta.get('followup_entity_conflict') or 0))
+        add_metric('followup_session_domain_lock_applied', int(lock_applied))
+        add_metric('followup_session_domain_lock_reason', lock_reason)
 
         if decision.primary_intent == 'unanswerable' or is_unanswerable_query(req.question):
             answer = _build_unanswerable_answer(req.question)
@@ -4739,6 +4719,9 @@ def rag_answer_endpoint(req: RagAnswerRequest):
                 token_est=0,
                 meta={'out_of_scope': True, 'reason': 'unanswerable_policy'},
             )
+
+        _remember_session_followup_hint(req.session_id or '', req.question, decision)
+        _session_chat_put(req.session_id or '', raw_last_user or raw_input_question or req.question)
 
         if decision.primary_intent == 'prerequisite_lookup' and decision.requested_domain != 'curriculum':
             add_metric('routing_force_curriculum_prereq', 1)

@@ -80,6 +80,212 @@ _TEACHER_ASSIGNMENT_SOURCE_ALLOWLIST = (
     "teacher_profiles_by_course.csv",
 )
 
+_STUDY_PLAN_ITEM_RE = re.compile(
+    r"^\s*(?P<or>หรือ\s+)?(?P<prefix>[A-Z]{2,6}|XXX)\s+(?P<num>\d{3}|[xX]{3}|\d[xX]{2})\s+(?P<title>.+?)\s+(?P<credits>\d+)\s*\(",
+)
+
+_STUDY_PLAN_GROUP_CACHE: dict[str, Any] | None = None
+
+
+def _load_study_plan_group_cache() -> dict[str, Any]:
+    global _STUDY_PLAN_GROUP_CACHE
+    if _STUDY_PLAN_GROUP_CACHE is not None:
+        return _STUDY_PLAN_GROUP_CACHE
+
+    curriculum = load_cpe_curriculum_2564()
+    if not curriculum:
+        _STUDY_PLAN_GROUP_CACHE = {}
+        return _STUDY_PLAN_GROUP_CACHE
+
+    try:
+        text = curriculum.source_path.read_text(encoding="utf-8", errors="ignore")
+    except Exception:
+        _STUDY_PLAN_GROUP_CACHE = {}
+        return _STUDY_PLAN_GROUP_CACHE
+
+    if "แผนการศึกษา" in text:
+        text = text.split("แผนการศึกษา", 1)[1]
+    if "คำอธิบายรายวิชา" in text:
+        text = text.split("คำอธิบายรายวิชา", 1)[0]
+
+    normal_marker = "แผนการศึกษาปกติ"
+    wil_marker = "แผนการศึกษาการเรียนรู้ร่วมกับการทำงาน"
+
+    common_txt = text
+    normal_txt = ""
+    wil_txt = ""
+    rest = text
+    if normal_marker in text:
+        common_txt, rest = text.split(normal_marker, 1)
+        normal_txt = rest
+    if wil_marker in rest:
+        before_wil, wil_txt = rest.split(wil_marker, 1)
+        if normal_txt:
+            normal_txt = before_wil
+        else:
+            common_txt = before_wil
+
+    def _parse_items(section_text: str) -> list[dict[str, Any]]:
+        items: list[dict[str, Any]] = []
+        for raw_ln in (section_text or "").splitlines():
+            ln = raw_ln.rstrip()
+            m = _STUDY_PLAN_ITEM_RE.match(ln)
+            if not m:
+                continue
+            prefix = str(m.group("prefix") or "").strip().upper()
+            number = str(m.group("num") or "").strip()
+            title = re.sub(r"\s+", " ", str(m.group("title") or "").strip())
+            try:
+                credits = int(m.group("credits") or "0")
+            except Exception:
+                credits = 0
+            items.append(
+                {
+                    "prefix": prefix,
+                    "number": number,
+                    "title_th": title,
+                    "credits": credits,
+                    "is_placeholder": bool(re.search(r"[xX]", number)) or prefix == "XXX",
+                }
+            )
+        return items
+
+    common_items = _parse_items(common_txt)
+    normal_items = _parse_items(normal_txt)
+    wil_items = _parse_items(wil_txt)
+
+    def _is_elective(item: dict[str, Any]) -> bool:
+        title = str(item.get("title_th") or "")
+        return "วิชาเลือก" in title
+
+    def _item_key(item: dict[str, Any]) -> str:
+        return "|".join(
+            [
+                str(item.get("prefix") or "").upper(),
+                str(item.get("number") or ""),
+                str(item.get("title_th") or ""),
+                str(item.get("credits") or 0),
+            ]
+        )
+
+    def _sorted(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        def _key(item: dict[str, Any]) -> tuple[str, int, str]:
+            num = str(item.get("number") or "")
+            title = str(item.get("title_th") or "")
+            if re.fullmatch(r"\d{3}", num):
+                return (str(item.get("prefix") or ""), int(num), title)
+            return (str(item.get("prefix") or ""), 9999, title)
+
+        return sorted(items, key=_key)
+
+    common_required = [it for it in common_items if not _is_elective(it)]
+    normal_required = [it for it in normal_items if not _is_elective(it)]
+    wil_required = [it for it in wil_items if not _is_elective(it)]
+    common_elective = [it for it in common_items if _is_elective(it)]
+    normal_elective = [it for it in normal_items if _is_elective(it)]
+    wil_elective = [it for it in wil_items if _is_elective(it)]
+
+    common_required_keys = {_item_key(it) for it in common_required}
+    common_elective_keys = {_item_key(it) for it in common_elective}
+
+    _STUDY_PLAN_GROUP_CACHE = {
+        "required_common": _sorted(common_required),
+        "required_normal_only": _sorted([it for it in normal_required if _item_key(it) not in common_required_keys]),
+        "required_wil_only": _sorted([it for it in wil_required if _item_key(it) not in common_required_keys]),
+        "elective_common": _sorted(common_elective),
+        "elective_normal_only": _sorted([it for it in normal_elective if _item_key(it) not in common_elective_keys]),
+        "elective_wil_only": _sorted([it for it in wil_elective if _item_key(it) not in common_elective_keys]),
+    }
+    return _STUDY_PLAN_GROUP_CACHE
+
+
+def _is_group_list_question(question: str) -> bool:
+    q = (question or "").strip()
+    if not q:
+        return False
+    has_required_term = any(t in q for t in ("วิชาบังคับ", "วิชาบังครับ", "วิชาชีพบังคับ"))
+    has_group_term = ("วิชาเลือก" in q) or has_required_term
+    if not has_group_term:
+        return False
+    return any(t in q for t in ("มีอะไร", "อะไรบ้าง", "ทั้งหมด", "กี่ตัว", "กี่วิชา", "รายวิชา", "หมวด"))
+
+
+def _format_study_plan_item(item: dict[str, Any], source_name: str) -> str:
+    prefix = str(item.get("prefix") or "").strip().upper()
+    number = str(item.get("number") or "").strip()
+    title = str(item.get("title_th") or "").strip()
+    credits = int(item.get("credits") or 0)
+    code_disp = f"{prefix} {number}".strip()
+    cred = f" ({credits} หน่วยกิต)" if credits else ""
+    return f"- {code_disp} {title}{cred} [{source_name}/1]"
+
+
+def _group_list_answer(question: str, source_name: str, totals: dict[str, int]) -> str | None:
+    if not _is_group_list_question(question):
+        return None
+
+    groups = _load_study_plan_group_cache()
+    if not groups:
+        return None
+
+    asks_required = any(t in (question or "") for t in ("วิชาบังคับ", "วิชาบังครับ", "วิชาชีพบังคับ"))
+    asks_elective = ("วิชาเลือก" in question) and (not asks_required)
+    mode = "elective" if asks_elective else "required"
+
+    if mode == "elective":
+        common_items = list(groups.get("elective_common") or [])
+        normal_only = list(groups.get("elective_normal_only") or [])
+        wil_only = list(groups.get("elective_wil_only") or [])
+
+        if not (common_items or normal_only or wil_only):
+            return None
+
+        lines = ["สรุปรายวิชาที่ระบุเป็นวิชาเลือกในแผนการศึกษา หลักสูตรวิศวกรรมคอมพิวเตอร์ (ปรับปรุง พ.ศ. 2564):"]
+        specific_elective = totals.get("specific_elective")
+        free_elective = totals.get("free_elective")
+        if specific_elective is not None or free_elective is not None:
+            summary_bits: list[str] = []
+            if specific_elective is not None:
+                summary_bits.append(f"วิชาเลือกทางวิศวกรรมคอมพิวเตอร์ {specific_elective} หน่วยกิต")
+            if free_elective is not None:
+                summary_bits.append(f"วิชาเลือกเสรี {free_elective} หน่วยกิต")
+            if summary_bits:
+                lines.append(f"- โครงสร้างหลักสูตรระบุ {' และ '.join(summary_bits)} [{source_name}/1]")
+        if common_items:
+            lines.append("- วิชาเลือกที่พบร่วมกันทุกแผน:")
+            for item in common_items:
+                lines.append(_format_study_plan_item(item, source_name))
+        if normal_only:
+            lines.append("- เพิ่มเติมเฉพาะแผนการศึกษาปกติ:")
+            for item in normal_only:
+                lines.append(_format_study_plan_item(item, source_name))
+        if wil_only:
+            lines.append("- เพิ่มเติมเฉพาะแผนการศึกษาการเรียนรู้ร่วมกับการทำงาน (WIL):")
+            for item in wil_only:
+                lines.append(_format_study_plan_item(item, source_name))
+        return "\n".join(lines).strip()
+
+    common_items = list(groups.get("required_common") or [])
+    normal_only = list(groups.get("required_normal_only") or [])
+    wil_only = list(groups.get("required_wil_only") or [])
+    if not (common_items or normal_only or wil_only):
+        return None
+
+    lines = ["สรุปรายวิชาบังคับที่ระบุชัดในแผนการศึกษา หลักสูตรวิศวกรรมคอมพิวเตอร์ (ปรับปรุง พ.ศ. 2564):"]
+    if common_items:
+        lines.append("- รายวิชาบังคับร่วมกันทุกแผน:")
+        for item in common_items:
+            lines.append(_format_study_plan_item(item, source_name))
+    if normal_only:
+        lines.append("- เพิ่มเติมเฉพาะแผนการศึกษาปกติ:")
+        for item in normal_only:
+            lines.append(_format_study_plan_item(item, source_name))
+    if wil_only:
+        lines.append("- เพิ่มเติมเฉพาะแผนการศึกษาการเรียนรู้ร่วมกับการทำงาน (WIL):")
+        for item in wil_only:
+            lines.append(_format_study_plan_item(item, source_name))
+    return "\n".join(lines).strip()
+
 
 def _extract_prefix_from_question(question: str) -> str | None:
     q = (question or "")
@@ -1217,6 +1423,15 @@ def structured_curriculum_lookup(question: str) -> dict[str, Any]:
             return {
                 "answer": program_answer,
                 "lookup_mode": "program_metadata",
+                "miss_reason": "",
+            }
+
+    if not instructor_intent:
+        group_answer = _group_list_answer(q, source_name, totals)
+        if group_answer:
+            return {
+                "answer": group_answer,
+                "lookup_mode": "study_plan_group_list",
                 "miss_reason": "",
             }
 
