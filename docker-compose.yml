@@ -60,6 +60,11 @@ services:
       # Timing logs (optional): helps diagnose latency (retrieval vs LLM)
       RAG_TIMING: "${RAG_TIMING:-0}"
       RAG_TIMING_MIN_MS: "${RAG_TIMING_MIN_MS:-0}"
+      RAG_WORKERS: "${RAG_WORKERS:-1}"
+
+      # Shared follow-up memory for multi-worker / multi-instance deployment.
+      RAG_SESSION_REDIS_URL: "${RAG_SESSION_REDIS_URL:-redis://redis:6379/0}"
+      RAG_SESSION_TTL_SECONDS: "${RAG_SESSION_TTL_SECONDS:-3600}"
 
       # LangChain orchestration defaults.
       RAG_USE_LANGCHAIN: "${RAG_USE_LANGCHAIN:-1}"
@@ -159,6 +164,10 @@ services:
     
     networks:
       - cpe-network
+
+    depends_on:
+      redis:
+        condition: service_started
     
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request,sys; urllib.request.urlopen('http://localhost:8001/health').read(); sys.exit(0)"]
@@ -221,6 +230,18 @@ services:
       - cpe-network
     restart: unless-stopped
 
+  redis:
+    image: redis:7-alpine
+    container_name: cpe-chat-redis
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - cpe-network
+    restart: unless-stopped
+
 networks:
   cpe-network:
     driver: bridge
@@ -230,4 +251,7 @@ volumes:
     driver: local
 
   mlflow-data:
+    driver: local
+
+  redis-data:
     driver: local

@@ -17,6 +17,16 @@ from .neo4j_client import close_driver
 from .perf import request_timing, time_block, add_metric, set_observer
 from .mlflow_observability import init_mlflow_observability
 from .announcement_deterministic import render_fast_announcement_calendar_answer
+from .chat_followup import (
+    build_followup_summary_answer as shared_build_followup_summary_answer,
+    build_session_store_from_env,
+    coerce_chat_messages as shared_coerce_chat_messages,
+    content_to_text as shared_content_to_text,
+    extract_session_id_from_request as shared_extract_session_id_from_request,
+    prepare_chat_request,
+    remember_chat_turn,
+    remember_session_followup_hint as shared_remember_session_followup_hint,
+)
 
 logger = logging.getLogger("rag-service")
 
@@ -51,6 +61,7 @@ if _USE_LANGCHAIN:
         _USE_LANGCHAIN = False
 
 _USE_STRUCTURED_CURRICULUM = os.getenv('RAG_USE_STRUCTURED_CURRICULUM', '1') in ('1', 'true', 'True')
+_SESSION_STORE = build_session_store_from_env()
 
 # Meta tasks: follow-up generation, title generation, tag generation.
 # These are UX-layer features that add 10-20s of LLM latency per request.
@@ -4245,6 +4256,12 @@ def _process_multi_intent(
     if len(subqs) < 2:
         return None
 
+    subq_domain_hints = {
+        d for d in ((infer_domain(sq) or '').strip().lower() for sq in subqs)
+        if d in KNOWN_DOMAINS
+    }
+    cross_domain_multi = len(subq_domain_hints) >= 2
+
     add_metric('multi_intent_detected', 1)
     add_metric('multi_intent_subquery_count', len(subqs))
 
@@ -4347,9 +4364,13 @@ def _process_multi_intent(
                             res = rag_query_domain(sq, parent_domain_hint)
 
                     # Rescue pass for multi-intent subqueries: if domain-locked retrieval is thin,
-                    # retry once in auto mode to recover cross-domain evidence.
-                    allow_broad_rescue = False
-                    if allow_broad_rescue and sq_domain in KNOWN_DOMAINS and len(res.get('contexts') or []) < 2:
+                    # retry once in auto mode only for mixed-domain parent questions.
+                    allow_broad_rescue = bool(
+                        cross_domain_multi
+                        and sq_domain in KNOWN_DOMAINS
+                        and len(res.get('contexts') or []) < 2
+                    )
+                    if allow_broad_rescue:
                         add_metric('retrieval_fallback_all_domains_triggered', 1)
                         rescue = rag_query(sq)
                         if len(rescue.get('contexts') or []) > len(res.get('contexts') or []):
@@ -4653,34 +4674,17 @@ def run_structured_curriculum_path(
 
 @app.post('/rag/answer', response_model=RagAnswerResponse)
 def rag_answer_endpoint(req: RagAnswerRequest):
-    raw_input_question = str(req.question or '').strip()
-    messages = _coerce_chat_messages(req.messages)
-    effective_session_id = (req.session_id or '').strip()
-    if (not messages) and effective_session_id:
-        remembered = _session_chat_get(effective_session_id)
-        if remembered:
-            messages = [{'role': 'user', 'content': txt} for txt in remembered]
-            if raw_input_question:
-                messages.append({'role': 'user', 'content': raw_input_question})
-
-    raw_last_user = ''
-    for msg in reversed(messages):
-        if (msg.get('role') or '').strip().lower() == 'user':
-            raw_last_user = _content_to_text(msg.get('content', ''))
-            break
-
-    effective_question = _build_effective_question(messages, raw_last_user or req.question)
-    effective_domain = req.domain
-    effective_question = _prepare_user_question(effective_question or req.question, effective_domain)
-    effective_question, effective_domain, lock_applied, lock_reason = _apply_session_followup_lock(
-        effective_question,
-        effective_domain,
-        effective_session_id,
+    prepared = prepare_chat_request(
+        question=req.question,
+        domain=req.domain,
+        session_id=req.session_id,
+        messages=req.messages,
+        session_store=_SESSION_STORE,
+        question_preparer=_prepare_user_question,
     )
-    followup_meta = _analyze_followup_entities(messages, effective_question)
-
-    req.question = effective_question
-    req.domain = effective_domain
+    raw_input_question = str(req.question or '').strip()
+    req.question = prepared.question
+    req.domain = prepared.domain
 
     with request_timing('rag_answer', endpoint='/rag/answer', domain=req.domain, session_id=req.session_id):
         require_citations = bool(req.eval_mode) or _require_citations()
@@ -4698,12 +4702,12 @@ def rag_answer_endpoint(req: RagAnswerRequest):
         add_metric('needs_exact_schema', int(bool(getattr(decision, 'needs_exact_schema', False))))
         add_metric('timeout_policy', str(getattr(decision, 'timeout_policy', 'normal') or 'normal'))
         add_metric('session_has_id', int(bool((req.session_id or '').strip())))
-        add_metric('followup_latest_entity', str(followup_meta.get('followup_latest_entity') or ''))
-        add_metric('followup_previous_entity', str(followup_meta.get('followup_previous_entity') or ''))
-        add_metric('followup_entity_overridden', int(followup_meta.get('followup_entity_overridden') or 0))
-        add_metric('followup_entity_conflict', int(followup_meta.get('followup_entity_conflict') or 0))
-        add_metric('followup_session_domain_lock_applied', int(lock_applied))
-        add_metric('followup_session_domain_lock_reason', lock_reason)
+        add_metric('followup_latest_entity', str(prepared.followup_meta.get('followup_latest_entity') or ''))
+        add_metric('followup_previous_entity', str(prepared.followup_meta.get('followup_previous_entity') or ''))
+        add_metric('followup_entity_overridden', int(prepared.followup_meta.get('followup_entity_overridden') or 0))
+        add_metric('followup_entity_conflict', int(prepared.followup_meta.get('followup_entity_conflict') or 0))
+        add_metric('followup_session_domain_lock_applied', int(prepared.lock_applied))
+        add_metric('followup_session_domain_lock_reason', prepared.lock_reason)
 
         if decision.primary_intent == 'unanswerable' or is_unanswerable_query(req.question):
             answer = _build_unanswerable_answer(req.question)
@@ -4720,8 +4724,8 @@ def rag_answer_endpoint(req: RagAnswerRequest):
                 meta={'out_of_scope': True, 'reason': 'unanswerable_policy'},
             )
 
-        _remember_session_followup_hint(req.session_id or '', req.question, decision)
-        _session_chat_put(req.session_id or '', raw_last_user or raw_input_question or req.question)
+        shared_remember_session_followup_hint(req.session_id or '', req.question, decision, _SESSION_STORE)
+        remember_chat_turn(req.session_id or '', prepared.raw_last_user, raw_input_question, req.question, _SESSION_STORE)
 
         if decision.primary_intent == 'prerequisite_lookup' and decision.requested_domain != 'curriculum':
             add_metric('routing_force_curriculum_prereq', 1)
@@ -5214,20 +5218,23 @@ def openai_compatible_endpoint(request: dict):
     if not isinstance(request, dict):
         request = {}
 
-    messages = _coerce_chat_messages(request.get('messages', []))
+    messages = shared_coerce_chat_messages(request.get('messages', []))
     domain = request.get('domain', None)  # Custom parameter for domain selection
-    session_id = _extract_session_id_from_request(request)
-    
-    # Extract question from chat history (keep follow-up context)
-    raw_last_user = ""
-    for msg in reversed(messages):
-        if (msg.get('role') or '').strip().lower() == 'user':
-            raw_last_user = _content_to_text(msg.get('content', ''))
-            break
-
-    question = _prepare_user_question(_build_effective_question(messages, raw_last_user), domain)
-    question, domain, lock_applied, lock_reason = _apply_session_followup_lock(question, domain, session_id)
-    followup_meta = _analyze_followup_entities(messages, question)
+    session_id = shared_extract_session_id_from_request(request)
+    prepared = prepare_chat_request(
+        question=str(request.get('question') or ''),
+        domain=domain,
+        session_id=session_id,
+        messages=messages,
+        session_store=_SESSION_STORE,
+        question_preparer=_prepare_user_question,
+    )
+    raw_last_user = prepared.raw_last_user
+    question = prepared.question
+    domain = prepared.domain
+    lock_applied = prepared.lock_applied
+    lock_reason = prepared.lock_reason
+    followup_meta = prepared.followup_meta
     decision = analyze_route(question, domain)
     configured_models = list_configured_models()
     default_model_id = str(configured_models[0].get('id') or 'typhoon-rag') if configured_models else 'typhoon-rag'
@@ -5294,9 +5301,10 @@ def openai_compatible_endpoint(request: dict):
                 ],
                 "usage": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
             }
-        _remember_session_followup_hint(session_id, question, decision)
+        shared_remember_session_followup_hint(session_id, question, decision, _SESSION_STORE)
+        remember_chat_turn(session_id, raw_last_user, raw_last_user, question, _SESSION_STORE)
 
-        summary_fast = _build_followup_summary_answer(
+        summary_fast = shared_build_followup_summary_answer(
             raw_last_user or question,
             question,
             domain or decision.effective_domain,

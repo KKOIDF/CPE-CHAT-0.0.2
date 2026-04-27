@@ -224,6 +224,72 @@ def post_json(base_url: str, endpoint: str, payload: dict[str, Any], timeout_s: 
         return {}, elapsed_ms, f"{type(exc).__name__}: {exc}"
 
 
+def case_conversation_id(case: dict[str, Any]) -> str:
+    return first_non_empty_str(
+        case.get("conversation_id"),
+        case.get("session_id"),
+        case.get("thread_id"),
+    )
+
+
+def case_turn_index(case: dict[str, Any], fallback_order: int) -> int:
+    raw = case.get("turn_index")
+    if raw is None or raw == "":
+        return int(fallback_order)
+    try:
+        return int(raw)
+    except Exception:
+        return int(fallback_order)
+
+
+def sort_cases_for_execution(cases: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    indexed_cases = [(idx, case) for idx, case in enumerate(cases) if isinstance(case, dict)]
+    first_seen: dict[str, int] = {}
+    for idx, case in indexed_cases:
+        cid = case_conversation_id(case)
+        if cid and cid not in first_seen:
+            first_seen[cid] = idx
+
+    def _sort_key(item: tuple[int, dict[str, Any]]) -> tuple[int, int, int]:
+        idx, case = item
+        cid = case_conversation_id(case)
+        if not cid:
+            return (idx, 0, idx)
+        return (first_seen.get(cid, idx), 1, case_turn_index(case, idx))
+
+    ordered = sorted(indexed_cases, key=_sort_key)
+    return [case for _, case in ordered]
+
+
+def build_chat_messages(history: list[dict[str, str]], question: str) -> list[dict[str, str]]:
+    messages = [dict(msg) for msg in (history or []) if isinstance(msg, dict)]
+    messages.append({"role": "user", "content": str(question or "").strip()})
+    return messages
+
+
+def build_eval_request_payloads(
+    case: dict[str, Any],
+    conversation_history: list[dict[str, str]] | None = None,
+) -> tuple[dict[str, Any], dict[str, Any], str]:
+    question = str(case.get("question") or "").strip()
+    expected_domain_raw = str(case.get("expected_domain") or "").strip().lower()
+    expected_domain = expected_domain_raw if expected_domain_raw else None
+    conversation_id = case_conversation_id(case)
+
+    retrieval_payload: dict[str, Any] = {"question": question}
+    answer_payload: dict[str, Any] = {"question": question, "eval_mode": True}
+    if expected_domain in KNOWN_DOMAINS:
+        retrieval_payload["domain"] = expected_domain
+        answer_payload["domain"] = expected_domain
+
+    if conversation_id:
+        retrieval_payload["session_id"] = conversation_id
+        answer_payload["session_id"] = conversation_id
+        answer_payload["messages"] = build_chat_messages(conversation_history or [], question)
+
+    return retrieval_payload, answer_payload, conversation_id
+
+
 def get_json(base_url: str, endpoint: str, timeout_s: float) -> tuple[dict[str, Any], float, str]:
     url = base_url.rstrip("/") + endpoint
     started = time.perf_counter()
@@ -1288,21 +1354,20 @@ def main() -> int:
 
     results: list[CaseResult] = []
     total = 0
-    planned_cases = [c for c in cases if isinstance(c, dict)]
+    planned_cases = sort_cases_for_execution([c for c in cases if isinstance(c, dict)])
     if args.limit:
         planned_cases = planned_cases[: int(args.limit)]
     planned_total = len(planned_cases)
+    conversation_histories: dict[str, list[dict[str, str]]] = {}
 
     print(
         f"[heartbeat] start total_cases={planned_total} base_url={args.base_url} timeout_s={float(args.timeout):.1f}",
         flush=True,
     )
 
-    for case in cases:
+    for case in planned_cases:
         if args.limit and total >= int(args.limit):
             break
-        if not isinstance(case, dict):
-            continue
 
         total += 1
 
@@ -1316,16 +1381,15 @@ def main() -> int:
             for x in (case.get("expected_domains_any") or [])
             if str(x).strip()
         ]
-
-        retrieval_payload: dict[str, Any] = {"question": question}
-        answer_payload: dict[str, Any] = {"question": question, "eval_mode": True}
-        if expected_domain in KNOWN_DOMAINS:
-            retrieval_payload["domain"] = expected_domain
-            answer_payload["domain"] = expected_domain
+        conversation_id = case_conversation_id(case)
+        retrieval_payload, answer_payload, payload_session_id = build_eval_request_payloads(
+            case,
+            conversation_histories.get(conversation_id, []),
+        )
 
         case_t0 = time.perf_counter()
         print(
-            f"[heartbeat] case_start idx={total}/{planned_total or total} id={cid} category={category} domain={expected_domain or 'auto'}",
+            f"[heartbeat] case_start idx={total}/{planned_total or total} id={cid} category={category} domain={expected_domain or 'auto'} session={payload_session_id or 'none'}",
             flush=True,
         )
 
@@ -1341,6 +1405,12 @@ def main() -> int:
         retrieval_ms = min(float(retrieval_ms), float(total_ms))
 
         answer = str(answer_data.get("answer") or "").strip()
+
+        if conversation_id:
+            history = list(conversation_histories.get(conversation_id) or [])
+            history.append({"role": "user", "content": question})
+            history.append({"role": "assistant", "content": answer})
+            conversation_histories[conversation_id] = history[-12:]
 
         retrieval_contexts = retrieval_data.get("contexts") or []
         answer_contexts = answer_data.get("contexts") or []

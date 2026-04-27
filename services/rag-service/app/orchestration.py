@@ -192,7 +192,7 @@ def _expand_query_for_retry(question: str, domain: str | None) -> str:
 
     dom_hints = {
         'curriculum': 'รายวิชา course code หน่วยกิต วิชาบังคับก่อน ปีที่ ภาคการศึกษา',
-        'regulations': 'ข้อบังคับ ระเบียบ เกณฑ์ เงื่อนไข ประกาศ เครื่องคำนวณ calculator calc อุทธรณ์ appeal ออกจากห้องสอบ leave exam room นาที',
+        'regulations': 'ข้อบังคับ ระเบียบ เกณฑ์ เงื่อนไข ประกาศ เครื่องคำนวณ calculator calc โทรศัพท์ อุปกรณ์สื่อสาร สติกเกอร์ ทุจริต อุทธรณ์ appeal ออกจากห้องสอบ leave exam room นาที',
         'announcements': 'ประกาศ กำหนดการ วันเวลา หมายเหตุ',
     }
     hints = dom_hints.get(dom, 'รายละเอียด เงื่อนไข เอกสารอ้างอิง')

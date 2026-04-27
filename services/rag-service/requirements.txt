@@ -11,6 +11,7 @@ sentencepiece
 bitsandbytes
 neo4j
 python-dotenv
+redis
 
 # LangChain (used optionally via RAG_USE_LANGCHAIN=1)
 langchain-core
