@@ -10,38 +10,50 @@ package "Ingestion Service" as ingestion_container {
     Component(main, "CLI Entry", "main.py", "Batch ingestion CLI\nDomain-aware orchestration")
 
     package "Extraction Layer" as extraction {
-        Component(ocr_pipe, "OCR + Parsing", "ocr_pipeline.py", "ingest_pdf/ingest_excel/ingest_txt\nRecord extraction")
+        Component(ocr_pipe, "Ingest Pipeline", "ocr_pipeline.py", "ingest_pdf/ingest_excel/ingest_txt")
+        Component(extract_pdf, "PDF Extract + OCR", "extract_pdf.py", "MuPDF + Tesseract fallback")
+        Component(extract_excel, "Excel/CSV Extract", "extract_excel.py", "Tabular extraction")
+        Component(ocr_post, "OCR Postprocess", "ocr_postprocess.py", "Thai normalization\nspell correction")
+        Component(validation, "Text Quality Scoring", "validation.py", "OCR quality scoring")
     }
 
     package "Processing Layer" as processing {
-        Component(chunking, "Chunking Engine", "chunking.py", "Paragraph normalization\nDomain-specific chunk strategies")
-        Component(quality_review, "OCR Quality Rules", "quality.py", "Score and flag low-quality OCR text")
+        Component(chunking, "Chunking Engine", "chunking.py", "Paragraph normalization\nDomain-specific chunking")
+        Component(quality_review, "OCR Quality Rules", "quality.py", "Score and flag low-quality text")
     }
 
-    package "Embedding Layer" as embedding {
-        Component(chroma_client, "Embedding + Vector Index", "chroma_client.py", "BGE-M3 embeddings\nUpsert/query Chroma")
+    package "Artifacts Layer" as artifacts {
+        Component(structured_artifacts, "Structured Artifact Builder", "structured_artifacts.py", "Announcement calendar\nPrerequisites/clauses")
     }
 
     package "Storage Layer" as storage {
         Component(toon_conv, "TOON IO", "toon_converter.py\ntoon_format.py", "Serialize records/chunks to TOON")
-        Component(db_client, "SQLite Writer", "db.py", "Persist chunks and quality logs")
-        Component(graph_upsert, "Graph Upsert (Optional)", "neo4j_graph.py", "Curriculum graph projection to Neo4j")
+        Component(db_client, "SQLite Writer", "db.py", "Persist chunks + OCR quality\nFTS index")
+        Component(chroma_client, "Embedding + Vector Index", "chroma_client.py", "BGE-M3 embeddings\nUpsert Chroma")
+        Component(graph_upsert, "Graph Upsert (Optional)", "neo4j_graph.py", "Curriculum graph projection")
     }
 
-    Component(config, "Configuration", "config.py", "Load Settings\nModel Parameters")
+    Component(config, "Configuration", "config.py", "Load settings\nDomain paths")
 }
 
 Rel(main, config, "Loads")
 Rel(main, ocr_pipe, "Routes")
 
-Rel(ocr_pipe, chunking, "Text Output")
+Rel(ocr_pipe, extract_pdf, "PDF path")
+Rel(ocr_pipe, extract_excel, "Tabular path")
+Rel(ocr_pipe, ocr_post, "Postprocess text")
+Rel(extract_pdf, validation, "Quality score")
 
+Rel(ocr_pipe, chunking, "Records")
 Rel(chunking, quality_review, "Quality check")
 Rel(chunking, chroma_client, "Embed + index")
 Rel(chunking, db_client, "Store metadata")
-Rel(chunking, toon_conv, "Convert")
-Rel(toon_conv, db_client, "Load/Save")
+Rel(chunking, toon_conv, "Serialize")
 Rel(chunking, graph_upsert, "Upsert curriculum graph")
+
+Rel(main, structured_artifacts, "Build artifacts")
+
+Rel(toon_conv, db_client, "Load/Save")
 
 Rel(db_client, quality_review, "Persist quality records")
 

@@ -86,6 +86,88 @@ _STUDY_PLAN_ITEM_RE = re.compile(
 
 _STUDY_PLAN_GROUP_CACHE: dict[str, Any] | None = None
 
+_LNG_LANGUAGE_SPECS: tuple[dict[str, tuple[str, ...]], ...] = (
+    {
+        "label": "ภาษาจีน",
+        "hints": ("ภาษาจีน", "จีน", "chinese"),
+    },
+    {
+        "label": "ภาษาญี่ปุ่น",
+        "hints": ("ภาษาญี่ปุ่น", "ญี่ปุ่น", "japanese"),
+    },
+    {
+        "label": "ภาษาเกาหลี",
+        "hints": ("ภาษาเกาหลี", "เกาหลี", "korean"),
+    },
+    {
+        "label": "ภาษาฝรั่งเศส",
+        "hints": ("ภาษาฝรั่งเศส", "ฝรั่งเศส", "french"),
+    },
+    {
+        "label": "ภาษาเยอรมัน",
+        "hints": ("ภาษาเยอรมัน", "เยอรมัน", "german"),
+    },
+    {
+        "label": "ภาษาสเปน",
+        "hints": ("ภาษาสเปน", "สเปน", "spanish"),
+    },
+    {
+        "label": "ภาษามลายู",
+        "hints": ("ภาษามลายู", "มลายู", "malay"),
+    },
+    {
+        "label": "ภาษาเขมร",
+        "hints": ("ภาษาเขมร", "เขมร", "khmer"),
+    },
+    {
+        "label": "ภาษาเวียดนาม",
+        "hints": ("ภาษาเวียดนาม", "เวียดนาม", "vietnamese"),
+    },
+    {
+        "label": "ภาษาพม่า",
+        "hints": ("ภาษาพม่า", "พม่า", "burmese"),
+    },
+    {
+        "label": "ภาษารัสเซีย",
+        "hints": ("ภาษารัสเซีย", "รัสเซีย", "russian"),
+    },
+)
+
+
+def _extract_lng_language_spec(question: str) -> dict[str, tuple[str, ...]] | None:
+    q = (question or "").strip()
+    if not q:
+        return None
+    ql = q.lower()
+    for spec in _LNG_LANGUAGE_SPECS:
+        hints = spec.get("hints") or ()
+        for h in hints:
+            if not h:
+                continue
+            if h.isascii():
+                if h.lower() in ql:
+                    return spec
+            else:
+                if h in q:
+                    return spec
+    return None
+
+
+def _title_has_language_hint(title: str, hints: tuple[str, ...]) -> bool:
+    if not title or not hints:
+        return False
+    tl = title.lower()
+    for h in hints:
+        if not h:
+            continue
+        if h.isascii():
+            if h.lower() in tl:
+                return True
+        else:
+            if h in title:
+                return True
+    return False
+
 
 def _load_study_plan_group_cache() -> dict[str, Any]:
     global _STUDY_PLAN_GROUP_CACHE
@@ -494,6 +576,51 @@ def _format_study_plan_answer(question: str, courses: list[Course], source_name:
         cred = f" ({c.credits} หน่วยกิต)" if c.credits else ""
         lines.append(f"- {c.prefix} {c.number} {c.title_th}{cred} [{source_name}/1]")
     return "\n".join(lines).strip()
+
+
+def _format_course_study_plan_answer(question: str, source_name: str) -> str | None:
+    q = (question or "").strip()
+    codes = list(extract_course_codes(q))
+    if not codes:
+        return None
+
+    ql = q.lower()
+    if not any(t in ql for t in ("วางแผนเรียน", "จบตรงเวลา", "ลงช่วงไหน", "ควรลง", "ปีไหน", "เทอมไหน", "ภาคการศึกษา")):
+        return None
+
+    code = (codes[0] or "").replace(" ", "").upper()
+    if not code:
+        return None
+    subject_disp = f"{code[:3]} {code[3:]}" if len(code) >= 6 else code
+
+    course_hit = _resolve_course_by_code(code)
+    course = course_hit[0] if course_hit else None
+    y_act, t_act = _find_course_year_term(code)
+    prereq_hit = _lookup_prerequisites_from_sqlite(code)
+    prereq_text = "ยังไม่พบข้อมูลยืนยันจากคำอธิบายรายวิชาหรือหลักสูตรล่าสุด"
+    if prereq_hit is not None:
+        prereqs, _src = prereq_hit
+        prereq_text = ", ".join(prereqs) if prereqs else "ไม่มีวิชาบังคับก่อน"
+
+    if y_act is None or t_act is None:
+        return (
+            f"- รายวิชา: {subject_disp} [{source_name}/1]\n"
+            f"- เทอม/ชั้นปีที่อยู่ในแผน: ยังไม่พบข้อมูลยืนยันจากแผนการศึกษาหรือคำอธิบายรายวิชาฉบับล่าสุด [{source_name}/1]\n"
+            f"- เหตุผลจากแผนเรียน: ยังไม่พบตำแหน่งของรายวิชานี้ในแผนการศึกษาที่ค้นได้ [{source_name}/1]\n"
+            f"- วิชาบังคับก่อน: {prereq_text} [{source_name}/1]\n"
+            f"- คำแนะนำการลงทะเบียน: ควรตรวจสอบเอกสารหลักสูตรล่าสุด/แผนการศึกษาล่าสุด และคำอธิบายรายวิชาฉบับล่าสุดก่อนลงทะเบียน [{source_name}/1]\n"
+            f"- ถ้าไม่พบในแผน: ควรตรวจสอบเอกสารหลักสูตรล่าสุด/แผนการศึกษาล่าสุด [{source_name}/1]"
+        )
+
+    title_part = f" {course.title_th}" if course and course.title_th else ""
+    return (
+        f"- รายวิชา: {subject_disp}{title_part} [{source_name}/1]\n"
+        f"- เทอม/ชั้นปีที่อยู่ในแผน: ชั้นปีที่ {y_act} ภาคการศึกษาที่ {t_act} [{source_name}/1]\n"
+        f"- เหตุผลจากแผนเรียน: รายวิชานี้ปรากฏในแผนการศึกษาของหลักสูตรที่ชั้นปีที่ {y_act} ภาคการศึกษาที่ {t_act} [{source_name}/1]\n"
+        f"- วิชาบังคับก่อน: {prereq_text} [{source_name}/1]\n"
+        f"- คำแนะนำการลงทะเบียน: ควรลงตามแผนการศึกษาในชั้นปีที่ {y_act} ภาคการศึกษาที่ {t_act} และตรวจสอบเงื่อนไขการเปิดสอน/วิชาบังคับก่อนอีกครั้งก่อนลงทะเบียน [{source_name}/1]\n"
+        f"- ถ้าไม่พบในแผน: ให้ตรวจสอบเอกสารหลักสูตรล่าสุด/แผนการศึกษาล่าสุด [{source_name}/1]"
+    )
 
 
 def _lookup_instructors_for_course(code: str) -> tuple[list[tuple[str, str]], bool, bool]:
@@ -1435,6 +1562,15 @@ def structured_curriculum_lookup(question: str) -> dict[str, Any]:
                 "miss_reason": "",
             }
 
+    if not instructor_intent:
+        study_plan_course_answer = _format_course_study_plan_answer(q, source_name)
+        if study_plan_course_answer:
+            return {
+                "answer": study_plan_course_answer,
+                "lookup_mode": "study_plan_course",
+                "miss_reason": "",
+            }
+
     # Category totals lookup.
     if "หน่วยกิต" in q or "กี่กิต" in q:
         if any(t in q for t in ("หมวดวิชาศึกษาทั่วไป", "วิชาศึกษาทั่วไป", "ศึกษาทั่วไป")):
@@ -1753,6 +1889,57 @@ def structured_curriculum_lookup(question: str) -> dict[str, Any]:
             }
         if explicit_followup and followup_codes:
             return {"answer": None, "lookup_mode": "none", "miss_reason": "no_exact_match"}
+
+    # List LNG courses for a specific language (e.g., LNG ภาษาจีน).
+    lang_spec = _extract_lng_language_spec(q)
+    pref_hint = _extract_prefix_from_question(q)
+    lng_signal = (pref_hint or "").upper() == "LNG" or ("lng" in q.lower())
+    if lang_spec and lng_signal and (not codes) and (not instructor_intent) and (not prereq_intent):
+        hints = lang_spec.get("hints") or ()
+        lang_label = str(lang_spec.get("label") or "").strip()
+
+        from_canonical = [
+            c
+            for c in all_courses.values()
+            if (c.prefix or "").upper() == "LNG" and _title_has_language_hint(c.title_th, hints)
+        ]
+        if from_canonical:
+            items = sorted(from_canonical, key=lambda c: int(c.number))
+            lines: list[str] = []
+            label = f" {lang_label}" if lang_label else ""
+            lines.append(f"รายวิชา LNG{label} ที่พบในโดเมนหลักสูตร (curriculum):")
+            lines.append(f"- พบทั้งหมด {len(items)} วิชา [{source_name}/1]")
+            for c in items:
+                cred = f" ({c.credits} หน่วยกิต)" if c.credits else ""
+                lines.append(f"- {c.prefix} {c.number} {c.title_th}{cred} [{source_name}/1]")
+            return {"answer": "\n".join(lines).strip(), "lookup_mode": "lng_language_list", "miss_reason": ""}
+
+        sqlite_path = domain_sqlite_path("curriculum")
+        ids = keyword_search("รายวิชา: LNG", limit=600, sqlite_path=sqlite_path)
+        if not ids:
+            ids = keyword_search("LNG", limit=600, sqlite_path=sqlite_path)
+        docs = fetch_docs_with_path(ids, sqlite_path=sqlite_path)
+        bank: dict[str, Course] = {}
+        sources: list[str] = []
+        for d in docs:
+            if d.get("source") and d.get("source") not in sources:
+                sources.append(str(d.get("source")))
+            for c in extract_courses_from_text(d.get("text") or "", prefix_filter="LNG"):
+                if _title_has_language_hint(c.title_th, hints):
+                    bank.setdefault(c.code, c)
+
+        if bank:
+            items = sorted(bank.values(), key=lambda c: int(c.number))
+            lines2: list[str] = []
+            label = f" {lang_label}" if lang_label else ""
+            lines2.append(f"รายวิชา LNG{label} ที่พบในโดเมนหลักสูตร (curriculum):")
+            lines2.append(f"- พบทั้งหมด {len(items)} วิชา")
+            for c in items:
+                cred = f" ({c.credits} หน่วยกิต)" if c.credits else ""
+                lines2.append(f"- {c.prefix} {c.number} {c.title_th}{cred}")
+            if sources:
+                lines2.append(f"\nแหล่งอ้างอิง (ตัวอย่าง): {', '.join(sources[:3])}")
+            return {"answer": "\n".join(lines2).strip(), "lookup_mode": "lng_language_list", "miss_reason": ""}
 
     # Full required CPE list.
     required = format_required_cpe_answer(q)

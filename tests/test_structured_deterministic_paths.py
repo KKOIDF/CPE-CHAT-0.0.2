@@ -48,6 +48,14 @@ class TestStructuredDeterministicPaths(unittest.TestCase):
         self.assertIn("LNG 120 ภาษาอังกฤษทั่วไป", answer)
         self.assertIn("CPE 401 โครงงานวิศวกรรมคอมพิวเตอร์ 1", answer)
 
+    def test_curriculum_course_study_plan_lookup_returns_term_and_guidance(self) -> None:
+        result = structured_curriculum_lookup("ถ้าผมจะวางแผนเรียนให้จบตรงเวลา CPE 100 ควรลงช่วงไหนของแผนเรียน")
+        answer = str(result.get("answer") or "")
+        self.assertEqual(result.get("lookup_mode"), "study_plan_course")
+        self.assertIn("CPE 100", answer)
+        self.assertIn("เทอม/ชั้นปีที่อยู่ในแผน", answer)
+        self.assertIn("คำแนะนำการลงทะเบียน", answer)
+
     def test_fetch_exam_clause_uses_structured_artifact(self) -> None:
         clause = fetch_exam_clause("12")
         self.assertIsNotNone(clause)
@@ -62,6 +70,20 @@ class TestStructuredDeterministicPaths(unittest.TestCase):
         self.assertIn("สิบห้านาที", answer)
         self.assertIn("หกสิบนาที", answer)
         self.assertIn("ยื่นคำร้อง", answer)
+
+    def test_structured_regulations_lookup_handles_appeal_procedure_eval_variant(self) -> None:
+        result = structured_regulations_lookup('ถ้าเกิดเคส "อยากอุทธรณ์ผลการพิจารณาความผิดระหว่างสอบ" ขอขั้นตอนแบบทีละข้อหน่อย')
+        answer = str(result.get("answer") or "")
+        self.assertIn("ระเบียบการสอบ", answer)
+        self.assertIn("15 วัน", answer)
+        self.assertIn("คำร้องอุทธรณ์", answer)
+
+    def test_structured_regulations_lookup_handles_cheating_penalty_eval_variant(self) -> None:
+        result = structured_regulations_lookup('ถ้าเกิดเคส "สงสัยเรื่องบทลงโทษกรณีทุจริตสอบ" ขอขั้นตอนแบบทีละข้อหน่อย')
+        answer = str(result.get("answer") or "")
+        self.assertIn("ระเบียบการสอบ", answer)
+        self.assertIn("ทุจริต", answer)
+        self.assertIn("คณะกรรมการพิจารณาความผิด", answer)
 
 
 if __name__ == "__main__":

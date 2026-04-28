@@ -16,17 +16,21 @@ LAYOUT_WITH_LEGEND()
 title C1 - CPE CHAT System Context Diagram
 
 actor "User" as user
-rectangle "CPE CHAT System\nfor Document Intelligence" as cpe_system
+rectangle "CPE CHAT System\nDomain-aware RAG system" as cpe_system
 
-actor "Administrator" as admin
+actor "Operator" as admin
 
-rectangle "External Document Sources\nPDF, Excel, Images" as external_docs
-rectangle "LLM Service\n(Typhoon/OpenAI-compatible API)" as llm
+rectangle "Document Sources\nPDF/TXT/XLSX/CSV" as external_docs
+rectangle "LLM Providers\nOllama / Typhoon\nOpenAI-compatible API" as llm
+rectangle "OCR Engines (Optional)\nMuPDF/Tesseract\nor Typhoon OCR API" as ocr
+rectangle "Neo4j Graph DB (Optional)\nCurriculum graph RAG" as neo4j
 
-Rel(user, cpe_system, "Uses")
-Rel(admin, cpe_system, "Manages")
+Rel(user, cpe_system, "Chats and asks questions")
+Rel(admin, cpe_system, "Runs ingestion and evaluation")
 Rel(cpe_system, external_docs, "Ingests")
-Rel(cpe_system, llm, "Queries")
+Rel(cpe_system, llm, "Generates answers via")
+Rel(cpe_system, ocr, "OCR for scanned PDFs")
+Rel(cpe_system, neo4j, "Graph lookup (optional)")
 
 @enduml
 
@@ -48,47 +52,50 @@ update this C2 diagram in the same PR.
 end note
 
 actor "User" as user
-actor "Administrator" as admin
+actor "Operator" as admin
 
 package "Client Layer" as client_boundary {
     rectangle "OpenWeb-UI\n[OpenWeb-UI]\nChat UI (OpenAI-compatible client)" as web_app
 }
 
 package "Backend Services" as backend_boundary {
-    package "Ingestion Service" as ingestion_svc_boundary {
-        rectangle "Ingestion Pipeline (Offline)\n[Python CLI]\nBatch ingest/index job" as ingestion_api
-    }
-    
-    package "RAG Service" as rag_svc_boundary {
-        rectangle "RAG Query Engine\n[Python/FastAPI]\nOpenAI-compatible /v1 API\nRetrieval + Generation" as rag_api
-    }
-
-    rectangle "MLflow\n[Tracking/Observability]\nExperiment tracking and request telemetry" as mlflow
+    rectangle "RAG Service\n[Python/FastAPI]\nOpenAI-compatible /v1 API\nRetrieval + Generation" as rag_api
+    rectangle "Ingestion Pipeline (Offline)\n[Python CLI]\nBatch ingest/index job\nscripts/ingest_*.sh" as ingestion_api
+    rectangle "MLflow (Optional)\n[Tracking/Observability]\nTracing + metrics" as mlflow
 }
 
 package "Data Layer" as data_boundary {
-    database "Vector Database\n[Chroma]\nEmbeddings & Chunks" as vector_db
-    database "SQL Database\n[SQLite/Postgres]\nRecords & Sessions" as sql_db
-    database "File Storage\n[Local/Cloud]\nOriginal & Processed Files" as file_storage
+    database "Vector Index\n[Chroma]\nEmbeddings per domain" as vector_db
+    database "Keyword Index\n[SQLite FTS]\nChunks + metadata" as sqlite_db
+    database "Structured Artifacts\n[JSON files]\nAnnouncement calendar\nPrerequisites/clauses" as structured_store
+    database "Raw/Processed Files\n[Local volume]\nPDF/TXT/XLSX + TOON outputs" as file_storage
+    database "Session Store\n[Redis]\nChat follow-up memory (TTL)" as session_store
 }
 
-rectangle "LLM Provider\nTyphoon/OpenAI-compatible API" as external_llm
-rectangle "OCR Service\nTyphoon OCR / Google Vision" as external_ocr
+rectangle "LLM Providers\nOllama / Typhoon\nOpenAI-compatible API" as external_llm
+rectangle "OCR Engines (Optional)\nMuPDF/Tesseract\nor Typhoon OCR API" as external_ocr
+rectangle "Neo4j Graph DB (Optional)\nCurriculum graph RAG" as neo4j
 
 Rel(user, web_app, "Uses", "HTTP/WebSocket")
 Rel(admin, web_app, "Uses", "HTTP/WebSocket")
+Rel(admin, ingestion_api, "Runs", "CLI/Batch")
 
-Rel(web_app, rag_api, "Calls", "HTTP/REST (OpenAI-compatible /v1)")
+Rel(web_app, rag_api, "Calls", "HTTP/REST (/v1)")
 
-Rel(ingestion_api, vector_db, "Stores Embeddings")
-Rel(ingestion_api, sql_db, "Stores Metadata")
-Rel(ingestion_api, file_storage, "Stores Documents")
-Rel(ingestion_api, external_ocr, "OCR Processing")
+Rel(ingestion_api, vector_db, "Stores embeddings")
+Rel(ingestion_api, sqlite_db, "Stores chunks + metadata")
+Rel(ingestion_api, structured_store, "Writes artifacts")
+Rel(ingestion_api, file_storage, "Reads/writes documents")
+Rel(ingestion_api, external_ocr, "OCR processing")
+Rel(ingestion_api, neo4j, "Graph upsert (optional)")
 
-Rel(rag_api, vector_db, "Queries Embeddings")
-Rel(rag_api, sql_db, "Queries Metadata")
-Rel(rag_api, external_llm, "Generates Responses")
-Rel(rag_api, mlflow, "Logs traces and metrics")
+Rel(rag_api, vector_db, "Semantic search")
+Rel(rag_api, sqlite_db, "Keyword search")
+Rel(rag_api, structured_store, "Reads artifacts")
+Rel(rag_api, session_store, "Follow-up memory")
+Rel(rag_api, external_llm, "Generate responses")
+Rel(rag_api, neo4j, "Graph retrieval (optional)")
+Rel(rag_api, mlflow, "Logs traces/metrics")
 
 @enduml
 
@@ -104,31 +111,52 @@ LAYOUT_WITH_LEGEND()
 title C3 - Ingestion Service Components
 
 package "Ingestion Service" as ingestion_container {
-    Component(ingestion_main, "CLI Entry Point", "main.py", "Batch ingestion CLI\nDomain-aware orchestration")
+    Component(ingestion_main, "CLI Entry", "main.py", "Batch ingestion CLI\nDomain-aware orchestration")
 
-    Component(ocr_pipeline, "OCR Pipeline", "ocr_pipeline.py", "ingest_pdf/ingest_excel/ingest_txt\nRecord extraction")
-    Component(chunking, "Chunking Engine", "chunking.py", "Paragraph normalization\nDomain-specific chunk strategies")
-    Component(quality, "OCR Quality Rules", "quality.py", "Score and flag low-quality OCR text")
+    package "Extraction Layer" as extraction {
+        Component(ocr_pipeline, "Ingest Pipeline", "ocr_pipeline.py", "ingest_pdf/ingest_excel/ingest_txt")
+        Component(extract_pdf, "PDF Extract + OCR", "extract_pdf.py", "MuPDF + Tesseract fallback")
+        Component(extract_excel, "Excel/CSV Extract", "extract_excel.py", "Tabular extraction")
+        Component(ocr_post, "OCR Postprocess", "ocr_postprocess.py", "Thai normalization\nspell correction")
+        Component(validation, "Text Quality Scoring", "validation.py", "OCR quality scoring")
+    }
 
-    Component(db_client, "SQLite Writer", "db.py", "Persist chunks and quality logs")
-    Component(chroma_client, "Embedding + Vector Index", "chroma_client.py", "BGE-M3 embeddings\nUpsert/query Chroma")
-    Component(graph_writer, "Graph Upsert (Optional)", "neo4j_graph.py", "Curriculum graph projection to Neo4j")
+    package "Processing Layer" as processing {
+        Component(chunking, "Chunking Engine", "chunking.py", "Paragraph normalization\nDomain-specific chunking")
+        Component(quality, "OCR Quality Rules", "quality.py", "Score and flag low-quality text")
+    }
 
-    Component(toon_converter, "TOON IO", "toon_converter.py\ntoon_format.py", "Serialize records/chunks to TOON")
-    Component(config, "Configuration", "config.py", "Environment settings\nModel parameters")
+    package "Artifacts Layer" as artifacts {
+        Component(structured_artifacts, "Structured Artifact Builder", "structured_artifacts.py", "Announcement calendar\nPrerequisites/clauses")
+    }
+
+    package "Storage Layer" as storage {
+        Component(db_client, "SQLite Writer", "db.py", "Persist chunks + OCR quality\nFTS index")
+        Component(chroma_client, "Embedding + Vector Index", "chroma_client.py", "BGE-M3 embeddings\nUpsert Chroma")
+        Component(graph_writer, "Graph Upsert (Optional)", "neo4j_graph.py", "Curriculum graph projection")
+        Component(toon_converter, "TOON IO", "toon_converter.py\ntoon_format.py", "Serialize records/chunks to TOON")
+    }
+
+    Component(config, "Configuration", "config.py", "Load settings\nDomain paths")
 }
 
 Rel(ingestion_main, ocr_pipeline, "Uses")
 Rel(ingestion_main, config, "Reads")
+Rel(ingestion_main, structured_artifacts, "Builds artifacts")
 
-Rel(ocr_pipeline, chunking, "Sends Text")
+Rel(ocr_pipeline, extract_pdf, "PDF path")
+Rel(ocr_pipeline, extract_excel, "Tabular path")
+Rel(ocr_pipeline, ocr_post, "Postprocess text")
+Rel(extract_pdf, validation, "Quality score")
+Rel(ocr_pipeline, chunking, "Records")
+
 Rel(chunking, quality, "Checks OCR quality")
 Rel(chunking, db_client, "Stores chunk metadata")
 Rel(chunking, chroma_client, "Embeds + indexes")
-
-Rel(chunking, toon_converter, "Converts")
-Rel(toon_converter, db_client, "Loads/Saves")
 Rel(chunking, graph_writer, "Upserts curriculum graph")
+Rel(chunking, toon_converter, "Serializes")
+
+Rel(toon_converter, db_client, "Loads/Saves")
 Rel(db_client, quality, "Persists quality records")
 
 @enduml
@@ -147,38 +175,76 @@ title C3 - RAG Service Components
 package "RAG Service" as rag_container {
     Component(rag_main, "FastAPI Entry Point", "main.py", "Endpoints: /rag/* and /v1/*\nOpenAI-compatible chat completions")
 
-    Component(orchestration, "Orchestration", "orchestration.py", "rag_query/ rag_query_domain\nStructured + generative path selection")
-    Component(routing, "Routing and Intent", "routing.py", "classify_intent\ninfer_domain\nselect_resolution_strategy")
-    Component(retrieval, "Retrieval Engine", "retrieval.py", "Hybrid retrieval\nRRF fusion\ncontext packing")
-    Component(langchain_flow, "LangChain Path (Optional)", "langchain_rag.py", "Multi-query/re-rank/compression path")
+    package "Session + Normalization" as session_layer {
+        Component(chat_followup, "Session + Follow-up", "chat_followup.py", "Session memory\nFollow-up handling")
+        Component(normalization, "Question Normalization", "normalization.py", "Normalize question\nBuild retrieval queries")
+    }
 
-    Component(chroma_rag, "Vector Search", "chroma_client.py", "Semantic similarity search")
-    Component(metadata_engine, "SQLite Metadata", "sqlite_client.py", "Keyword search + doc metadata")
-    Component(graph_lookup, "Graph Retrieval (Optional)", "neo4j_client.py", "Neo4j connection and graph lookups")
+    package "Routing + Orchestration" as query_layer {
+        Component(orchestration, "Orchestration", "orchestration.py", "Structured + generative path selection")
+        Component(routing, "Routing and Intent", "routing.py", "classify_intent\ninfer_domain\nselect_resolution_strategy")
+        Component(structured_answers, "Structured Answerers", "curriculum_deterministic.py\nregulations_deterministic.py\nannouncement_deterministic.py", "Deterministic answers\nfast paths")
+        Component(structured_schema, "Curriculum Schema", "structured_curriculum.py", "Curriculum structure\ncourse/credit parsing")
+    }
 
-    Component(prompt_builder, "Prompt Builder", "prompting.py + retrieval.py", "Build prompts from packed context and citations")
-    Component(llm_interface, "LLM Engine", "llm.py", "Typhoon/OpenAI/HF runtime\nStreaming + timeout handling")
+    package "Retrieval Layer" as retrieval {
+        Component(retrieval_engine, "Retrieval Engine", "retrieval.py", "Hybrid retrieval\nRRF fusion\nmulti-doc support")
+        Component(chroma_rag, "Vector Search", "chroma_client.py", "Semantic similarity search")
+        Component(metadata_engine, "SQLite Metadata", "sqlite_client.py", "Keyword search + doc metadata")
+        Component(rerank, "Reranking", "rerank.py", "Domain boosts\nsource penalties")
+        Component(context_packing, "Context Packing", "context_packing.py", "Token-budget packing")
+        Component(graph_lookup, "Graph Retrieval (Optional)", "neo4j_client.py", "Neo4j lookup\nrequisite expansion")
+        Component(langchain_flow, "LangChain Path (Optional)", "langchain_rag.py", "Multi-query/re-rank/compression path")
+        Component(artifact_loader, "Structured Artifacts", "structured_artifacts.py", "Announcement calendar\nprerequisites/clauses")
+    }
+
+    package "Generation Layer" as generation {
+        Component(prompt_builder, "Prompt Builder", "prompting.py", "Build prompts from packed context and citations")
+        Component(llm_interface, "LLM Engine", "llm.py", "Ollama/Typhoon/OpenAI-compatible\nStreaming + timeouts")
+    }
+
     Component(observability, "Observability", "mlflow_observability.py", "MLflow request logs\nmetrics and traces")
-
     Component(config_rag, "Configuration", "config.py", "Model settings\nRetrieval parameters")
 }
+
+ComponentDb_Ext(chroma_store, "Chroma Index", "Chroma", "Embeddings per domain")
+ComponentDb_Ext(sqlite_store, "SQLite FTS", "SQLite", "Chunks + metadata")
+ComponentDb_Ext(artifact_store, "Structured Artifacts Store", "JSON files", "Indexed artifacts")
+Component_Ext(neo4j_store, "Neo4j Graph DB (Optional)", "Neo4j", "Curriculum graph")
+Component_Ext(redis_store, "Session Store", "Redis", "Follow-up memory")
+Component_Ext(llm_provider, "LLM Providers", "Ollama / Typhoon\nOpenAI-compatible API", "Generation + rewrite")
 
 Rel(rag_main, orchestration, "Routes request")
 Rel(rag_main, config_rag, "Reads")
 Rel(rag_main, observability, "Publishes metrics")
+Rel(rag_main, chat_followup, "Prepares request")
+Rel(rag_main, normalization, "Normalizes question")
+
+Rel(chat_followup, redis_store, "Session memory")
 
 Rel(orchestration, routing, "Analyzes intent/domain")
-Rel(orchestration, retrieval, "Fetches contexts")
+Rel(orchestration, structured_answers, "Structured fast path")
+Rel(orchestration, structured_schema, "Curriculum schema")
+Rel(orchestration, retrieval_engine, "Fetches contexts")
 Rel(orchestration, prompt_builder, "Builds final prompt")
 Rel(orchestration, llm_interface, "Calls model")
 Rel(orchestration, langchain_flow, "Optional execution path")
 
-Rel(retrieval, chroma_rag, "Vector search")
-Rel(retrieval, metadata_engine, "Keyword/metadata search")
-Rel(retrieval, graph_lookup, "Optional graph evidence")
-Rel(retrieval, prompt_builder, "Provides packed context")
+Rel(structured_answers, artifact_loader, "Loads artifacts")
+
+Rel(retrieval_engine, chroma_rag, "Vector search")
+Rel(retrieval_engine, metadata_engine, "Keyword/metadata search")
+Rel(retrieval_engine, rerank, "Re-rank + fuse")
+Rel(retrieval_engine, context_packing, "Pack context")
+Rel(retrieval_engine, graph_lookup, "Optional graph evidence")
+
+Rel(chroma_rag, chroma_store, "Reads embeddings")
+Rel(metadata_engine, sqlite_store, "Reads chunks")
+Rel(artifact_loader, artifact_store, "Reads JSON")
+Rel(graph_lookup, neo4j_store, "Graph query")
 
 Rel(prompt_builder, llm_interface, "Prompt payload")
+Rel(llm_interface, llm_provider, "Generate responses")
 
 @enduml
 
@@ -218,10 +284,18 @@ package "RAG Service Classes" {
 
     class RouteDecision {
         - normalized_question: str
+        - requested_domain: Optional[str]
         - inferred_domain: Optional[str]
+        - effective_domain: Optional[str]
         - primary_intent: str
+        - is_multi_intent: bool
         - subqueries: List[str]
         - structured_eligible: bool
+        - structured_kind: str
+        - requires_clause_anchor: bool
+        - needs_exact_schema: bool
+        - timeout_policy: str
+        - fallback_policy: str
     }
 
     class ResolutionStrategy {
@@ -243,6 +317,30 @@ package "RAG Service Classes" {
         - required_cpe_wil_only: tuple[Course,...]
     }
 
+    class PreparedChatRequest {
+        - question: str
+        - domain: Optional[str]
+        - session_id: str
+        - messages: List[Dict]
+        - followup_meta: Dict
+    }
+
+    class InMemorySessionStore {
+        + get_chat_history(session_id): List[str]
+        + append_chat_turn(session_id, user_question): None
+        + get_followup_hint(session_id): Dict|None
+        + put_followup_hint(session_id, question, domain, intent): None
+    }
+
+    class RedisSessionStore {
+        - redis_url: str
+        - ttl_seconds: int
+        + get_chat_history(session_id): List[str]
+        + append_chat_turn(session_id, user_question): None
+        + get_followup_hint(session_id): Dict|None
+        + put_followup_hint(session_id, question, domain, intent): None
+    }
+
     class MlflowObservability {
         - _cfg: _Cfg
         - _run_id: Optional[str]
@@ -256,6 +354,7 @@ Rel(TOONEncoder, TOONDecoder, "paired serialization format")
 
 Rel(RouteDecision, ResolutionStrategy, "drives")
 Rel(CurriculumCPE2564, Course, "contains")
+Rel(RedisSessionStore, InMemorySessionStore, "fallback to")
 Rel(MlflowObservability, LLMEngine, "observes runtime behavior")
 
 @enduml

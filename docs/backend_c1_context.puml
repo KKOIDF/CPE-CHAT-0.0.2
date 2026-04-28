@@ -5,19 +5,21 @@ LAYOUT_WITH_LEGEND()
 
 title C1 - CPE CHAT System Context Diagram
 
-Person(user, "User", "Client User\nusing Chat UI")
-System(cpe_system, "CPE CHAT System", "Conversational AI System\nfor Document Intelligence")
+Person(user, "User", "End user using OpenWeb-UI")
+System(cpe_system, "CPE CHAT System", "Domain-aware RAG system\nOpenWeb-UI + RAG Service + Ingestion")
 
-Person(admin, "Administrator", "System Admin\nManaging Content")
+Person(admin, "Operator", "Admin/Operator\nIngest + Evaluate")
 
-System_Ext(external_docs, "External Document Sources", "PDF, Excel, Images")
-System_Ext(llm, "LLM Service", "Typhoon/OpenAI-compatible API")
-System_Ext(ocr, "OCR Service", "Typhoon OCR / Google Vision")
+System_Ext(external_docs, "Document Sources", "PDF/TXT/XLSX/CSV")
+System_Ext(llm, "LLM Providers", "Ollama / Typhoon\nOpenAI-compatible API")
+System_Ext(ocr, "OCR Engines (Optional)", "MuPDF/Tesseract\nor Typhoon OCR API")
+System_Ext(neo4j, "Neo4j Graph DB (Optional)", "Curriculum graph RAG")
 
-Rel(user, cpe_system, "Uses")
-Rel(admin, cpe_system, "Manages")
-Rel(cpe_system, external_docs, "Ingests Documents")
-Rel(cpe_system, llm, "Queries for Answers")
-Rel(cpe_system, ocr, "Uses for scanned documents")
+Rel(user, cpe_system, "Chats and asks questions")
+Rel(admin, cpe_system, "Runs ingestion and evaluation")
+Rel(cpe_system, external_docs, "Ingests documents")
+Rel(cpe_system, llm, "Generates answers via")
+Rel(cpe_system, ocr, "OCR for scanned PDFs")
+Rel(cpe_system, neo4j, "Graph lookup (optional)")
 
 @enduml

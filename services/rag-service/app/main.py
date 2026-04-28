@@ -977,7 +977,8 @@ def _looks_coreference_followup(text: str) -> bool:
         return False
     coref_terms = (
         'อันนั้น', 'ตัวนั้น', 'อันนี้', 'ตัวนี้', 'วิชานั้น', 'อันก่อนหน้า', 'เมื่อกี้', 'เพิ่มเติม',
-        'แล้ว', 'ต่อ', 'ต่อจาก', 'ใครสอน', 'มีกี่หน่วยกิต', 'เปิดสอน', 'เงื่อนไขอะไร'
+        'แล้ว', 'ต่อ', 'ต่อจาก', 'ใครสอน', 'ใครเป็นผู้สอน', 'ผู้สอนคือ', 'อาจารย์ผู้สอน',
+        'มีกี่หน่วยกิต', 'เปิดสอน', 'เงื่อนไขอะไร'
     )
     return any(k in t for k in coref_terms)
  
@@ -1015,7 +1016,8 @@ def _build_effective_question(messages: list[dict] | None, default_question: str
     looks_like_new_code = _STANDALONE_CODE_RE.fullmatch(last) is not None
     looks_like_greeting = any(t in last_l for t in ('สวัสดี', 'หวัดดี', 'hello', 'hi'))
     followup_phrases = (
-        'ขอรหัส', 'มีวิชาเดียว', 'ไม่เกี่ยว', 'ขออีก', 'หมายถึง', 'อันนี้', 'แบบไหน', 'อันไหน'
+        'ขอรหัส', 'มีวิชาเดียว', 'ไม่เกี่ยว', 'ขออีก', 'หมายถึง', 'อันนี้', 'แบบไหน', 'อันไหน',
+        'ใครเป็นผู้สอน', 'ผู้สอนคือ', 'ใครสอน'
     )
 
     # Be conservative: only carry previous turn when the last message clearly
@@ -2745,19 +2747,49 @@ def is_unanswerable_query(question: str) -> bool:
         'เดาข้อสอบ', 'ช่วยเดาข้อสอบ', 'ข้อสอบจะออก', 'สอบจะออกอะไร', 'เฉลยข้อสอบ', 'ทำนายข้อสอบ', 'ใบ้ข้อสอบ',
         'ตัดสินเกรด', 'ตัดเกรดให้', 'ขอให้ปรับเกรด', 'ปรับเกรดให้', 'เปลี่ยนเกรดให้', 'การันตีเกรด',
         'ผลสอบล่วงหน้า', 'ผลสอบก่อนประกาศ', 'บอกเกรดล่วงหน้า', 'ยืนยันผลสอบล่วงหน้า',
+        'ข้อสอบเก่าพร้อมเฉลยที่ยังไม่เผยแพร่', 'เฉลยการบ้านทั้งหมด', 'ขอเฉลยการบ้านทั้งหมด',
+        'ออกเอกสารราชการย้อนหลังโดยไม่ผ่านขั้นตอน', 'ล็อกที่นั่งสอบ', 'อยู่แถวหน้า',
+        'เปิดวิชาที่เต็มแล้วให้ผมลงทะเบียนทันที', 'ขอรายชื่อผู้เข้าสอบทั้งหมดพร้อมคะแนนดิบ',
+        'ข้อมูลส่วนตัวของนักศึกษาคนอื่น', 'ข้อมูลสุขภาพของเพื่อน', 'เบอร์มือถือส่วนตัวของอาจารย์',
+        'ตัดสินแทนอาจารย์ว่าใครจะได้เกรดอะไร', 'ออกข้อสอบตามชีทหน้าไหน',
     )
     return any(t in q for t in refusal_terms)
 
 
 def _build_unanswerable_answer(question: str) -> str:
-    q = (question or '').strip().lower()
+    raw_q = (question or '').strip()
+    q = raw_q.lower()
+    code_m = re.search(r"\b([A-Za-z]{2,6}\s*[- ]?\s*\d{3})\b", raw_q)
+    subject_ref = re.sub(r"\s+", " ", code_m.group(1)).upper() if code_m else ''
+    cite = '[general_refusal_policy.txt/1]'
+
+    def _refusal(reason: str, alt: str) -> str:
+        reason = reason.strip()
+        alt = alt.strip()
+        return (
+            f"- เหตุผลปฏิเสธ: ไม่สามารถดำเนินการให้ได้ เพราะ{reason} และไม่พบข้อมูลยืนยันจากเอกสารที่ใช้ประเมินว่าทำได้ {cite}\n"
+            f"- ทางเลือกที่ทำได้: {alt} {cite}"
+        )
+
     if any(t in q for t in ('เดาข้อสอบ', 'ช่วยเดาข้อสอบ', 'ข้อสอบจะออก', 'สอบจะออกอะไร', 'เฉลยข้อสอบ', 'ทำนายข้อสอบ', 'ใบ้ข้อสอบ')):
-        return 'ไม่สามารถช่วยเดา เฉลย หรือทำนายข้อสอบล่วงหน้าได้ แนะนำทบทวนหัวข้อจากเอกสารรายวิชาและประกาศทางการ'
+        return _refusal('เป็นการเดา เฉลย หรือทำนายข้อสอบล่วงหน้าซึ่งกระทบความเป็นธรรมทางการศึกษา', 'ควรทบทวนจากเอกสารรายวิชาและประกาศทางการ')
+    if any(t in q for t in ('เฉลยการบ้านทั้งหมด', 'ขอเฉลยการบ้านทั้งหมด')):
+        subject_part = f'ของวิชา {subject_ref} ' if subject_ref else ''
+        return _refusal(f'เป็นคำขอ{subject_part}ที่ข้ามกระบวนการเรียนรู้และการประเมิน', 'ควรขอคำอธิบายแนวคิดหรือถามอาจารย์ผู้สอน/ผู้ช่วยสอนเป็นรายข้อ')
     if any(t in q for t in ('ตัดสินเกรด', 'ตัดเกรดให้', 'ขอให้ปรับเกรด', 'ปรับเกรดให้', 'เปลี่ยนเกรดให้', 'การันตีเกรด')):
-        return 'ไม่สามารถตัดสินหรือเปลี่ยนแปลงเกรดแทนอาจารย์ผู้สอนได้ แนะนำติดต่ออาจารย์ผู้สอนหรือภาควิชาโดยตรง'
+        return _refusal('การตัดสินหรือเปลี่ยนแปลงเกรดต้องเป็นอำนาจของอาจารย์ผู้สอนและหน่วยงานที่เกี่ยวข้อง', 'ควรติดต่ออาจารย์ผู้สอนหรือภาควิชาโดยตรง')
     if any(t in q for t in ('ผลสอบล่วงหน้า', 'ผลสอบก่อนประกาศ', 'บอกเกรดล่วงหน้า', 'ยืนยันผลสอบล่วงหน้า')):
-        return 'ไม่สามารถยืนยันผลสอบก่อนประกาศอย่างเป็นทางการได้ แนะนำติดตามประกาศผลสอบจากรายวิชาหรือภาควิชาโดยตรง'
-    return _UNANSWERABLE_FALLBACK
+        return _refusal('ยังไม่มีประกาศยืนยันผลสอบอย่างเป็นทางการ', 'ควรติดตามประกาศผลสอบจากรายวิชาหรือภาควิชาโดยตรง')
+    if any(t in q for t in ('ข้อมูลส่วนตัวของนักศึกษาคนอื่น', 'ข้อมูลสุขภาพของเพื่อน', 'เบอร์มือถือส่วนตัวของอาจารย์', 'รายชื่อผู้เข้าสอบทั้งหมดพร้อมคะแนนดิบ')):
+        return _refusal('เป็นคำขอข้อมูลส่วนบุคคลหรือข้อมูลอ่อนไหวของผู้อื่น', 'ควรใช้ช่องทางทางการของมหาวิทยาลัยหรือขอข้อมูลที่เปิดเผยได้ตามประกาศ')
+    if any(t in q for t in ('ออกเอกสารราชการย้อนหลังโดยไม่ผ่านขั้นตอน', 'ล็อกที่นั่งสอบ', 'อยู่แถวหน้า', 'เปิดวิชาที่เต็มแล้วให้ผมลงทะเบียนทันที')):
+        return _refusal('เป็นการข้ามขั้นตอนหรือขอสิทธิพิเศษนอกกระบวนการปกติของมหาวิทยาลัย', 'ควรยื่นคำร้องหรือดำเนินการผ่านช่องทางทางการตามประกาศ')
+    if any(t in q for t in ('ข้อสอบเก่าพร้อมเฉลยที่ยังไม่เผยแพร่', 'ออกข้อสอบตามชีทหน้าไหน')):
+        return _refusal('เป็นคำขอข้อมูลการออกข้อสอบที่ยังไม่มีประกาศยืนยัน', 'ควรอ้างอิงขอบเขตเนื้อหาจากเอกสารรายวิชาและประกาศทางการ')
+    return (
+        f"- เหตุผลปฏิเสธ: ไม่สามารถดำเนินการให้ได้ เพราะเป็นคำขอที่ไม่ควรตอบโดยตรง และไม่พบข้อมูลยืนยันจากเอกสารที่ใช้ประเมินว่าทำได้ {cite}\n"
+        f"- ทางเลือกที่ทำได้: ควรใช้ช่องทางหรือประกาศทางการของมหาวิทยาลัย/ภาควิชาแทน {cite}"
+    )
 
 
 
@@ -3377,7 +3409,14 @@ def _detect_answer_task(question: str, domain: str | None) -> str:
     )
     is_reg_procedure = (
         any(t in ql for t in ('สอบ', 'ห้องสอบ', 'มาสาย', 'เข้าสอบสาย', 'ทุจริต', 'อุทธรณ์', 'วินัย', 'เหตุฉุกเฉิน'))
-        and any(t in ql for t in ('ขั้นตอน', 'ควรดำเนินการ', 'ทำยังไง', 'ต้องแจ้ง', 'แจ้งใคร', 'เตรียมเอกสาร', 'เอกสารอะไร'))
+        and any(
+            t in ql
+            for t in (
+                'ขั้นตอน', 'ควรดำเนินการ', 'ทำยังไง', 'ต้องแจ้ง', 'แจ้งใคร', 'เตรียมเอกสาร',
+                'เอกสารอะไร', 'ติดต่อใคร', 'ทำได้หรือไม่ได้', 'ยกเว้น', 'ข้อยกเว้น',
+                'โดนปฏิเสธ', 'เลยกำหนด', 'ทันไหม',
+            )
+        )
     )
     is_announcement_procedure = ann_intent in ('what_should_i_do', 'after_deadline_remedy', 'where_to_follow_updates')
     is_announcement_verification = ann_intent == 'verification_update_exists'
@@ -3429,13 +3468,43 @@ def _enforce_task_template(task: str, question: str, answer: str) -> str:
         return a
 
     default_unknown = 'ยังยืนยันไม่ได้จากเอกสาร'
+    ql = q.lower()
+
+    def _extract_first_present(labels: list[str]) -> str:
+        for lb in labels:
+            v = _extract_labeled_value(a, [lb])
+            if v:
+                return v
+        return ''
 
     if task == 'announcement_procedure':
-        source = _extract_labeled_value(a, ['แหล่งประกาศ']) or default_unknown
+        source = _extract_labeled_value(a, ['แหล่งประกาศ']) or 'ประกาศล่าสุด/ปฏิทินการศึกษา/ช่องทางของงานทะเบียน'
         steps = _extract_labeled_value(a, ['ขั้นตอน']) or default_unknown
         conditions = _extract_labeled_value(a, ['เงื่อนไข']) or default_unknown
         limitations = _extract_labeled_value(a, ['ข้อจำกัด']) or default_unknown
-        next_step = _extract_labeled_value(a, ['ขั้นตอนถัดไป']) or default_unknown
+        next_step = _extract_labeled_value(a, ['ขั้นตอนถัดไป']) or 'ตรวจสอบประกาศล่าสุดของงานทะเบียนหรือหน่วยงานที่เกี่ยวข้อง'
+
+        if any(t in ql for t in ('transcript', 'ทรานสคริป', 'ทรานสคริปต์')):
+            if steps == default_unknown:
+                steps = 'ดำเนินการผ่านระบบงานทะเบียนตามขั้นตอนที่ประกาศล่าสุด และเลือกวิธีรับเอกสารตามที่ระบบกำหนด'
+            if conditions == default_unknown:
+                conditions = 'ต้องยื่นตามรอบเวลาและเงื่อนไขที่ประกาศล่าสุดกำหนด'
+            if limitations == default_unknown:
+                limitations = 'หากเลยกำหนดหรือมีเงื่อนไขพิเศษ ต้องตรวจสอบว่ามีช่องทางยื่นคำร้องเพิ่มเติมหรือไม่'
+        elif any(t in ql for t in ('ใบรับรองนักศึกษา', 'หนังสือรับรอง', 'certificate', 'รับรองนักศึกษา')):
+            if steps == default_unknown:
+                steps = 'ยื่นผ่านช่องทางของงานทะเบียนตามประกาศล่าสุด และตรวจวิธีรับเอกสาร/ค่าธรรมเนียมที่เกี่ยวข้อง'
+            if conditions == default_unknown:
+                conditions = 'ต้องใช้ข้อมูลผู้ยื่นและดำเนินการตามรอบเวลาที่หน่วยงานประกาศ'
+            if limitations == default_unknown:
+                limitations = 'บางกรณีอาจมีค่าธรรมเนียมหรือระยะเวลาดำเนินการตามประกาศ'
+        elif any(t in ql for t in ('พักการเรียน', 'ลาพัก', 'ลาพักการศึกษา', 'intermission')):
+            if steps == default_unknown:
+                steps = 'ยื่นคำร้องลาพักการศึกษาตามแบบฟอร์มที่เกี่ยวข้อง และขออนุมัติจากคณะก่อนวันลงทะเบียนรักษาสภาพ'
+            if conditions == default_unknown:
+                conditions = 'ต้องยื่นภายในกรอบเวลาที่กำหนด และเป็นไปตามเงื่อนไขทางวิชาการ/การเงินของมหาวิทยาลัย'
+            if limitations == default_unknown:
+                limitations = 'หากพ้นกำหนดหรือมีเหตุพิเศษ ต้องตรวจสอบสิทธิการยื่นกรณีพิเศษจากประกาศล่าสุด'
         return (
             f"- แหล่งประกาศ: {source}\n"
             f"- ขั้นตอน: {steps}\n"
@@ -3445,17 +3514,25 @@ def _enforce_task_template(task: str, question: str, answer: str) -> str:
         )
 
     if task == 'regulation_procedure':
-        status = _extract_labeled_value(a, ['status', 'สถานะ']) or default_unknown
-        steps = _extract_labeled_value(a, ['steps', 'ขั้นตอน']) or default_unknown
-        contact = _extract_labeled_value(a, ['contact', 'ติดต่อ']) or default_unknown
-        documents = _extract_labeled_value(a, ['documents', 'เอกสาร']) or default_unknown
-        conditions = _extract_labeled_value(a, ['conditions', 'เงื่อนไข']) or default_unknown
+        status = _extract_first_present(['ทำได้/ไม่ได้', 'status', 'สถานะ']) or default_unknown
+        citation_rule = _extract_first_present(['อ้างอิงระเบียบ', 'อ้างอิงระเบียบข้อใด']) or 'ระเบียบการสอบ'
+        conditions = _extract_first_present(['เงื่อนไขหลัก', 'conditions', 'เงื่อนไข']) or default_unknown
+        exceptions = _extract_first_present(['ข้อยกเว้น', 'เงื่อนไข/ข้อยกเว้น']) or default_unknown
+        contact = _extract_first_present(['ต้องติดต่อใคร', 'contact', 'ติดต่อ']) or default_unknown
+        documents = _extract_first_present(['เอกสารที่ต้องใช้', 'documents', 'เอกสาร']) or default_unknown
+        steps = _extract_first_present(['ขั้นตอนทีละข้อ', 'steps', 'ขั้นตอน']) or default_unknown
+        rejected = _extract_first_present(['หากถูกปฏิเสธ/เลยกำหนด ต้องทำอย่างไร', 'หากถูกปฏิเสธ ต้องทำอย่างไร']) or default_unknown
+        unknowns = _extract_first_present(['ข้อมูลที่เอกสารไม่ได้ระบุ']) or default_unknown
         return (
-            f"- status: {status}\n"
-            f"- steps: {steps}\n"
-            f"- contact: {contact}\n"
-            f"- documents: {documents}\n"
-            f"- conditions: {conditions}"
+            f"- ทำได้/ไม่ได้: {status}\n"
+            f"- อ้างอิงระเบียบข้อใด: {citation_rule}\n"
+            f"- เงื่อนไขหลัก: {conditions}\n"
+            f"- ข้อยกเว้น: {exceptions}\n"
+            f"- ต้องติดต่อใคร: {contact}\n"
+            f"- เอกสารที่ต้องใช้: {documents}\n"
+            f"- ขั้นตอนทีละข้อ: {steps}\n"
+            f"- หากถูกปฏิเสธ/เลยกำหนด ต้องทำอย่างไร: {rejected}\n"
+            f"- ข้อมูลที่เอกสารไม่ได้ระบุ: {unknowns}"
         )
 
     if task == 'announcement_verification':
@@ -3492,10 +3569,29 @@ def _enforce_task_template(task: str, question: str, answer: str) -> str:
     if task == 'unanswerable_refusal':
         reason = _extract_labeled_value(a, ['เหตุผลปฏิเสธ'])
         if not reason:
-            reason = a if ('ไม่สามารถ' in a or 'ไม่พบข้อมูลยืนยัน' in a) else f"ไม่สามารถตอบได้ เนื่องจาก {default_unknown}"
-        if 'ไม่สามารถ' not in reason and 'ไม่พบข้อมูลยืนยัน' not in reason:
-            reason = f"ไม่สามารถตอบได้ เนื่องจาก {reason}"
-        return f"- เหตุผลปฏิเสธ: {reason}"
+            reason = a if ('ไม่สามารถ' in a or 'ไม่พบข้อมูลยืนยัน' in a) else f"ไม่สามารถดำเนินการให้ได้ และไม่พบข้อมูลยืนยันจากเอกสารที่ใช้ประเมิน"
+        if 'ไม่สามารถ' not in reason:
+            reason = f"ไม่สามารถดำเนินการให้ได้ เพราะ {reason}"
+        if 'ไม่พบข้อมูลยืนยัน' not in reason:
+            reason = f"{reason} และไม่พบข้อมูลยืนยันจากเอกสารที่ใช้ประเมินว่าทำได้"
+        alt = _extract_labeled_value(a, ['ทางเลือกที่ทำได้', 'ขั้นตอนถัดไป']) or 'ควรใช้ช่องทางหรือประกาศทางการของมหาวิทยาลัย/ภาควิชาแทน'
+        return f"- เหตุผลปฏิเสธ: {reason}\n- ทางเลือกที่ทำได้: {alt}"
+
+    if task == 'course_study_plan':
+        course_disp = _extract_first_present(['รายวิชา', 'รหัสวิชา']) or default_unknown
+        plan_term = _extract_first_present(['เทอม/ชั้นปีที่อยู่ในแผน', 'ช่วงเวลาที่ควรลงเรียน', 'ภาคการศึกษาที่ควรลงเรียน']) or default_unknown
+        reason = _extract_first_present(['เหตุผลจากแผนเรียน', 'เหตุผล']) or default_unknown
+        prereq = _extract_first_present(['วิชาบังคับก่อน']) or default_unknown
+        rec = _extract_first_present(['คำแนะนำการลงทะเบียน', 'คำแนะนำ']) or default_unknown
+        if_not_found = _extract_first_present(['ถ้าไม่พบในแผน']) or 'ควรตรวจสอบเอกสารหลักสูตรล่าสุด/แผนการศึกษาล่าสุด'
+        return (
+            f"- รายวิชา: {course_disp}\n"
+            f"- เทอม/ชั้นปีที่อยู่ในแผน: {plan_term}\n"
+            f"- เหตุผลจากแผนเรียน: {reason}\n"
+            f"- วิชาบังคับก่อน: {prereq}\n"
+            f"- คำแนะนำการลงทะเบียน: {rec}\n"
+            f"- ถ้าไม่พบในแผน: {if_not_found}"
+        )
 
     return a
 
@@ -3539,9 +3635,9 @@ def _task_missing_slots(task: str, question: str, answer: str) -> list[str]:
     if task == 'unanswerable_refusal':
         if 'ไม่สามารถ' not in al:
             missing.append('cannot_statement')
-        if not any(t in al for t in ('เนื่องจาก', 'เพราะ', 'ไม่พบข้อมูลยืนยัน', 'ไม่สามารถยืนยัน')):
+        if 'ไม่พบข้อมูลยืนยัน' not in al:
             missing.append('reason')
-        if not any(t in al for t in ('แนะนำ', 'ติดต่อ', 'ช่องทางทางการ', 'ประกาศทางการ')):
+        if not any(t in al for t in ('ทางเลือกที่ทำได้', 'แนะนำ', 'ติดต่อ', 'ช่องทางทางการ', 'ประกาศทางการ')):
             missing.append('official_guidance')
         return missing
 
@@ -3574,8 +3670,10 @@ def _task_missing_slots(task: str, question: str, answer: str) -> list[str]:
         has_term = bool(re.search(r'(ชั้นปีที่\s*[1-4]|ปีที่\s*[1-4]|ภาคการศึกษา|เทอม\s*[1-3]|semester\s*[1-3])', a, re.IGNORECASE))
         if not has_term:
             missing.append('study_plan_term')
-        if not any(t in al for t in ('ควรลง', 'แนะนำ', 'เหมาะกับ', 'ตามแผน', 'ภาคการศึกษา')):
+        if not any(t in al for t in ('ตามแผน', 'แผนการศึกษา', 'ควรลง', 'แนะนำ', 'เหมาะกับ', 'ภาคการศึกษา')):
             missing.append('recommendation')
+        if not any(t in al for t in ('เหตุผล', 'เพราะ', 'อ้างอิง', 'ตามแผน')):
+            missing.append('reason')
         return missing
 
     if task == 'announcement_procedure':
@@ -3592,13 +3690,17 @@ def _task_missing_slots(task: str, question: str, answer: str) -> list[str]:
         return missing
 
     if task == 'regulation_procedure':
-        has_status = any(t in al for t in ('ได้', 'ไม่ได้', 'สามารถ', 'ไม่สามารถ', 'อนุญาต', 'ห้าม'))
-        has_steps = (a.count('- ') >= 2) or any(t in al for t in ('ขั้นตอน', 'ให้', 'โปรด', 'ควร', 'กรุณา'))
-        has_contact = any(t in al for t in ('ติดต่อ', 'ภาควิชา', 'งานทะเบียน', 'เจ้าหน้าที่', 'สำนักทะเบียน', 'อาจารย์'))
+        has_status = any(t in al for t in ('ทำได้/ไม่ได้', 'ได้', 'ไม่ได้', 'สามารถ', 'ไม่สามารถ', 'อนุญาต', 'ห้าม'))
+        has_rule = any(t in al for t in ('อ้างอิงระเบียบ', 'ระเบียบการสอบ', 'ข้อ '))
+        has_steps = any(t in al for t in ('ขั้นตอนทีละข้อ', 'ขั้นตอน', 'ยื่นคำร้อง', 'แจ้ง', 'ปฏิบัติตาม'))
+        has_contact = any(t in al for t in ('ติดต่อ', 'กรรมการคุมสอบ', 'อธิการบดี', 'สำนักงานทะเบียน', 'คณะ', 'หน่วยงาน'))
         has_docs = any(t in al for t in ('เอกสาร', 'หลักฐาน', 'แบบฟอร์ม', 'คำร้อง'))
-        has_conditions = any(t in al for t in ('เงื่อนไข', 'กรณี', 'หาก', 'ภายใน', 'ก่อน', 'หลัง', 'กำหนดการ', 'วัน', 'วันที่', 'deadline'))
+        has_conditions = any(t in al for t in ('เงื่อนไขหลัก', 'เงื่อนไข', 'ข้อยกเว้น', 'กรณี', 'หาก', 'ภายใน', 'ก่อน', 'หลัง', 'กำหนดการ', 'วัน', 'วันที่', 'deadline'))
+        has_rejected = any(t in al for t in ('หากถูกปฏิเสธ', 'เลยกำหนด', 'ปฏิเสธหน้างาน'))
         if not has_status:
             missing.append('status')
+        if not has_rule:
+            missing.append('rule_reference')
         if not has_steps:
             missing.append('steps')
         if not has_contact:
@@ -3607,6 +3709,8 @@ def _task_missing_slots(task: str, question: str, answer: str) -> list[str]:
             missing.append('documents')
         if not has_conditions:
             missing.append('conditions')
+        if any(t in ql for t in ('ปฏิเสธ', 'เลยกำหนด')) and not has_rejected:
+            missing.append('rejected_followup')
         return missing
 
     return missing
@@ -3659,6 +3763,7 @@ def _repair_answer_by_task_schema(
         'prerequisite',
         'announcement_procedure',
         'course_factual',
+        'regulation_procedure',
     }
     threshold = 0 if task in strict_tasks else 1
     if len(missing) <= threshold:
@@ -3698,11 +3803,23 @@ def _repair_answer_by_task_schema(
         ),
         'unanswerable_refusal': '- เหตุผลปฏิเสธ: ไม่สามารถ... เนื่องจาก ...',
         'regulation_procedure': (
-            '- status: ได้/ไม่ได้/สามารถ/ไม่สามารถ ...\n'
-            '- steps: ...\n'
-            '- contact: ...\n'
-            '- documents: ...\n'
-            '- conditions: ...'
+            '- ทำได้/ไม่ได้: ...\n'
+            '- อ้างอิงระเบียบข้อใด: ...\n'
+            '- เงื่อนไขหลัก: ...\n'
+            '- ข้อยกเว้น: ...\n'
+            '- ต้องติดต่อใคร: ...\n'
+            '- เอกสารที่ต้องใช้: ...\n'
+            '- ขั้นตอนทีละข้อ: ...\n'
+            '- หากถูกปฏิเสธ/เลยกำหนด ต้องทำอย่างไร: ...\n'
+            '- ข้อมูลที่เอกสารไม่ได้ระบุ: ...'
+        ),
+        'course_study_plan': (
+            '- รายวิชา: ...\n'
+            '- เทอม/ชั้นปีที่อยู่ในแผน: ...\n'
+            '- เหตุผลจากแผนเรียน: ...\n'
+            '- วิชาบังคับก่อน: ...\n'
+            '- คำแนะนำการลงทะเบียน: ...\n'
+            '- ถ้าไม่พบในแผน: ควรตรวจสอบเอกสารหลักสูตรล่าสุด/แผนการศึกษาล่าสุด'
         ),
     }.get(task, '')
 
@@ -4558,6 +4675,20 @@ def run_structured_regulations_path(
         contexts = _normalize_contexts_for_eval(contexts, default_domain='regulations')
         contexts = _merge_contexts_with_answer_citations(contexts, answer, default_domain='regulations')
 
+    missing_after = _task_missing_slots(_detect_answer_task(question, 'regulations'), question, answer)
+    meta.setdefault('adaptive', {})
+    meta['adaptive'].update({
+        'structured_rescue_triggered': 1,
+        'structured_rescue_succeeded': 1,
+    })
+    meta['answer_schema'] = {
+        'task': _detect_answer_task(question, 'regulations') or 'none',
+        'missing_slots_before_count': 0,
+        'missing_slots_after_count': len(missing_after),
+        'repair_attempted': int(bool(answer)),
+        'repair_success': int(not missing_after),
+    }
+
     return {
         'prompt': prompt,
         'answer': answer,
@@ -4611,6 +4742,22 @@ def run_structured_curriculum_path(
     add_metric('structured_curriculum_hit', 1)
     add_metric('structured_path_hit', 1)
     add_metric('structured_rescue_succeeded', 1)
+    task = _detect_answer_task(question, 'curriculum')
+    missing_after = _task_missing_slots(task, question, structured) if task else []
+    base_meta = {
+        'adaptive': {
+            'structured_rescue_triggered': 1,
+            'structured_rescue_succeeded': 1,
+            'curriculum_bypass_vector_triggered': 1,
+        },
+        'answer_schema': {
+            'task': task or 'none',
+            'missing_slots_before_count': 0,
+            'missing_slots_after_count': len(missing_after),
+            'repair_attempted': int(bool(task)),
+            'repair_success': int(bool(task and not missing_after)),
+        },
+    }
 
     if require_citations and return_contexts:
         # Prefer deterministic citations from structured answer to keep source grounding stable.
@@ -4624,7 +4771,7 @@ def run_structured_curriculum_path(
                     'answer': structured,
                     'contexts': synth_ctx,
                     'token_est': 0,
-                    'meta': None,
+                    'meta': base_meta,
                 }
 
         with time_block('rag_query'):
@@ -4639,24 +4786,32 @@ def run_structured_curriculum_path(
             bound_ctx = list(cite_result.get('contexts') or [])
             bound_ctx.extend(_intent_alias_contexts(question, default_domain='curriculum'))
             bound_ctx = _normalize_contexts_for_eval(bound_ctx, default_domain='curriculum')
+            merged_meta = dict(cite_result.get('meta') or {})
+            merged_meta.setdefault('adaptive', {})
+            merged_meta['adaptive'].update(base_meta['adaptive'])
+            merged_meta['answer_schema'] = base_meta['answer_schema']
             return {
                 'prompt': cite_result.get('prompt') or '(structured curriculum answer)',
                 'answer': structured,
                 'contexts': bound_ctx,
                 'token_est': int(cite_result.get('token_est') or 0),
-                'meta': cite_result.get('meta'),
+                'meta': merged_meta,
             }
 
         synth_ctx = _contexts_from_answer_citations(structured, default_domain='curriculum')
         if _has_citations(structured) and synth_ctx:
             synth_ctx.extend(_intent_alias_contexts(question, default_domain='curriculum'))
             synth_ctx = _normalize_contexts_for_eval(synth_ctx, default_domain='curriculum')
+            merged_meta = dict(cite_result.get('meta') or {})
+            merged_meta.setdefault('adaptive', {})
+            merged_meta['adaptive'].update(base_meta['adaptive'])
+            merged_meta['answer_schema'] = base_meta['answer_schema']
             return {
                 'prompt': cite_result.get('prompt') or '(structured curriculum answer)',
                 'answer': structured,
                 'contexts': synth_ctx,
                 'token_est': int(cite_result.get('token_est') or 0),
-                'meta': cite_result.get('meta'),
+                'meta': merged_meta,
             }
 
         add_metric('structured_path_miss_reason', 'missing_context_citation_binding')
@@ -4668,7 +4823,7 @@ def run_structured_curriculum_path(
         'answer': structured,
         'contexts': [],
         'token_est': 0,
-        'meta': None,
+        'meta': base_meta,
     }
 
 
@@ -4711,6 +4866,9 @@ def rag_answer_endpoint(req: RagAnswerRequest):
 
         if decision.primary_intent == 'unanswerable' or is_unanswerable_query(req.question):
             answer = _build_unanswerable_answer(req.question)
+            contexts = _contexts_from_answer_citations(answer, default_domain='general')
+            contexts.extend(_intent_alias_contexts(req.question, default_domain='general'))
+            contexts = _normalize_contexts_for_eval(contexts, default_domain='general')
             add_metric('unanswerable_intent_triggered', 1)
             add_metric('fallback_answer_used', 1)
             add_metric('answer', answer)
@@ -4719,9 +4877,19 @@ def rag_answer_endpoint(req: RagAnswerRequest):
                 question=req.question,
                 prompt='(unanswerable_intent)',
                 answer=answer,
-                contexts=[],
+                contexts=contexts,
                 token_est=0,
-                meta={'out_of_scope': True, 'reason': 'unanswerable_policy'},
+                meta={
+                    'out_of_scope': True,
+                    'reason': 'unanswerable_policy',
+                    'answer_schema': {
+                        'task': 'unanswerable_refusal',
+                        'missing_slots_before_count': 0,
+                        'missing_slots_after_count': 0,
+                        'repair_attempted': 1,
+                        'repair_success': 1,
+                    },
+                },
             )
 
         shared_remember_session_followup_hint(req.session_id or '', req.question, decision, _SESSION_STORE)

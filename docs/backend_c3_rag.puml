@@ -13,43 +13,75 @@ title C3 - RAG Service Component Diagram
 package "RAG Service" as rag_container {
     Component(main, "FastAPI Entry Point", "main.py", "Endpoints: /rag/* and /v1/*\nOpenAI-compatible chat completions")
     
-    package "Query Processing Layer" as query_layer {
-        Component(orchestration, "Orchestration", "orchestration.py", "rag_query/rag_query_domain\nStructured + generative path selection")
+    package "Session + Normalization" as session_layer {
+        Component(chat_followup, "Session + Follow-up", "chat_followup.py", "Session memory\nFollow-up handling")
+        Component(normalization, "Question Normalization", "normalization.py", "Normalize question\nBuild retrieval queries")
+    }
+
+    package "Routing + Orchestration" as query_layer {
+        Component(orchestration, "Orchestration", "orchestration.py", "Structured + generative path selection")
         Component(routing, "Routing and Intent", "routing.py", "classify_intent\ninfer_domain\nselect_resolution_strategy")
+        Component(structured_answers, "Structured Answerers", "curriculum_deterministic.py\nregulations_deterministic.py\nannouncement_deterministic.py", "Deterministic answers\nfast paths")
+        Component(structured_schema, "Curriculum Schema", "structured_curriculum.py", "Curriculum structure\ncourse/credit parsing")
     }
     
     package "Retrieval Layer" as retrieval {
-        Component(chroma_rag, "Vector Search", "chroma_client.py", "Semantic Similarity\nFind Relevant Chunks")
-        Component(meta_filter, "SQLite Metadata", "sqlite_client.py", "Keyword search\nDocument metadata")
-        Component(retrieval_engine, "Retrieval Engine", "retrieval.py", "Hybrid retrieve\nRRF fusion\nContext packing")
-        Component(graph_lookup, "Graph Retrieval (Optional)", "neo4j_client.py", "Neo4j connection\nGraph evidence")
+        Component(retrieval_engine, "Retrieval Engine", "retrieval.py", "Hybrid retrieval\nRRF fusion\nmulti-doc support")
+        Component(chroma_rag, "Vector Search", "chroma_client.py", "Semantic similarity")
+        Component(meta_filter, "SQLite Metadata", "sqlite_client.py", "Keyword search + metadata")
+        Component(rerank, "Reranking", "rerank.py", "Domain boosts\nsource penalties")
+        Component(context_packing, "Context Packing", "context_packing.py", "Token-budget packing")
+        Component(graph_lookup, "Graph Retrieval (Optional)", "neo4j_client.py", "Neo4j lookup\nrequisite expansion")
         Component(langchain_flow, "LangChain Path (Optional)", "langchain_rag.py", "Multi-query/re-rank/compression")
+        Component(artifact_loader, "Structured Artifacts", "structured_artifacts.py", "Announcement calendar\nprerequisites/clauses")
     }
     
     package "Generation Layer" as generation {
-        Component(prompt_build, "Prompt Builder", "prompting.py + retrieval.py", "Construct prompts\nAdd packed context and citations")
-        Component(llm_call, "LLM Engine", "llm.py", "Typhoon/OpenAI/HF runtime\nStreaming + timeout handling")
+        Component(prompt_build, "Prompt Builder", "prompting.py", "Construct prompts\nAdd context and citations")
+        Component(llm_call, "LLM Engine", "llm.py", "Ollama/Typhoon/OpenAI-compatible\nStreaming + timeouts")
     }
     
     Component(observability, "Observability", "mlflow_observability.py", "MLflow request logs\nmetrics and traces")
-    Component(config, "Configuration", "config.py", "Load Settings\nModel Config")
+    Component(config, "Configuration", "config.py", "Load settings\nModel config")
 }
 
+ComponentDb_Ext(chroma_store, "Chroma Index", "Chroma", "Embeddings per domain")
+ComponentDb_Ext(sqlite_store, "SQLite FTS", "SQLite", "Chunks + metadata")
+ComponentDb_Ext(artifact_store, "Structured Artifacts Store", "JSON files", "Indexed artifacts")
+Component_Ext(neo4j_store, "Neo4j Graph DB (Optional)", "Neo4j", "Curriculum graph")
+Component_Ext(redis_store, "Session Store", "Redis", "Follow-up memory")
+Component_Ext(llm_provider, "LLM Providers", "Ollama / Typhoon\nOpenAI-compatible API", "Generation + rewrite")
+
 Rel(main, config, "Loads")
+Rel(main, chat_followup, "Prepares request")
+Rel(main, normalization, "Normalizes question")
 Rel(main, orchestration, "Routes")
 Rel(main, observability, "Publishes metrics")
 
+Rel(chat_followup, redis_store, "Session memory")
+
 Rel(orchestration, routing, "Analyzes intent/domain")
+Rel(orchestration, structured_answers, "Structured fast path")
+Rel(orchestration, structured_schema, "Curriculum schema")
 Rel(orchestration, retrieval_engine, "Fetches contexts")
 Rel(orchestration, prompt_build, "Builds final prompt")
 Rel(orchestration, llm_call, "Calls model")
 Rel(orchestration, langchain_flow, "Optional execution path")
 
+Rel(structured_answers, artifact_loader, "Loads artifacts")
+
 Rel(retrieval_engine, chroma_rag, "Vector search")
 Rel(retrieval_engine, meta_filter, "Keyword/metadata search")
+Rel(retrieval_engine, rerank, "Re-rank + fuse")
+Rel(retrieval_engine, context_packing, "Pack context")
 Rel(retrieval_engine, graph_lookup, "Optional graph evidence")
-Rel(retrieval_engine, prompt_build, "Provides packed context")
+
+Rel(chroma_rag, chroma_store, "Reads embeddings")
+Rel(meta_filter, sqlite_store, "Reads chunks")
+Rel(artifact_loader, artifact_store, "Reads JSON")
+Rel(graph_lookup, neo4j_store, "Graph query")
 
 Rel(prompt_build, llm_call, "Prompt payload")
+Rel(llm_call, llm_provider, "Generate responses")
 
 @enduml

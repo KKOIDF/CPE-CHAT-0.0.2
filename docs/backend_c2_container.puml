@@ -12,7 +12,7 @@ update this C2 diagram in the same PR.
 end note
 
 Person(user, "User", "Client/Browser")
-Person(admin, "Administrator", "Admin User")
+Person(admin, "Operator", "Admin/Operator")
 
 Container_Boundary(client_boundary, "Client Layer") {
     Container(web_app, "OpenWeb-UI", "OpenWeb-UI", "Chat UI\nOpenAI-compatible client")
@@ -20,36 +20,41 @@ Container_Boundary(client_boundary, "Client Layer") {
 
 Container_Boundary(backend_boundary, "Backend Services") {
     Container(rag_api, "RAG Service", "Python/FastAPI", "OpenAI-compatible /v1 API\nRetrieval + Generation")
-    Container(ingestion_job, "Ingestion Pipeline (Offline)", "Python CLI", "Batch ingest/index job\nNot deployed in current docker-compose")
-    Container(mlflow, "MLflow", "Tracking Server", "Observability\nExperiment tracking")
+    Container(ingestion_job, "Ingestion Pipeline (Offline)", "Python CLI", "Batch ingest/index job\nRuns via scripts/ingest_*.sh")
+    Container(mlflow, "MLflow (Optional)", "Tracking Server", "Observability\nTracing + metrics")
 }
 
 Container_Boundary(data_boundary, "Data Layer") {
-    ContainerDb(vector_db, "Vector Database", "Chroma", "Document Embeddings\nSemantic Search Index")
-    
-    ContainerDb(sql_db, "Relational Database", "SQLite/PostgreSQL", "Document Metadata\nUser Sessions\nProcessing Records")
-    
-    ContainerDb(file_storage, "File Storage", "Local/Cloud", "Original Documents\nProcessed Files")
+    ContainerDb(vector_db, "Vector Index", "Chroma", "Embeddings per domain")
+    ContainerDb(sqlite_db, "Keyword Index", "SQLite FTS", "Chunks + metadata per domain")
+    ContainerDb(structured_store, "Structured Artifacts", "JSON files", "Announcement calendar\nPrerequisites/clauses")
+    ContainerDb(file_storage, "Raw/Processed Files", "Local volume", "PDF/TXT/XLSX + TOON outputs")
+    ContainerDb(session_store, "Session Store", "Redis", "Chat follow-up memory (TTL)")
 }
 
-System_Ext(external_llm, "LLM Provider", "Typhoon/OpenAI-compatible\nAPI Service")
-
-System_Ext(external_ocr, "OCR Service", "Typhoon OCR\nGoogle Vision API")
+System_Ext(external_llm, "LLM Providers", "Ollama / Typhoon\nOpenAI-compatible API")
+System_Ext(external_ocr, "OCR Engines (Optional)", "MuPDF/Tesseract\nor Typhoon OCR API")
+System_Ext(neo4j, "Neo4j Graph DB (Optional)", "Curriculum graph RAG")
 
 Rel(user, web_app, "Uses", "HTTP/WebSocket")
-Rel(admin, web_app, "Manages", "HTTP/WebSocket")
+Rel(admin, web_app, "Uses", "HTTP/WebSocket")
+Rel(admin, ingestion_job, "Runs", "CLI/Batch")
 
 Rel(web_app, rag_api, "Calls API", "HTTP/REST (/v1)")
 
-Rel(ingestion_job, vector_db, "Stores Embeddings")
-Rel(ingestion_job, sql_db, "Stores Metadata")
-Rel(ingestion_job, file_storage, "Reads/Writes Documents")
-Rel(ingestion_job, external_ocr, "OCR Processing")
-Rel(admin, ingestion_job, "Runs/controls", "CLI/Batch")
+Rel(ingestion_job, vector_db, "Stores embeddings")
+Rel(ingestion_job, sqlite_db, "Stores chunks + metadata")
+Rel(ingestion_job, structured_store, "Writes artifacts")
+Rel(ingestion_job, file_storage, "Reads/writes documents")
+Rel(ingestion_job, external_ocr, "OCR processing")
+Rel(ingestion_job, neo4j, "Graph upsert (optional)")
 
-Rel(rag_api, vector_db, "Semantic Search")
-Rel(rag_api, sql_db, "Query Metadata")
-Rel(rag_api, external_llm, "Generate Responses")
+Rel(rag_api, vector_db, "Semantic search")
+Rel(rag_api, sqlite_db, "Keyword search")
+Rel(rag_api, structured_store, "Reads artifacts")
+Rel(rag_api, session_store, "Follow-up memory")
+Rel(rag_api, external_llm, "Generate responses")
+Rel(rag_api, neo4j, "Graph retrieval (optional)")
 Rel(rag_api, mlflow, "Logs traces/metrics")
 
 @enduml

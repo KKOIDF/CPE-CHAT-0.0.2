@@ -71,8 +71,14 @@ package "RAG Service" #DFFFE6 {
         - inferred_domain: Optional[str]
         - effective_domain: Optional[str]
         - primary_intent: str
+        - is_multi_intent: bool
         - subqueries: List[str]
         - structured_eligible: bool
+        - structured_kind: str
+        - requires_clause_anchor: bool
+        - needs_exact_schema: bool
+        - timeout_policy: str
+        - fallback_policy: str
     }
 
     class ResolutionStrategy <<Decision>> {
@@ -94,6 +100,30 @@ package "RAG Service" #DFFFE6 {
         - required_cpe_wil_only: tuple[Course,...]
     }
 
+    class PreparedChatRequest <<Data>> {
+        - question: str
+        - domain: Optional[str]
+        - session_id: str
+        - messages: List[Dict]
+        - followup_meta: Dict
+    }
+
+    class InMemorySessionStore <<Core>> {
+        + get_chat_history(session_id): List[str]
+        + append_chat_turn(session_id, user_question): None
+        + get_followup_hint(session_id): Dict|None
+        + put_followup_hint(session_id, question, domain, intent): None
+    }
+
+    class RedisSessionStore <<Core>> {
+        - redis_url: str
+        - ttl_seconds: int
+        + get_chat_history(session_id): List[str]
+        + append_chat_turn(session_id, user_question): None
+        + get_followup_hint(session_id): Dict|None
+        + put_followup_hint(session_id, question, domain, intent): None
+    }
+
     class MlflowObservability <<Observability>> {
         - _cfg: _Cfg
         - _run_id: Optional[str]
@@ -110,6 +140,7 @@ package "RAG Service" #DFFFE6 {
 Rel(TOONEncoder, TOONDecoder, "paired serialization format")
 Rel(RouteDecision, ResolutionStrategy, "drives")
 Rel(CurriculumCPE2564, Course, "contains")
+Rel(RedisSessionStore, InMemorySessionStore, "fallback to")
 Rel(MlflowObservability, LLMEngine, "observes runtime behavior")
 
 @enduml

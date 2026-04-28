@@ -6,11 +6,11 @@ eval-regression:
 
 eval-qball:
 	@echo "Running qball evaluation against data/question_bank_250_general_th.json..."
-	@python3 eval_runner.py --input data/question_bank_250_general_th.json --base-url $${BASE_URL:-http://127.0.0.1:8011} --timeout $${TIMEOUT:-120} --output-prefix qball_ci
+	@python3 eval_runner.py --input data/question_bank_250_general_th.json --base-url $${BASE_URL:-http://127.0.0.1:8001} --timeout $${TIMEOUT:-120} --output-prefix qball_ci
 
 eval-qball-gate:
 	@echo "Running qball evaluation with baseline gate..."
-	@python3 eval_runner.py --input data/question_bank_250_general_th.json --base-url $${BASE_URL:-http://127.0.0.1:8011} --timeout $${TIMEOUT:-120} --output-prefix qball_ci_gate --compare-baseline reports/eval_runner_qball_20260331_155326.json --gate-overall-drop-pct $${GATE_OVERALL_DROP_PCT:-3} --gate-citation-drop-pct $${GATE_CITATION_DROP_PCT:-0} --gate-p95-increase-pct $${GATE_P95_INCREASE_PCT:-25} --gate-protected-categories $${GATE_PROTECTED_CATEGORIES:-curriculum_fact_lookup,regulations}
+	@python3 eval_runner.py --input data/question_bank_250_general_th.json --base-url $${BASE_URL:-http://127.0.0.1:8001} --timeout $${TIMEOUT:-120} --output-prefix qball_ci_gate --compare-baseline reports/eval_runner_qball_20260331_155326.json --gate-overall-drop-pct $${GATE_OVERALL_DROP_PCT:-3} --gate-citation-drop-pct $${GATE_CITATION_DROP_PCT:-0} --gate-p95-increase-pct $${GATE_P95_INCREASE_PCT:-25} --gate-protected-categories $${GATE_PROTECTED_CATEGORIES:-curriculum_fact_lookup,regulations}
 
 eval-qball-compare:
 	@echo "Comparing candidate report against baseline..."
