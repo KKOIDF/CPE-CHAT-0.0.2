@@ -1,6 +1,0 @@
-id,domain,expected_behavior,predicted_behavior,latency_ms,contexts_count,behavior_match,hallucination,false_negative,trace_id
-1,announcements,ANSWER,ANSWER,2988.579,8,1,0,0,
-2,announcements,ANSWER,ANSWER,4009.882,8,1,0,0,
-3,announcements,ANSWER,ANSWER,2159.552,8,1,0,0,
-4,announcements,ANSWER,ANSWER,8526.631,8,1,0,0,
-5,announcements,ANSWER,ANSWER,8561.286,8,1,0,0,

@@ -1,6 +1,0 @@
-id,domain,expected_behavior,predicted_behavior,latency_ms,contexts_count,behavior_match,hallucination,false_negative,trace_id
-1,announcements,ANSWER,ANSWER,3112.311,8,1,0,0,tr-05975920cbc2356afffd300cc372d89c
-2,announcements,ANSWER,ANSWER,3750.575,8,1,0,0,tr-abe1867d8aa052a15d21accc8d6e67d3
-3,announcements,ANSWER,ANSWER,2816.589,8,1,0,0,tr-e446123428e23989be387c32e971e482
-4,announcements,ANSWER,ANSWER,8957.818,8,1,0,0,tr-8629862fca4aedf60715a6aea8767db5
-5,announcements,ANSWER,ANSWER,8173.873,8,1,0,0,tr-2b997ff90cc20751d1bf804227683ce3
