@@ -9,7 +9,8 @@ if str(RAG_SERVICE_ROOT) not in sys.path:
     sys.path.insert(0, str(RAG_SERVICE_ROOT))
 
 from app.chat_followup import InMemorySessionStore, RedisSessionStore, prepare_chat_request  # noqa: E402
-from app.routing import analyze_route  # noqa: E402
+from app.main import _deterministic_domain_shortcut  # noqa: E402
+from app.routing import analyze_route, select_resolution_strategy  # noqa: E402
 
 
 class _FakeRedis:
@@ -208,6 +209,21 @@ class TestChatFollowupPipeline(unittest.TestCase):
 
         self.assertIn("course:CPE 102:3", str(prepared.followup_meta.get("followup_resolved_entity_candidates") or ""))
         self.assertEqual(prepared.followup_meta.get("followup_resolved_entity_type"), "course")
+
+    def test_routing_prefers_full_rag_for_broad_announcement_procedure_questions(self) -> None:
+        decision = analyze_route("การขอ transcript ต้องทำอย่างไร", "announcements")
+        strategy = select_resolution_strategy(decision)
+
+        self.assertEqual(decision.primary_intent, "general_info")
+        self.assertEqual(strategy.resolution_path, "full_rag")
+
+    def test_deterministic_shortcut_only_fires_for_data_backed_announcement_calendar(self) -> None:
+        shortcut = _deterministic_domain_shortcut("นักศึกษาปี 3 รหัส 66 ลงทะเบียนภาค 2/2568 ช่วงวันใด", "announcements")
+        broad = _deterministic_domain_shortcut("การขอ transcript ต้องทำอย่างไร", "announcements")
+
+        self.assertIsNotNone(shortcut)
+        self.assertIn("announcement", str((shortcut or {}).get("answer") or "").lower())
+        self.assertIsNone(broad)
 
     def test_short_summary_followup_uses_session_hint(self) -> None:
         store = InMemorySessionStore()

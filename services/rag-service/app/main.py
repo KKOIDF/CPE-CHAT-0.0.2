@@ -18,7 +18,6 @@ from .perf import request_timing, time_block, add_metric, set_observer
 from .mlflow_observability import init_mlflow_observability
 from .announcement_deterministic import (
     render_fast_announcement_calendar_answer,
-    render_generalized_announcement_answer,
 )
 from .chat_followup import (
     build_followup_summary_answer as shared_build_followup_summary_answer,
@@ -96,118 +95,113 @@ _QUERY_REWRITE_COLLOQUIAL_RE = re.compile(
 _QUERY_REWRITE_PREFIX_RE = re.compile(r"^(?:คำถามที่ปรับแล้ว|rewritten question|rewrite|normalized question)\s*[:：-]\s*", re.IGNORECASE)
 
 
-def _build_general_policy_answer(question: str) -> str | None:
-    q = (question or '').strip()
-    ql = q.lower()
-    cite = '[general_refusal_policy.txt/1]'
-
-    def _wrap(body: str) -> str:
-        return f"- general: ใช้คำตอบทั่วไปจากเอกสารอ้างอิงที่มีอยู่ {cite}\n- {body} {cite}"
-
-    if any(t in ql for t in ('สามารถขอเปิดวิชาเพิ่ม', 'เปิดวิชาเพิ่ม', 'วิชาที่เต็ม', 'เปิดเซคเพิ่ม', 'เปิดกลุ่มเรียนเพิ่ม')):
-        return _wrap('การขอเปิดวิชาเพิ่มหรือเปิดกลุ่มเรียนเพิ่มต้องยื่นผ่านช่องทางของภาควิชา/งานทะเบียน และขึ้นกับจำนวนผู้เรียน อาจารย์ผู้สอน และประกาศที่เกี่ยวข้อง')
-    if any(t in ql for t in ('ลาออกจากรายวิชา', 'ถอนรายวิชาเมื่อไร', 'ถอนรายวิชาได้เมื่อไร')):
-        return _wrap('การลาออกจากรายวิชาหรือการถอนรายวิชาต้องอ้างอิงประกาศล่าสุดของงานทะเบียนและปฏิทินการศึกษาในภาคการศึกษาที่เกี่ยวข้อง')
-    if any(t in ql for t in ('ลืมส่งงาน', 'ส่งงานไม่ทัน', 'ส่งงานช้า')):
-        return _wrap('หากลืมส่งงานควรติดต่ออาจารย์ผู้สอนหรือผู้ช่วยสอนโดยเร็ว พร้อมชี้แจงเหตุผลและตรวจนโยบายรายวิชา')
-    if any(t in ql for t in ('เปลี่ยนหัวข้อโปรเจค', 'เปลี่ยนหัวข้อโครงงาน', 'เปลี่ยนโปรเจค')):
-        return _wrap('การเปลี่ยนหัวข้อโปรเจคควรหารือกับอาจารย์ที่ปรึกษาหรือผู้สอน และดำเนินการตามขั้นตอนที่รายวิชาหรือภาควิชากำหนด')
-    if any(t in ql for t in ('ยื่นเอกสารจบ', 'เอกสารจบ', 'สำเร็จการศึกษา')):
-        return _wrap('กำหนดยื่นเอกสารจบต้องยึดตามประกาศของงานทะเบียนและปฏิทินการศึกษาในภาคการศึกษาที่เกี่ยวข้อง')
-    if any(t in ql for t in ('summer แทน', 'เรียน summer', 'ภาคฤดูร้อน')):
-        return _wrap('การเรียนภาคฤดูร้อนแทนขึ้นกับแผนการเปิดรายวิชา เงื่อนไขหลักสูตร และประกาศลงทะเบียนของภาคการศึกษานั้น')
-    if any(t in ql for t in ('ข้าม prerequisite', 'ข้าม prereq', 'ลงเรียนข้าม', 'วิชาบังคับก่อนยังไม่ผ่าน')):
-        return _wrap('การลงเรียนข้ามวิชาบังคับก่อนทำได้ต่อเมื่อหลักสูตรหรือหน่วยงานที่รับผิดชอบอนุญาตตามขั้นตอนอย่างเป็นทางการ')
-    if any(t in ql for t in ('บุคคลอื่นตัดเกรด', 'ตัดเกรดแทนอาจารย์')):
-        return _wrap('การตัดเกรดเป็นอำนาจหน้าที่ของอาจารย์ผู้สอนและกระบวนการทางวิชาการที่เกี่ยวข้อง ไม่ใช่อำนาจของบุคคลอื่นทั่วไป')
-    if any(t in ql for t in ('สอบตก', 'ติด f', 'ลงใหม่ได้หรือไม่')):
-        return _wrap('หากสอบตกหรือติด F โดยทั่วไปต้องตรวจเงื่อนไขการลงเรียนซ้ำและการเปิดรายวิชาตามหลักสูตรและประกาศลงทะเบียน')
-    if any(t in ql for t in ('สัดส่วนคะแนน', 'คะแนนปลายภาค', 'คะแนนเก็บ')):
-        return _wrap('สัดส่วนคะแนนขึ้นกับแผนการประเมินของแต่ละรายวิชา จึงควรอ้างอิงเอกสารชี้แจงรายวิชาหรือประกาศผู้สอน')
-    return None
-
-
-def _build_curriculum_fallback_answer(question: str) -> str | None:
-    q = (question or '').strip()
-    code_m = re.search(r"\b([A-Za-z]{2,6})\s*[- ]?\s*(\d{3})\b", q)
-    if not code_m:
-        return None
-    code = f"{code_m.group(1).upper()} {code_m.group(2)}"
-    cite = "[foe10_วศ_บ_วิศวกรรมคอมพิวเตอร์_2564.txt/1]"
-    ql = q.lower()
-
-    if any(t in ql for t in ('เป็นวิชาเกี่ยวกับอะไร', 'คือวิชาอะไร', 'มีเนื้อหาอะไร', 'จุดเด่นอะไร', 'สรุปให้เข้าใจง่าย')):
-        return (
-            f"- {code}: ยังไม่พบคำอธิบายรายวิชาแบบละเอียดของ {code} ในเอกสารที่ใช้ประเมิน {cite}\n"
-            f"- คำอธิบายรายวิชา: ควรตรวจสอบเอกสารคำอธิบายรายวิชาฉบับล่าสุดของภาควิชา {cite}\n"
-            f"- หลักสูตรล่าสุด: ควรตรวจสอบหลักสูตรล่าสุดหรือประกาศรายวิชาฉบับปัจจุบันเพื่อยืนยันรายละเอียด {cite}"
-        )
-    if any(t in ql for t in ('กี่หน่วยกิต', 'หน่วยกิต', 'ชั่วโมงเรียน')):
-        return (
-            f"- {code}: ยังไม่พบข้อมูลหน่วยกิตหรือรูปแบบชั่วโมงเรียนของ {code} ในเอกสารที่ใช้ประเมิน {cite}\n"
-            f"- หลักสูตรล่าสุด: ควรตรวจสอบคำอธิบายรายวิชาฉบับล่าสุดหรือเอกสารหลักสูตรล่าสุดเพิ่มเติม {cite}"
-        )
-    return None
+def _structured_curriculum_result_allowed(cur_result: dict[str, Any]) -> bool:
+    """Allow only data-backed curriculum shortcut results."""
+    if not isinstance(cur_result, dict):
+        return False
+    answer = str(cur_result.get('answer') or '').strip()
+    if not answer:
+        return False
+    if str(cur_result.get('miss_reason') or '').strip():
+        return False
+    lookup_mode = str(cur_result.get('lookup_mode') or '').strip().lower()
+    if lookup_mode in ('', 'none', 'instructor_soft', 'prereq_clarify', 'prereq_exact_miss'):
+        return False
+    return lookup_mode in {
+        'exact_code',
+        'exact_title',
+        'title_reference_text',
+        'study_plan',
+        'study_plan_course',
+        'study_plan_group_list',
+        'sum_credits',
+        'program_metadata',
+        'prereq_exact',
+        'instructor_exact_code',
+        'instructor_course_list',
+        'lng_language_list',
+        'prefix_list',
+    }
 
 
 def _deterministic_domain_shortcut(question: str, domain: str | None = None, resolved_entity: dict[str, Any] | None = None) -> dict[str, Any] | None:
     default_domain = str(domain or '').strip().lower() or 'general'
-    ql = (question or '').strip().lower()
+    shortcut = None
 
-    if is_unanswerable_query(question):
-        answer = _build_unanswerable_answer(question)
-    elif default_domain == 'general':
-        answer = _build_general_policy_answer(question)
-    elif default_domain == 'announcements':
-        answer = render_generalized_announcement_answer(question)
+    if default_domain == 'announcements':
+        answer = _try_fast_announcement_calendar_answer(question, domain=default_domain)
+        if answer:
+            shortcut = {
+                'prompt': '(deterministic_domain_shortcut)',
+                'answer': answer,
+                'contexts': _normalize_contexts_for_eval(
+                    _contexts_from_answer_citations(answer, default_domain=default_domain)
+                    + _intent_alias_contexts(question, default_domain=default_domain),
+                    default_domain=default_domain,
+                ),
+                'token_est': 0,
+                'meta': {
+                    'answer_schema': {
+                        'task': 'announcement_temporal',
+                        'missing_slots_before_count': 0,
+                        'missing_slots_after_count': 0,
+                        'repair_attempted': 0,
+                        'repair_success': 1,
+                    },
+                    'shortcut': f'deterministic_domain:{default_domain}',
+                },
+            }
     elif default_domain == 'curriculum':
         cur = structured_curriculum_lookup(question, resolved_entity=resolved_entity)
-        answer = str(cur.get('answer') or '').strip() or None
-        if not answer:
-            answer = _build_curriculum_fallback_answer(question)
+        if _structured_curriculum_result_allowed(cur):
+            answer = str(cur.get('answer') or '').strip()
+            shortcut = {
+                'prompt': '(deterministic_domain_shortcut)',
+                'answer': answer,
+                'contexts': _normalize_contexts_for_eval(
+                    _contexts_from_answer_citations(answer, default_domain=default_domain)
+                    + _intent_alias_contexts(question, default_domain=default_domain),
+                    default_domain=default_domain,
+                ),
+                'token_est': 0,
+                'meta': {
+                    'answer_schema': {
+                        'task': str(cur.get('lookup_mode') or 'curriculum_fact'),
+                        'missing_slots_before_count': 0,
+                        'missing_slots_after_count': 0,
+                        'repair_attempted': 0,
+                        'repair_success': 1,
+                    },
+                    'shortcut': f'deterministic_domain:{default_domain}',
+                },
+            }
     elif default_domain == 'regulations':
         from .regulations_deterministic import structured_regulations_lookup
         reg = structured_regulations_lookup(question, resolved_entity=resolved_entity)
-        answer = str(reg.get('answer') or '').strip() or None
-    else:
-        answer = None
+        if _structured_regulations_result_allowed(reg):
+            answer = str(reg.get('answer') or '').strip()
+            shortcut = {
+                'prompt': '(deterministic_domain_shortcut)',
+                'answer': answer,
+                'contexts': _normalize_contexts_for_eval(
+                    _contexts_from_answer_citations(answer, default_domain=default_domain)
+                    + _intent_alias_contexts(question, default_domain=default_domain),
+                    default_domain=default_domain,
+                ),
+                'token_est': 0,
+                'meta': {
+                    'answer_schema': {
+                        'task': str(reg.get('lookup_mode') or 'regulations_fact'),
+                        'missing_slots_before_count': 0,
+                        'missing_slots_after_count': 0,
+                        'repair_attempted': 0,
+                        'repair_success': 1,
+                    },
+                    'shortcut': f'deterministic_domain:{default_domain}',
+                },
+            }
 
-    if not answer and any(t in ql for t in ('ลงทะเบียน', 'คำร้อง', 'ทรานสคริปต์', 'transcript', 'ใบรับรองนักศึกษา', 'พักการเรียน', 'add/drop', 'ถอนรายวิชา', 'เปลี่ยน section', 'ระบบลงทะเบียนล่ม')):
-        answer = render_generalized_announcement_answer(question)
-
-    if not answer and any(t in ql for t in ('ระเบียบการสอบ', 'อุทธรณ์', 'ทุจริตสอบ', 'เหตุฉุกเฉินระหว่างสอบ', 'คุมสอบ', 'อุปกรณ์ต้องห้าม', 'เข้าสอบสาย', 'มาสายเข้าสอบ')):
-        from .regulations_deterministic import structured_regulations_lookup
-        reg = structured_regulations_lookup(question, resolved_entity=resolved_entity)
-        answer = str(reg.get('answer') or '').strip() or None
-
-    if not answer and any(t in ql for t in ('กี่หน่วยกิต', 'วิชาอะไร', 'คำอธิบายรายวิชา', 'บังคับก่อน', 'prerequisite', 'สำเร็จการศึกษาต้อง', 'หลักสูตร')):
-        cur = structured_curriculum_lookup(question, resolved_entity=resolved_entity)
-        answer = str(cur.get('answer') or '').strip() or None
-        if not answer:
-            answer = _build_curriculum_fallback_answer(question)
-
-    if not answer:
-        return None
-
-    contexts = _contexts_from_answer_citations(answer, default_domain=default_domain)
-    contexts.extend(_intent_alias_contexts(question, default_domain=default_domain))
-    contexts = _normalize_contexts_for_eval(contexts, default_domain=default_domain)
-    return {
-        'prompt': '(deterministic_domain_shortcut)',
-        'answer': answer,
-        'contexts': contexts,
-        'token_est': 0,
-        'meta': {
-            'answer_schema': {
-                'task': 'none',
-                'missing_slots_before_count': 0,
-                'missing_slots_after_count': 0,
-                'repair_attempted': 0,
-                'repair_success': 0,
-            },
-            'shortcut': f'deterministic_domain:{default_domain}',
-        },
-    }
+    return shortcut
 
 
 def _extract_allowed_cites(prompt: str) -> list[str]:
@@ -4807,10 +4801,25 @@ def _curriculum_consistency_guard(
 
     ql = q.lower()
     has_course_code = bool(re.search(r"\b[A-Za-z]{2,6}\s*[- ]?\s*\d{3}\b", q))
-    curriculum_signal = any(t in q for t in ('หลักสูตร', 'หน่วยกิต', 'บังคับก่อน', 'วิชาบังคับก่อน', 'รหัสวิชา', 'รายวิชา'))
-    fact_signal = any(t in ql for t in ('คือวิชาอะไร', 'กี่หน่วยกิต', 'มีกี่หน่วยกิต', 'prereq', 'prerequisite', 'ต้องผ่าน', 'บังคับก่อน'))
+    has_resolved_course = str((resolved_entity or {}).get('type') or '').strip().lower() == 'course'
+    exact_fact_signal = any(
+        t in ql for t in (
+            'คือวิชาอะไร',
+            'กี่หน่วยกิต',
+            'มีกี่หน่วยกิต',
+            'เรียนเกี่ยวกับอะไร',
+            'คำอธิบายรายวิชา',
+            'prereq',
+            'prerequisite',
+            'ต้องผ่าน',
+            'บังคับก่อน',
+            'วิชาบังคับก่อน',
+        )
+    )
 
-    if not (has_course_code or curriculum_signal or fact_signal):
+    if not exact_fact_signal:
+        return None
+    if not (has_course_code or has_resolved_course):
         return None
     if (domain or '').strip().lower() not in ('', 'curriculum', 'auto', 'regulations') and not has_course_code:
         return None

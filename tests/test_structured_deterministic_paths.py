@@ -84,6 +84,14 @@ class TestStructuredDeterministicPaths(unittest.TestCase):
         self.assertIn("PHY 103", answer)
         self.assertIn("เน้นการประยุกต์ใช้กฎต่างๆ ทางฟิสิกส์", answer)
 
+    def test_curriculum_instructor_name_question_returns_courses_taught(self) -> None:
+        result = structured_curriculum_lookup("## **ดร. ประพงษ์ ปรีชาประพาฬวงศ์ สอนวิชาอะไร**")
+        answer = str(result.get("answer") or "")
+        self.assertEqual(result.get("lookup_mode"), "instructor_course_list")
+        self.assertIn("ประพงษ์", answer)
+        self.assertIn("CPE 100", answer)
+        self.assertIn("CPE 324", answer)
+
     def test_announcement_open_term_answer_mentions_official_calendar(self) -> None:
         answer = render_fast_announcement_calendar_answer("ขออัปเดต วันเปิดภาคการศึกษา ล่าสุดหน่อยครับ")
         self.assertIsNotNone(answer)

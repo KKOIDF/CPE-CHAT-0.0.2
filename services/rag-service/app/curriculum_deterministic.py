@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import json
 import re
 import sqlite3
 from difflib import SequenceMatcher
+from pathlib import Path
 from typing import Any
 from .routing import apply_resolved_entity_context
 
@@ -44,6 +46,7 @@ _PROGRAM_FIELD_ALIASES: dict[str, tuple[str, ...]] = {
 }
 
 _PROGRAM_META_CACHE: dict[str, str] | None = None
+_STAFF_COURSE_RECORDS_CACHE: list[tuple[str, list[tuple[str, str]], str]] | None = None
 
 _COURSE_ALIASES = {
     "introduction to computer engineering": "CPE100",
@@ -79,6 +82,10 @@ _TITLE_STOPWORDS_EN = {
 _TEACHER_ASSIGNMENT_SOURCE_ALLOWLIST = (
     "teacher_profiles_by_course.txt",
     "teacher_profiles_by_course.csv",
+)
+
+_INSTRUCTOR_NAME_RE = re.compile(
+    r"(?:อาจารย์|อ\.|ผศ\.\s*ดร\.|รศ\.\s*ดร\.|ศ\.\s*ดร\.|ผศ\.|รศ\.|ศ\.|ดร\.)\s*([ก-๙A-Za-z]+(?:\s+[ก-๙A-Za-z]+){0,4})"
 )
 
 _STUDY_PLAN_ITEM_RE = re.compile(
@@ -774,6 +781,242 @@ def _lookup_nearby_names_for_course(code: str) -> list[str]:
     return names[:4]
 
 
+def _normalize_instructor_name_key(text: str) -> str:
+    s = str(text or '').strip()
+    if not s:
+        return ''
+    s = re.sub(r"[*_`#\[\]\(\)]", " ", s)
+    s = re.sub(r"(?:อาจารย์|อ\.|ผศ\.\s*ดร\.|รศ\.\s*ดร\.|ศ\.\s*ดร\.|ผศ\.|รศ\.|ศ\.|ดร\.)", " ", s)
+    s = re.sub(r"\s+", " ", s).strip()
+    s = re.sub(r"[^ก-๙A-Za-z]+", "", s)
+    return s.lower()
+
+
+def _extract_instructor_name_candidates(text: str) -> list[str]:
+    txt = re.sub(r"[*_`#\[\]\(\)]", " ", str(text or '').strip())
+    if not txt:
+        return []
+    out: list[str] = []
+    seen: set[str] = set()
+    for m in _INSTRUCTOR_NAME_RE.finditer(txt):
+        name = re.sub(r"\s+", " ", str(m.group(1) or '').strip())
+        if not name:
+            continue
+        name = re.split(
+            r"\s+(?:สอนวิชาอะไร|วิชาที่สอน|มีวิชาอะไรบ้าง|วิชาอะไรบ้าง|คือใคร|คืออะไร|เรียนเกี่ยวกับอะไร|กี่หน่วยกิต)\b",
+            name,
+            maxsplit=1,
+        )[0].strip()
+        key = _normalize_instructor_name_key(name)
+        if not key or key in seen:
+            continue
+        seen.add(key)
+        out.append(name)
+    return out
+
+
+def _name_match_score(target: str, candidate: str) -> float:
+    t_key = _normalize_instructor_name_key(target)
+    c_key = _normalize_instructor_name_key(candidate)
+    if not t_key or not c_key:
+        return 0.0
+    if t_key == c_key:
+        return 1.0
+    if t_key in c_key or c_key in t_key:
+        return 0.95
+    return SequenceMatcher(None, t_key, c_key).ratio()
+
+
+def _lookup_courses_for_instructor(name: str) -> tuple[list[tuple[str, str, str]], str, str]:
+    """Return (courses, canonical_name, cite) for an instructor query."""
+    target = re.sub(r"\s+", " ", str(name or '').strip())
+    target_key = _normalize_instructor_name_key(target)
+    if not target_key:
+        return [], '', ''
+
+    db_path = domain_sqlite_path("curriculum")
+    dids: list[str] = []
+    seen_ids: set[str] = set()
+    search_needles: list[str] = []
+    tokens = [tok for tok in re.split(r"\s+", target) if tok]
+    for needle in (target, target.replace(" ", ""), *(tokens[:2] if len(tokens) >= 2 else tokens[:1])):
+        s = str(needle or '').strip()
+        if not s or s in search_needles:
+            continue
+        search_needles.append(s)
+
+    for needle in search_needles:
+        for did in keyword_search(needle, limit=80, sqlite_path=db_path):
+            if did and did not in seen_ids:
+                dids.append(did)
+                seen_ids.add(did)
+        if len(dids) >= 120:
+            break
+
+    docs = fetch_docs_with_path(dids, sqlite_path=db_path)
+    if not docs:
+        return _lookup_courses_for_instructor_from_records(target)
+
+    best_name = ''
+    best_cite = ''
+    best_score = 0.0
+    course_by_key: dict[str, tuple[str, str, str]] = {}
+
+    for d in docs:
+        txt = str(d.get("text") or "")
+        if not txt:
+            continue
+        src = str(d.get("source") or "").strip() or "curriculum"
+        page = int(d.get("page_start") or 1)
+        cite = f"{src}/{page}"
+
+        for line in txt.splitlines():
+            row = [part.strip() for part in line.split("|")]
+            if len(row) < 2:
+                continue
+
+            row_name = ''
+            courses: list[tuple[str, str]] = []
+            if len(row) >= 6 and re.match(r"^\d+$", row[0] or ''):
+                row_name = row[1]
+                json_blob = next((part for part in row if part.startswith("[{")), "")
+                if json_blob:
+                    try:
+                        items = json.loads(json_blob)
+                    except Exception:
+                        items = []
+                    if isinstance(items, list):
+                        for item in items:
+                            if not isinstance(item, dict):
+                                continue
+                            code = str(item.get("code") or "").strip().upper()
+                            title = str(item.get("title") or "").strip()
+                            if code:
+                                courses.append((code, title))
+            elif len(row) >= 5:
+                row_name = row[0]
+                code = str(row[3] or '').strip().upper()
+                title = str(row[4] or '').strip()
+                if re.match(r"^[A-Z]{2,6}\s*\d{3}$", code):
+                    courses.append((code, title))
+
+            if not row_name or not courses:
+                continue
+
+            score = _name_match_score(target, row_name)
+            if score < 0.74:
+                continue
+
+            row_key = _normalize_instructor_name_key(row_name)
+            if score > best_score:
+                best_score = score
+                best_name = row_name
+                best_cite = cite
+                course_by_key = {}
+            if score + 1e-9 < best_score:
+                continue
+            if best_name and row_key != _normalize_instructor_name_key(best_name):
+                continue
+
+            for code, title in courses:
+                norm_code = re.sub(r"\s+", "", code).upper()
+                if norm_code and norm_code not in course_by_key:
+                    code_disp = f"{norm_code[:3]} {norm_code[3:]}" if len(norm_code) >= 6 else code
+                    course_by_key[norm_code] = (code_disp, title, cite)
+
+    ordered = sorted(
+        course_by_key.values(),
+        key=lambda item: (item[0].split()[0], int(re.sub(r"[^0-9]", "", item[0]) or "0")),
+    )
+    if ordered:
+        return ordered, best_name, best_cite
+    return _lookup_courses_for_instructor_from_records(target)
+
+
+def _lookup_courses_for_instructor_from_records(name: str) -> tuple[list[tuple[str, str, str]], str, str]:
+    target = re.sub(r"\s+", " ", str(name or '').strip())
+    target_key = _normalize_instructor_name_key(target)
+    if not target_key:
+        return [], '', ''
+
+    global _STAFF_COURSE_RECORDS_CACHE
+    if _STAFF_COURSE_RECORDS_CACHE is None:
+        cache: list[tuple[str, list[tuple[str, str]], str]] = []
+        repo_root = Path(__file__).resolve().parents[3]
+        for rel in ("data/db/records.jsonl", "data/db/chunks.jsonl"):
+            path = repo_root / rel
+            if not path.exists():
+                continue
+            try:
+                with path.open("r", encoding="utf-8") as fh:
+                    for line in fh:
+                        try:
+                            obj = json.loads(line)
+                        except Exception:
+                            continue
+                        text = str(obj.get("text") or "")
+                        if '[{"code":' not in text:
+                            continue
+                        source = str(obj.get("source") or Path(rel).name).strip() or Path(rel).name
+                        cite = f"{Path(source).name}/1"
+                        for raw_line in text.splitlines():
+                            row = [part.strip() for part in raw_line.split("|")]
+                            if len(row) < 6 or not re.match(r"^\d+$", row[0] or ''):
+                                continue
+                            row_name = row[1]
+                            json_blob = next((part for part in row if part.startswith("[{")), "")
+                            if not row_name or not json_blob:
+                                continue
+                            try:
+                                items = json.loads(json_blob)
+                            except Exception:
+                                continue
+                            courses: list[tuple[str, str]] = []
+                            if isinstance(items, list):
+                                for item in items:
+                                    if not isinstance(item, dict):
+                                        continue
+                                    code = str(item.get("code") or "").strip().upper()
+                                    title = str(item.get("title") or "").strip()
+                                    if code:
+                                        courses.append((code, title))
+                            if courses:
+                                cache.append((row_name, courses, cite))
+            except Exception:
+                continue
+        _STAFF_COURSE_RECORDS_CACHE = cache
+
+    best_name = ''
+    best_cite = ''
+    best_score = 0.0
+    course_by_key: dict[str, tuple[str, str, str]] = {}
+    for row_name, courses, cite in (_STAFF_COURSE_RECORDS_CACHE or []):
+        score = _name_match_score(target, row_name)
+        if score < 0.74:
+            continue
+        row_key = _normalize_instructor_name_key(row_name)
+        if score > best_score:
+            best_score = score
+            best_name = row_name
+            best_cite = cite
+            course_by_key = {}
+        if score + 1e-9 < best_score:
+            continue
+        if best_name and row_key != _normalize_instructor_name_key(best_name):
+            continue
+        for code, title in courses:
+            norm_code = re.sub(r"\s+", "", code).upper()
+            if norm_code and norm_code not in course_by_key:
+                code_disp = f"{norm_code[:3]} {norm_code[3:]}" if len(norm_code) >= 6 else code
+                course_by_key[norm_code] = (code_disp, title, cite)
+
+    ordered = sorted(
+        course_by_key.values(),
+        key=lambda item: (item[0].split()[0], int(re.sub(r"[^0-9]", "", item[0]) or "0")),
+    )
+    return ordered, best_name, best_cite
+
+
 def _lookup_course_from_sqlite(code: str) -> tuple[Course, str] | None:
     """Best-effort exact course lookup from curriculum SQLite chunks."""
     k = (code or '').replace('-', '').replace(' ', '').upper()
@@ -1014,10 +1257,19 @@ def _lookup_course_description_from_reference_text(code: str) -> tuple[str, str]
         return None
 
     code_re = re.compile(rf"^\s*{re.escape(pref)}\s+{re.escape(num)}\b", re.IGNORECASE)
+    course_title = ''
+    course_hit = load_all_courses_2564().get(f"{pref}{num}")
+    if course_hit:
+        course_title = str(course_hit.title_th or '').strip()
+    title_norm = _normalize_title_query_th(course_title)
     lines = text.splitlines()
     best_desc = ''
     for idx, raw_line in enumerate(lines):
-        if not code_re.search(raw_line):
+        raw_strip = str(raw_line or '').strip()
+        line_norm = _normalize_title_query_th(raw_strip)
+        is_code_anchor = bool(code_re.search(raw_line))
+        is_title_anchor = bool(title_norm and title_norm in line_norm and 'วิชาบังคับก่อน' not in raw_strip)
+        if not (is_code_anchor or is_title_anchor):
             continue
         desc_lines: list[str] = []
         seen_english_title = False
@@ -1672,7 +1924,9 @@ def structured_curriculum_lookup(question: str, resolved_entity: dict[str, Any] 
     """
     raw_q = apply_resolved_entity_context(str(question or "").strip(), resolved_entity)
     q = normalize_question(raw_q)
-    instructor_intent = any(t in q for t in ("ใครสอน", "ผู้สอน", "อาจารย์", "คนสอน"))
+    instructor_intent = any(t in q for t in (
+        "ใครสอน", "ผู้สอน", "อาจารย์", "คนสอน", "สอนวิชาอะไร", "วิชาที่สอน", "มีวิชาอะไรบ้าง", "วิชาอะไรบ้าง"
+    ))
     source_name = "curriculum_sqlite"
     totals: dict[str, int] = {}
     qtype = _classify_curriculum_question_type(q)
@@ -1858,6 +2112,15 @@ def structured_curriculum_lookup(question: str, resolved_entity: dict[str, Any] 
             followup_codes = _codes_in_order(tail)
 
     codes = followup_codes or _codes_in_order(q)
+    instructor_names = _extract_instructor_name_candidates(raw_q or q)
+    if resolved_entity and str(resolved_entity.get("type") or "").strip().lower() == "instructor":
+        val = str(resolved_entity.get("value") or "").strip()
+        if val:
+            resolved_name = re.sub(r"^(?:อาจารย์)\s*", "", val).strip()
+            if resolved_name and _normalize_instructor_name_key(resolved_name):
+                resolved_key = _normalize_instructor_name_key(resolved_name)
+                if all(_normalize_instructor_name_key(n) != resolved_key for n in instructor_names):
+                    instructor_names.append(resolved_name)
     all_courses: dict[str, Course] = {}
     if not instructor_intent:
         all_courses = load_all_courses_2564()
@@ -1930,6 +2193,31 @@ def structured_curriculum_lookup(question: str, resolved_entity: dict[str, Any] 
         relation_hit_any = False
         contact_hit_any = False
         exact_code_hit = 0
+
+        if not codes and instructor_names:
+            for instructor_name in reversed(instructor_names):
+                matched_courses, canonical_name, cite = _lookup_courses_for_instructor(instructor_name)
+                if not matched_courses:
+                    continue
+                display_name = canonical_name or instructor_name
+                out = [f"- {display_name} สอนรายวิชาที่พบในข้อมูล ({len(matched_courses)} วิชา) ได้แก่"]
+                for code_disp, title, course_cite in matched_courses:
+                    if title:
+                        out.append(f"- {code_disp} {title} [{course_cite or cite}]")
+                    else:
+                        out.append(f"- {code_disp} [{course_cite or cite}]")
+                return {
+                    "answer": "\n".join(out).strip(),
+                    "lookup_mode": "instructor_course_list",
+                    "miss_reason": "",
+                    "instructor_lookup_exact_code_hit": 0,
+                    "instructor_lookup_relation_hit": 1,
+                    "instructor_lookup_contact_hit": 0,
+                    "instructor_assignment_candidates_n": len(matched_courses),
+                    "instructor_assignment_confident": 1,
+                    "instructor_assignment_multi_match": 0,
+                    "instructor_assignment_soft_answer_used": 0,
+                }
 
         if not codes:
             matched_code, _mode = _find_best_course_code_by_title(q, all_courses)

@@ -36,13 +36,12 @@ class RouteDecision:
 @dataclass
 class ResolutionStrategy:
     # structured_exact: Must strictly match structure logic, else drop to RAG
-    # structured_fuzzy: Allows partial structure extraction
     # keyword_only: Just boolean keyword lookups
     # multi_intent_split: Split into subqueries and merge answers/contexts
     # multi_intent_structured_or_extract: Multi-intent regulations fact lookup via deterministic/extractive path
     # structured_regulation_form: Deterministic regulations form lookup
     # full_rag: The heavy generative pipeline
-    resolution_path: str  # "structured_exact", "structured_fuzzy", "keyword_only", "multi_intent_split", "multi_intent_structured_or_extract", "structured_regulation_form", "full_rag"
+    resolution_path: str  # "structured_exact", "keyword_only", "multi_intent_split", "multi_intent_structured_or_extract", "structured_regulation_form", "full_rag"
 
 def _extract_course_codes_local(text: str) -> List[str]:
     q = (text or '').strip()
@@ -252,14 +251,23 @@ def analyze_route(question: str, requested_domain: Optional[str] = None, resolve
     # Structured Eligibility evaluation
     use_structured_curriculum = (os.getenv('RAG_USE_STRUCTURED_CURRICULUM', '1') or '1').strip().lower() in ('1', 'true', 'yes', 'on')
     
-    curric_eligible = use_structured_curriculum and (effective_domain in ('curriculum', 'auto')) and primary_intent in (
-        'instructor_lookup', 'credit_lookup', 'prerequisite_lookup', 'curriculum_course_info', 'claim_verification'
+    has_course_entity = bool(entities) or (resolved_type == 'course' and resolved_confidence > 0)
+    has_instructor_entity = bool(resolved_type == 'instructor' and resolved_value and resolved_confidence > 0) or (
+        primary_intent == 'instructor_lookup' and any(t in q for t in ('อาจารย์', 'ผู้สอน', 'ใครสอน', 'สอนวิชาอะไร', 'วิชาที่สอน'))
+    )
+    exact_curriculum_info = primary_intent == 'curriculum_course_info' and has_course_entity
+    exact_claim = primary_intent == 'claim_verification' and (
+        has_course_entity or any(t in q for t in ('รหัสหลักสูตร', 'ภาษาในการเรียนการสอน', 'วิชาบังคับ', 'วิชาเลือก'))
+    )
+    curric_eligible = use_structured_curriculum and (effective_domain in ('curriculum', 'auto')) and (
+        primary_intent in ('credit_lookup', 'prerequisite_lookup')
+        or exact_curriculum_info
+        or has_instructor_entity
+        or exact_claim
     )
     
     structured_regulation_intents = {
         'exam_policy',
-        'academic_status_policy',
-        'registration_policy',
         'regulation_forms',
     }
     reg_eligible = effective_domain in ('regulations', 'auto') and primary_intent in structured_regulation_intents
@@ -336,10 +344,8 @@ def select_resolution_strategy(decision: RouteDecision) -> ResolutionStrategy:
 
     if decision.structured_eligible:
         # Factual lookups must succeed completely (exact schema requirements)
-        if decision.primary_intent in ('credit_lookup', 'prerequisite_lookup', 'instructor_lookup', 'exam_policy', 'claim_verification'):
+        if decision.primary_intent in ('credit_lookup', 'prerequisite_lookup', 'instructor_lookup', 'exam_policy', 'claim_verification', 'curriculum_course_info', 'regulation_forms'):
             return ResolutionStrategy(resolution_path="structured_exact")
-        else:
-            return ResolutionStrategy(resolution_path="structured_fuzzy")
 
     return ResolutionStrategy(resolution_path="full_rag")
 
