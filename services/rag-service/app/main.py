@@ -150,7 +150,7 @@ def _build_curriculum_fallback_answer(question: str) -> str | None:
     return None
 
 
-def _deterministic_domain_shortcut(question: str, domain: str | None = None) -> dict[str, Any] | None:
+def _deterministic_domain_shortcut(question: str, domain: str | None = None, resolved_entity: dict[str, Any] | None = None) -> dict[str, Any] | None:
     default_domain = str(domain or '').strip().lower() or 'general'
     ql = (question or '').strip().lower()
 
@@ -161,13 +161,13 @@ def _deterministic_domain_shortcut(question: str, domain: str | None = None) -> 
     elif default_domain == 'announcements':
         answer = render_generalized_announcement_answer(question)
     elif default_domain == 'curriculum':
-        cur = structured_curriculum_lookup(question)
+        cur = structured_curriculum_lookup(question, resolved_entity=resolved_entity)
         answer = str(cur.get('answer') or '').strip() or None
         if not answer:
             answer = _build_curriculum_fallback_answer(question)
     elif default_domain == 'regulations':
         from .regulations_deterministic import structured_regulations_lookup
-        reg = structured_regulations_lookup(question)
+        reg = structured_regulations_lookup(question, resolved_entity=resolved_entity)
         answer = str(reg.get('answer') or '').strip() or None
     else:
         answer = None
@@ -177,11 +177,11 @@ def _deterministic_domain_shortcut(question: str, domain: str | None = None) -> 
 
     if not answer and any(t in ql for t in ('ระเบียบการสอบ', 'อุทธรณ์', 'ทุจริตสอบ', 'เหตุฉุกเฉินระหว่างสอบ', 'คุมสอบ', 'อุปกรณ์ต้องห้าม', 'เข้าสอบสาย', 'มาสายเข้าสอบ')):
         from .regulations_deterministic import structured_regulations_lookup
-        reg = structured_regulations_lookup(question)
+        reg = structured_regulations_lookup(question, resolved_entity=resolved_entity)
         answer = str(reg.get('answer') or '').strip() or None
 
     if not answer and any(t in ql for t in ('กี่หน่วยกิต', 'วิชาอะไร', 'คำอธิบายรายวิชา', 'บังคับก่อน', 'prerequisite', 'สำเร็จการศึกษาต้อง', 'หลักสูตร')):
-        cur = structured_curriculum_lookup(question)
+        cur = structured_curriculum_lookup(question, resolved_entity=resolved_entity)
         answer = str(cur.get('answer') or '').strip() or None
         if not answer:
             answer = _build_curriculum_fallback_answer(question)
@@ -238,6 +238,46 @@ def _strip_inline_citations(answer: str) -> str:
     if not txt:
         return txt
     return _INLINE_CITE_RE.sub('', txt).strip()
+
+
+def _resolved_entity_from_followup_meta(meta: dict[str, Any] | None) -> dict[str, Any] | None:
+    if not isinstance(meta, dict):
+        return None
+    entity_type = str(meta.get('followup_resolved_entity_type') or '').strip()
+    entity_value = str(meta.get('followup_resolved_entity_value') or '').strip()
+    try:
+        confidence = int(meta.get('followup_resolved_entity_confidence') or 0)
+    except Exception:
+        confidence = 0
+    if not entity_type or not entity_value or confidence <= 0:
+        return None
+    return {
+        'type': entity_type,
+        'value': entity_value,
+        'confidence': confidence,
+    }
+
+
+def _clarify_from_followup_meta(meta: dict[str, Any] | None) -> str | None:
+    if not isinstance(meta, dict):
+        return None
+    try:
+        needs_clarification = int(meta.get('followup_needs_clarification') or 0)
+    except Exception:
+        needs_clarification = 0
+    if not needs_clarification:
+        return None
+    candidates = str(meta.get('followup_resolved_entity_candidates') or '').strip()
+    if not candidates:
+        return "ต้องการอ้างถึงบริบทไหนครับ ช่วยระบุเพิ่มอีกนิด"
+    labels: list[str] = []
+    for item in candidates.split('|')[:3]:
+        parts = item.split(':', 2)
+        if len(parts) >= 2 and parts[1].strip():
+            labels.append(parts[1].strip())
+    if not labels:
+        return "ต้องการอ้างถึงบริบทไหนครับ ช่วยระบุเพิ่มอีกนิด"
+    return "หมายถึงอันไหนครับ: " + " / ".join(labels)
 
 
 def _contexts_from_answer_citations(answer: str, default_domain: str | None = None) -> list[dict[str, Any]]:
@@ -1112,7 +1152,9 @@ def _looks_coreference_followup(text: str) -> bool:
     coref_terms = (
         'อันนั้น', 'ตัวนั้น', 'อันนี้', 'ตัวนี้', 'วิชานั้น', 'อันก่อนหน้า', 'เมื่อกี้', 'เพิ่มเติม',
         'แล้ว', 'ต่อ', 'ต่อจาก', 'ใครสอน', 'ใครเป็นผู้สอน', 'ผู้สอนคือ', 'อาจารย์ผู้สอน',
-        'มีกี่หน่วยกิต', 'เปิดสอน', 'เงื่อนไขอะไร'
+        'มีกี่หน่วยกิต', 'กี่หน่วยกิต', 'หน่วยกิตเท่าไร', 'ชื่อวิชาอะไร', 'วิชาอะไร',
+        'เรียนเกี่ยวกับอะไร', 'คำอธิบายรายวิชา', 'บังคับก่อนอะไร', 'prerequisite อะไร',
+        'prereq อะไร', 'เปิดสอน', 'เงื่อนไขอะไร'
     )
     return any(k in t for k in coref_terms)
  
@@ -1196,7 +1238,7 @@ def _is_short_ambiguous_followup(text: str) -> bool:
         return False
     if _COURSE_CODE_RE.search(q):
         return False
-    if any(t in q for t in ('มาสาย', 'ห้องสอบ', 'หน่วยกิต', 'รหัสวิชา', 'prereq', 'instructor')):
+    if any(t in q for t in ('มาสาย', 'ห้องสอบ', 'รหัสวิชา', 'prereq', 'instructor')):
         return False
 
     summary_terms = ('สรุป', 'สั้นๆ', 'ย้ำ', 'อีกครั้ง', 'อีกที', 'ขอสรุป', 'ขอแบบสั้น', 'short summary')
@@ -1697,10 +1739,11 @@ def _claim_verification_fallback_answer(
     *,
     require_citations: bool,
     force_binary: bool,
+    resolved_entity: dict[str, Any] | None = None,
 ) -> dict[str, Any] | None:
     target_domain = (domain or 'curriculum').strip().lower() or 'curriculum'
     with time_block('claim_fallback_retrieve'):
-        rescue = rag_query_domain(question, target_domain)
+        rescue = rag_query_domain(question, target_domain, resolved_entity=resolved_entity)
 
     contexts = list(rescue.get('contexts') or [])
     prompt = str(rescue.get('prompt') or '')
@@ -3183,11 +3226,12 @@ def _run_prerequisite_structured_guard(
     *,
     require_citations: bool,
     return_contexts: bool,
+    resolved_entity: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Deterministic prerequisite guard with strict schema validation."""
     add_metric('prereq_structured_guard_triggered', 1)
     with time_block('structured_curriculum'):
-        prereq_structured = structured_curriculum_lookup(question)
+        prereq_structured = structured_curriculum_lookup(question, resolved_entity=resolved_entity)
 
     prereq_schema = _extract_prerequisite_schema(question, prereq_structured)
     if is_valid_prerequisite_schema(prereq_schema):
@@ -3221,7 +3265,7 @@ def _run_prerequisite_structured_guard(
 
     if require_citations and return_contexts:
         with time_block('rag_query'):
-            fail_probe = rag_query_domain(question, 'curriculum')
+            fail_probe = rag_query_domain(question, 'curriculum', resolved_entity=resolved_entity)
         fail_contexts = _normalize_contexts_for_eval(fail_probe.get('contexts') or [], default_domain='curriculum')
         fail_contexts.extend(_intent_alias_contexts(question, default_domain='curriculum'))
         with time_block('enforce_citations'):
@@ -3333,6 +3377,7 @@ def _enforce_answer_completeness(
     answer: str,
     *,
     domain: str | None = None,
+    resolved_entity: dict[str, Any] | None = None,
 ) -> str:
     """Enforce slot completeness for high-impact eval intents."""
     q = (question or '').strip()
@@ -3353,7 +3398,7 @@ def _enforce_answer_completeness(
 
         fixed_candidate = ''
         try:
-            fixed = str(structured_curriculum_lookup(q).get('answer') or '').strip()
+            fixed = str(structured_curriculum_lookup(q, resolved_entity=resolved_entity).get('answer') or '').strip()
         except Exception:
             fixed = ''
         norm_fixed = _normalize_prerequisite_answer(q, fixed)
@@ -3379,7 +3424,7 @@ def _enforce_answer_completeness(
         # Retrieval-assisted schema rescue for cases where deterministic lookup returns course info only.
         target = ''
         try:
-            rescue = rag_query_domain(q, 'curriculum')
+            rescue = rag_query_domain(q, 'curriculum', resolved_entity=resolved_entity)
             prompt_txt = str(rescue.get('prompt') or '')
         except Exception:
             prompt_txt = ''
@@ -3478,7 +3523,7 @@ def _enforce_answer_completeness(
     )
     if course_lookup_signal and not _answer_has_course_lookup_schema(ans):
         try:
-            fixed = str(structured_curriculum_lookup(q).get('answer') or '').strip()
+            fixed = str(structured_curriculum_lookup(q, resolved_entity=resolved_entity).get('answer') or '').strip()
         except Exception:
             fixed = ''
         if fixed:
@@ -3493,7 +3538,7 @@ def _enforce_answer_completeness(
     if regulations_numeric_signal and (not _has_required_numeric_slot(q, ans)):
         try:
             from app.regulations_deterministic import structured_regulations_lookup
-            reg = structured_regulations_lookup(q)
+            reg = structured_regulations_lookup(q, resolved_entity=resolved_entity)
             fixed = str(reg.get('answer') or '').strip()
         except Exception:
             fixed = ''
@@ -3517,7 +3562,7 @@ def _enforce_answer_completeness(
     if regulations_procedure_signal and (not _answer_has_regulation_procedure_slots(q, ans)):
         try:
             from app.regulations_deterministic import structured_regulations_lookup
-            reg = structured_regulations_lookup(q)
+            reg = structured_regulations_lookup(q, resolved_entity=resolved_entity)
             fixed = str(reg.get('answer') or '').strip()
         except Exception:
             fixed = ''
@@ -4356,15 +4401,25 @@ def _observe_default_request_metrics(*, structured_eligible: bool, structured_re
 
 @app.post('/rag/query', response_model=RagResponse)
 def rag_endpoint(req: RagRequest):
-    req.question = _prepare_user_question(req.question, req.domain)
+    prepared = prepare_chat_request(
+        question=req.question,
+        domain=req.domain,
+        session_id=req.session_id,
+        messages=req.messages,
+        session_store=_SESSION_STORE,
+        question_preparer=_prepare_user_question,
+    )
+    req.question = prepared.question
+    req.domain = prepared.domain
+    resolved_entity = _resolved_entity_from_followup_meta(prepared.followup_meta)
     with request_timing('rag_query', endpoint='/rag/query', domain=req.domain, session_id=req.session_id):
         use_langchain = bool(_USE_LANGCHAIN and _LANGCHAIN_READY and _langchain_rag is not None)
         lc = _langchain_rag
         
-        decision = analyze_route(req.question, req.domain)
+        decision = analyze_route(req.question, req.domain, resolved_entity=resolved_entity)
         strategy = select_resolution_strategy(decision)
 
-        shortcut = _deterministic_domain_shortcut(req.question, decision.effective_domain or req.domain)
+        shortcut = _deterministic_domain_shortcut(req.question, decision.effective_domain or req.domain, resolved_entity=resolved_entity)
         if shortcut:
             add_metric('deterministic_domain_shortcut_hit', 1)
             add_metric('ctx_n', len(shortcut.get('contexts') or []))
@@ -4404,11 +4459,11 @@ def rag_endpoint(req: RagRequest):
                 add_metric('langchain_low_confidence_fallback', 1)
                 add_metric('path_nonstructured_used', 1)
                 with time_block('rag_query'):
-                    result = rag_query_domain(req.question, decision.effective_domain) if decision.effective_domain else rag_query(req.question)
+                    result = rag_query_domain(req.question, decision.effective_domain, resolved_entity=resolved_entity) if decision.effective_domain else rag_query(req.question, resolved_entity=resolved_entity)
         else:
             add_metric('path_nonstructured_used', 1)
             with time_block('rag_query'):
-                result = rag_query_domain(req.question, decision.effective_domain) if decision.effective_domain else rag_query(req.question)
+                result = rag_query_domain(req.question, decision.effective_domain, resolved_entity=resolved_entity) if decision.effective_domain else rag_query(req.question, resolved_entity=resolved_entity)
 
         result_contexts = _normalize_contexts_for_eval(result.get('contexts') or [], default_domain=decision.effective_domain)
         result['contexts'] = result_contexts
@@ -4425,6 +4480,7 @@ def _process_multi_intent(
     domain: str | None = None,
     *,
     prefer_extractive: bool = False,
+    resolved_entity: dict[str, Any] | None = None,
 ) -> tuple[str, list, int] | None:
     from .routing import is_multi_doc_question, decompose_question, infer_domain
 
@@ -4597,6 +4653,7 @@ def _process_multi_intent(
                 sq,
                 require_citations=True,
                 return_contexts=True,
+                resolved_entity=resolved_entity,
             )
             ans = str(prereq_payload.get('answer') or '').strip()
             prereq_guard_applied = True
@@ -4607,12 +4664,12 @@ def _process_multi_intent(
                 all_contexts.extend(sq_contexts)
 
         if (not ans) and sq_domain in (None, 'regulations'):
-            reg_result = structured_regulations_lookup(sq)
+            reg_result = structured_regulations_lookup(sq, resolved_entity=resolved_entity)
             if _structured_regulations_result_allowed(reg_result):
                 ans = str(reg_result.get('answer') or '').strip()
             
         if (not ans) and _USE_STRUCTURED_CURRICULUM and sq_domain in (None, 'curriculum'):
-            curr_result = structured_curriculum_lookup(sq)
+            curr_result = structured_curriculum_lookup(sq, resolved_entity=resolved_entity)
             if curr_result and curr_result.get('answer'):
                 ans = str(curr_result.get('answer'))
 
@@ -4621,7 +4678,7 @@ def _process_multi_intent(
             sq_contexts.extend(_intent_alias_contexts(sq, default_domain=sq_domain or domain))
             if (not prefer_extractive) and sq_domain in KNOWN_DOMAINS:
                 try:
-                    enrich = rag_query_domain(sq, sq_domain)
+                    enrich = rag_query_domain(sq, sq_domain, resolved_entity=resolved_entity)
                     enrich_ctx = _normalize_contexts_for_eval(enrich.get('contexts') or [], default_domain=sq_domain)
                     sq_contexts.extend(enrich_ctx)
                     total_tokens += int(enrich.get('token_est') or 0)
@@ -4632,7 +4689,7 @@ def _process_multi_intent(
                 
         if not ans:
             if prefer_extractive and sq_domain in (None, 'regulations'):
-                res = rag_query_domain(sq, 'regulations')
+                res = rag_query_domain(sq, 'regulations', resolved_entity=resolved_entity)
                 sq_prompt = str(res.get('prompt') or '')
                 if res.get('contexts'):
                     norm_ctx = _normalize_contexts_for_eval(res['contexts'], default_domain='regulations')
@@ -4649,7 +4706,7 @@ def _process_multi_intent(
             else:
                 if _should_use_regulations_strict_fallback(sq, sq_domain):
                     add_metric('structured_regulations_strict_mode', 1)
-                    res = rag_query_domain(sq, 'regulations')
+                    res = rag_query_domain(sq, 'regulations', resolved_entity=resolved_entity)
                 else:
                     if use_langchain_subq and lc_subq is not None:
                         with time_block('langchain_rag'):
@@ -4658,9 +4715,9 @@ def _process_multi_intent(
                         # Intent-isolated retrieval: lock each subquery to its own domain.
                         # Avoid global auto retrieval at this stage to reduce cross-intent leakage.
                         if sq_domain:
-                            res = rag_query_domain(sq, sq_domain)
+                            res = rag_query_domain(sq, sq_domain, resolved_entity=resolved_entity)
                         else:
-                            res = rag_query_domain(sq, parent_domain_hint)
+                            res = rag_query_domain(sq, parent_domain_hint, resolved_entity=resolved_entity)
 
                     # Rescue pass for multi-intent subqueries: if domain-locked retrieval is thin,
                     # retry once in auto mode only for mixed-domain parent questions.
@@ -4671,7 +4728,7 @@ def _process_multi_intent(
                     )
                     if allow_broad_rescue:
                         add_metric('retrieval_fallback_all_domains_triggered', 1)
-                        rescue = rag_query(sq)
+                        rescue = rag_query(sq, resolved_entity=resolved_entity)
                         if len(rescue.get('contexts') or []) > len(res.get('contexts') or []):
                             add_metric('retrieval_fallback_all_domains_succeeded', 1)
                             res = rescue
@@ -4702,7 +4759,12 @@ def _process_multi_intent(
                 all_contexts.extend(sq_contexts)
 
         if not prereq_guard_applied:
-            ans = _enforce_answer_completeness(sq, str(ans or ''), domain=sq_domain or domain)
+            ans = _enforce_answer_completeness(
+                sq,
+                str(ans or ''),
+                domain=sq_domain or domain,
+                resolved_entity=resolved_entity,
+            )
 
         ans_txt = _strip_false_abstain(_strip_spurious_abstain_phrases(str(ans or '').strip()))
         if sq_contexts and ans_txt and (not _has_citations(ans_txt)):
@@ -4728,7 +4790,12 @@ def _process_multi_intent(
     return merged, all_contexts, total_tokens
 
 
-def _curriculum_consistency_guard(question: str, domain: str | None = None) -> str | None:
+def _curriculum_consistency_guard(
+    question: str,
+    domain: str | None = None,
+    *,
+    resolved_entity: dict[str, Any] | None = None,
+) -> str | None:
     """Use deterministic curriculum facts as source-of-truth for factual intents.
 
     This guard is intentionally narrow: it only fires for curriculum-like factual
@@ -4748,7 +4815,7 @@ def _curriculum_consistency_guard(question: str, domain: str | None = None) -> s
     if (domain or '').strip().lower() not in ('', 'curriculum', 'auto', 'regulations') and not has_course_code:
         return None
 
-    structured_result = structured_curriculum_lookup(q)
+    structured_result = structured_curriculum_lookup(q, resolved_entity=resolved_entity)
     structured = _strip_inline_citations(str(structured_result.get('answer') or ''))
     if not structured:
         return None
@@ -4764,10 +4831,16 @@ def run_multi_intent_path(
     *,
     require_citations: bool,
     prefer_extractive: bool = False,
+    resolved_entity: dict[str, Any] | None = None,
 ) -> dict[str, Any] | None:
     if not question:
         return None
-    multi_result = _process_multi_intent(question, effective_domain, prefer_extractive=prefer_extractive)
+    multi_result = _process_multi_intent(
+        question,
+        effective_domain,
+        prefer_extractive=prefer_extractive,
+        resolved_entity=resolved_entity,
+    )
     if not multi_result:
         return None
     merged_ans, all_ctx, t_est = multi_result
@@ -4788,11 +4861,12 @@ def run_structured_regulations_path(
     *,
     require_citations: bool,
     return_contexts: bool,
+    resolved_entity: dict[str, Any] | None = None,
 ) -> dict[str, Any] | None:
     from app.regulations_deterministic import structured_regulations_lookup
 
     with time_block('structured_regulations'):
-        reg_result = structured_regulations_lookup(question)
+        reg_result = structured_regulations_lookup(question, resolved_entity=resolved_entity)
     add_metric('structured_regulations_source_ready', int(reg_result.get('rules_source_ready') or 0))
     add_metric('structured_regulations_rules_files_n', int(reg_result.get('rules_files_n') or 0))
     add_metric('structured_regulations_source_kind', str(reg_result.get('rules_source_kind') or ''))
@@ -4834,7 +4908,7 @@ def run_structured_regulations_path(
 
     if require_citations and return_contexts:
         with time_block('rag_query'):
-            cite_result = rag_query_domain(question, 'regulations')
+            cite_result = rag_query_domain(question, 'regulations', resolved_entity=resolved_entity)
         prompt = cite_result.get('prompt') or prompt
         contexts = list(cite_result.get('contexts') or [])
         token_est = int(cite_result.get('token_est') or 0)
@@ -4887,11 +4961,12 @@ def run_structured_curriculum_path(
     *,
     require_citations: bool,
     return_contexts: bool,
+    resolved_entity: dict[str, Any] | None = None,
 ) -> dict[str, Any] | None:
     add_metric('curriculum_bypass_vector_triggered', 1)
     add_metric('structured_rescue_triggered', 1)
     with time_block('structured_curriculum'):
-        structured_result = structured_curriculum_lookup(question)
+        structured_result = structured_curriculum_lookup(question, resolved_entity=resolved_entity)
 
     structured_raw = str(structured_result.get('answer') or '')
     miss_reason = str(structured_result.get('miss_reason') or 'no_exact_course_match')
@@ -4913,7 +4988,12 @@ def run_structured_curriculum_path(
     add_metric('instructor_assignment_soft_answer_used', int(structured_result.get('instructor_assignment_soft_answer_used') or 0))
 
     # Normalize high-impact slots even on structured-shortcut returns.
-    structured = _enforce_answer_completeness(question, structured, domain='curriculum')
+    structured = _enforce_answer_completeness(
+        question,
+        structured,
+        domain='curriculum',
+        resolved_entity=resolved_entity,
+    )
     structured = _strip_spurious_abstain_phrases(structured)
 
     if not structured:
@@ -4957,7 +5037,7 @@ def run_structured_curriculum_path(
                 }
 
         with time_block('rag_query'):
-            cite_result = rag_query_domain(question, 'curriculum')
+            cite_result = rag_query_domain(question, 'curriculum', resolved_entity=resolved_entity)
         with time_block('enforce_citations'):
             structured = _force_answer_citations(
                 structured,
@@ -5022,13 +5102,18 @@ def rag_answer_endpoint(req: RagAnswerRequest):
     raw_input_question = str(req.question or '').strip()
     req.question = prepared.question
     req.domain = prepared.domain
+    resolved_entity = _resolved_entity_from_followup_meta(prepared.followup_meta)
 
     with request_timing('rag_answer', endpoint='/rag/answer', domain=req.domain, session_id=req.session_id):
         require_citations = bool(req.eval_mode) or _require_citations()
         
-        decision = analyze_route(req.question, req.domain)
+        decision = analyze_route(req.question, req.domain, resolved_entity=resolved_entity)
         strategy = select_resolution_strategy(decision)
-        shortcut = _deterministic_domain_shortcut(req.question, decision.effective_domain or req.domain)
+        shortcut = _deterministic_domain_shortcut(
+            req.question,
+            decision.effective_domain or req.domain,
+            resolved_entity=resolved_entity,
+        )
         if shortcut:
             answer = str(shortcut.get('answer') or '')
             contexts = list(shortcut.get('contexts') or [])
@@ -5061,8 +5146,22 @@ def rag_answer_endpoint(req: RagAnswerRequest):
         add_metric('followup_previous_entity', str(prepared.followup_meta.get('followup_previous_entity') or ''))
         add_metric('followup_entity_overridden', int(prepared.followup_meta.get('followup_entity_overridden') or 0))
         add_metric('followup_entity_conflict', int(prepared.followup_meta.get('followup_entity_conflict') or 0))
+        add_metric('resolved_entity_type', str(prepared.followup_meta.get('followup_resolved_entity_type') or ''))
+        add_metric('resolved_entity_value', str(prepared.followup_meta.get('followup_resolved_entity_value') or ''))
+        add_metric('resolved_entity_confidence', int(prepared.followup_meta.get('followup_resolved_entity_confidence') or 0))
         add_metric('followup_session_domain_lock_applied', int(prepared.lock_applied))
         add_metric('followup_session_domain_lock_reason', prepared.lock_reason)
+        clarify_followup = _clarify_from_followup_meta(prepared.followup_meta)
+        if clarify_followup and int(prepared.followup_meta.get('followup_resolved_entity_confidence') or 0) <= 1:
+            add_metric('followup_clarify_resolved_entity', 1)
+            return RagAnswerResponse(
+                question=req.question,
+                prompt='(followup_clarification)',
+                answer=clarify_followup,
+                contexts=[],
+                token_est=0,
+                meta={'followup_clarification': True},
+            )
 
         if decision.primary_intent == 'unanswerable' or is_unanswerable_query(req.question):
             answer = _build_unanswerable_answer(req.question)
@@ -5113,6 +5212,7 @@ def rag_answer_endpoint(req: RagAnswerRequest):
                 req.question,
                 require_citations=require_citations,
                 return_contexts=True,
+                resolved_entity=resolved_entity,
             )
             answer = str(prereq_payload.get('answer') or '')
             contexts = list(prereq_payload.get('contexts') or [])
@@ -5150,6 +5250,7 @@ def rag_answer_endpoint(req: RagAnswerRequest):
                     strategy,
                     require_citations=require_citations,
                     return_contexts=True,
+                    resolved_entity=resolved_entity,
                 )
             else:
                 add_metric('claim_structured_shortcut_skipped', 1)
@@ -5159,6 +5260,7 @@ def rag_answer_endpoint(req: RagAnswerRequest):
                     decision.effective_domain,
                     require_citations=require_citations,
                     force_binary=_BINARY_CLAIM_STRICT,
+                    resolved_entity=resolved_entity,
                 )
             if claim_payload:
                 answer = str(claim_payload.get('answer') or '').strip()
@@ -5196,6 +5298,7 @@ def rag_answer_endpoint(req: RagAnswerRequest):
             decision.effective_domain,
             require_citations=require_citations,
             prefer_extractive=(strategy.resolution_path == 'multi_intent_structured_or_extract'),
+            resolved_entity=resolved_entity,
         )
         if multi_payload:
             merged_ans = str(multi_payload.get('answer') or '')
@@ -5222,6 +5325,7 @@ def rag_answer_endpoint(req: RagAnswerRequest):
                 req.question,
                 require_citations=require_citations,
                 return_contexts=True,
+                resolved_entity=resolved_entity,
             )
             if reg_payload:
                 reg_answer = str(reg_payload.get('answer') or '')
@@ -5262,6 +5366,7 @@ def rag_answer_endpoint(req: RagAnswerRequest):
                 strategy,
                 require_citations=require_citations,
                 return_contexts=True,
+                resolved_entity=resolved_entity,
             )
             if curr_payload:
                 structured = str(curr_payload.get('answer') or '')
@@ -5309,7 +5414,7 @@ def rag_answer_endpoint(req: RagAnswerRequest):
                 add_metric('structured_regulations_strict_mode', 1)
                 add_metric('path_nonstructured_used', 1)
                 with time_block('rag_query'):
-                    result = rag_query_domain(req.question, 'regulations')
+                    result = rag_query_domain(req.question, 'regulations', resolved_entity=resolved_entity)
             else:
                 if use_langchain and lc is not None:
                     add_metric('path_langchain_used', 1)
@@ -5335,11 +5440,11 @@ def rag_answer_endpoint(req: RagAnswerRequest):
                         add_metric('langchain_low_confidence_fallback', 1)
                         add_metric('path_nonstructured_used', 1)
                         with time_block('rag_query'):
-                            result = rag_query_domain(req.question, effective_domain) if effective_domain else rag_query(req.question)
+                            result = rag_query_domain(req.question, effective_domain, resolved_entity=resolved_entity) if effective_domain else rag_query(req.question, resolved_entity=resolved_entity)
                 else:
                     add_metric('path_nonstructured_used', 1)
                     with time_block('rag_query'):
-                        result = rag_query_domain(req.question, effective_domain) if effective_domain else rag_query(req.question)
+                        result = rag_query_domain(req.question, effective_domain, resolved_entity=resolved_entity) if effective_domain else rag_query(req.question, resolved_entity=resolved_entity)
         except Exception as e:
             logger.error("/rag/answer failed: %s\n%s", str(e), traceback.format_exc())
             add_metric('error', 1)
@@ -5426,7 +5531,11 @@ def rag_answer_endpoint(req: RagAnswerRequest):
                                     answer = extracted_exam_temp
                                     answer_from_extractor = True
                                 else:
-                                    curriculum_guard_answer = _curriculum_consistency_guard(req.question, effective_domain)
+                                    curriculum_guard_answer = _curriculum_consistency_guard(
+                                        req.question,
+                                        effective_domain,
+                                        resolved_entity=resolved_entity,
+                                    )
                                     if curriculum_guard_answer:
                                         answer = curriculum_guard_answer
                                     else:
@@ -5468,6 +5577,7 @@ def rag_answer_endpoint(req: RagAnswerRequest):
                         req.question,
                         answer or '',
                         domain=effective_domain,
+                        resolved_entity=resolved_entity,
                     )
                     if answer_from_extractor and answer_task_name == 'announcement_temporal':
                         add_metric('answer_schema_repair_skipped_extractor', 1)
@@ -5603,7 +5713,8 @@ def openai_compatible_endpoint(request: dict):
     lock_applied = prepared.lock_applied
     lock_reason = prepared.lock_reason
     followup_meta = prepared.followup_meta
-    decision = analyze_route(question, domain)
+    resolved_entity = _resolved_entity_from_followup_meta(followup_meta)
+    decision = analyze_route(question, domain, resolved_entity=resolved_entity)
     configured_models = list_configured_models()
     default_model_id = str(configured_models[0].get('id') or 'typhoon-rag') if configured_models else 'typhoon-rag'
     request_model = str(request.get('model') or default_model_id)
@@ -5628,7 +5739,7 @@ def openai_compatible_endpoint(request: dict):
         session_id=session_id or None,
     ):
         strategy = select_resolution_strategy(decision)
-        shortcut = _deterministic_domain_shortcut(question, decision.effective_domain or domain)
+        shortcut = _deterministic_domain_shortcut(question, decision.effective_domain or domain, resolved_entity=resolved_entity)
         if shortcut:
             answer = _finalize_user_answer_text(question, str(shortcut.get('answer') or ''))
             _remember_session_state(session_id, raw_last_user, str(request.get('question') or ''), question, decision)
@@ -5666,9 +5777,30 @@ def openai_compatible_endpoint(request: dict):
         add_metric('followup_previous_entity', str(followup_meta.get('followup_previous_entity') or ''))
         add_metric('followup_entity_overridden', int(followup_meta.get('followup_entity_overridden') or 0))
         add_metric('followup_entity_conflict', int(followup_meta.get('followup_entity_conflict') or 0))
+        add_metric('resolved_entity_type', str(followup_meta.get('followup_resolved_entity_type') or ''))
+        add_metric('resolved_entity_value', str(followup_meta.get('followup_resolved_entity_value') or ''))
+        add_metric('resolved_entity_confidence', int(followup_meta.get('followup_resolved_entity_confidence') or 0))
         add_metric('session_has_id', int(bool(session_id)))
         add_metric('followup_session_domain_lock_applied', int(lock_applied))
         add_metric('followup_session_domain_lock_reason', lock_reason)
+        clarify_followup = _clarify_from_followup_meta(followup_meta)
+        if clarify_followup and int(followup_meta.get('followup_resolved_entity_confidence') or 0) <= 1:
+            add_metric('followup_clarify_resolved_entity', 1)
+            clarify_followup = _finalize_user_answer_text(question, clarify_followup)
+            return {
+                "id": f"chatcpe-{uuid.uuid4().hex[:12]}",
+                "object": "chat.completion",
+                "created": int(time.time()),
+                "model": request_model,
+                "choices": [
+                    {
+                        "index": 0,
+                        "message": {"role": "assistant", "content": clarify_followup},
+                        "finish_reason": "stop",
+                    }
+                ],
+                "usage": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
+            }
 
         if decision.primary_intent == 'unanswerable' or is_unanswerable_query(question):
             answer = _finalize_user_answer_text(question, _build_unanswerable_answer(question))
@@ -5747,6 +5879,7 @@ def openai_compatible_endpoint(request: dict):
                 question,
                 require_citations=False,
                 return_contexts=False,
+                resolved_entity=resolved_entity,
             )
             prereq_answer = _finalize_user_answer_text(question, str(prereq_payload.get('answer') or ''))
             add_metric('ctx_n', 0)
@@ -5777,6 +5910,7 @@ def openai_compatible_endpoint(request: dict):
             decision.effective_domain,
             require_citations=False,
             prefer_extractive=(strategy.resolution_path == 'multi_intent_structured_or_extract'),
+            resolved_entity=resolved_entity,
         )
         if multi_payload:
             merged_ans = _finalize_user_answer_text(question, str(multi_payload.get('answer') or ''))
@@ -5831,6 +5965,7 @@ def openai_compatible_endpoint(request: dict):
                     strategy,
                     require_citations=False,
                     return_contexts=False,
+                    resolved_entity=resolved_entity,
                 )
             else:
                 add_metric('claim_structured_shortcut_skipped', 1)
@@ -5840,6 +5975,7 @@ def openai_compatible_endpoint(request: dict):
                     decision.effective_domain,
                     require_citations=False,
                     force_binary=_BINARY_CLAIM_STRICT,
+                    resolved_entity=resolved_entity,
                 )
             if claim_payload:
                 normalized_claim = _normalize_claim_verification_answer(
@@ -5878,6 +6014,7 @@ def openai_compatible_endpoint(request: dict):
                 question,
                 require_citations=False,
                 return_contexts=False,
+                resolved_entity=resolved_entity,
             )
             if reg_payload:
                 reg_answer = _finalize_user_answer_text(question, str(reg_payload.get('answer') or ''))
@@ -5933,6 +6070,7 @@ def openai_compatible_endpoint(request: dict):
                 strategy,
                 require_citations=False,
                 return_contexts=False,
+                resolved_entity=resolved_entity,
             )
             if curr_payload:
                 structured = _finalize_user_answer_text(question, str(curr_payload.get('answer') or ''))
@@ -5975,7 +6113,7 @@ def openai_compatible_endpoint(request: dict):
             else:
                 add_metric('path_nonstructured_used', 1)
                 with time_block('rag_query'):
-                    result = rag_query_domain(question, domain) if domain else rag_query(question)
+                    result = rag_query_domain(question, domain, resolved_entity=resolved_entity) if domain else rag_query(question, resolved_entity=resolved_entity)
         except Exception as e:
             add_metric('error', 1)
             add_metric('failure_intent', _infer_primary_intent(question))
@@ -6029,7 +6167,11 @@ def openai_compatible_endpoint(request: dict):
                                 answer = extracted_exam_late
                                 answer_from_extractor = True
                             else:
-                                curriculum_guard_answer = _curriculum_consistency_guard(question, domain)
+                                curriculum_guard_answer = _curriculum_consistency_guard(
+                                    question,
+                                    domain,
+                                    resolved_entity=resolved_entity,
+                                )
                                 if curriculum_guard_answer:
                                     answer = curriculum_guard_answer
                                 else:

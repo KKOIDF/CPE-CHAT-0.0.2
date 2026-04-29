@@ -561,8 +561,8 @@ eigenvectors.
 3. Students are able to explain and compute linear operations, linear operators and able 
 to interpret the results in applications. 
  
-PHY 103 ฟิสิกส์ทั่วไปสำหรับนักศึกษาวิศวกรรมศาสตร์ 1      3(3–0–6) 
- (General Physics for Engineering Student I) 
+ ฟิสิกส์ทั่วไปสำหรับนักศึกษาวิศวกรรมศาสตร์ 1      3(3–0–6) 
+ (General PhyPHY 103sics for Engineering Student I) 
 เน้นการประยุกต์ใช้กฎต่างๆ ทางฟิสิกส์ เวกเตอร์ การเคลื่อนที่ใน 1-, 2-, และ 3- มิติ  กฎ
 การเคลื่อนที่ของนิวตัน  พลังงานและงาน  โมเมนตัมเชิงเส้น  การหมุน  ทอร์กและโมเมนตัม
 เชิงมุม  สมดุลและการยืดหยุ่นของไหล  การสั่น  คลื่นและเสียง  อุณหพลศาสตร์  ทฤษฎีจลน์

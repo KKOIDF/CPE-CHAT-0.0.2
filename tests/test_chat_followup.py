@@ -9,6 +9,7 @@ if str(RAG_SERVICE_ROOT) not in sys.path:
     sys.path.insert(0, str(RAG_SERVICE_ROOT))
 
 from app.chat_followup import InMemorySessionStore, RedisSessionStore, prepare_chat_request  # noqa: E402
+from app.routing import analyze_route  # noqa: E402
 
 
 class _FakeRedis:
@@ -83,6 +84,130 @@ class TestChatFollowupPipeline(unittest.TestCase):
 
         self.assertIn("บริบทก่อนหน้า: CPE 214", prepared.question)
         self.assertIn("คำถามต่อเนื่อง: แล้วใครสอน", prepared.question)
+
+    def test_course_credit_followup_reuses_latest_course_code(self) -> None:
+        store = InMemorySessionStore()
+        messages = [
+            {"role": "user", "content": "CPE301"},
+            {"role": "assistant", "content": "..."},
+            {"role": "user", "content": "กี่หน่วยกิต"},
+        ]
+
+        prepared = prepare_chat_request(
+            question="กี่หน่วยกิต",
+            domain="curriculum",
+            session_id="s2b",
+            messages=messages,
+            session_store=store,
+            question_preparer=lambda q, _d: q,
+        )
+
+        self.assertIn("บริบทก่อนหน้า: CPE 301", prepared.question)
+        self.assertIn("คำถามต่อเนื่อง: กี่หน่วยกิต", prepared.question)
+        self.assertEqual(prepared.followup_meta.get("followup_resolved_entity_type"), "course")
+        self.assertEqual(prepared.followup_meta.get("followup_resolved_entity_value"), "CPE 301")
+        self.assertEqual(prepared.followup_meta.get("followup_resolved_entity_confidence"), 3)
+
+    def test_course_description_followup_reuses_latest_course_code(self) -> None:
+        store = InMemorySessionStore()
+        messages = [
+            {"role": "user", "content": "CPE301"},
+            {"role": "assistant", "content": "..."},
+            {"role": "user", "content": "เรียนเกี่ยวกับอะไร"},
+        ]
+
+        prepared = prepare_chat_request(
+            question="เรียนเกี่ยวกับอะไร",
+            domain="curriculum",
+            session_id="s2c",
+            messages=messages,
+            session_store=store,
+            question_preparer=lambda q, _d: q,
+        )
+
+        self.assertIn("บริบทก่อนหน้า: CPE 301", prepared.question)
+        self.assertIn("คำถามต่อเนื่อง: เรียนเกี่ยวกับอะไร", prepared.question)
+
+    def test_instructor_course_list_followup_reuses_latest_instructor(self) -> None:
+        store = InMemorySessionStore()
+        messages = [
+            {"role": "user", "content": "วิชาอาจารย์ประพงษ์"},
+            {"role": "assistant", "content": "..."},
+            {"role": "user", "content": "วิชาที่สอน"},
+        ]
+
+        prepared = prepare_chat_request(
+            question="วิชาที่สอน",
+            domain="curriculum",
+            session_id="s2d",
+            messages=messages,
+            session_store=store,
+            question_preparer=lambda q, _d: q,
+        )
+
+        self.assertIn("บริบทก่อนหน้า: อาจารย์ประพงษ์", prepared.question)
+        self.assertIn("คำถามต่อเนื่อง: วิชาที่สอน", prepared.question)
+        self.assertEqual(prepared.followup_meta.get("followup_resolved_entity_type"), "instructor")
+        self.assertEqual(prepared.followup_meta.get("followup_resolved_entity_value"), "อาจารย์ประพงษ์")
+        self.assertEqual(prepared.followup_meta.get("followup_resolved_entity_confidence"), 3)
+
+    def test_short_topic_followup_reuses_latest_topic_from_history(self) -> None:
+        store = InMemorySessionStore()
+        messages = [
+            {"role": "user", "content": "เอกสารจบ"},
+            {"role": "assistant", "content": "..."},
+            {"role": "user", "content": "ต้องยื่นเมื่อไร"},
+        ]
+
+        prepared = prepare_chat_request(
+            question="ต้องยื่นเมื่อไร",
+            domain="announcements",
+            session_id="s2e",
+            messages=messages,
+            session_store=store,
+            question_preparer=lambda q, _d: q,
+        )
+
+        self.assertIn("บริบทก่อนหน้า: เอกสารจบ", prepared.question)
+        self.assertIn("คำถามต่อเนื่อง: ต้องยื่นเมื่อไร", prepared.question)
+
+    def test_resolved_entity_is_passed_into_route_analysis(self) -> None:
+        decision = analyze_route(
+            "วิชาที่สอน",
+            "curriculum",
+            resolved_entity={
+                "type": "instructor",
+                "value": "อาจารย์ประพงษ์",
+                "confidence": 3,
+            },
+        )
+
+        self.assertEqual(decision.resolved_entity_type, "instructor")
+        self.assertEqual(decision.resolved_entity_value, "อาจารย์ประพงษ์")
+        self.assertEqual(decision.resolved_entity_confidence, 3)
+        self.assertEqual(decision.effective_domain, "curriculum")
+
+    def test_followup_meta_sets_clarification_when_history_has_multiple_same_type_candidates(self) -> None:
+        store = InMemorySessionStore()
+        messages = [
+            {"role": "user", "content": "CPE 101"},
+            {"role": "assistant", "content": "..."},
+            {"role": "user", "content": "CPE 102"},
+            {"role": "assistant", "content": "..."},
+            {"role": "user", "content": "กี่หน่วยกิต"},
+        ]
+
+        prepared = prepare_chat_request(
+            question="กี่หน่วยกิต",
+            domain="curriculum",
+            session_id="s2f",
+            messages=messages,
+            session_store=store,
+            question_preparer=lambda q, _d: q,
+        )
+
+        self.assertIn("course:CPE 102:3", str(prepared.followup_meta.get("followup_resolved_entity_candidates") or ""))
+        self.assertEqual(prepared.followup_meta.get("followup_resolved_entity_type"), "course")
 
     def test_short_summary_followup_uses_session_hint(self) -> None:
         store = InMemorySessionStore()

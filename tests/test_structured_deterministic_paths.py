@@ -70,6 +70,20 @@ class TestStructuredDeterministicPaths(unittest.TestCase):
         self.assertNotIn("ชื่อวิชา:", answer)
         self.assertNotIn("ชั่วโมงเรียน:", answer)
 
+    def test_curriculum_followup_description_answer_uses_course_description(self) -> None:
+        result = structured_curriculum_lookup("บริบทก่อนหน้า: PHY 103\nคำถามต่อเนื่อง: เรียนเกี่ยวกับอะไร")
+        answer = str(result.get("answer") or "")
+        self.assertEqual(result.get("lookup_mode"), "exact_code")
+        self.assertIn("PHY 103", answer)
+        self.assertIn("เน้นการประยุกต์ใช้กฎต่างๆ ทางฟิสิกส์", answer)
+        self.assertNotIn("คือ ฟิสิกส์ทั่วไปสำหรับนักศึกษาวิศวกรรมศาสตร์ 1", answer)
+
+    def test_curriculum_title_plus_description_question_maps_title_to_description(self) -> None:
+        result = structured_curriculum_lookup("ฟิสิกส์ทั่วไปสำหรับนักศึกษาวิศวกรรมศาสตร์ 1 เรียนเกี่ยวกับอะไร")
+        answer = str(result.get("answer") or "")
+        self.assertIn("PHY 103", answer)
+        self.assertIn("เน้นการประยุกต์ใช้กฎต่างๆ ทางฟิสิกส์", answer)
+
     def test_announcement_open_term_answer_mentions_official_calendar(self) -> None:
         answer = render_fast_announcement_calendar_answer("ขออัปเดต วันเปิดภาคการศึกษา ล่าสุดหน่อยครับ")
         self.assertIsNotNone(answer)

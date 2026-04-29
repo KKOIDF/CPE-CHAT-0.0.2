@@ -3,6 +3,7 @@ import os
 import glob
 import sqlite3
 from typing import Any
+from .routing import apply_resolved_entity_context
 
 from .sqlite_client import domain_sqlite_path
 from .structured_artifacts import load_regulation_clauses_artifact
@@ -905,7 +906,7 @@ def _topic_lookup(q: str, rules_text: str) -> dict[str, Any] | None:
     return None
 
 
-def structured_regulations_lookup(question: str) -> dict[str, Any]:
+def structured_regulations_lookup(question: str, resolved_entity: dict[str, Any] | None = None) -> dict[str, Any]:
     """Deterministic lookup for regulations domain.
 
     Priority:
@@ -913,7 +914,7 @@ def structured_regulations_lookup(question: str) -> dict[str, Any]:
     1. Numbered clause lookup      (single ข้อ N)
     2. Topic keyword lookup        (ทุจริต, อุทธรณ์, แต่งกาย, ...)
     """
-    q = (question or "").strip()
+    q = apply_resolved_entity_context((question or "").strip(), resolved_entity)
 
     form_hit = lookup_regulation_form(q)
     if form_hit:

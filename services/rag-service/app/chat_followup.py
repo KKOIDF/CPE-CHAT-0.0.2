@@ -14,6 +14,8 @@ from .routing import classify_intent
 _THAI_TO_ARABIC = str.maketrans('๐๑๒๓๔๕๖๗๘๙', '0123456789')
 _COURSE_CODE_RE = re.compile(r"\b([A-Za-z]{2,6})\s*[- ]?\s*(\d{3})\b")
 _STANDALONE_CODE_RE = re.compile(r"^\s*[A-Za-z]{2,6}\s*[- ]?\s*\d{3}\s*$")
+_INSTRUCTOR_RE = re.compile(r"(?:อาจารย์|อ\.|ผศ\.|รศ\.|ศ\.|ดร\.)\s*([ก-๙A-Za-z]+(?:\s+[ก-๙A-Za-z]+){0,3})")
+_TERM_RE = re.compile(r"(?:ภาค(?:การศึกษา)?ที่\s*[1-3](?:/\d{4})?|เทอม\s*[1-3]|[1-3]/\d{4}|ปีการศึกษา\s*\d{4})")
 _META_TASK_RE = re.compile(
     r"(?:^|\n)\s*(?:#+\s*)?task\s*:[\s\S]{0,200}?"
     r"(?:"
@@ -345,6 +347,107 @@ def _latest_course_code_from_messages(messages: list[dict] | None) -> str:
     return ''
 
 
+def _extract_instructor_mentions(text: str) -> list[str]:
+    out: list[str] = []
+    for m in _INSTRUCTOR_RE.finditer(text or ''):
+        name = re.sub(r"\s+", " ", str(m.group(1) or '').strip())
+        if name:
+            out.append(name)
+    return out
+
+
+def _extract_term_mentions(text: str) -> list[str]:
+    return [re.sub(r"\s+", " ", str(m.group(0) or '').strip()) for m in _TERM_RE.finditer(text or '') if str(m.group(0) or '').strip()]
+
+
+def _extract_topic_anchor(text: str) -> str:
+    txt = re.sub(r"\s+", " ", str(text or '').strip())
+    if not txt:
+        return ''
+    if any(rx.search(txt) for rx in (_COURSE_CODE_RE, _INSTRUCTOR_RE, _TERM_RE)):
+        return ''
+    if len(txt) <= 40 and not any(p in txt.lower() for p in ('อะไร', 'เมื่อไร', 'ยังไง', 'อย่างไร', 'ไหม', 'มั้ย', 'กี่', 'where', 'when', 'what')):
+        return txt
+    return ''
+
+
+def _extract_reference_entities(text: str) -> list[str]:
+    out: list[str] = []
+    seen: set[str] = set()
+    for code in _extract_course_codes_from_text(text):
+        if code not in seen:
+            seen.add(code)
+            out.append(code)
+    for name in _extract_instructor_mentions(text):
+        anchor = f"อาจารย์{name}".strip()
+        if anchor not in seen:
+            seen.add(anchor)
+            out.append(anchor)
+    for term in _extract_term_mentions(text):
+        if term not in seen:
+            seen.add(term)
+            out.append(term)
+    topic = _extract_topic_anchor(text)
+    if topic and topic not in seen:
+        out.append(topic)
+    return out
+
+
+def _has_explicit_reference(text: str) -> bool:
+    return bool(_extract_reference_entities(text))
+
+
+def _entity_type_for_value(value: str) -> str:
+    v = str(value or '').strip()
+    if not v:
+        return ''
+    if _COURSE_CODE_RE.search(v):
+        return 'course'
+    if v.startswith('อาจารย์'):
+        return 'instructor'
+    if _TERM_RE.search(v):
+        return 'term'
+    return 'topic'
+
+
+def _rank_followup_candidates(messages: list[dict] | None) -> list[tuple[str, str, int]]:
+    normalized = coerce_chat_messages(messages)
+    ranked: list[tuple[str, str, int]] = []
+    seen: set[str] = set()
+    score = 3
+    for m in reversed(normalized):
+        if (m.get('role') or '').strip().lower() != 'user':
+            continue
+        txt = content_to_text(m.get('content'))
+        if not txt:
+            continue
+        refs = _extract_reference_entities(txt)
+        if not refs:
+            continue
+        for ref in reversed(refs):
+            key = ref.strip()
+            if not key or key in seen:
+                continue
+            seen.add(key)
+            ranked.append((_entity_type_for_value(key), key, max(1, score)))
+        score = max(1, score - 1)
+    return ranked
+
+
+def _latest_followup_anchor_from_messages(messages: list[dict] | None) -> str:
+    normalized = coerce_chat_messages(messages)
+    for m in reversed(normalized):
+        if (m.get('role') or '').strip().lower() != 'user':
+            continue
+        txt = content_to_text(m.get('content'))
+        if not txt:
+            continue
+        refs = _extract_reference_entities(txt)
+        if refs:
+            return refs[-1]
+    return ''
+
+
 def is_meta_followup_generation_prompt(text: str) -> bool:
     t = (text or '').strip()
     if not t:
@@ -363,6 +466,11 @@ def analyze_followup_entities(messages: list[dict] | None, effective_question: s
         'followup_previous_entity': '',
         'followup_entity_overridden': 0,
         'followup_entity_conflict': 0,
+        'followup_resolved_entity_type': '',
+        'followup_resolved_entity_value': '',
+        'followup_resolved_entity_confidence': 0,
+        'followup_resolved_entity_candidates': '',
+        'followup_needs_clarification': 0,
     }
     normalized = coerce_chat_messages(messages)
     user_msgs = [content_to_text(m.get('content')) for m in normalized if (m.get('role') or '').strip().lower() == 'user']
@@ -373,16 +481,50 @@ def analyze_followup_entities(messages: list[dict] | None, effective_question: s
     prev = user_msgs[-2] if len(user_msgs) >= 2 else ''
     latest_codes = _extract_course_codes_from_text(last)
     prev_codes = _extract_course_codes_from_text(prev)
-    latest = latest_codes[-1] if latest_codes else ''
-    previous = prev_codes[-1] if prev_codes else ''
+    latest_instructors = _extract_instructor_mentions(last)
+    prev_instructors = _extract_instructor_mentions(prev)
+    latest = latest_codes[-1] if latest_codes else (f"อาจารย์{latest_instructors[-1]}" if latest_instructors else '')
+    previous = prev_codes[-1] if prev_codes else (f"อาจารย์{prev_instructors[-1]}" if prev_instructors else '')
     out['followup_latest_entity'] = latest
     out['followup_previous_entity'] = previous
     if latest and previous and latest != previous:
         out['followup_entity_overridden'] = 1
         eff_codes = _extract_course_codes_from_text(effective_question or '')
-        eff_latest = eff_codes[-1] if eff_codes else ''
-        if (not eff_latest) or eff_latest != latest or previous in eff_codes:
+        eff_instructors = _extract_instructor_mentions(effective_question or '')
+        eff_latest = eff_codes[-1] if eff_codes else (f"อาจารย์{eff_instructors[-1]}" if eff_instructors else '')
+        if (not eff_latest) or eff_latest != latest or previous in (effective_question or ''):
             out['followup_entity_conflict'] = 1
+
+    resolved_value = ''
+    resolved_confidence = 0
+    resolved_type = ''
+    ranked = _rank_followup_candidates(messages)
+    if str(effective_question or '').startswith('บริบทก่อนหน้า: '):
+        first_line = str(effective_question or '').splitlines()[0]
+        resolved_value = first_line.replace('บริบทก่อนหน้า:', '', 1).strip()
+        resolved_type = _entity_type_for_value(resolved_value)
+        resolved_confidence = 3
+    elif latest:
+        resolved_value = latest
+        resolved_type = _entity_type_for_value(resolved_value)
+        resolved_confidence = 2
+    elif previous:
+        resolved_value = previous
+        resolved_type = _entity_type_for_value(resolved_value)
+        resolved_confidence = 1
+
+    out['followup_resolved_entity_type'] = resolved_type
+    out['followup_resolved_entity_value'] = resolved_value
+    out['followup_resolved_entity_confidence'] = resolved_confidence
+    out['followup_resolved_entity_candidates'] = '|'.join(
+        f"{etype}:{value}:{conf}" for etype, value, conf in ranked[:5]
+    )
+    if ranked:
+        top_conf = ranked[0][2]
+        second_conf = ranked[1][2] if len(ranked) > 1 else 0
+        same_top_type = len(ranked) > 1 and ranked[0][0] == ranked[1][0]
+        needs_clarification = (top_conf <= 1) or (same_top_type and second_conf >= top_conf)
+        out['followup_needs_clarification'] = int(needs_clarification)
     return out
 
 
@@ -392,9 +534,26 @@ def looks_coreference_followup(text: str) -> bool:
         return False
     coref_terms = (
         'อันนั้น', 'ตัวนั้น', 'อันนี้', 'ตัวนี้', 'วิชานั้น', 'อันก่อนหน้า', 'เมื่อกี้', 'เพิ่มเติม',
-        'แล้ว', 'ต่อ', 'ต่อจาก', 'ใครสอน', 'มีกี่หน่วยกิต', 'เปิดสอน', 'เงื่อนไขอะไร'
+        'แล้ว', 'ต่อ', 'ต่อจาก', 'ใครสอน', 'มีกี่หน่วยกิต', 'กี่หน่วยกิต', 'หน่วยกิตเท่าไร',
+        'ชื่อวิชาอะไร', 'วิชาอะไร', 'เรียนเกี่ยวกับอะไร', 'คำอธิบายรายวิชา', 'บังคับก่อนอะไร',
+        'prerequisite อะไร', 'prereq อะไร', 'เปิดสอน', 'เงื่อนไขอะไร', 'วิชาที่สอน',
+        'สอนวิชาอะไร', 'มีวิชาอะไรบ้าง', 'วิชาอะไรบ้าง'
     )
     return any(k in t for k in coref_terms)
+
+
+def _is_underspecified_followup(text: str) -> bool:
+    t = re.sub(r"\s+", " ", str(text or '').strip().lower())
+    if not t or _has_explicit_reference(text):
+        return False
+    if len(t) <= 24:
+        return True
+    if any(k in t for k in (
+        'อะไร', 'เมื่อไร', 'ยังไง', 'อย่างไร', 'กี่', 'ไหม', 'มั้ย', 'หรือไม่',
+        'ที่สอน', 'ที่เรียน', 'ที่ใช้', 'ที่ต้องยื่น', 'รายละเอียด'
+    )):
+        return True
+    return False
 
 
 def build_effective_question(messages: list[dict] | None, default_question: str) -> str:
@@ -422,10 +581,10 @@ def build_effective_question(messages: list[dict] | None, default_question: str)
         return last
     if has_code_in_last:
         return last
-    if looks_coreference_followup(last) and not has_code_in_last:
-        code = _latest_course_code_from_messages(normalized)
-        if code:
-            return f"บริบทก่อนหน้า: {code}\nคำถามต่อเนื่อง: {last}".strip()
+    if (looks_coreference_followup(last) or _is_underspecified_followup(last)) and not has_code_in_last:
+        anchor_entity = _latest_followup_anchor_from_messages(normalized[:-1])
+        if anchor_entity:
+            return f"บริบทก่อนหน้า: {anchor_entity}\nคำถามต่อเนื่อง: {last}".strip()
         anchor = ' | '.join(recent_user_window[:-1]).strip(' |')
         if anchor:
             return f"{anchor}\nคำถามต่อเนื่อง: {last}".strip()
@@ -440,7 +599,7 @@ def is_short_ambiguous_followup(text: str) -> bool:
         return False
     if _COURSE_CODE_RE.search(q):
         return False
-    if any(t in q for t in ('มาสาย', 'ห้องสอบ', 'หน่วยกิต', 'รหัสวิชา', 'prereq', 'instructor')):
+    if any(t in q for t in ('มาสาย', 'ห้องสอบ', 'รหัสวิชา', 'prereq', 'instructor')):
         return False
     if not any(t in q for t in ('สรุป', 'สั้นๆ', 'ย้ำ', 'อีกครั้ง', 'อีกที', 'ขอสรุป', 'ขอแบบสั้น', 'short summary')):
         return False
@@ -556,4 +715,3 @@ def prepare_chat_request(
 
 def remember_chat_turn(session_id: str, raw_last_user: str, raw_input_question: str, effective_question: str, session_store: SessionStore) -> None:
     session_store.append_chat_turn(session_id, raw_last_user or raw_input_question or effective_question)
-

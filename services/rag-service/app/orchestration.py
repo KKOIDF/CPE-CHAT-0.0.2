@@ -7,6 +7,7 @@ import re
 from .perf import add_metric
 from .normalization import normalize_question, search_query_from_question
 from .routing import (
+    apply_resolved_entity_context,
     _filter_chunks_by_reference,
     _infer_domain_from_reference,
     _reference_candidates,
@@ -315,7 +316,8 @@ def _retrieval_intent_alias_contexts(question: str, domain: str | None) -> list[
     return out
 
 
-def rag_query(question: str) -> Dict:
+def rag_query(question: str, resolved_entity: dict | None = None) -> Dict:
+    question = apply_resolved_entity_context(question, resolved_entity)
     q_display = normalize_question(question)
     q_search = search_query_from_question(question)
     dom_initial = infer_domain(q_display) or _infer_domain_from_reference(question)
@@ -516,7 +518,8 @@ def rag_query(question: str) -> Dict:
     }
 
 
-def rag_query_domain(question: str, domain: str | None) -> Dict:
+def rag_query_domain(question: str, domain: str | None, resolved_entity: dict | None = None) -> Dict:
+    question = apply_resolved_entity_context(question, resolved_entity)
     q_display = normalize_question(question)
     dom = (domain or '').strip().lower()
     intent = classify_intent(q_display)

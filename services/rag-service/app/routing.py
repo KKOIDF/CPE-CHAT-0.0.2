@@ -29,6 +29,9 @@ class RouteDecision:
     needs_exact_schema: bool = False
     timeout_policy: str = 'normal'
     fallback_policy: str = 'broad'
+    resolved_entity_type: str = ''
+    resolved_entity_value: str = ''
+    resolved_entity_confidence: int = 0
 
 @dataclass
 class ResolutionStrategy:
@@ -51,6 +54,23 @@ def _extract_course_codes_local(text: str) -> List[str]:
             seen.add(code)
             out.append(code)
     return out
+
+
+def apply_resolved_entity_context(question: str, resolved_entity: dict | None = None) -> str:
+    q = (question or '').strip()
+    if not q:
+        return q
+    if q.startswith('บริบทก่อนหน้า:'):
+        return q
+    if re.search(r"\b([A-Za-z]{2,6})\s*[- ]?\s*(\d{3})\b", q):
+        return q
+    if not isinstance(resolved_entity, dict):
+        return q
+    value = str(resolved_entity.get('value') or '').strip()
+    confidence = int(resolved_entity.get('confidence') or 0)
+    if not value or confidence <= 0:
+        return q
+    return f"บริบทก่อนหน้า: {value}\nคำถามต่อเนื่อง: {q}".strip()
 
 
 def _is_claim_verification_question(question: str) -> bool:
@@ -205,9 +225,10 @@ def classify_intent(question: str) -> str:
 
     return 'general_info'
 
-def analyze_route(question: str, requested_domain: Optional[str] = None) -> RouteDecision:
+def analyze_route(question: str, requested_domain: Optional[str] = None, resolved_entity: dict | None = None) -> RouteDecision:
     """Analyze query to understand intent, extract entities, and populate RouteDecision schema."""
-    q = (question or '').strip()
+    raw_q = (question or '').strip()
+    q = apply_resolved_entity_context(raw_q, resolved_entity)
     primary_intent = classify_intent(q)
     inferred = infer_domain(q)
     
@@ -220,6 +241,13 @@ def analyze_route(question: str, requested_domain: Optional[str] = None) -> Rout
     is_multi = primary_intent == 'multi_intent' or is_multi_doc_question(q)
     subqs = decompose_question(q) if is_multi else []
     entities = _extract_course_codes_local(q)
+    resolved_type = str((resolved_entity or {}).get('type') or '').strip()
+    resolved_value = str((resolved_entity or {}).get('value') or '').strip()
+    resolved_confidence = int((resolved_entity or {}).get('confidence') or 0)
+    if resolved_type == 'course' and resolved_value:
+        norm = resolved_value.replace('-', '').replace(' ', '').upper()
+        if norm and norm not in entities:
+            entities.append(norm)
     
     # Structured Eligibility evaluation
     use_structured_curriculum = (os.getenv('RAG_USE_STRUCTURED_CURRICULUM', '1') or '1').strip().lower() in ('1', 'true', 'yes', 'on')
@@ -280,7 +308,10 @@ def analyze_route(question: str, requested_domain: Optional[str] = None) -> Rout
         requires_clause_anchor=requires_clause_anchor,
         needs_exact_schema=needs_exact_schema,
         timeout_policy=timeout_policy,
-        fallback_policy=fallback_policy
+        fallback_policy=fallback_policy,
+        resolved_entity_type=resolved_type,
+        resolved_entity_value=resolved_value,
+        resolved_entity_confidence=resolved_confidence,
     )
 
 def select_resolution_strategy(decision: RouteDecision) -> ResolutionStrategy:
