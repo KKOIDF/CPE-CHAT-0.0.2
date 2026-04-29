@@ -1,8 +1,8 @@
 @startuml Backend_C1_C4_Diagram
-!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Context.puml
-!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
-!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
-!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Deployment.puml
+!include <C4/C4_Context>
+!include <C4/C4_Container>
+!include <C4/C4_Component>
+!include <C4/C4_Deployment>
 
 !define FONTNAME Arial
 !define FONTCOLOR #333333
@@ -39,7 +39,7 @@ Rel(cpe_system, neo4j, "Graph lookup (optional)")
 ' ========================================
 
 @startuml Backend_C2_Container
-!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+!include <C4/C4_Container>
 
 LAYOUT_WITH_LEGEND()
 
@@ -104,7 +104,7 @@ Rel(rag_api, mlflow, "Logs traces/metrics")
 ' ========================================
 
 @startuml Backend_C3_Ingestion_Components
-!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
+!include <C4/C4_Component>
 
 LAYOUT_WITH_LEGEND()
 
@@ -166,7 +166,7 @@ Rel(db_client, quality, "Persists quality records")
 ' ========================================
 
 @startuml Backend_C3_RAG_Components
-!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
+!include <C4/C4_Component>
 
 LAYOUT_WITH_LEGEND()
 
@@ -253,7 +253,7 @@ Rel(llm_interface, llm_provider, "Generate responses")
 ' ========================================
 
 @startuml Backend_C4_Code_Classes
-!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Deployment.puml
+!include <C4/C4_Deployment>
 
 LAYOUT_WITH_LEGEND()
 

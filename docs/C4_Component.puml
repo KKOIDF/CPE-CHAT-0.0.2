@@ -1,9 +1,5 @@
-' convert it with additional command line argument -DRELATIVE_INCLUDE="relative/absolute" to use locally
-!if %variable_exists("RELATIVE_INCLUDE")
-  !include ./C4_Container.puml
-!else
-  !include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
-!endif
+' Uses bundled PlantUML stdlib C4 include (offline-friendly).
+!include <C4/C4_Container>
 
 ' Scope: A single container.
 ' Primary elements: Components within the container in scope.

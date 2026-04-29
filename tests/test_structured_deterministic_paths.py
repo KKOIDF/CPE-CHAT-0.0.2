@@ -56,6 +56,18 @@ class TestStructuredDeterministicPaths(unittest.TestCase):
         self.assertIn("เทอม/ชั้นปีที่อยู่ในแผน", answer)
         self.assertIn("คำแนะนำการลงทะเบียน", answer)
 
+    def test_announcement_open_term_answer_mentions_official_calendar(self) -> None:
+        answer = render_fast_announcement_calendar_answer("ขออัปเดต วันเปิดภาคการศึกษา ล่าสุดหน่อยครับ")
+        self.assertIsNotNone(answer)
+        self.assertIn("ประกาศล่าสุด/ปฏิทินการศึกษา", str(answer))
+        self.assertIn("วันเปิดภาคการศึกษา", str(answer))
+
+    def test_announcement_w_deadline_answer_mentions_official_calendar(self) -> None:
+        answer = render_fast_announcement_calendar_answer("ขออัปเดต วันสุดท้ายถอนวิชาแบบติด W ล่าสุดหน่อยครับ")
+        self.assertIsNotNone(answer)
+        self.assertIn("ประกาศล่าสุด/ปฏิทินการศึกษา", str(answer))
+        self.assertIn("วันสุดท้ายถอนวิชาแบบติด W", str(answer))
+
     def test_fetch_exam_clause_uses_structured_artifact(self) -> None:
         clause = fetch_exam_clause("12")
         self.assertIsNotNone(clause)
@@ -84,6 +96,20 @@ class TestStructuredDeterministicPaths(unittest.TestCase):
         self.assertIn("ระเบียบการสอบ", answer)
         self.assertIn("ทุจริต", answer)
         self.assertIn("คณะกรรมการพิจารณาความผิด", answer)
+
+    def test_structured_regulations_lookup_handles_cheating_penalty_binary_eval_variant(self) -> None:
+        result = structured_regulations_lookup('ช่วยยืนยันให้หน่อยว่า “สงสัยเรื่องบทลงโทษกรณีทุจริตสอบ” ทำได้หรือไม่ได้?')
+        answer = str(result.get("answer") or "")
+        self.assertIn("ทำได้/ไม่ได้", answer)
+        self.assertIn("ระเบียบการสอบ", answer)
+        self.assertIn("ทุจริตสอบ", answer)
+
+    def test_structured_regulations_lookup_handles_appeal_rejected_eval_variant(self) -> None:
+        result = structured_regulations_lookup('กรณี “อยากอุทธรณ์ผลการพิจารณาความผิดระหว่างสอบ” ถ้าโดนปฏิเสธหน้างาน ควรดำเนินการต่อยังไง?')
+        answer = str(result.get("answer") or "")
+        self.assertIn("อุทธรณ์", answer)
+        self.assertIn("หลักฐาน", answer)
+        self.assertIn("ระเบียบการสอบ", answer)
 
 
 if __name__ == "__main__":

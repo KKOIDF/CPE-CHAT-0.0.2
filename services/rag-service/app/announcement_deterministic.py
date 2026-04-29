@@ -79,6 +79,10 @@ def render_fast_announcement_calendar_answer(question: str) -> str | None:
         page = int(artifact_entry.get("page") or 1)
         label = str(artifact_entry.get("label") or "").strip()
         value = str(artifact_entry.get("value") or "").strip()
+        if any(t in ql for t in ("วันเปิดภาค", "เปิดภาคการศึกษา", "วันเปิดภาคการศึกษา")):
+            return f"- ประกาศล่าสุด/ปฏิทินการศึกษา ระบุวันเปิดภาคการศึกษา: {value} [{source}/{page}]"
+        if ("วันสุดท้าย" in ql) and any(t in ql for t in ("ถอนวิชา", "ติด w", "ถอนรายวิชา")):
+            return f"- ประกาศล่าสุด/ปฏิทินการศึกษา ระบุวันสุดท้ายถอนวิชาแบบติด W: {value} [{source}/{page}]"
         if label and value:
             if "ผลการประเมินเป็น" in value:
                 return f"- {value} [{source}/{page}]"
@@ -93,6 +97,10 @@ def render_fast_announcement_calendar_answer(question: str) -> str | None:
         return f"- นักศึกษาอยู่ในระบบลงทะเบียนได้ครั้งละไม่เกิน 20 นาที [{cite}]"
     if "วันสุดท้าย" in ql and "ชำระเงิน" in ql:
         return f"- วันสุดท้ายของการชำระเงินค่าลงทะเบียนภาค 2/2568 คือ พฤ.8 มกราคม 2569 [{cite}]"
+    if any(t in ql for t in ("วันเปิดภาค", "เปิดภาคการศึกษา", "วันเปิดภาคการศึกษา")):
+        return f"- ประกาศล่าสุด/ปฏิทินการศึกษา ระบุวันเปิดภาคการศึกษาไว้ในช่วงวันเสาร์ที่ 16 สิงหาคม - วันศุกร์ที่ 17 ตุลาคม 2568 [{cite}]"
+    if ("วันสุดท้าย" in ql) and any(t in ql for t in ("ถอนวิชา", "ติด w", "ถอนรายวิชา")):
+        return f"- ประกาศล่าสุด/ปฏิทินการศึกษา ระบุวันสุดท้ายถอนวิชาแบบติด W ตามรอบที่ประกาศ [{cite}]"
     if "โมดูล 5 สัปดาห์" in ql and "ช่วงที่ 1" in ql:
         return f"- กำหนดการลดรายวิชาโมดูล 5 สัปดาห์ ช่วงที่ 1 คือ วันเสาร์ที่ 24 มกราคม - วันศุกร์ที่ 6 กุมภาพันธ์ 2569 [{cite}]"
     if ("ถอนรายวิชา" in ql or "ถอน" in ql) and any(t in ql for t in ("ผลการประเมิน", "ผลการเรียน", "เป็นอะไร", "สถานะ")):

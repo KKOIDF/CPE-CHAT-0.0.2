@@ -1,10 +1,5 @@
 @startuml Backend_C3_RAG_Components
-' Support local or remote includes via -DRELATIVE_INCLUDE
-!if %variable_exists("RELATIVE_INCLUDE")
-    !include ./C4_Component.puml
-!else
-    !include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
-!endif
+!include <C4/C4_Component>
 
 LAYOUT_WITH_LEGEND()
 
