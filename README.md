@@ -1,82 +1,106 @@
 # CPE-CHAT 0.0.2
 
-ระบบแชตบอท RAG สำหรับงานข้อมูลภาควิชา/มหาวิทยาลัย โดยรองรับการสืบค้นหลายโดเมน เช่น announcements, regulations และ curriculum พร้อมเชื่อมต่อ LLM ผ่าน Ollama หรือ Typhoon และใช้งานผ่าน OpenWeb-UI ได้
+ระบบถามตอบข้อมูลภาควิชา/มหาวิทยาลัยแบบ RAG สำหรับงานเอกสารหลายโดเมน โดยตอนนี้ในรีโปมีโดเมนหลัก 3 ส่วน:
 
-## Features
+- `announcements`
+- `regulations`
+- `curriculum`
 
-- Multi-domain RAG: announcements, regulations, curriculum
-- Hybrid retrieval: vector + keyword (SQLite FTS)
-- OpenAI-compatible API ผ่าน RAG service
-- ใช้งานผ่าน OpenWeb-UI ได้ทันที
-- มีชุด evaluation และ regression gate สำหรับเช็กคุณภาพก่อน deploy
-- รองรับ ingestion ทั้ง local และ offload ไป GPU host
+โปรเจกต์นี้แยกงานเป็น 2 ส่วนหลัก:
 
-## Architecture
+- `rag-service` สำหรับรับคำถาม ค้นข้อมูล และตอบผ่าน API
+- `ingestion-service` สำหรับแปลงเอกสารและสร้างดัชนีที่ใช้ค้น
 
-บริการหลักใน docker-compose:
+หน้าเว็บคุยกับระบบใช้งานผ่าน OpenWebUI และ backend เปิด endpoint แบบ OpenAI-compatible ไว้ที่ `/v1`
 
-- rag-service: FastAPI backend + retrieval + Ollama/Typhoon LLM integration
-- openweb-ui: web chat interface
-- mlflow: tracking/observability (optional แต่เปิดไว้โดยค่าเริ่มต้น)
+## สิ่งที่มีในเวอร์ชันปัจจุบัน
 
-พอร์ตค่าเริ่มต้น:
+- ค้นแบบ hybrid: vector + SQLite FTS
+- รองรับหลายโดเมนในระบบเดียว
+- มี deterministic path สำหรับคำถามบางประเภทเพื่อลดคำตอบเพี้ยน
+- เปิดใช้ผ่าน OpenWebUI ได้
+- มีชุด eval, baseline compare และ regression gate
+- มี MLflow สำหรับ observability
+- มี Redis สำหรับเก็บ session follow-up
+- รองรับ LLM หลายแบบ เช่น `ollama`, `typhoon`, `openai`
 
-- RAG API: 8001
-- OpenWeb-UI: 3000
-- MLflow: 5000
+## โครงสร้างระบบ
 
-## Quick Start (Docker Compose)
+บริการหลักใน `docker-compose.yml` ตอนนี้มี 4 ตัว:
 
-1. เตรียมไฟล์ environment
+- `rag-service` ที่พอร์ต `8001`
+- `openweb-ui` ที่พอร์ต `3000`
+- `mlflow` ที่พอร์ต `5000`
+- `redis` ที่พอร์ต `6379`
+
+เส้นทางหลักของข้อมูล:
+
+1. ผู้ใช้ส่งคำถามจาก OpenWebUI
+2. OpenWebUI เรียก `rag-service` ผ่าน `/v1/chat/completions`
+3. `rag-service` ดึงข้อมูลจากดัชนีใน `indexes/`
+4. ระบบส่งคำตอบกลับพร้อม citation ตาม endpoint ที่เรียก
+
+## เริ่มใช้งานแบบ Docker
+
+### 1. เตรียม environment
 
 ```bash
 cp .env.example .env
 ```
 
-2. ตั้งค่าอย่างน้อยในไฟล์ `.env`
+ค่าขั้นต่ำที่ควรตั้งใน `.env`:
 
 ```env
-LLM_PROVIDER=ollama
-LLM_MODEL=gemma4:26b
-OLLAMA_BASE_URL=http://gpu06.slurm.cpe.kmutt.ac.th:11434
-OLLAMA_API_KEY=sk-ollama-dummy
 RAG_PORT=8001
 OPENWEB_UI_PORT=3000
-```
 
-ตัวอย่างสำหรับ Typhoon เป็น fallback:
-
-```env
 LLM_PROVIDER=ollama
 LLM_MODEL=gemma4:26b
+OLLAMA_BASE_URL=http://host.docker.internal:11434
+OLLAMA_API_KEY=
+
 LLM_AUX_PROVIDER=typhoon
 LLM_AUX_MODEL=typhoon-v2.5-30b-a3b-instruct
-LLM_AUX_FOR_REWRITE=0
-LLM_AUX_FOR_MULTIQUERY=0
-LLM_AUX_FOR_ROUTING=0
 LLM_AUX_FALLBACK_FOR_ANSWER=1
-TYPHOON_API_KEY=your_real_api_key
-OLLAMA_BASE_URL=http://gpu06.slurm.cpe.kmutt.ac.th:11434
-OLLAMA_API_KEY=sk-ollama-dummy
-RAG_PORT=8001
-OPENWEB_UI_PORT=3000
+TYPHOON_API_KEY=your_typhoon_api_key_here
 ```
 
-แนวทางนี้ให้ gemma4:26b เป็นโมเดลหลักสำหรับคำตอบปกติ และให้ Typhoon รับช่วงเฉพาะตอน answer fallback เมื่อตัวหลักล้มเหลว
+ถ้าจะใช้ `typhoon` เป็นโมเดลหลัก ให้สลับเป็น:
 
-หากต้องการให้ Typhoon เป็นตัวหลักกลับไปอีกครั้ง ให้สลับ `LLM_PROVIDER` และ `LLM_MODEL` ใน `.env` แล้วเปิด `LLM_AUX_*` ตามรูปแบบเดิม
+```env
+LLM_PROVIDER=typhoon
+LLM_MODEL=typhoon-v2.5-30b-a3b-instruct
+TYPHOON_API_KEY=your_typhoon_api_key_here
+```
 
-3. ตรวจว่ามีดัชนีแล้วในโฟลเดอร์ `indexes/`
+หมายเหตุ:
 
-- ถ้ายังไม่มี ให้รัน ingestion ก่อน (ดูหัวข้อ Ingestion)
+- ค่าใน `.env.example` เป็นค่าที่อัปเดตตามสแตกปัจจุบันของรีโป
+- ฝั่ง Docker รองรับทั้ง `ollama` เป็นตัวหลักและ `typhoon` เป็น fallback
 
-4. สตาร์ตระบบ
+### 2. เตรียมดัชนี
+
+ต้องมีข้อมูลในโฟลเดอร์ `indexes/` ก่อนเปิดระบบ ถ้ายังไม่มีให้รัน ingestion ก่อน
+
+```bash
+make ingest
+```
+
+ถ้าจะส่งงาน ingestion ไปเครื่อง GPU:
+
+```bash
+make ingest-gpu GPU_HOST=user@remote-host
+```
+
+รายละเอียดเพิ่มดูที่ [GPU_INGEST_GUIDE.md](/home/testuser/CPE-CHAT-0.0.2/GPU_INGEST_GUIDE.md)
+
+### 3. เปิดระบบ
 
 ```bash
 docker-compose up -d
 ```
 
-5. ตรวจสถานะ
+### 4. ตรวจสถานะ
 
 ```bash
 docker-compose ps
@@ -84,10 +108,11 @@ docker-compose logs rag-service --tail=100
 curl http://localhost:8001/health
 ```
 
-6. เปิดใช้งาน
+### 5. เข้าใช้งาน
 
-- OpenWeb-UI: http://localhost:3000
-- RAG health: http://localhost:8001/health
+- OpenWebUI: `http://localhost:3000`
+- RAG health: `http://localhost:8001/health`
+- MLflow: `http://localhost:5000`
 
 หยุดระบบ:
 
@@ -95,75 +120,64 @@ curl http://localhost:8001/health
 docker-compose down
 ```
 
-## Quick Start (Local RAG Service)
+## รันเฉพาะ backend แบบ local
 
-เหมาะกับการพัฒนาเฉพาะ backend โดยไม่เปิด OpenWeb-UI ใน Docker
-
-1. เปิด virtual environment (ถ้ามี)
-
-```bash
-source venv/bin/activate
-```
-
-2. ตั้งค่า `.env` ให้ตรงกับ provider ที่จะใช้ เช่น `TYPHOON_API_KEY` หรือ `OLLAMA_BASE_URL`
-
-3. รัน service
+เหมาะกับงานพัฒนา `rag-service` อย่างเดียว
 
 ```bash
 ./start_rag_service.sh
 ```
 
-หรือใช้ Makefile:
+หรือ:
 
 ```bash
 make run-server
 ```
 
+ข้อควรรู้:
+
+- สคริปต์ [start_rag_service.sh](/home/testuser/CPE-CHAT-0.0.2/start_rag_service.sh) ตั้ง `LLM_PROVIDER=typhoon` เป็นค่าเริ่มต้น
+- ถ้ามีไฟล์ `.env` สคริปต์จะพยายามโหลด `LLM_MODEL` และ `TYPHOON_API_KEY` ให้
+- ถ้าจะใช้ provider อื่นแบบ local ควร export ค่า env เองก่อนรัน
+
 ## Ingestion
 
-### Local ingestion (all domains)
+คำสั่งหลัก:
 
 ```bash
 make ingest
 ```
 
-สคริปต์ที่ใช้จริงคือ [scripts/ingest_all_domains.sh](scripts/ingest_all_domains.sh)
+สคริปต์ที่เรียกจริงคือ [scripts/ingest_all_domains.sh](/home/testuser/CPE-CHAT-0.0.2/scripts/ingest_all_domains.sh)
 
-### GPU ingestion (remote host)
+ไฟล์ต้นทางที่ระบบใช้อ่านโดยทั่วไปอยู่ใน:
 
-```bash
-make ingest-gpu GPU_HOST=user@remote-host
-```
+- `data/raw/announcements`
+- `data/raw/regulations`
+- `data/raw/curriculum`
 
-ดูรายละเอียดเพิ่มที่ [GPU_INGEST_GUIDE.md](GPU_INGEST_GUIDE.md)
+ผลลัพธ์หลักที่ใช้ตอน runtime จะอยู่ใน:
 
-## Evaluation และ Regression Gate
+- `indexes/<domain>/vector/chroma`
+- `indexes/<domain>/vector/sqlite/ingestion.db`
 
-### รัน evaluation พื้นฐาน
+## Evaluation และ gate
+
+คำสั่งที่ใช้บ่อย:
 
 ```bash
 make eval-regression
-```
-
-### รันชุด qball
-
-```bash
 make eval-qball
-```
-
-### เปรียบเทียบกับ baseline
-
-```bash
 make eval-qball-gate
-```
-
-### รัน canary guard
-
-```bash
 make eval-canary-guard
+make eval-domain-monitor
+make eval-week3-gates
 ```
 
-เอกสารเต็มอยู่ที่ [EVAL_GUIDE.md](EVAL_GUIDE.md)
+เอกสารเพิ่ม:
+
+- [EVAL_GUIDE.md](/home/testuser/CPE-CHAT-0.0.2/EVAL_GUIDE.md)
+- [docs/system_reference.md](/home/testuser/CPE-CHAT-0.0.2/docs/system_reference.md)
 
 ## API ที่ใช้บ่อย
 
@@ -173,7 +187,7 @@ make eval-canary-guard
 curl http://localhost:8001/health
 ```
 
-### RAG query
+### Query แบบ retrieval
 
 ```bash
 curl -X POST http://localhost:8001/rag/query \
@@ -184,9 +198,7 @@ curl -X POST http://localhost:8001/rag/query \
   }'
 ```
 
-### RAG answer for your own backend
-
-แนะนำสำหรับเว็บ/backend ของคุณเอง เพราะจะได้ทั้ง `answer`, `contexts`, และ `token_est` กลับมาในครั้งเดียว
+### Answer สำหรับ backend อื่น
 
 ```bash
 curl -X POST http://localhost:8001/rag/answer \
@@ -196,22 +208,6 @@ curl -X POST http://localhost:8001/rag/answer \
     "domain": "curriculum"
   }'
 ```
-
-ถ้าต้องการบังคับโมเดลต่อ request:
-
-```bash
-curl -X POST http://localhost:8001/rag/answer \
-  -H "Content-Type: application/json" \
-  -d '{
-    "question": "หลักสูตรต้องมีหน่วยกิตกี่หน่วย",
-    "domain": "curriculum",
-    "model": "gemma4:26b"
-  }'
-```
-
-ถ้าไม่ส่ง `model` ระบบจะใช้โหมดแนะนำอัตโนมัติ:
-- `Typhoon` เป็นโมเดลหลักสำหรับคำตอบสุดท้าย
-- `gemma4:26b` ช่วยงาน rewrite/routing/multi-query และ fallback เมื่อโมเดลหลักมีปัญหา
 
 ### OpenAI-compatible endpoint
 
@@ -226,32 +222,41 @@ curl -X POST http://localhost:8001/v1/chat/completions \
   }'
 ```
 
-## โครงสร้างที่ควรรู้
+endpoint ที่มีตอนนี้:
 
-- [docker-compose.yml](docker-compose.yml): orchestration หลัก
-- [Makefile](Makefile): คำสั่งหลักสำหรับ run/ingest/eval
-- [start_rag_service.sh](start_rag_service.sh): รัน RAG service แบบ local
-- [scripts](scripts): utility scripts สำหรับ ingestion/evaluation/gates
-- [services/rag-service](services/rag-service): โค้ด backend RAG
-- [services/ingestion-service](services/ingestion-service): โค้ด ingestion pipeline
-- [README_DOMAINS.md](README_DOMAINS.md): รายละเอียดแยกโดเมน
-- [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md): คู่มือ deploy บน VM
+- `POST /rag/query`
+- `POST /rag/answer`
+- `GET /v1/models`
+- `POST /v1/chat/completions`
+- `GET /health`
+- `GET /debug/config` เมื่อเปิด `RAG_EXPOSE_CONFIG=1`
 
-## Troubleshooting
+## ไฟล์ที่ควรรู้
 
-- RAG ไม่ขึ้น:
-  - เช็กค่า provider ใน `.env` ว่าตรงกับ `LLM_PROVIDER`
-  - ถ้าใช้ Typhoon ให้เช็ก `TYPHOON_API_KEY`
-  - ถ้าใช้ Ollama ให้เช็ก `OLLAMA_BASE_URL` และให้ container เข้าถึง host ปลายทางได้
-  - ดู log: `docker-compose logs rag-service`
-- OpenWeb-UI คุยกับ RAG ไม่ได้:
-  - เช็ก health endpoint `http://localhost:8001/health`
-  - เช็ก network/ports ใน [docker-compose.yml](docker-compose.yml)
-- ตอบไม่ได้เรื่อง curriculum:
-  - เช็กว่ามี index ใน `indexes/curriculum/...`
+- [docker-compose.yml](/home/testuser/CPE-CHAT-0.0.2/docker-compose.yml) สแตกหลักตอนรันจริง
+- [Makefile](/home/testuser/CPE-CHAT-0.0.2/Makefile) รวมคำสั่งใช้งานบ่อย
+- [services/rag-service](/home/testuser/CPE-CHAT-0.0.2/services/rag-service) โค้ดของ backend
+- [services/ingestion-service](/home/testuser/CPE-CHAT-0.0.2/services/ingestion-service) โค้ดของ ingestion pipeline
+- [README_DOMAINS.md](/home/testuser/CPE-CHAT-0.0.2/README_DOMAINS.md) รายละเอียดรายโดเมน
+- [DEPLOYMENT_GUIDE.md](/home/testuser/CPE-CHAT-0.0.2/DEPLOYMENT_GUIDE.md) คู่มือ deploy เพิ่มเติม
+
+## ปัญหาที่เจอบ่อย
+
+- `rag-service` ไม่ขึ้น
+  - เช็ก `.env` ว่าตั้ง `LLM_PROVIDER` และ key ที่เกี่ยวข้องครบ
+  - เช็กว่ามีดัชนีใน `indexes/`
+  - ดู log ด้วย `docker-compose logs rag-service`
+
+- OpenWebUI เรียก RAG ไม่ได้
+  - เช็ก `http://localhost:8001/health`
+  - เช็กว่า `rag-service` ผ่าน healthcheck แล้ว
+  - เช็กพอร์ตใน `docker-compose.yml`
+
+- คำตอบของบางโดเมนไม่ขึ้น
+  - เช็กว่ามีข้อมูลใน `indexes/<domain>/...`
   - รัน ingestion ใหม่
 
-## Notes
+## หมายเหตุ
 
-- ไฟล์ index และ data ที่ generate ระหว่าง ingestion อาจมีขนาดใหญ่และไม่ควรถูก commit
-- ควรใช้ regression/eval ทุกครั้งก่อนปล่อยขึ้นสภาพแวดล้อมใช้งานจริง
+- ไฟล์ใน `indexes/`, `chroma/`, `data/db/` และไฟล์ที่ generate ระหว่าง eval มีขนาดใหญ่ ควรระวังเรื่องการ commit
+- ถ้าจะปรับค่า retrieval หรือ routing ให้เริ่มจาก `.env.example` เพราะตอนนี้รวมตัวแปรหลักไว้ค่อนข้างครบแล้ว

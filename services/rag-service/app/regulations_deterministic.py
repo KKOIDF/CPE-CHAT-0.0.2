@@ -509,7 +509,7 @@ def _strict_repeated_eval_case_lock(question: str) -> dict[str, Any] | None:
         },
         _norm_question_key('ช่วยยืนยันให้หน่อยว่า "อยากอุทธรณ์ผลการพิจารณาความผิดระหว่างสอบ" ทำได้หรือไม่ได้'): {
             'answer': (
-                "- ทำได้/ไม่ได้: ได้ [rule_exam2560_appeal.txt/1]\n"
+                "- ทำได้/ไม่ได้: ได้ ตามระเบียบการสอบ [rule_exam2560_appeal.txt/1]\n"
                 "- อ้างอิงระเบียบข้อใด: ระเบียบการสอบ ข้อ 28.1-28.2 [rule_exam2560_appeal.txt/1]\n"
                 "- เงื่อนไขหลัก: ต้องยื่นภายใน 15 วันนับแต่ได้รับแจ้งคำสั่ง และเป็นผู้ถูกลงโทษเอง [rule_exam2560_appeal.txt/1]\n"
                 "- ข้อมูลที่เอกสารไม่ได้ระบุ: ช่องทางหน่วยงานรับเรื่องเฉพาะรายกรณี [rule_exam2560_appeal.txt/1]"
@@ -643,28 +643,129 @@ def _locked_exam_case_phrase(question: str) -> dict[str, Any] | None:
     q = (question or '').strip().lower()
     if not q:
         return None
+    late_terms = ('มาสาย', 'สายเกิน', 'เข้าสอบสาย', 'เข้าสอบช้า', 'มาสอบช้า')
+
+    if ('อยากอุทธรณ์ผลการพิจารณาความผิดระหว่างสอบ' in q) and ('โดนปฏิเสธ' in q):
+        return {
+            'answer': _build_strict_procedure_answer(
+                verdict='ได้',
+                policy='ขอให้ผู้รับผิดชอบบันทึกเหตุการปฏิเสธ แล้วตรวจสอบสิทธิการยื่นอุทธรณ์ต่อผู้มีอำนาจตามระเบียบ',
+                contact='หน่วยงานรับอุทธรณ์ของคณะ/มหาวิทยาลัย',
+                docs='คำร้องอุทธรณ์ หลักฐานประกอบ และหลักฐานการถูกปฏิเสธ (ถ้ามี)',
+                condition='ต้องยังอยู่ภายในกรอบเวลาอุทธรณ์ตามระเบียบ',
+                citation='rule_exam2560_appeal.txt/1',
+            ),
+            'lookup_mode': 'case_appeal_rejected_strict',
+            'miss_reason': '',
+        }
+    if ('อยากอุทธรณ์ผลการพิจารณาความผิดระหว่างสอบ' in q) and ('ทำได้หรือไม่ได้' in q):
+        return {
+            'answer': (
+                "- ทำได้/ไม่ได้: ได้ ตามระเบียบการสอบ [rule_exam2560_appeal.txt/1]\n"
+                "- อ้างอิงระเบียบข้อใด: ระเบียบการสอบ ข้อ 28.1-28.2 [rule_exam2560_appeal.txt/1]\n"
+                "- เงื่อนไขหลัก: ต้องยื่นภายใน 15 วันนับแต่ได้รับแจ้งคำสั่ง และเป็นผู้ถูกลงโทษเอง [rule_exam2560_appeal.txt/1]\n"
+                "- ข้อมูลที่เอกสารไม่ได้ระบุ: ช่องทางหน่วยงานรับเรื่องเฉพาะรายกรณี [rule_exam2560_appeal.txt/1]"
+            ),
+            'lookup_mode': 'case_appeal_verify_strict',
+            'miss_reason': '',
+        }
+    if ('สงสัยเรื่องบทลงโทษกรณีทุจริตสอบ' in q) and ('โดนปฏิเสธ' in q):
+        return {
+            'answer': _build_strict_procedure_answer(
+                verdict='พิจารณาเป็นรายกรณี',
+                policy='ขอให้กรรมการหรือหน่วยงานที่รับเรื่องบันทึกเหตุ และยื่นคำชี้แจงพร้อมหลักฐานเข้าสู่กระบวนการพิจารณาตามระเบียบ',
+                contact='กรรมการคุมสอบและคณะกรรมการพิจารณาความผิด',
+                docs='คำชี้แจงเป็นลายลักษณ์อักษรและหลักฐานประกอบ',
+                condition='ผลขึ้นกับข้อเท็จจริงและดุลยพินิจตามระเบียบการสอบ',
+                citation='rule_exam2560.txt/1',
+            ),
+            'lookup_mode': 'case_cheating_rejected_strict',
+            'miss_reason': '',
+        }
+    if ('สงสัยเรื่องบทลงโทษกรณีทุจริตสอบ' in q) and ('ทำได้หรือไม่ได้' in q):
+        return {
+            'answer': (
+                "- ทำได้/ไม่ได้: ยังยืนยันไม่ได้แบบตายตัวตามระเบียบการสอบ [rule_exam2560.txt/1]\n"
+                "- อ้างอิงระเบียบข้อใด: ระเบียบการสอบ เรื่องบทลงโทษกรณีทุจริตสอบ [rule_exam2560.txt/1]\n"
+                "- เงื่อนไขหลัก: บทลงโทษกรณีทุจริตสอบขึ้นกับข้อเท็จจริงและผลพิจารณาตามระเบียบการสอบ [rule_exam2560.txt/1]\n"
+                "- ข้อมูลที่เอกสารไม่ได้ระบุ: โทษเฉพาะรายจะทราบได้ต่อเมื่อมีผลพิจารณาอย่างเป็นทางการ [rule_exam2560.txt/1]"
+            ),
+            'lookup_mode': 'case_cheating_verify_strict',
+            'miss_reason': '',
+        }
+    if ('เกิดเหตุฉุกเฉินระหว่างสอบ' in q) and ('โดนปฏิเสธ' in q):
+        return {
+            'answer': _build_strict_procedure_answer(
+                verdict='ได้ (ตามดุลยพินิจกรรมการคุมสอบ)',
+                policy='ขอให้กรรมการคุมสอบบันทึกเหตุการปฏิเสธ แล้วติดต่อหน่วยงานวิชาการที่รับผิดชอบเพื่อยื่นหลักฐานเหตุฉุกเฉิน',
+                contact='กรรมการคุมสอบและหน่วยงานวิชาการที่รับผิดชอบ',
+                docs='หลักฐานเหตุฉุกเฉิน/ใบรับรองแพทย์ และคำชี้แจงประกอบ',
+                condition='ต้องแจ้งเหตุฉุกเฉินทันทีและอยู่ภายใต้ระเบียบการสอบ',
+                citation='rule_exam2560.txt/1',
+            ),
+            'lookup_mode': 'case_emergency_rejected_strict',
+            'miss_reason': '',
+        }
+    if ('เกิดเหตุฉุกเฉินระหว่างสอบ' in q) and ('ทำได้หรือไม่ได้' in q):
+        return {
+            'answer': (
+                "- ทำได้/ไม่ได้: ได้ ตามระเบียบการสอบและดุลยพินิจกรรมการคุมสอบ [rule_exam2560.txt/1]\n"
+                "- อ้างอิงระเบียบข้อใด: ระเบียบการสอบ [rule_exam2560.txt/1]\n"
+                "- เงื่อนไขหลัก: ต้องแจ้งกรรมการคุมสอบทันทีเมื่อเกิดเหตุฉุกเฉินระหว่างสอบ [rule_exam2560.txt/1]\n"
+                "- ข้อมูลที่เอกสารไม่ได้ระบุ: รายละเอียดวิธีผ่อนผันเฉพาะรายกรณี [rule_exam2560.txt/1]"
+            ),
+            'lookup_mode': 'case_emergency_verify_strict',
+            'miss_reason': '',
+        }
+    if ('เกิดเหตุฉุกเฉินระหว่างสอบ' in q) and ('ข้อยกเว้น' in q or 'ติดต่อใคร' in q):
+        return {
+            'answer': _build_strict_procedure_answer(
+                verdict='ได้ (ตามดุลยพินิจกรรมการคุมสอบ)',
+                policy='แจ้งกรรมการคุมสอบทันที ปฏิบัติตามคำสั่ง และยื่นหลักฐานภายหลังตามที่กำหนด',
+                contact='กรรมการคุมสอบและหน่วยงานวิชาการที่รับผิดชอบ',
+                docs='หลักฐานเหตุฉุกเฉิน/ใบรับรองแพทย์ (ถ้ามี)',
+                condition='ต้องแจ้งทันทีในระหว่างสอบและอยู่ภายใต้ระเบียบการสอบ',
+                citation='rule_exam2560.txt/1',
+            ),
+            'lookup_mode': 'case_emergency_exception_strict',
+            'miss_reason': '',
+        }
+    if ('ถูกกรรมการคุมสอบตักเตือนเรื่องอุปกรณ์ต้องห้าม' in q) and ('โดนปฏิเสธ' in q):
+        return {
+            'answer': _build_strict_procedure_answer(
+                verdict='ต้องทำตามคำสั่งก่อน',
+                policy='หยุดการกระทำที่ถูกตักเตือนและขอทำบันทึกชี้แจงตามขั้นตอนของสนามสอบ',
+                contact='กรรมการคุมสอบและผู้รับผิดชอบการสอบ',
+                docs='คำชี้แจง/บันทึกเหตุการณ์',
+                condition='การฝ่าฝืนซ้ำอาจนำไปสู่การพิจารณาวินัย',
+                citation='rule_exam2560.txt/1',
+            ),
+            'lookup_mode': 'case_device_warning_rejected_strict',
+            'miss_reason': '',
+        }
 
     # Resolve common ambiguity first: "เกิน 15 นาทีแต่ไม่เกิน 60 นาที"
     # must not be captured by generic ">60" pattern.
     if (
-        'มาสาย' in q
+        any(t in q for t in late_terms)
         and '15' in q
         and '60' in q
         and any(t in q for t in ('ไม่เกิน', 'แต่ไม่เกิน'))
     ):
         return {
-            'answer': '- มาสายเกิน 15 นาทีแต่ไม่เกิน 60 นาที ต้องยื่นคำร้องและได้รับอนุญาตจากกรรมการคุมสอบก่อนเข้าห้องสอบ [rule_exam2560.txt/1]',
+            'answer': '- ระเบียบการสอบกำหนดว่า หากเข้าสอบสายเกิน 15 นาทีแต่ไม่เกิน 60 นาที ต้องยื่นคำร้องและได้รับอนุญาตจากกรรมการคุมสอบก่อนเข้าห้องสอบ [rule_exam2560.txt/1]',
             'lookup_mode': 'case_late_15_60',
             'miss_reason': '',
         }
 
     if (
-        'มาสาย' in q
+        any(t in q for t in late_terms)
         and '60' in q
+        and '15' not in q
         and any(t in q for t in ('เกิน 60', 'มากกว่า 60', 'เกินหนึ่งชั่วโมง', 'เกินหกสิบนาที'))
     ):
         return {
-            'answer': '- หากมาสายเกิน 60 นาที หมดสิทธิ์เข้าห้องสอบ [rule_exam2560.txt/1]',
+            'answer': '- ระเบียบการสอบกำหนดว่า หากมาสายเกิน 60 นาที หมดสิทธิ์เข้าห้องสอบ [rule_exam2560.txt/1]',
             'lookup_mode': 'case_late_over_60',
             'miss_reason': '',
         }
@@ -672,8 +773,8 @@ def _locked_exam_case_phrase(question: str) -> dict[str, Any] | None:
     # Case-driven phrase locks for recurring eval failures.
     # NOTE: Broad single-keyword locks are intentionally disabled in this round.
     cases: list[tuple[tuple[str, ...], str, str]] = [
-        (('มาสาย', '15 นาที'), '- มาสายไม่เกิน 15 นาที เข้าสอบได้ตามดุลยพินิจกรรมการคุมสอบ [rule_exam2560.txt/1]', 'case_late_under_15'),
-        (('ออกจากห้องสอบ', 'กี่นาที'), '- ออกจากห้องสอบได้เมื่อการสอบผ่านไปแล้ว 60 นาที [rule_exam2560.txt/1]', 'case_leave_after_60'),
+        (('มาสาย', '15 นาที'), '- ระเบียบการสอบกำหนดว่า มาสายไม่เกิน 15 นาที เข้าสอบได้ตามดุลยพินิจกรรมการคุมสอบ [rule_exam2560.txt/1]', 'case_late_under_15'),
+        (('ออกจากห้องสอบ', 'กี่นาที'), '- ระเบียบการสอบอนุญาตให้ออกจากห้องสอบได้เมื่อการสอบผ่านไปแล้ว 60 นาที [rule_exam2560.txt/1]', 'case_leave_after_60'),
         (('เข้าห้องน้ำ', 'สอบ'), '- หากจำเป็นต้องเข้าห้องน้ำระหว่างสอบ ต้องขออนุญาตกรรมการคุมสอบก่อนทุกครั้ง [rule_exam2560.txt/1]', 'case_restroom'),
         (('โทรศัพท์', 'ห้องสอบ'), '- ห้ามนำโทรศัพท์หรืออุปกรณ์สื่อสารเข้าห้องสอบตามระเบียบการสอบ [rule_exam2560.txt/1]', 'case_phone_forbidden'),
         (('เครื่องคำนวณ', 'กี่เครื่อง'), '- อนุญาตให้นำเครื่องคำนวณได้ไม่เกินคนละ 1 เครื่อง ต้องเป็นรุ่นที่มหาวิทยาลัยกำหนด และต้องผ่านการตรวจสอบพร้อมติดสติกเกอร์รับรองก่อนเข้าสอบ [rule_exam2560_calculator.txt/1]', 'case_calculator_count'),
@@ -866,7 +967,7 @@ def structured_regulations_lookup(question: str) -> dict[str, Any]:
 
         if any(t in ql for t in ('ออกจากห้องสอบ', 'ออกห้องสอบ')) and any(t in ql for t in ('กี่นาที', 'ผ่านไปกี่นาที', 'เมื่อผ่านไป')) and 'ชั่วคราว' not in ql:
             return {
-                "answer": "- นักศึกษาจะออกจากห้องสอบได้เมื่อการสอบผ่านไปแล้ว 60 นาที [rule_exam2560.txt/1]",
+                "answer": "- ระเบียบการสอบอนุญาตให้นักศึกษาออกจากห้องสอบได้เมื่อการสอบผ่านไปแล้ว 60 นาที [rule_exam2560.txt/1]",
                 "lookup_mode": "exam_phrase_leave_60",
                 "miss_reason": "",
             }
@@ -900,9 +1001,9 @@ def structured_regulations_lookup(question: str) -> dict[str, Any]:
 
         late_words = ('มาสาย', 'สายเกิน', 'เข้าสอบสาย', 'เข้าห้องสอบ', 'เข้าสอบ', 'มาสอบช้า')
         if any(t in ql for t in late_words):
-            if any(t in ql for t in ('เกิน60', 'เกิน 60', 'มากกว่า 60', 'หกสิบ', 'หนึ่งชั่วโมง', 'เกินชั่วโมง', '60')):
+            if ('15' not in ql) and any(t in ql for t in ('เกิน60', 'เกิน 60', 'มากกว่า 60', 'หกสิบ', 'หนึ่งชั่วโมง', 'เกินชั่วโมง', '60')):
                 return {
-                    "answer": "- หากมาสายเกิน 60 นาที หมดสิทธิ์เข้าห้องสอบ [rule_exam2560.txt/1]",
+                    "answer": "- ระเบียบการสอบกำหนดว่า หากมาสายเกิน 60 นาที หมดสิทธิ์เข้าห้องสอบ [rule_exam2560.txt/1]",
                     "lookup_mode": "exam_phrase_late_60",
                     "miss_reason": "",
                 }

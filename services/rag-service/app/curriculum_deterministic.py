@@ -966,6 +966,7 @@ def _lookup_course_hours_from_sqlite(code: str) -> tuple[str, str] | None:
 
 
 def _format_course_detail_answer(
+    question: str,
     code_disp: str,
     title: str,
     credits: int,
@@ -1000,6 +1001,25 @@ def _format_course_detail_answer(
 
     credit_text = f'{credits} หน่วยกิต' if credits else 'ไม่ระบุในเอกสารที่ดึงมา'
     hour_text = hour_val if hour_val else 'ไม่ระบุในเอกสารที่ดึงมา'
+
+    q = normalize_question(question)
+    asks_prereq = any(t in q for t in (
+        'ต้องผ่าน', 'บังคับก่อน', 'วิชาบังคับก่อน', 'ผ่านอะไรก่อน', 'ก่อนเรียน', 'พื้นฐาน', 'prereq', 'pre-req', 'prerequisite', 'เงื่อนไขก่อน'
+    ))
+    asks_hours = any(t in q for t in ('ชั่วโมงเรียน', 'ชั่วโมง', 'กี่ชั่วโมง', 'บรรยาย', 'ปฏิบัติ', 'hour'))
+    asks_credit = any(t in q for t in ('หน่วยกิต', 'กี่หน่วยกิต', 'มีกี่หน่วยกิต', 'credit', 'credits', 'กี่กิต'))
+    asks_title = any(t in q for t in ('วิชาอะไร', 'คือวิชาอะไร', 'ชื่อวิชา', 'ชื่ออังกฤษ', 'ชื่อเต็ม', 'เรียนเกี่ยวกับอะไร'))
+
+    focused_intents = int(asks_prereq) + int(asks_hours) + int(asks_credit) + int(asks_title)
+    if focused_intents == 1:
+        if asks_credit:
+            return f"- รายวิชา {code_disp} มี {credit_text} [{base_src}/1]"
+        if asks_hours:
+            return f"- รายวิชา {code_disp} มีชั่วโมงเรียน {hour_text} [{hour_src}/1]"
+        if asks_title:
+            return f"- รายวิชา {code_disp} คือ {title_text} [{base_src}/1]"
+        if asks_prereq:
+            return f"- รายวิชา {code_disp} มีวิชาบังคับก่อน: {prereq_txt} [{prereq_src}/1]"
 
     lines = [
         f"- รหัสวิชา: {code_disp}",
@@ -1877,6 +1897,7 @@ def structured_curriculum_lookup(question: str) -> dict[str, Any]:
             sqlite_hour_hit = _lookup_course_hours_from_sqlite(code_disp)
             return {
                 "answer": _format_course_detail_answer(
+                    question=q,
                     code_disp=code_disp,
                     title=course.title_th,
                     credits=course.credits,

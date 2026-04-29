@@ -8,8 +8,13 @@ RAG_SERVICE_ROOT = REPO_ROOT / "services" / "rag-service"
 if str(RAG_SERVICE_ROOT) not in sys.path:
     sys.path.insert(0, str(RAG_SERVICE_ROOT))
 
-from app.announcement_deterministic import render_fast_announcement_calendar_answer, select_announcement_calendar_entry  # noqa: E402
+from app.announcement_deterministic import (  # noqa: E402
+    render_fast_announcement_calendar_answer,
+    render_generalized_announcement_answer,
+    select_announcement_calendar_entry,
+)
 from app.curriculum_deterministic import structured_curriculum_lookup  # noqa: E402
+from app.main import _build_general_policy_answer  # noqa: E402
 from app.regulations_deterministic import fetch_exam_clause, structured_regulations_lookup  # noqa: E402
 
 
@@ -56,6 +61,15 @@ class TestStructuredDeterministicPaths(unittest.TestCase):
         self.assertIn("เทอม/ชั้นปีที่อยู่ในแผน", answer)
         self.assertIn("คำแนะนำการลงทะเบียน", answer)
 
+    def test_curriculum_followup_credit_answer_is_focused(self) -> None:
+        result = structured_curriculum_lookup("บริบทก่อนหน้า: CPE 342\nคำถามต่อเนื่อง: แล้วกี่หน่วยกิต")
+        answer = str(result.get("answer") or "")
+        self.assertEqual(result.get("lookup_mode"), "exact_code")
+        self.assertIn("CPE 342", answer)
+        self.assertIn("3 หน่วยกิต", answer)
+        self.assertNotIn("ชื่อวิชา:", answer)
+        self.assertNotIn("ชั่วโมงเรียน:", answer)
+
     def test_announcement_open_term_answer_mentions_official_calendar(self) -> None:
         answer = render_fast_announcement_calendar_answer("ขออัปเดต วันเปิดภาคการศึกษา ล่าสุดหน่อยครับ")
         self.assertIsNotNone(answer)
@@ -67,6 +81,57 @@ class TestStructuredDeterministicPaths(unittest.TestCase):
         self.assertIsNotNone(answer)
         self.assertIn("ประกาศล่าสุด/ปฏิทินการศึกษา", str(answer))
         self.assertIn("วันสุดท้ายถอนวิชาแบบติด W", str(answer))
+
+    def test_generalized_announcement_answer_handles_transcript_procedure(self) -> None:
+        answer = render_generalized_announcement_answer("การขอ transcript ต้องทำอย่างไร")
+        self.assertIsNotNone(answer)
+        self.assertIn("announcements", str(answer))
+        self.assertIn("transcript", str(answer).lower())
+        self.assertIn("งานทะเบียน", str(answer))
+
+    def test_generalized_announcement_answer_handles_section_change(self) -> None:
+        answer = render_generalized_announcement_answer("การเปลี่ยน section ทำได้ในช่วงเวลาใด")
+        self.assertIsNotNone(answer)
+        self.assertIn("announcements", str(answer))
+        self.assertIn("เปลี่ยน section", str(answer))
+        self.assertIn("add/drop", str(answer))
+
+    def test_generalized_announcement_answer_handles_withdrawal_conditions(self) -> None:
+        answer = render_generalized_announcement_answer("การถอนรายวิชามีเงื่อนไขอะไร และมีผลต่อเกรดอย่างไร")
+        self.assertIsNotNone(answer)
+        self.assertIn("announcements", str(answer))
+        self.assertIn("W", str(answer))
+
+    def test_generalized_announcement_answer_handles_petition_channel(self) -> None:
+        answer = render_generalized_announcement_answer("การยื่นคำร้องต้องทำผ่านช่องทางใด")
+        self.assertIsNotNone(answer)
+        self.assertIn("announcements", str(answer))
+        self.assertIn("ช่องทางของงานทะเบียน", str(answer))
+
+    def test_generalized_announcement_answer_handles_system_outage(self) -> None:
+        answer = render_generalized_announcement_answer("หากระบบลงทะเบียนล่มต้องทำอย่างไร")
+        self.assertIsNotNone(answer)
+        self.assertIn("ระบบลงทะเบียนล่ม", str(answer))
+        self.assertIn("ประกาศล่าสุด", str(answer))
+
+    def test_general_policy_answer_handles_project_topic_change(self) -> None:
+        answer = _build_general_policy_answer("หากต้องการเปลี่ยนหัวข้อโปรเจคต้องทำอย่างไร")
+        self.assertIsNotNone(answer)
+        self.assertIn("general", str(answer))
+        self.assertIn("อาจารย์ที่ปรึกษา", str(answer))
+
+    def test_general_policy_answer_handles_course_withdrawal_timing(self) -> None:
+        answer = _build_general_policy_answer("การลาออกจากรายวิชาทำได้เมื่อไร")
+        self.assertIsNotNone(answer)
+        self.assertIn("general", str(answer))
+        self.assertIn("ปฏิทินการศึกษา", str(answer))
+
+    def test_generalized_announcement_answer_handles_wrong_course_registration(self) -> None:
+        answer = render_generalized_announcement_answer("หากลงทะเบียนผิดวิชา ต้องแก้ไขอย่างไร")
+        self.assertIsNotNone(answer)
+        self.assertIn("announcements", str(answer))
+        self.assertIn("ลงทะเบียน", str(answer))
+        self.assertIn("คำร้อง", str(answer))
 
     def test_fetch_exam_clause_uses_structured_artifact(self) -> None:
         clause = fetch_exam_clause("12")
@@ -110,6 +175,34 @@ class TestStructuredDeterministicPaths(unittest.TestCase):
         self.assertIn("อุทธรณ์", answer)
         self.assertIn("หลักฐาน", answer)
         self.assertIn("ระเบียบการสอบ", answer)
+
+    def test_structured_regulations_lookup_handles_emergency_rejected_eval_variant(self) -> None:
+        result = structured_regulations_lookup('กรณี "เกิดเหตุฉุกเฉินระหว่างสอบ" ถ้าโดนปฏิเสธหน้างาน ควรดำเนินการต่อยังไง')
+        answer = str(result.get("answer") or "")
+        self.assertIn("ระเบียบการสอบ", answer)
+        self.assertIn("เหตุฉุกเฉิน", answer)
+        self.assertIn("กรรมการคุมสอบ", answer)
+
+    def test_structured_regulations_lookup_handles_appeal_binary_eval_variant(self) -> None:
+        result = structured_regulations_lookup('ช่วยยืนยันให้หน่อยว่า "อยากอุทธรณ์ผลการพิจารณาความผิดระหว่างสอบ" ทำได้หรือไม่ได้')
+        answer = str(result.get("answer") or "")
+        self.assertIn("ทำได้/ไม่ได้", answer)
+        self.assertIn("ระเบียบการสอบ", answer)
+        self.assertIn("15 วัน", answer)
+
+    def test_structured_regulations_lookup_handles_emergency_binary_eval_variant(self) -> None:
+        result = structured_regulations_lookup('ช่วยยืนยันให้หน่อยว่า "เกิดเหตุฉุกเฉินระหว่างสอบ" ทำได้หรือไม่ได้')
+        answer = str(result.get("answer") or "")
+        self.assertIn("ทำได้/ไม่ได้", answer)
+        self.assertIn("ระเบียบการสอบ", answer)
+        self.assertIn("กรรมการคุมสอบ", answer)
+
+    def test_structured_regulations_lookup_handles_cheating_rejected_eval_variant(self) -> None:
+        result = structured_regulations_lookup('กรณี "สงสัยเรื่องบทลงโทษกรณีทุจริตสอบ" ถ้าโดนปฏิเสธหน้างาน ควรดำเนินการต่อยังไง')
+        answer = str(result.get("answer") or "")
+        self.assertIn("ระเบียบการสอบ", answer)
+        self.assertIn("ทุจริตสอบ", answer)
+        self.assertIn("คณะกรรมการพิจารณาความผิด", answer)
 
 
 if __name__ == "__main__":
