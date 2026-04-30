@@ -352,8 +352,24 @@ def _extract_instructor_mentions(text: str) -> list[str]:
     for m in _INSTRUCTOR_RE.finditer(text or ''):
         name = re.sub(r"\s+", " ", str(m.group(1) or '').strip())
         if name:
+            name = re.split(
+                r"\s+(?:สอนวิชาอะไร|วิชาที่สอน|มีวิชาอะไรบ้าง|วิชาอะไรบ้าง|คือใคร|คืออะไร|เรียนเกี่ยวกับอะไร|กี่หน่วยกิต)\b",
+                name,
+                maxsplit=1,
+            )[0].strip()
+        if name:
             out.append(name)
     return out
+
+
+def _resolved_entity_from_effective_question(text: str) -> str:
+    q = re.sub(r"\s+", " ", str(text or '').strip())
+    if not q.startswith('บริบทก่อนหน้า:'):
+        return ''
+    anchor = q.replace('บริบทก่อนหน้า:', '', 1).strip()
+    if 'คำถามต่อเนื่อง:' in anchor:
+        anchor = anchor.split('คำถามต่อเนื่อง:', 1)[0].strip()
+    return anchor
 
 
 def _extract_term_mentions(text: str) -> list[str]:
@@ -499,9 +515,9 @@ def analyze_followup_entities(messages: list[dict] | None, effective_question: s
     resolved_confidence = 0
     resolved_type = ''
     ranked = _rank_followup_candidates(messages)
-    if str(effective_question or '').startswith('บริบทก่อนหน้า: '):
-        first_line = str(effective_question or '').splitlines()[0]
-        resolved_value = first_line.replace('บริบทก่อนหน้า:', '', 1).strip()
+    anchor_from_effective_q = _resolved_entity_from_effective_question(str(effective_question or ''))
+    if anchor_from_effective_q:
+        resolved_value = anchor_from_effective_q
         resolved_type = _entity_type_for_value(resolved_value)
         resolved_confidence = 3
     elif latest:

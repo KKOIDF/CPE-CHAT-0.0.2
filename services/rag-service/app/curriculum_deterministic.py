@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 from .routing import apply_resolved_entity_context
 
+from .config import ROOT_DIR
 from .normalization import normalize_question
 from .neo4j_client import extract_course_codes, graph_requisite_codes_for_course
 from .sqlite_client import domain_sqlite_path, fetch_docs_with_path, keyword_search
@@ -942,7 +943,7 @@ def _lookup_courses_for_instructor_from_records(name: str) -> tuple[list[tuple[s
     global _STAFF_COURSE_RECORDS_CACHE
     if _STAFF_COURSE_RECORDS_CACHE is None:
         cache: list[tuple[str, list[tuple[str, str]], str]] = []
-        repo_root = Path(__file__).resolve().parents[3]
+        repo_root = Path(ROOT_DIR)
         for rel in ("data/db/records.jsonl", "data/db/chunks.jsonl"):
             path = repo_root / rel
             if not path.exists():

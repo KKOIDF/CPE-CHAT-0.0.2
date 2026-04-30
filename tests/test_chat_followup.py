@@ -9,7 +9,7 @@ if str(RAG_SERVICE_ROOT) not in sys.path:
     sys.path.insert(0, str(RAG_SERVICE_ROOT))
 
 from app.chat_followup import InMemorySessionStore, RedisSessionStore, prepare_chat_request  # noqa: E402
-from app.main import _deterministic_domain_shortcut  # noqa: E402
+from app.main import RagRequest, _deterministic_domain_shortcut  # noqa: E402
 from app.routing import analyze_route, select_resolution_strategy  # noqa: E402
 
 
@@ -50,6 +50,11 @@ class _FakeRedis:
 
 
 class TestChatFollowupPipeline(unittest.TestCase):
+    def test_rag_request_exposes_optional_messages_for_query_endpoint(self) -> None:
+        req = RagRequest(question="CPE 342 วิชาอะไร", domain="curriculum")
+
+        self.assertIsNone(req.messages)
+
     def test_question_and_session_id_use_server_side_memory(self) -> None:
         store = InMemorySessionStore()
         store.append_chat_turn("s1", "วิชาเลือกมีอะไรบ้าง")
@@ -150,6 +155,30 @@ class TestChatFollowupPipeline(unittest.TestCase):
         self.assertIn("คำถามต่อเนื่อง: วิชาที่สอน", prepared.question)
         self.assertEqual(prepared.followup_meta.get("followup_resolved_entity_type"), "instructor")
         self.assertEqual(prepared.followup_meta.get("followup_resolved_entity_value"), "อาจารย์ประพงษ์")
+        self.assertEqual(prepared.followup_meta.get("followup_resolved_entity_confidence"), 3)
+
+    def test_instructor_query_does_not_keep_question_suffix_in_resolved_entity(self) -> None:
+        store = InMemorySessionStore()
+        messages = [
+            {"role": "user", "content": "อาจารย์ประพงษ์ ปรีชาประพาฬวงศ์ สอนวิชาอะไร"},
+            {"role": "assistant", "content": "..."},
+            {"role": "user", "content": "ดร. ประพงษ์ ปรีชาประพาฬวงศ์ สอนวิชาอะไร"},
+        ]
+
+        prepared = prepare_chat_request(
+            question="ดร. ประพงษ์ ปรีชาประพาฬวงศ์ สอนวิชาอะไร",
+            domain="curriculum",
+            session_id="s2d2",
+            messages=messages,
+            session_store=store,
+            question_preparer=lambda q, _d: q.replace("\n", " "),
+        )
+
+        self.assertEqual(prepared.followup_meta.get("followup_resolved_entity_type"), "instructor")
+        self.assertEqual(
+            prepared.followup_meta.get("followup_resolved_entity_value"),
+            "อาจารย์ประพงษ์ ปรีชาประพาฬวงศ์",
+        )
         self.assertEqual(prepared.followup_meta.get("followup_resolved_entity_confidence"), 3)
 
     def test_short_topic_followup_reuses_latest_topic_from_history(self) -> None:

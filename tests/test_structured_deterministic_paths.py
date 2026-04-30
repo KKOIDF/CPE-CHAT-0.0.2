@@ -1,4 +1,5 @@
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -13,12 +14,39 @@ from app.announcement_deterministic import (  # noqa: E402
     render_generalized_announcement_answer,
     select_announcement_calendar_entry,
 )
+import app.curriculum_deterministic as curriculum_deterministic  # noqa: E402
 from app.curriculum_deterministic import structured_curriculum_lookup  # noqa: E402
 from app.main import _build_general_policy_answer  # noqa: E402
 from app.regulations_deterministic import fetch_exam_clause, structured_regulations_lookup  # noqa: E402
 
 
 class TestStructuredDeterministicPaths(unittest.TestCase):
+    def test_instructor_record_fallback_uses_root_dir_in_shallow_layout(self) -> None:
+        old_root_dir = curriculum_deterministic.ROOT_DIR
+        old_cache = curriculum_deterministic._STAFF_COURSE_RECORDS_CACHE
+        try:
+            with tempfile.TemporaryDirectory() as tmp:
+                root = Path(tmp)
+                data_dir = root / "data" / "db"
+                data_dir.mkdir(parents=True, exist_ok=True)
+                (data_dir / "records.jsonl").write_text(
+                    '{"text":"1|ดร. ทดสอบ ระบบ|x|x|x|[{\\"code\\": \\"CPE101\\", \\"title\\": \\"Computer Programming\\"}]","source":"records.jsonl"}\n',
+                    encoding="utf-8",
+                )
+                curriculum_deterministic.ROOT_DIR = root
+                curriculum_deterministic._STAFF_COURSE_RECORDS_CACHE = None
+
+                rows, canonical_name, cite = curriculum_deterministic._lookup_courses_for_instructor_from_records(
+                    "ดร. ทดสอบ ระบบ"
+                )
+
+                self.assertEqual(canonical_name, "ดร. ทดสอบ ระบบ")
+                self.assertEqual(cite, "records.jsonl/1")
+                self.assertEqual(rows, [("CPE 101", "Computer Programming", "records.jsonl/1")])
+        finally:
+            curriculum_deterministic.ROOT_DIR = old_root_dir
+            curriculum_deterministic._STAFF_COURSE_RECORDS_CACHE = old_cache
+
     def test_announcement_calendar_entry_is_selected_from_artifact(self) -> None:
         question = "นักศึกษาปี 3 รหัส 66 ลงทะเบียนภาค 2/2568 ช่วงวันใด"
         entry = select_announcement_calendar_entry(question)

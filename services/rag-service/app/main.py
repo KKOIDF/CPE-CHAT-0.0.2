@@ -700,6 +700,7 @@ class RagRequest(BaseModel):
     question: str
     domain: str | None = None
     session_id: str | None = None
+    messages: list[dict[str, Any]] | None = None
 
 class RagResponse(BaseModel):
     prompt: str
