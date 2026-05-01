@@ -15,6 +15,8 @@ EOF
 DOMAIN=""
 INPUT_PATH=""
 OUTPUT=""
+TIMING_OUT=""
+TIMING_LABEL=""
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -24,6 +26,10 @@ while [[ $# -gt 0 ]]; do
       INPUT_PATH="${2:-}"; shift 2 ;;
     -o|--output)
       OUTPUT="${2:-}"; shift 2 ;;
+    --timing-out)
+      TIMING_OUT="${2:-}"; shift 2 ;;
+    --timing-label)
+      TIMING_LABEL="${2:-}"; shift 2 ;;
     -h|--help)
       usage; exit 0 ;;
     *)
@@ -72,5 +78,12 @@ fi
 export CPE_DOMAIN="$DOMAIN"
 export CPE_INDEX_ROOT="$REPO_ROOT/indexes"
 export PYTHONPATH="$SVC_DIR${PYTHONPATH:+:$PYTHONPATH}"
+if [[ -z "$TIMING_OUT" ]]; then
+  ts="$(date +%Y%m%d_%H%M%S)"
+  TIMING_OUT="$REPO_ROOT/reports/ingest_timings/${DOMAIN}_${ts}.json"
+fi
+if [[ -z "$TIMING_LABEL" ]]; then
+  TIMING_LABEL="local:${DOMAIN}"
+fi
 
-"$PY" -m app.main --domain "$DOMAIN" --input "$INPUT_PATH" --output "$OUTPUT" --langchain
+"$PY" -m app.main --domain "$DOMAIN" --input "$INPUT_PATH" --output "$OUTPUT" --langchain --timing-out "$TIMING_OUT" --timing-label "$TIMING_LABEL"

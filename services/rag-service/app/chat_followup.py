@@ -353,7 +353,7 @@ def _extract_instructor_mentions(text: str) -> list[str]:
         name = re.sub(r"\s+", " ", str(m.group(1) or '').strip())
         if name:
             name = re.split(
-                r"\s+(?:สอนวิชาอะไร|วิชาที่สอน|มีวิชาอะไรบ้าง|วิชาอะไรบ้าง|คือใคร|คืออะไร|เรียนเกี่ยวกับอะไร|กี่หน่วยกิต)\b",
+                r"\s*(?:สอนวิชาอะไร|วิชาที่สอน|มีวิชาอะไรบ้าง|วิชาอะไรบ้าง|คือใคร|คืออะไร|เรียนเกี่ยวกับอะไร|กี่หน่วยกิต)\b",
                 name,
                 maxsplit=1,
             )[0].strip()
@@ -464,6 +464,22 @@ def _latest_followup_anchor_from_messages(messages: list[dict] | None) -> str:
     return ''
 
 
+def _latest_assistant_reference_entities(messages: list[dict] | None) -> list[str]:
+    normalized = coerce_chat_messages(messages)
+    seen_last_user = False
+    for m in reversed(normalized):
+        role = (m.get('role') or '').strip().lower()
+        txt = content_to_text(m.get('content'))
+        if not txt:
+            continue
+        if role == 'user' and not seen_last_user:
+            seen_last_user = True
+            continue
+        if role == 'assistant' and seen_last_user:
+            return _extract_reference_entities(txt)
+    return []
+
+
 def is_meta_followup_generation_prompt(text: str) -> bool:
     t = (text or '').strip()
     if not t:
@@ -487,6 +503,7 @@ def analyze_followup_entities(messages: list[dict] | None, effective_question: s
         'followup_resolved_entity_confidence': 0,
         'followup_resolved_entity_candidates': '',
         'followup_needs_clarification': 0,
+        'followup_clarification_message': '',
     }
     normalized = coerce_chat_messages(messages)
     user_msgs = [content_to_text(m.get('content')) for m in normalized if (m.get('role') or '').strip().lower() == 'user']
@@ -515,8 +532,18 @@ def analyze_followup_entities(messages: list[dict] | None, effective_question: s
     resolved_confidence = 0
     resolved_type = ''
     ranked = _rank_followup_candidates(messages)
+    assistant_refs = _latest_assistant_reference_entities(messages)
+    assistant_course_refs = [ref for ref in assistant_refs if _entity_type_for_value(ref) == 'course']
     anchor_from_effective_q = _resolved_entity_from_effective_question(str(effective_question or ''))
-    if anchor_from_effective_q:
+    if _is_course_reference_followup(last) and not latest_codes and assistant_course_refs:
+        if len(assistant_course_refs) == 1:
+            resolved_value = assistant_course_refs[0]
+            resolved_type = 'course'
+            resolved_confidence = 3
+        else:
+            out['followup_needs_clarification'] = 1
+            out['followup_clarification_message'] = "หมายถึงวิชาไหนครับ: " + " / ".join(assistant_course_refs[:3])
+    elif anchor_from_effective_q:
         resolved_value = anchor_from_effective_q
         resolved_type = _entity_type_for_value(resolved_value)
         resolved_confidence = 3
@@ -532,13 +559,19 @@ def analyze_followup_entities(messages: list[dict] | None, effective_question: s
     out['followup_resolved_entity_type'] = resolved_type
     out['followup_resolved_entity_value'] = resolved_value
     out['followup_resolved_entity_confidence'] = resolved_confidence
+    candidate_rows = list(ranked[:5])
+    seen_candidate_values = {value for _etype, value, _conf in candidate_rows}
+    for ref in assistant_course_refs[:3]:
+        if ref not in seen_candidate_values:
+            candidate_rows.append(('course', ref, 2))
+            seen_candidate_values.add(ref)
     out['followup_resolved_entity_candidates'] = '|'.join(
-        f"{etype}:{value}:{conf}" for etype, value, conf in ranked[:5]
+        f"{etype}:{value}:{conf}" for etype, value, conf in candidate_rows[:5]
     )
-    if ranked:
-        top_conf = ranked[0][2]
-        second_conf = ranked[1][2] if len(ranked) > 1 else 0
-        same_top_type = len(ranked) > 1 and ranked[0][0] == ranked[1][0]
+    if (not out['followup_needs_clarification']) and candidate_rows:
+        top_conf = candidate_rows[0][2]
+        second_conf = candidate_rows[1][2] if len(candidate_rows) > 1 else 0
+        same_top_type = len(candidate_rows) > 1 and candidate_rows[0][0] == candidate_rows[1][0]
         needs_clarification = (top_conf <= 1) or (same_top_type and second_conf >= top_conf)
         out['followup_needs_clarification'] = int(needs_clarification)
     return out
@@ -556,6 +589,13 @@ def looks_coreference_followup(text: str) -> bool:
         'สอนวิชาอะไร', 'มีวิชาอะไรบ้าง', 'วิชาอะไรบ้าง'
     )
     return any(k in t for k in coref_terms)
+
+
+def _is_course_reference_followup(text: str) -> bool:
+    t = (text or '').strip().lower()
+    if not t:
+        return False
+    return any(k in t for k in ('วิชานี้', 'รายวิชานี้', 'วิชานั้น', 'รายวิชานั้น', 'course นี้', 'course นั้น'))
 
 
 def _is_underspecified_followup(text: str) -> bool:

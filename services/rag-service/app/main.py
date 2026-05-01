@@ -18,6 +18,7 @@ from .perf import request_timing, time_block, add_metric, set_observer
 from .mlflow_observability import init_mlflow_observability
 from .announcement_deterministic import (
     render_fast_announcement_calendar_answer,
+    render_generalized_announcement_answer,
 )
 from .chat_followup import (
     build_followup_summary_answer as shared_build_followup_summary_answer,
@@ -109,6 +110,7 @@ def _structured_curriculum_result_allowed(cur_result: dict[str, Any]) -> bool:
         return False
     return lookup_mode in {
         'exact_code',
+        'exact_code_missing_hint',
         'exact_title',
         'title_reference_text',
         'study_plan',
@@ -255,6 +257,9 @@ def _resolved_entity_from_followup_meta(meta: dict[str, Any] | None) -> dict[str
 def _clarify_from_followup_meta(meta: dict[str, Any] | None) -> str | None:
     if not isinstance(meta, dict):
         return None
+    custom = str(meta.get('followup_clarification_message') or '').strip()
+    if custom:
+        return custom
     try:
         needs_clarification = int(meta.get('followup_needs_clarification') or 0)
     except Exception:
@@ -4145,9 +4150,9 @@ def _try_fast_announcement_calendar_answer(question: str, domain: str | None = N
 
     This short-circuits expensive retrieval/generation on common schedule questions.
     """
-    if not _is_announcement_temporal_intent(question, domain=domain):
-        return None
-    return render_fast_announcement_calendar_answer(question)
+    if _is_announcement_temporal_intent(question, domain=domain):
+        return render_fast_announcement_calendar_answer(question)
+    return render_generalized_announcement_answer(question)
 
 
 def _try_extract_announcements_temporal_answer(prompt: str, question: str, domain: str | None = None) -> str | None:

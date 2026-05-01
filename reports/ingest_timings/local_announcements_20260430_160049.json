@@ -1,0 +1,264 @@
+{
+  "label": "local:announcements",
+  "domain": "announcements",
+  "input_dir": "/home/testuser/CPE-CHAT-0.0.2/data/raw/announcements",
+  "output_base": "/home/testuser/CPE-CHAT-0.0.2/data/db/announcements",
+  "store": true,
+  "embed": true,
+  "generated_at": "2026-04-30T09:05:42.786253+00:00",
+  "counts": {
+    "files": 39,
+    "records": 39,
+    "paragraphs": 1069,
+    "chunks": 68,
+    "flagged_chunks": 0,
+    "embedded_chunks": 68
+  },
+  "phase_ms": {
+    "extract_total_ms": 470.308,
+    "records_write_ms": 3.339,
+    "chunking_ms": 20230.625,
+    "chunks_write_ms": 2.079,
+    "db_store_ms": 113.648,
+    "structured_artifacts_ms": 6.978,
+    "embedding_ms": 257179.845,
+    "neo4j_ms": 0.0
+  },
+  "total_ms": 288757.456,
+  "file_timings": [
+    {
+      "path": "/home/testuser/CPE-CHAT-0.0.2/data/raw/announcements/131.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 212.624
+    },
+    {
+      "path": "/home/testuser/CPE-CHAT-0.0.2/data/raw/announcements/137.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 1.837
+    },
+    {
+      "path": "/home/testuser/CPE-CHAT-0.0.2/data/raw/announcements/139.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 1.779
+    },
+    {
+      "path": "/home/testuser/CPE-CHAT-0.0.2/data/raw/announcements/2018_06_08_15_13_16.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 9.963
+    },
+    {
+      "path": "/home/testuser/CPE-CHAT-0.0.2/data/raw/announcements/2568THV3-5TH(1).txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 9.574
+    },
+    {
+      "path": "/home/testuser/CPE-CHAT-0.0.2/data/raw/announcements/2568THV3-5TH.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 8.681
+    },
+    {
+      "path": "/home/testuser/CPE-CHAT-0.0.2/data/raw/announcements/AcademicCalendar2025TH.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 14.801
+    },
+    {
+      "path": "/home/testuser/CPE-CHAT-0.0.2/data/raw/announcements/Approved-exam2568.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 1.637
+    },
+    {
+      "path": "/home/testuser/CPE-CHAT-0.0.2/data/raw/announcements/ENG-B2568.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 13.829
+    },
+    {
+      "path": "/home/testuser/CPE-CHAT-0.0.2/data/raw/announcements/ENG-D2568.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 18.661
+    },
+    {
+      "path": "/home/testuser/CPE-CHAT-0.0.2/data/raw/announcements/ENG-M2568.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 13.763
+    },
+    {
+      "path": "/home/testuser/CPE-CHAT-0.0.2/data/raw/announcements/ENG2561.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 7.72
+    },
+    {
+      "path": "/home/testuser/CPE-CHAT-0.0.2/data/raw/announcements/English_Grad_2017.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 3.173
+    },
+    {
+      "path": "/home/testuser/CPE-CHAT-0.0.2/data/raw/announcements/Pre-requisite2567-final.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 3.449
+    },
+    {
+      "path": "/home/testuser/CPE-CHAT-0.0.2/data/raw/announcements/announce_financ.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 3.373
+    },
+    {
+      "path": "/home/testuser/CPE-CHAT-0.0.2/data/raw/announcements/announce_financCancel.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 1.927
+    },
+    {
+      "path": "/home/testuser/CPE-CHAT-0.0.2/data/raw/announcements/anounc_move52ene.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 8.869
+    },
+    {
+      "path": "/home/testuser/CPE-CHAT-0.0.2/data/raw/announcements/calculator2023-2.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 1.606
+    },
+    {
+      "path": "/home/testuser/CPE-CHAT-0.0.2/data/raw/announcements/calculator2023.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 2.497
+    },
+    {
+      "path": "/home/testuser/CPE-CHAT-0.0.2/data/raw/announcements/develop_eng-2563covid19.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 3.625
+    },
+    {
+      "path": "/home/testuser/CPE-CHAT-0.0.2/data/raw/announcements/develop_eng-2564covid19.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 3.388
+    },
+    {
+      "path": "/home/testuser/CPE-CHAT-0.0.2/data/raw/announcements/duplicate2551.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 2.761
+    },
+    {
+      "path": "/home/testuser/CPE-CHAT-0.0.2/data/raw/announcements/eng2564B.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 12.287
+    },
+    {
+      "path": "/home/testuser/CPE-CHAT-0.0.2/data/raw/announcements/eng2564D.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 13.351
+    },
+    {
+      "path": "/home/testuser/CPE-CHAT-0.0.2/data/raw/announcements/eng2564M.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 23.55
+    },
+    {
+      "path": "/home/testuser/CPE-CHAT-0.0.2/data/raw/announcements/etc1.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 1.956
+    },
+    {
+      "path": "/home/testuser/CPE-CHAT-0.0.2/data/raw/announcements/fee2567update.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 4.316
+    },
+    {
+      "path": "/home/testuser/CPE-CHAT-0.0.2/data/raw/announcements/industraltranning2563update.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 11.973
+    },
+    {
+      "path": "/home/testuser/CPE-CHAT-0.0.2/data/raw/announcements/insurance-inter-std.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 5.452
+    },
+    {
+      "path": "/home/testuser/CPE-CHAT-0.0.2/data/raw/announcements/insurance-std (1).txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 4.549
+    },
+    {
+      "path": "/home/testuser/CPE-CHAT-0.0.2/data/raw/announcements/insurance-std.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 4.954
+    },
+    {
+      "path": "/home/testuser/CPE-CHAT-0.0.2/data/raw/announcements/new_2558.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 4.344
+    },
+    {
+      "path": "/home/testuser/CPE-CHAT-0.0.2/data/raw/announcements/pre-co-obem2567.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 4.752
+    },
+    {
+      "path": "/home/testuser/CPE-CHAT-0.0.2/data/raw/announcements/price.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 2.649
+    },
+    {
+      "path": "/home/testuser/CPE-CHAT-0.0.2/data/raw/announcements/schedule2565.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 4.818
+    },
+    {
+      "path": "/home/testuser/CPE-CHAT-0.0.2/data/raw/announcements/t_fee.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 3.226
+    },
+    {
+      "path": "/home/testuser/CPE-CHAT-0.0.2/data/raw/announcements/tetet2562doctor.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 6.185
+    },
+    {
+      "path": "/home/testuser/CPE-CHAT-0.0.2/data/raw/announcements/ปฏิทินการศึกษา 2568.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 5.14
+    },
+    {
+      "path": "/home/testuser/CPE-CHAT-0.0.2/data/raw/announcements/ประกาศ_มจธ_หลักเกณฑ์การจัดสรรผลประโยชน์_พศ2566_ฉบับเต็ม.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 7.274
+    }
+  ]
+}

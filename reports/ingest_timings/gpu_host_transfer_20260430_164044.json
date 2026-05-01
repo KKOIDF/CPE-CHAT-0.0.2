@@ -1,0 +1,10 @@
+{
+  "mode": "gpu_host_transfer",
+  "remote_host": "65070507229@cpe.kmutt.ac.th@portal.slurm.cpe.kmutt.ac.th",
+  "phase_ms": {
+    "sync_to_remote_ms": 34525.735,
+    "remote_job_wait_ms": 180968.603,
+    "pull_back_ms": 36216.392,
+    "total_ms": 251742.227
+  }
+}

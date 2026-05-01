@@ -62,6 +62,16 @@ def build_prompt(question: str, ctx: str, cites: Dict[int, str], intent: str = '
             f"12) ถ้าในบริบทไม่มีข้อ {clause} ให้ตอบว่าไม่พบข้อความยืนยันของข้อที่ถามโดยตรง.\n"
         )
 
+    exact_schema_intents = {
+        'prerequisite',
+        'prerequisite_lookup',
+        'claim_verification',
+        'exam_policy',
+        'academic_status_policy',
+        'registration_policy',
+    }
+    use_exact_schema = intent in exact_schema_intents
+
     schema_block_with_cites = (
         "9) จัดรูปแบบคำตอบตาม schema นี้เสมอ (เป็น bullet):\n"
         "   - สรุปคำตอบ: ...\n"
@@ -78,6 +88,16 @@ def build_prompt(question: str, ctx: str, cites: Dict[int, str], intent: str = '
         "   - สถานะความครบถ้วนของหลักฐาน: ครบ/ยังขาดข้อมูล ...\n"
         "10) ถ้าหลักฐานไม่พอสำหรับยืนยันคำตอบ ให้ตอบว่า 'ไม่พบข้อความยืนยันโดยตรงในเอกสารที่ค้นได้' และระบุว่าขาดข้อมูลส่วนใด.\n"
     )
+    natural_style_with_cites = (
+        "9) สำหรับคำถาม fact/general ให้ตอบแบบธรรมชาติได้เป็น 1-3 bullet หรือ 1 ย่อหน้าสั้น ๆ โดยไม่ต้องยัด schema เดิมถ้าไม่จำเป็น.\n"
+        "10) ถ้าตอบได้ ให้ขึ้นคำตอบหลักก่อน แล้วค่อยเสริมรายละเอียดหรือข้อควรรู้ที่เกี่ยวข้อง.\n"
+        "11) ถ้าหลักฐานไม่พอ ห้ามตอบซ้ำแนว 'ไม่พบเอกสาร' อย่างเดียว ให้ระบุด้วยว่าระบบยังขาดอะไร และควรถาม/ค้นต่อแบบไหน.\n"
+    )
+    natural_style_plain = (
+        "9) สำหรับคำถาม fact/general ให้ตอบแบบธรรมชาติได้เป็น 1-3 bullet หรือ 1 ย่อหน้าสั้น ๆ โดยไม่ต้องยัด schema เดิมถ้าไม่จำเป็น.\n"
+        "10) ถ้าตอบได้ ให้ขึ้นคำตอบหลักก่อน แล้วค่อยเสริมรายละเอียดหรือข้อควรรู้ที่เกี่ยวข้อง.\n"
+        "11) ถ้าหลักฐานไม่พอ ห้ามตอบซ้ำแนว 'ไม่พบเอกสาร' อย่างเดียว ให้ระบุด้วยว่าระบบยังขาดอะไร และควรถาม/ค้นต่อแบบไหน.\n"
+    )
 
     if require_citations:
         instruction = (
@@ -92,7 +112,7 @@ def build_prompt(question: str, ctx: str, cites: Dict[int, str], intent: str = '
             "   เมื่อถามกลับ ให้ตอบเพียงคำถามเดียวสั้น ๆ เท่านั้น และห้ามใส่สรุปคำตอบ หลักฐาน เงื่อนไข หรือสถานะความครบถ้วนเพิ่มเติม.\n"
             "7) ห้ามให้ URL/ลิงก์ภายนอก เว้นแต่ URL นั้นปรากฏอยู่ในบริบท.\n"
             "8) เรื่องวัน/วันที่/เดดไลน์: ให้ระบุเฉพาะวันที่ที่มีข้อความยืนยันตรง ๆ ในบริบทเท่านั้น ห้ามอนุมานเดดไลน์จากคำว่า 'ประกาศ ณ วันที่ ...' หรือวันที่ที่ไม่ได้ระบุว่าเป็นกำหนดการ/เส้นตาย.\n"
-            f"{schema_block_with_cites}"
+            f"{schema_block_with_cites if use_exact_schema else natural_style_with_cites}"
             f"{multi_doc_guidance}"
             f"{clause_guard}"
             f"คำแนะนำพิเศษ: {intent_guidance}"
@@ -110,7 +130,7 @@ def build_prompt(question: str, ctx: str, cites: Dict[int, str], intent: str = '
             "   เมื่อถามกลับ ให้ตอบเพียงคำถามเดียวสั้น ๆ เท่านั้น และห้ามใส่สรุปคำตอบ หลักฐาน เงื่อนไข หรือสถานะความครบถ้วนเพิ่มเติม.\n"
             "7) ห้ามให้ URL/ลิงก์ภายนอก เว้นแต่ URL นั้นปรากฏอยู่ในบริบท.\n"
             "8) เรื่องวัน/วันที่/เดดไลน์: ให้ระบุเฉพาะวันที่ที่มีข้อความยืนยันตรง ๆ ในบริบทเท่านั้น ห้ามอนุมานเดดไลน์จากคำว่า 'ประกาศ ณ วันที่ ...' หรือวันที่ที่ไม่ได้ระบุว่าเป็นกำหนดการ/เส้นตาย.\n"
-            f"{schema_block_plain}"
+            f"{schema_block_plain if use_exact_schema else natural_style_plain}"
             f"{multi_doc_guidance}"
             f"{clause_guard}"
             f"คำแนะนำพิเศษ: {intent_guidance}"

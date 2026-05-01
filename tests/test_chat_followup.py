@@ -134,6 +134,91 @@ class TestChatFollowupPipeline(unittest.TestCase):
         self.assertIn("บริบทก่อนหน้า: CPE 301", prepared.question)
         self.assertIn("คำถามต่อเนื่อง: เรียนเกี่ยวกับอะไร", prepared.question)
 
+    def test_course_instructor_followup_supports_subject_first_wording(self) -> None:
+        store = InMemorySessionStore()
+        messages = [
+            {"role": "user", "content": "CPE 214 คืออะไร"},
+            {"role": "assistant", "content": "..."},
+            {"role": "user", "content": "วิชานี้ใครสอน"},
+        ]
+
+        prepared = prepare_chat_request(
+            question="วิชานี้ใครสอน",
+            domain="curriculum",
+            session_id="s2c2",
+            messages=messages,
+            session_store=store,
+            question_preparer=lambda q, _d: q,
+        )
+
+        self.assertIn("บริบทก่อนหน้า: CPE 214", prepared.question)
+        self.assertIn("คำถามต่อเนื่อง: วิชานี้ใครสอน", prepared.question)
+        self.assertEqual(prepared.followup_meta.get("followup_resolved_entity_type"), "course")
+        self.assertEqual(prepared.followup_meta.get("followup_resolved_entity_value"), "CPE 214")
+
+    def test_course_instructor_followup_supports_predicate_first_wording(self) -> None:
+        store = InMemorySessionStore()
+        messages = [
+            {"role": "user", "content": "CPE 214 คืออะไร"},
+            {"role": "assistant", "content": "..."},
+            {"role": "user", "content": "ใครสอนวิชานี้"},
+        ]
+
+        prepared = prepare_chat_request(
+            question="ใครสอนวิชานี้",
+            domain="curriculum",
+            session_id="s2c3",
+            messages=messages,
+            session_store=store,
+            question_preparer=lambda q, _d: q,
+        )
+
+        self.assertIn("บริบทก่อนหน้า: CPE 214", prepared.question)
+        self.assertIn("คำถามต่อเนื่อง: ใครสอนวิชานี้", prepared.question)
+        self.assertEqual(prepared.followup_meta.get("followup_resolved_entity_type"), "course")
+        self.assertEqual(prepared.followup_meta.get("followup_resolved_entity_value"), "CPE 214")
+
+    def test_course_reference_followup_prefers_single_course_from_previous_assistant_answer(self) -> None:
+        store = InMemorySessionStore()
+        messages = [
+            {"role": "user", "content": "อาจารย์ประพงษ์สอนวิชาอะไร"},
+            {"role": "assistant", "content": "- CPE 324 ระบบสมองกลฝังตัว [records.jsonl/1]"},
+            {"role": "user", "content": "วิชานี้กี่หน่วยกิต"},
+        ]
+
+        prepared = prepare_chat_request(
+            question="วิชานี้กี่หน่วยกิต",
+            domain="curriculum",
+            session_id="s2c4",
+            messages=messages,
+            session_store=store,
+            question_preparer=lambda q, _d: q,
+        )
+
+        self.assertEqual(prepared.followup_meta.get("followup_resolved_entity_type"), "course")
+        self.assertEqual(prepared.followup_meta.get("followup_resolved_entity_value"), "CPE 324")
+
+    def test_course_reference_followup_requests_clarification_when_previous_assistant_answer_has_multiple_courses(self) -> None:
+        store = InMemorySessionStore()
+        messages = [
+            {"role": "user", "content": "อาจารย์ประพงษ์สอนวิชาอะไร"},
+            {"role": "assistant", "content": "- CPE 100 ...\n- CPE 324 ..."},
+            {"role": "user", "content": "วิชานี้กี่หน่วยกิต"},
+        ]
+
+        prepared = prepare_chat_request(
+            question="วิชานี้กี่หน่วยกิต",
+            domain="curriculum",
+            session_id="s2c5",
+            messages=messages,
+            session_store=store,
+            question_preparer=lambda q, _d: q,
+        )
+
+        self.assertEqual(prepared.followup_meta.get("followup_needs_clarification"), 1)
+        self.assertIn("CPE 100", str(prepared.followup_meta.get("followup_clarification_message") or ""))
+        self.assertIn("CPE 324", str(prepared.followup_meta.get("followup_clarification_message") or ""))
+
     def test_instructor_course_list_followup_reuses_latest_instructor(self) -> None:
         store = InMemorySessionStore()
         messages = [

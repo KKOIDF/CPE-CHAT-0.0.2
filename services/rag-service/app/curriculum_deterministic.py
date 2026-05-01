@@ -162,6 +162,14 @@ def _extract_lng_language_spec(question: str) -> dict[str, tuple[str, ...]] | No
     return None
 
 
+def _canonical_instructor_cite(source: str) -> str:
+    src = str(source or "").strip()
+    if not src:
+        return "teacher_profiles_by_course.csv/1"
+    name = re.split(r"[\\/]+", src)[-1].strip() or Path(src).name or src
+    return f"{name}/1"
+
+
 def _title_has_language_hint(title: str, hints: tuple[str, ...]) -> bool:
     if not title or not hints:
         return False
@@ -708,7 +716,7 @@ def _lookup_instructors_for_course(code: str) -> tuple[list[tuple[str, str]], bo
         if not txt:
             continue
         src = str(d.get("source") or "").strip() or "curriculum"
-        cite = f"{src}/1"
+        cite = _canonical_instructor_cite(src)
         for line in txt.splitlines():
             row = [part.strip() for part in line.split("|")]
             if len(row) < 6:
@@ -804,7 +812,7 @@ def _extract_instructor_name_candidates(text: str) -> list[str]:
         if not name:
             continue
         name = re.split(
-            r"\s+(?:สอนวิชาอะไร|วิชาที่สอน|มีวิชาอะไรบ้าง|วิชาอะไรบ้าง|คือใคร|คืออะไร|เรียนเกี่ยวกับอะไร|กี่หน่วยกิต)\b",
+            r"\s*(?:สอนวิชาอะไร|วิชาที่สอน|มีวิชาอะไรบ้าง|วิชาอะไรบ้าง|คือใคร|คืออะไร|เรียนเกี่ยวกับอะไร|กี่หน่วยกิต)\b",
             name,
             maxsplit=1,
         )[0].strip()
@@ -959,7 +967,7 @@ def _lookup_courses_for_instructor_from_records(name: str) -> tuple[list[tuple[s
                         if '[{"code":' not in text:
                             continue
                         source = str(obj.get("source") or Path(rel).name).strip() or Path(rel).name
-                        cite = f"{Path(source).name}/1"
+                        cite = _canonical_instructor_cite(source)
                         for raw_line in text.splitlines():
                             row = [part.strip() for part in raw_line.split("|")]
                             if len(row) < 6 or not re.match(r"^\d+$", row[0] or ''):
@@ -1476,6 +1484,53 @@ def _load_curriculum_reference_text() -> str:
     if all_courses:
         return ''
     return ''
+
+
+def _nearest_course_suggestions(code: str, all_courses: dict[str, Course], *, limit: int = 3) -> list[Course]:
+    norm = re.sub(r"[^A-Za-z0-9]", "", str(code or "")).upper()
+    m = re.match(r"^([A-Z]{2,6})(\d{3})$", norm)
+    if not m or not all_courses:
+        return []
+
+    prefix = (m.group(1) or "").upper()
+    try:
+        target_num = int(m.group(2) or "0")
+    except Exception:
+        target_num = 0
+
+    candidates = [c for c in all_courses.values() if (c.prefix or "").upper() == prefix]
+    candidates.sort(key=lambda c: (abs(int(c.number) - target_num), int(c.number)))
+    return candidates[: max(1, int(limit or 3))]
+
+
+def _render_course_code_missing_answer(question: str, code: str, source_name: str, all_courses: dict[str, Course]) -> str:
+    norm = re.sub(r"[^A-Za-z0-9]", "", str(code or "")).upper()
+    code_disp = re.sub(r"([A-Z]{2,6})(\d{3})", r"\1 \2", norm).strip() or str(code or "").strip().upper()
+    q = normalize_question(question)
+    asks_description = any(t in q for t in (
+        'เรียนเกี่ยวกับอะไร', 'เกี่ยวกับอะไร', 'มีเนื้อหาอะไร', 'เนื้อหาอะไร', 'คำอธิบายรายวิชา',
+        'สอนอะไร', 'เรียนอะไรบ้าง', 'description'
+    ))
+    asks_title = any(t in q for t in ('วิชาอะไร', 'คือวิชาอะไร', 'ชื่อวิชา', 'ชื่ออังกฤษ', 'ชื่อเต็ม'))
+    asks_credit = any(t in q for t in ('หน่วยกิต', 'กี่หน่วยกิต', 'มีกี่หน่วยกิต', 'credit', 'credits', 'กี่กิต'))
+
+    lines = [f"- ตอนนี้ยังไม่พบรหัสวิชา {code_disp} ในชุดข้อมูลหลักสูตรที่ระบบ index อยู่ [{source_name}/1]"]
+    if asks_title:
+        lines.append(f"- จึงยังยืนยันชื่อวิชาของ {code_disp} จากเอกสารชุดนี้ไม่ได้ [{source_name}/1]")
+    elif asks_description:
+        lines.append(f"- จึงยังสรุปเนื้อหารายวิชาของ {code_disp} จากเอกสารชุดนี้ไม่ได้ [{source_name}/1]")
+    elif asks_credit:
+        lines.append(f"- จึงยังยืนยันจำนวนหน่วยกิตของ {code_disp} จากเอกสารชุดนี้ไม่ได้ [{source_name}/1]")
+    else:
+        lines.append(f"- มีโอกาสว่ารหัสนี้เป็นรหัสจากหลักสูตรคนละปี, รหัสเดิมก่อนปรับปรุง, หรือพิมพ์คลาดเคลื่อน [{source_name}/1]")
+
+    nearby = _nearest_course_suggestions(code_disp, all_courses)
+    if nearby:
+        nearby_text = ", ".join(f"{c.prefix} {c.number} {c.title_th}" for c in nearby)
+        lines.append(f"- รหัสใกล้เคียงที่พบในข้อมูล: {nearby_text} [{source_name}/1]")
+    else:
+        lines.append(f"- ถ้ามีชื่อวิชาหรือหลักสูตรปีที่ต้องการ สามารถใช้ข้อมูลนั้นช่วยค้นต่อได้แม่นขึ้น [{source_name}/1]")
+    return "\n".join(lines).strip()
 
 
 def _extract_program_metadata() -> dict[str, str]:
@@ -2360,6 +2415,12 @@ def structured_curriculum_lookup(question: str, resolved_entity: dict[str, Any] 
                     description_hit=description_hit,
                 ),
                 "lookup_mode": (title_lookup_mode or "exact_code"),
+                "miss_reason": "",
+            }
+        if codes:
+            return {
+                "answer": _render_course_code_missing_answer(q, codes[-1], source_name, all_courses),
+                "lookup_mode": "exact_code_missing_hint",
                 "miss_reason": "",
             }
         if explicit_followup and followup_codes:

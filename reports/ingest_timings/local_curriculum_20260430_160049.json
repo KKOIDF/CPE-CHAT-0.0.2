@@ -1,0 +1,78 @@
+{
+  "label": "local:curriculum",
+  "domain": "curriculum",
+  "input_dir": "/home/testuser/CPE-CHAT-0.0.2/data/raw/curriculum",
+  "output_base": "/home/testuser/CPE-CHAT-0.0.2/data/db/curriculum",
+  "store": true,
+  "embed": true,
+  "generated_at": "2026-04-30T09:32:26.145373+00:00",
+  "counts": {
+    "files": 8,
+    "records": 8,
+    "paragraphs": 3256,
+    "chunks": 233,
+    "flagged_chunks": 0,
+    "embedded_chunks": 233
+  },
+  "phase_ms": {
+    "extract_total_ms": 1056.042,
+    "records_write_ms": 9.221,
+    "chunking_ms": 5513.891,
+    "chunks_write_ms": 12.402,
+    "db_store_ms": 732.791,
+    "structured_artifacts_ms": 6917.849,
+    "embedding_ms": 1013480.491,
+    "neo4j_ms": 4012.169
+  },
+  "total_ms": 1043647.373,
+  "file_timings": [
+    {
+      "path": "/home/testuser/CPE-CHAT-0.0.2/data/raw/curriculum/FOE10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 156.217
+    },
+    {
+      "path": "/home/testuser/CPE-CHAT-0.0.2/data/raw/curriculum/SSC.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 39.532
+    },
+    {
+      "path": "/home/testuser/CPE-CHAT-0.0.2/data/raw/curriculum/teacher.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 67.067
+    },
+    {
+      "path": "/home/testuser/CPE-CHAT-0.0.2/data/raw/curriculum/teacher_profiles.csv",
+      "file_type": "csv",
+      "records": 1,
+      "elapsed_ms": 97.197
+    },
+    {
+      "path": "/home/testuser/CPE-CHAT-0.0.2/data/raw/curriculum/teacher_profiles_by_course.csv",
+      "file_type": "csv",
+      "records": 1,
+      "elapsed_ms": 36.705
+    },
+    {
+      "path": "/home/testuser/CPE-CHAT-0.0.2/data/raw/curriculum/วศ.บ.-วศวกรรมคอมพวเตอร-ปรบปรง.64.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 473.092
+    },
+    {
+      "path": "/home/testuser/CPE-CHAT-0.0.2/data/raw/curriculum/วิชา LNG 2562.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 127.565
+    },
+    {
+      "path": "/home/testuser/CPE-CHAT-0.0.2/data/raw/curriculum/โครงสร้างหลักสูตรรายวิชาศึกษาทั่วไป มจธ.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 58.667
+    }
+  ]
+}

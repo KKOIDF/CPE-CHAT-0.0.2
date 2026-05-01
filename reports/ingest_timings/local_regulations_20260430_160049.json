@@ -1,0 +1,168 @@
+{
+  "label": "local:regulations",
+  "domain": "regulations",
+  "input_dir": "/home/testuser/CPE-CHAT-0.0.2/data/raw/regulations",
+  "output_base": "/home/testuser/CPE-CHAT-0.0.2/data/db/regulations",
+  "store": true,
+  "embed": true,
+  "generated_at": "2026-04-30T09:14:56.675351+00:00",
+  "counts": {
+    "files": 23,
+    "records": 23,
+    "paragraphs": 2038,
+    "chunks": 135,
+    "flagged_chunks": 1,
+    "embedded_chunks": 135
+  },
+  "phase_ms": {
+    "extract_total_ms": 1116.178,
+    "records_write_ms": 14.716,
+    "chunking_ms": 5877.691,
+    "chunks_write_ms": 3.132,
+    "db_store_ms": 218.52,
+    "structured_artifacts_ms": 1.83,
+    "embedding_ms": 529225.756,
+    "neo4j_ms": 0.0
+  },
+  "total_ms": 545603.981,
+  "file_timings": [
+    {
+      "path": "/home/testuser/CPE-CHAT-0.0.2/data/raw/regulations/129.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 160.94
+    },
+    {
+      "path": "/home/testuser/CPE-CHAT-0.0.2/data/raw/regulations/133.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 11.44
+    },
+    {
+      "path": "/home/testuser/CPE-CHAT-0.0.2/data/raw/regulations/135.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 6.239
+    },
+    {
+      "path": "/home/testuser/CPE-CHAT-0.0.2/data/raw/regulations/2018_06_08_15_10_33.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 9.632
+    },
+    {
+      "path": "/home/testuser/CPE-CHAT-0.0.2/data/raw/regulations/COVID-19 (2).txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 16.787
+    },
+    {
+      "path": "/home/testuser/CPE-CHAT-0.0.2/data/raw/regulations/IP2565.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 57.67
+    },
+    {
+      "path": "/home/testuser/CPE-CHAT-0.0.2/data/raw/regulations/OBEM.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 12.403
+    },
+    {
+      "path": "/home/testuser/CPE-CHAT-0.0.2/data/raw/regulations/OBEM2566update.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 15.432
+    },
+    {
+      "path": "/home/testuser/CPE-CHAT-0.0.2/data/raw/regulations/ad_out57.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 11.135
+    },
+    {
+      "path": "/home/testuser/CPE-CHAT-0.0.2/data/raw/regulations/celemony2539.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 5.595
+    },
+    {
+      "path": "/home/testuser/CPE-CHAT-0.0.2/data/raw/regulations/contacts.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 119.507
+    },
+    {
+      "path": "/home/testuser/CPE-CHAT-0.0.2/data/raw/regulations/discipline2566_fulltext.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 52.147
+    },
+    {
+      "path": "/home/testuser/CPE-CHAT-0.0.2/data/raw/regulations/forms.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 18.676
+    },
+    {
+      "path": "/home/testuser/CPE-CHAT-0.0.2/data/raw/regulations/handbook2562g.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 170.236
+    },
+    {
+      "path": "/home/testuser/CPE-CHAT-0.0.2/data/raw/regulations/privacy2563.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 47.089
+    },
+    {
+      "path": "/home/testuser/CPE-CHAT-0.0.2/data/raw/regulations/rule2563-2g.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 5.123
+    },
+    {
+      "path": "/home/testuser/CPE-CHAT-0.0.2/data/raw/regulations/rule2563-4b.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 5.957
+    },
+    {
+      "path": "/home/testuser/CPE-CHAT-0.0.2/data/raw/regulations/rule57.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 110.503
+    },
+    {
+      "path": "/home/testuser/CPE-CHAT-0.0.2/data/raw/regulations/rule57_2.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 40.368
+    },
+    {
+      "path": "/home/testuser/CPE-CHAT-0.0.2/data/raw/regulations/ruleG2568.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 188.213
+    },
+    {
+      "path": "/home/testuser/CPE-CHAT-0.0.2/data/raw/regulations/rule_covid2564.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 12.075
+    },
+    {
+      "path": "/home/testuser/CPE-CHAT-0.0.2/data/raw/regulations/rule_exam2560.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 27.43
+    },
+    {
+      "path": "/home/testuser/CPE-CHAT-0.0.2/data/raw/regulations/tf_out.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 11.581
+    }
+  ]
+}

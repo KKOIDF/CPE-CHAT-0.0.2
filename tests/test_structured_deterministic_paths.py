@@ -120,6 +120,15 @@ class TestStructuredDeterministicPaths(unittest.TestCase):
         self.assertIn("CPE 100", answer)
         self.assertIn("CPE 324", answer)
 
+    def test_curriculum_short_instructor_name_question_returns_courses_taught(self) -> None:
+        result = structured_curriculum_lookup("อาจารย์ประพงษ์สอนวิชาอะไร")
+        answer = str(result.get("answer") or "")
+        self.assertEqual(result.get("lookup_mode"), "instructor_course_list")
+        self.assertIn("ประพงษ์", answer)
+        self.assertIn("CPE 100", answer)
+        self.assertIn("CPE 324", answer)
+        self.assertNotIn("ไม่พบข้อมูล", answer)
+
     def test_announcement_open_term_answer_mentions_official_calendar(self) -> None:
         answer = render_fast_announcement_calendar_answer("ขออัปเดต วันเปิดภาคการศึกษา ล่าสุดหน่อยครับ")
         self.assertIsNotNone(answer)
@@ -253,6 +262,20 @@ class TestStructuredDeterministicPaths(unittest.TestCase):
         self.assertIn("ระเบียบการสอบ", answer)
         self.assertIn("ทุจริตสอบ", answer)
         self.assertIn("คณะกรรมการพิจารณาความผิด", answer)
+
+    def test_structured_regulations_lookup_returns_specific_resignation_form(self) -> None:
+        result = structured_regulations_lookup("ใบลาออก")
+        answer = str(result.get("answer") or "")
+        self.assertEqual(result.get("lookup_mode"), "form_lookup")
+        self.assertIn("RO-13Updated.pdf", answer)
+        self.assertNotIn("service/form/]", answer)
+
+    def test_structured_regulations_lookup_returns_specific_sick_business_leave_form(self) -> None:
+        result = structured_regulations_lookup("ขอใบลากิจ")
+        answer = str(result.get("answer") or "")
+        self.assertEqual(result.get("lookup_mode"), "form_lookup")
+        self.assertIn("RO-16.pdf", answer)
+        self.assertNotIn("service/form/]", answer)
 
 
 if __name__ == "__main__":

@@ -34,18 +34,48 @@ _FORM_REGISTRY: list[dict[str, Any]] = [
         ),
     },
     {
+        'form_code': 'RO-13',
+        'title': 'คำร้องขอลาออก (Request Form for Resignation)',
+        'url': 'https://regis.kmutt.ac.th/service/form/RO-13Updated.pdf',
+        'source': 'forms.txt/1',
+        'aliases': (
+            'ใบลาออก',
+            'ลาออก',
+            'คำร้องลาออก',
+            'resignation',
+            'request form for resignation',
+        ),
+    },
+    {
+        'form_code': 'RO-16',
+        'title': 'คำร้องขอลาป่วย/ลากิจ (Request Form for Sick/Business Leave)',
+        'url': 'http://regis.kmutt.ac.th/service/form/RO-16.pdf',
+        'source': 'forms.txt/1',
+        'aliases': (
+            'ใบลากิจ',
+            'ลากิจ',
+            'ใบลาป่วย',
+            'ลาป่วย',
+            'ลาป่วยลากิจ',
+            'คำร้องลาป่วย',
+            'คำร้องลากิจ',
+            'sick leave',
+            'business leave',
+        ),
+    },
+    {
         'form_code': 'FORM-DIRECTORY',
         'title': 'ฟอร์มคำร้องงานทะเบียนนักศึกษา',
         'url': 'https://regis.kmutt.ac.th/service/form/',
         'source': 'forms.txt/1',
         'aliases': (
-            'ใบลา',
-            'ใบลากิจ',
-            'ลากิจ',
-            'ลาป่วย',
-            'ลาป่วยลากิจ',
-            'คำร้องลา',
-            'เอกสารใบลา',
+            'ฟอร์ม',
+            'แบบฟอร์ม',
+            'ฟอร์มคำร้อง',
+            'ฟอร์มงานทะเบียน',
+            'แบบฟอร์มงานทะเบียน',
+            'แบบฟอร์มคำร้อง',
+            'เอกสารฟอร์ม',
         ),
     },
 ]
@@ -205,6 +235,8 @@ def _resolve_exam_policy_focus(question: str) -> str:
     ql = (question or '').strip().lower()
     if not ql:
         return 'generic'
+    if any(t in ql for t in ('สิ่งของ', 'ของส่วนตัว', 'ห้ามนำเข้าห้องสอบ', 'อุปกรณ์ต้องห้าม', 'โทรศัพท์', 'อุปกรณ์สื่อสาร')):
+        return 'device'
     if any(t in ql for t in ('มาสาย', 'สายเกิน', 'เข้าสอบสาย', 'เข้าห้องสอบ')):
         return 'late'
     if any(t in ql for t in ('ชั่วคราว', 'ออกจากห้องสอบ', 'ออกห้องสอบ', 'เข้าห้องน้ำ')):
@@ -945,6 +977,13 @@ def structured_regulations_lookup(question: str, resolved_entity: dict[str, Any]
         locked = _locked_exam_case_phrase(q_str)
         if locked is not None:
             return locked
+
+        if any(t in ql for t in ('สิ่งของ', 'ของส่วนตัว', 'ห้ามนำเข้าห้องสอบ', 'อุปกรณ์ต้องห้าม')):
+            return {
+                "answer": "- ตามระเบียบการสอบ ห้ามนำโทรศัพท์หรืออุปกรณ์สื่อสารเข้าห้องสอบ และรายการสิ่งของต้องห้ามอื่นให้ยึดตามประกาศสนามสอบหรือคำสั่งกรรมการคุมสอบ [rule_exam2560.txt/1]",
+                "lookup_mode": "exam_phrase_forbidden_items",
+                "miss_reason": "",
+            }
 
         # Deterministic guard for clause/device asks that frequently miss exact clause spans
         # in chunked sources (e.g., "ข้อ 9 ... อุปกรณ์สื่อสาร").
