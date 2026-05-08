@@ -140,6 +140,15 @@ def classify_intent(question: str) -> str:
     q = (question or '').strip()
     ql = q.lower()
 
+    smalltalk_terms = (
+        'สวัสดี', 'หวัดดี', 'ดีจ้า', 'hello', 'hi', 'hey',
+        'คุณเป็นใคร', 'เธอเป็นใคร', 'who are you', 'what are you',
+        'ช่วยอะไรได้บ้าง', 'ทำอะไรได้บ้าง', 'ถามอะไรได้บ้าง', 'ใช้งานยังไง',
+        'ขอบคุณ', 'thank you', 'thanks',
+    )
+    if ql in ('hi', 'hello', 'hey') or any(t in ql for t in smalltalk_terms):
+        return 'smalltalk'
+
     unanswerable_terms = (
         'เดาข้อสอบ', 'ช่วยเดาข้อสอบ', 'ข้อสอบจะออก', 'สอบจะออกอะไร', 'เฉลยข้อสอบ', 'ทำนายข้อสอบ', 'ใบ้ข้อสอบ',
         'ตัดสินเกรด', 'ตัดเกรดให้', 'ขอให้ปรับเกรด', 'ปรับเกรดให้', 'เปลี่ยนเกรดให้', 'การันตีเกรด',
@@ -154,7 +163,9 @@ def classify_intent(question: str) -> str:
     if is_multi_doc_question(q):
         return 'multi_intent'
 
-    if any(t in ql for t in ('ใครสอน', 'ผู้สอน', 'อาจารย์', 'คนสอน', 'instructor', 'lecturer', 'teacher')):
+    if any(t in ql for t in ('ใครสอน', 'ผู้สอน', 'อาจารย์', 'คนสอน', 'สอนวิชาอะไร', 'สอนอะไร', 'instructor', 'lecturer', 'teacher')):
+        return 'instructor_lookup'
+    if re.search(r"(?:อ\.|ดร\.|ผศ\.|รศ\.|ศ\.)\s*[ก-๙a-z]", ql) and any(t in ql for t in ('สอน', 'คือใคร', 'ชื่อเต็ม', 'ชื่อจริง')):
         return 'instructor_lookup'
     if any(t in ql for t in ('หน่วยกิต', 'กี่หน่วยกิต', 'credit', 'credits')):
         return 'credit_lookup'
@@ -176,6 +187,8 @@ def classify_intent(question: str) -> str:
         'มาสาย', 'สายเกิน', 'เข้าห้องสอบได้', 'กรรมการคุมสอบ', 'คุมสอบ', 'ทุจริต', 'ส่อ', 'ลงโทษ', 'อุทธรณ์', 'ข้อสอบ', 'วินัย'
     )
     if any(t in q for t in _exam_policy_terms):
+        return 'exam_policy'
+    if any(t in ql for t in ('เครื่องคำนวณ', 'คิดเลข', 'calculator', 'calc')):
         return 'exam_policy'
 
     _academic_status_terms = (
@@ -474,14 +487,22 @@ def infer_domain(question: str) -> str | None:
     # Schedule / calendar / registration timing: these usually live in announcements.
     if any(t in q for t in ('กำหนดการลงทะเบียน', 'ตารางลงทะเบียน', 'ลงทะเบียนเรียนเทอม', 'ลงทะเบียนเทอม')):
         return 'announcements'
-    if any(t in q for t in ('ปฏิทิน', 'กำหนดการ', 'ลงทะเบียน', 'เพิ่ม-ลด', 'เพิ่มลด', 'ช่วง', 'วัน', 'วันที่', 'เมื่อไหร่')):
+    if any(t in q for t in ('ปฏิทิน', 'กำหนดการ', 'ลงทะเบียน', 'เพิ่ม-ลด', 'เพิ่มลด', 'ช่วง', 'วัน', 'วันที่', 'เมื่อไหร่', 'ปิดเทอม', 'ปิดภาค', 'เปิดเทอม', 'เปิดภาค')):
         return 'announcements'
 
     # Withdraw/W questions often need the academic calendar (announcements) more than policy text.
     if ('ถอนรายวิชา' in q or re.search(r"\bW\b|\(W\)", q, re.IGNORECASE)):
+        if any(t in ql for t in ('transcript', 'ทรานสคริป', 'ทรานสคริปต์', 'ใบแสดงผลการเรียน')):
+            return 'announcements'
         # If user asks for when/how, prefer announcements.
         if any(t in q for t in ('เมื่อไหร่', 'ทำได้เมื่อไหร่', 'ช่วงไหน', 'ทำอย่างไร', 'ขั้นตอน', 'กำหนด')):
             return 'announcements'
+        return 'regulations'
+
+    if any(t in ql for t in ('transcript', 'ทรานสคริป', 'ทรานสคริปต์')) and any(t in ql for t in ('w', 'withdrawn')):
+        return 'announcements'
+
+    if any(t in ql for t in ('เครื่องคำนวณ', 'คิดเลข', 'calculator', 'calc')):
         return 'regulations'
 
     if any(t in q for t in ('คำร้อง', 'แบบฟอร์ม', 'RO-', 'ใบลา', 'เอกสารใบลา', 'ลาออก', 'ลาป่วย', 'ลากิจ', 'ทัณฑ์บน', 'วินัย', 'ตัดคะแนนความประพฤติ', 'สอบซ้อน', 'เข้าสอบ')):

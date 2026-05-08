@@ -23,6 +23,64 @@ def apply_announcement_procedure_boost(items: list[dict], keywords=None, boost=0
     return items
 
 
+def apply_intent_aware_fact_boost(
+    items: list[dict],
+    *,
+    question: str,
+    intent: str,
+    needed_evidence: list[str] | None = None,
+) -> list[dict]:
+    if not items:
+        return []
+    q = str(question or '').strip().lower()
+    intent_key = str(intent or '').strip().lower()
+    needed = [str(v or '').strip().lower() for v in (needed_evidence or []) if str(v or '').strip()]
+
+    entity_bonus: dict[str, float] = {}
+    keyword_bonus = 0.0
+    if intent_key in ('contact_lookup', 'person_contact', 'instructor_lookup'):
+        entity_bonus = {'person_contact': 0.45, 'course_instructor': 0.32, 'course': -0.10}
+        keyword_bonus = 0.14
+    elif intent_key in ('course_lookup', 'credit_lookup', 'prerequisite_lookup'):
+        entity_bonus = {'course': 0.38, 'course_instructor': 0.12, 'person_contact': -0.08}
+    elif intent_key in ('form_lookup',):
+        entity_bonus = {'form': 0.4, 'procedure': 0.18}
+    elif intent_key in ('procedure_lookup', 'registration_policy'):
+        entity_bonus = {'procedure': 0.42, 'regulation': 0.16, 'form': 0.12}
+        keyword_bonus = 0.12
+    elif intent_key in ('calendar_lookup', 'calendar_deadline'):
+        entity_bonus = {'calendar_event': 0.42, 'regulation': 0.12}
+        keyword_bonus = 0.10
+    elif intent_key in ('policy_lookup', 'exam_policy', 'academic_status_policy'):
+        entity_bonus = {'regulation': 0.34, 'procedure': 0.12}
+
+    out: list[dict] = []
+    for item in items:
+        row = dict(item or {})
+        meta = row.get('metadata') if isinstance(row.get('metadata'), dict) else {}
+        entity_type = str(meta.get('entity_type') or '').strip().lower()
+        base = float(row.get('score_final') or row.get('score_rrf') or 0.0)
+        score = base + float(entity_bonus.get(entity_type, 0.0))
+        text = str(row.get('text') or '').lower()
+        if keyword_bonus > 0:
+            if intent_key in ('contact_lookup', 'person_contact', 'instructor_lookup') and any(t in text for t in ('@', 'อีเมล', 'email', 'โทร', 'phone', 'contact')):
+                score += keyword_bonus
+            elif intent_key in ('procedure_lookup', 'registration_policy') and any(t in text for t in ('ขั้นตอน', 'ยื่น', 'ส่ง', 'กรอก', 'อนุมัติ')):
+                score += keyword_bonus
+            elif intent_key in ('calendar_lookup', 'calendar_deadline') and any(t in text for t in ('ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.', 'วัน')):
+                score += keyword_bonus
+        if needed and entity_type:
+            if entity_type == 'person_contact' and any(k in needed for k in ('email', 'phone', 'contact')):
+                score += 0.08
+            if entity_type == 'course' and any(k in needed for k in ('course_code', 'credits', 'course_name')):
+                score += 0.08
+        row['score_final'] = score
+        row['score_rrf'] = score
+        out.append(row)
+    out.sort(key=lambda x: float(x.get('score_final') or x.get('score_rrf') or 0.0), reverse=True)
+    return out
+
+
 def _normalize_source_key(s: str) -> str:
     txt = (s or '').strip().lower()
     if not txt:

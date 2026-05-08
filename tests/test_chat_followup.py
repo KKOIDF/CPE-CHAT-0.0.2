@@ -50,6 +50,25 @@ class _FakeRedis:
 
 
 class TestChatFollowupPipeline(unittest.TestCase):
+    def test_build_effective_question_prefers_single_course_from_previous_assistant_answer(self) -> None:
+        messages = [
+            {"role": "user", "content": "อาจารย์ประพงษ์สอนวิชาอะไร"},
+            {"role": "assistant", "content": "- CPE 324 ระบบสมองกลฝังตัว [records.jsonl/1]"},
+            {"role": "user", "content": "วิชานี้กี่หน่วยกิต"},
+        ]
+
+        prepared = prepare_chat_request(
+            question="วิชานี้กี่หน่วยกิต",
+            domain="curriculum",
+            session_id="s_assistant_anchor",
+            messages=messages,
+            session_store=InMemorySessionStore(),
+            question_preparer=lambda q, _d: q,
+        )
+
+        self.assertIn("บริบทก่อนหน้า: CPE 324", prepared.question)
+        self.assertIn("คำถามต่อเนื่อง: วิชานี้กี่หน่วยกิต", prepared.question)
+
     def test_rag_request_exposes_optional_messages_for_query_endpoint(self) -> None:
         req = RagRequest(question="CPE 342 วิชาอะไร", domain="curriculum")
 
@@ -286,6 +305,46 @@ class TestChatFollowupPipeline(unittest.TestCase):
         self.assertIn("บริบทก่อนหน้า: เอกสารจบ", prepared.question)
         self.assertIn("คำถามต่อเนื่อง: ต้องยื่นเมื่อไร", prepared.question)
 
+    def test_generic_course_code_followup_reuses_previous_language_topic(self) -> None:
+        store = InMemorySessionStore()
+        messages = [
+            {"role": "user", "content": "ภาษาญี่ปุ่น"},
+            {"role": "assistant", "content": "..."},
+            {"role": "user", "content": "รหัสวิชา"},
+        ]
+
+        prepared = prepare_chat_request(
+            question="รหัสวิชา",
+            domain="curriculum",
+            session_id="s2e2",
+            messages=messages,
+            session_store=store,
+            question_preparer=lambda q, _d: q,
+        )
+
+        self.assertIn("บริบทก่อนหน้า: ภาษาญี่ปุ่น", prepared.question)
+        self.assertIn("คำถามต่อเนื่อง: รหัสวิชา", prepared.question)
+
+    def test_generic_form_signer_followup_reuses_previous_form_topic(self) -> None:
+        store = InMemorySessionStore()
+        messages = [
+            {"role": "user", "content": "ขอเอกสารใบลากิจ"},
+            {"role": "assistant", "content": "- ต้องใช้ RO-16 ..."},
+            {"role": "user", "content": "ต้องให้ใครเซ็นบ้าง"},
+        ]
+
+        prepared = prepare_chat_request(
+            question="ต้องให้ใครเซ็นบ้าง",
+            domain="regulations",
+            session_id="s2e3",
+            messages=messages,
+            session_store=store,
+            question_preparer=lambda q, _d: q,
+        )
+
+        self.assertIn("บริบทก่อนหน้า: ขอเอกสารใบลากิจ", prepared.question)
+        self.assertIn("คำถามต่อเนื่อง: ต้องให้ใครเซ็นบ้าง", prepared.question)
+
     def test_resolved_entity_is_passed_into_route_analysis(self) -> None:
         decision = analyze_route(
             "วิชาที่สอน",
@@ -397,6 +456,44 @@ class TestChatFollowupPipeline(unittest.TestCase):
         self.assertFalse(prepared.lock_applied)
         self.assertEqual(prepared.question, "สรุปสั้นๆ")
         self.assertEqual(prepared.session_id, "")
+
+    def test_form_code_question_does_not_inherit_previous_form_context(self) -> None:
+        store = InMemorySessionStore()
+        messages = [
+            {"role": "user", "content": "ใบลาออก"},
+            {"role": "assistant", "content": "- ต้องใช้ RO-13 ..."},
+            {"role": "user", "content": "RO-26 ใช้ทำอะไร"},
+        ]
+
+        prepared = prepare_chat_request(
+            question="RO-26 ใช้ทำอะไร",
+            domain="regulations",
+            session_id="forms1",
+            messages=messages,
+            session_store=store,
+            question_preparer=lambda q, _d: q,
+        )
+
+        self.assertEqual(prepared.question, "RO-26 ใช้ทำอะไร")
+
+    def test_form_catalog_question_does_not_inherit_previous_form_context(self) -> None:
+        store = InMemorySessionStore()
+        messages = [
+            {"role": "user", "content": "ใบลาออก"},
+            {"role": "assistant", "content": "- ต้องใช้ RO-13 ..."},
+            {"role": "user", "content": "มีแบบฟอร์มอะไรบ้าง"},
+        ]
+
+        prepared = prepare_chat_request(
+            question="มีแบบฟอร์มอะไรบ้าง",
+            domain="regulations",
+            session_id="forms2",
+            messages=messages,
+            session_store=store,
+            question_preparer=lambda q, _d: q,
+        )
+
+        self.assertEqual(prepared.question, "มีแบบฟอร์มอะไรบ้าง")
 
     def test_redis_session_store_shares_memory_across_instances(self) -> None:
         shared = _FakeRedis()

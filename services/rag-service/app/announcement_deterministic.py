@@ -52,6 +52,13 @@ def select_announcement_calendar_entry(question: str) -> dict[str, Any] | None:
             "ลงทะเบียน",
             "ชำระเงิน",
             "เปิดให้บริการ",
+            "วันสุดท้ายของภาคการศึกษา",
+            "ปิดเทอม",
+            "ปิดภาค",
+            "เปิดเทอม",
+            "เปิดภาค",
+            "เทอม 2/2568",
+            "ภาคการศึกษาที่ 2/2568",
             "20 นาที",
             "อยู่ในระบบ",
             "โมดูล 5 สัปดาห์",
@@ -68,6 +75,8 @@ def select_announcement_calendar_entry(question: str) -> dict[str, Any] | None:
                 score += 3
         if ("วันสุดท้าย" in ql) and ("วันสุดท้าย" in blob):
             score += 3
+        if any(t in ql for t in ("ปิดเทอม", "ปิดภาค", "วันสุดท้ายของภาคการศึกษา")) and ("วันสุดท้ายของภาคการศึกษา" in blob):
+            score += 5
         if any(t in ql for t in ("กี่โมง", "เวลาใด", "เปิดกี่โมง")) and ("07:00" in value or "23:00" in value):
             score += 4
         if ("ไม่เกินกี่นาที" in ql or "ครั้งละ" in ql) and ("20 นาที" in blob):
@@ -93,6 +102,11 @@ def render_fast_announcement_calendar_answer(question: str) -> str | None:
         value = str(artifact_entry.get("value") or "").strip()
         if any(t in ql for t in ("วันเปิดภาค", "เปิดภาคการศึกษา", "วันเปิดภาคการศึกษา")):
             return f"- ประกาศล่าสุด/ปฏิทินการศึกษา ระบุวันเปิดภาคการศึกษา: {value} [{source}/{page}]"
+        if any(t in ql for t in ("ปิดเทอม", "ปิดภาค", "วันสุดท้ายของภาคการศึกษา")):
+            if label and any(t in label.lower() for t in ("วันสุดท้ายของภาคการศึกษา", "ภาคการศึกษาที่ 2/2568")):
+                return f"- ภาคการศึกษาที่ 2/2568 วันสุดท้ายของภาคการศึกษาคือ {value} [{source}/{page}]"
+            if value and "วันสุดท้ายของภาคการศึกษา" in value:
+                return f"- ภาคการศึกษาที่ 2/2568 วันสุดท้ายของภาคการศึกษาคือ {value} [{source}/{page}]"
         if ("วันสุดท้าย" in ql) and any(t in ql for t in ("ถอนวิชา", "ติด w", "ถอนรายวิชา")):
             return f"- ประกาศล่าสุด/ปฏิทินการศึกษา ระบุวันสุดท้ายถอนวิชาแบบติด W: {value} [{source}/{page}]"
         if label and value:
@@ -111,6 +125,8 @@ def render_fast_announcement_calendar_answer(question: str) -> str | None:
         return f"- วันสุดท้ายของการชำระเงินค่าลงทะเบียนภาค 2/2568 คือ พฤ.8 มกราคม 2569 [{cite}]"
     if any(t in ql for t in ("วันเปิดภาค", "เปิดภาคการศึกษา", "วันเปิดภาคการศึกษา")):
         return f"- ประกาศล่าสุด/ปฏิทินการศึกษา ระบุวันเปิดภาคการศึกษาไว้ในช่วงวันเสาร์ที่ 16 สิงหาคม - วันศุกร์ที่ 17 ตุลาคม 2568 [{cite}]"
+    if any(t in ql for t in ("ปิดเทอม", "ปิดภาค", "วันสุดท้ายของภาคการศึกษา")) and any(t in ql for t in ("2/2568", "เทอม 2", "ภาคการศึกษาที่ 2")):
+        return f"- ภาคการศึกษาที่ 2/2568 วันสุดท้ายของภาคการศึกษาคือ วันเสาร์ที่ 30 พฤษภาคม 2569 [{cite}]"
     if ("วันสุดท้าย" in ql) and any(t in ql for t in ("ถอนวิชา", "ติด w", "ถอนรายวิชา")):
         return f"- ประกาศล่าสุด/ปฏิทินการศึกษา ระบุวันสุดท้ายถอนวิชาแบบติด W ตามรอบที่ประกาศ [{cite}]"
     if "โมดูล 5 สัปดาห์" in ql and "ช่วงที่ 1" in ql:
@@ -144,6 +160,15 @@ def render_generalized_announcement_answer(question: str) -> str | None:
             f"- announcements: ใช้อ้างอิงจากประกาศล่าสุด/announcement ล่าสุด [{calendar_cite}]",
             f"- การถอนรายวิชาต้องทำภายในช่วงเวลาที่กำหนดในปฏิทินการศึกษา [{calendar_cite}]",
             f"- ผลต่อเกรด: หากถอนภายในช่วงที่กำหนดจะได้สัญลักษณ์ W (Withdrawn) ตามประกาศและระเบียบที่เกี่ยวข้อง [{calendar_cite}]",
+        ])
+
+    if (_has_any("transcript", "ทรานสคริป", "ทรานสคริปต์", "ใบแสดงผลการเรียน") and _has_any("w", "withdrawn")) or (
+        _has_any("ถอนรายวิชา") and _has_any("transcript", "ทรานสคริป", "ทรานสคริปต์")
+    ):
+        return _wrap([
+            f"- การถอนรายวิชาในช่วงเวลาที่กำหนดจะได้ผลการประเมินเป็น W (Withdrawn) [{calendar_cite}]",
+            f"- จากหลักฐานที่มี ยืนยันได้ว่า W เป็นสถานะผลการประเมินที่แสดงหลังถอนรายวิชา และจะปรากฏในผลการเรียน/Transcript [{calendar_cite}]",
+            f"- เอกสารชุดนี้ยังไม่ได้อธิบายผลต่อ GPA โดยตรง จึงยังไม่ควรสรุปเกินหลักฐานในส่วนนั้น [{calendar_cite}]",
         ])
 
     if _has_any("เปลี่ยน section", "change section", "ย้าย section", "เปลี่ยนกลุ่มเรียน"):

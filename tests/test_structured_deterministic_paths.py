@@ -16,11 +16,49 @@ from app.announcement_deterministic import (  # noqa: E402
 )
 import app.curriculum_deterministic as curriculum_deterministic  # noqa: E402
 from app.curriculum_deterministic import structured_curriculum_lookup  # noqa: E402
-from app.main import _build_general_policy_answer  # noqa: E402
+from app.main import _finalize_user_answer_text  # noqa: E402
 from app.regulations_deterministic import fetch_exam_clause, structured_regulations_lookup  # noqa: E402
 
 
 class TestStructuredDeterministicPaths(unittest.TestCase):
+    def test_finalize_user_answer_text_polishes_regulation_schema_for_chat(self) -> None:
+        raw = (
+            "- ทำได้/ไม่ได้: ได้เมื่อได้รับอนุญาต\n"
+            "- อ้างอิงระเบียบข้อใด: ระเบียบการสอบ\n"
+            "- เงื่อนไขหลัก: ต้องแจ้งกรรมการคุมสอบทันที\n"
+            "- ข้อยกเว้น: พิจารณาเป็นรายกรณี\n"
+            "- ต้องติดต่อใคร: กรรมการคุมสอบ\n"
+            "- เอกสารที่ต้องใช้: คำร้องและหลักฐาน\n"
+            "- ขั้นตอนทีละข้อ: แจ้งเหตุและยื่นคำร้อง\n"
+            "- หากถูกปฏิเสธ/เลยกำหนด ต้องทำอย่างไร: ติดต่อหน่วยงานวิชาการ\n"
+            "- ข้อมูลที่เอกสารไม่ได้ระบุ: ยังยืนยันไม่ได้จากเอกสาร"
+        )
+
+        answer = _finalize_user_answer_text("ถ้าเข้าสอบสายต้องทำยังไง", raw)
+
+        self.assertIn("เรื่องนี้", answer)
+        self.assertIn("แนะนำให้", answer)
+        self.assertIn("ติดต่อ", answer)
+        self.assertNotIn("อ้างอิงระเบียบข้อใด:", answer)
+        self.assertNotIn("ข้อมูลที่เอกสารไม่ได้ระบุ:", answer)
+
+    def test_finalize_user_answer_text_polishes_announcement_schema_for_chat(self) -> None:
+        raw = (
+            "- แหล่งประกาศ: ประกาศล่าสุดของงานทะเบียน\n"
+            "- ขั้นตอน: ยื่นคำร้องผ่านช่องทางที่กำหนด\n"
+            "- เงื่อนไข: ต้องแนบเหตุผล\n"
+            "- ข้อจำกัด: หากไม่มีประกาศรองรับจะทำไม่ได้\n"
+            "- ขั้นตอนถัดไป: ตรวจประกาศล่าสุดอีกครั้ง"
+        )
+
+        answer = _finalize_user_answer_text("เลย deadline เพิ่มรายวิชาต้องทำยังไง", raw)
+
+        self.assertIn("ควรอ้างอิงจาก", answer)
+        self.assertIn("แนะนำให้", answer)
+        self.assertIn("เงื่อนไขสำคัญคือ", answer)
+        self.assertIn("ถัดจากนี้", answer)
+        self.assertNotIn("แหล่งประกาศ:", answer)
+
     def test_instructor_record_fallback_uses_root_dir_in_shallow_layout(self) -> None:
         old_root_dir = curriculum_deterministic.ROOT_DIR
         old_cache = curriculum_deterministic._STAFF_COURSE_RECORDS_CACHE
@@ -129,6 +167,38 @@ class TestStructuredDeterministicPaths(unittest.TestCase):
         self.assertIn("CPE 324", answer)
         self.assertNotIn("ไม่พบข้อมูล", answer)
 
+    def test_curriculum_abbrev_instructor_name_question_returns_courses_taught(self) -> None:
+        result = structured_curriculum_lookup("อ.ประพงษ์สอนอะไร")
+        answer = str(result.get("answer") or "")
+        self.assertEqual(result.get("lookup_mode"), "instructor_course_list")
+        self.assertIn("ประพงษ์", answer)
+        self.assertIn("CPE 324", answer)
+        self.assertNotIn("ไม่พบข้อมูล", answer)
+
+    def test_curriculum_doctor_instructor_name_question_returns_courses_taught(self) -> None:
+        result = structured_curriculum_lookup("ดร.ประพงษ์สอนอะไร")
+        answer = str(result.get("answer") or "")
+        self.assertEqual(result.get("lookup_mode"), "instructor_course_list")
+        self.assertIn("ประพงษ์", answer)
+        self.assertIn("CPE 324", answer)
+
+    def test_curriculum_instructor_identity_followup_returns_canonical_name(self) -> None:
+        result = structured_curriculum_lookup(
+            "บริบทก่อนหน้า: อาจารย์ประพงษ์\nคำถามต่อเนื่อง: คือใคร",
+            resolved_entity={"type": "instructor", "value": "อาจารย์ประพงษ์", "confidence": 3},
+        )
+        answer = str(result.get("answer") or "")
+        self.assertEqual(result.get("lookup_mode"), "instructor_course_list")
+        self.assertIn("หมายถึง", answer)
+        self.assertIn("ประพงษ์", answer)
+
+    def test_curriculum_language_followup_uses_context_for_course_code_lookup(self) -> None:
+        result = structured_curriculum_lookup("บริบทก่อนหน้า: ภาษาญี่ปุ่น\nคำถามต่อเนื่อง: รหัสวิชา")
+        answer = str(result.get("answer") or "")
+        self.assertEqual(result.get("lookup_mode"), "lng_language_list")
+        self.assertIn("ภาษาญี่ปุ่น", answer)
+        self.assertIn("LNG", answer)
+
     def test_announcement_open_term_answer_mentions_official_calendar(self) -> None:
         answer = render_fast_announcement_calendar_answer("ขออัปเดต วันเปิดภาคการศึกษา ล่าสุดหน่อยครับ")
         self.assertIsNotNone(answer)
@@ -173,24 +243,27 @@ class TestStructuredDeterministicPaths(unittest.TestCase):
         self.assertIn("ระบบลงทะเบียนล่ม", str(answer))
         self.assertIn("ประกาศล่าสุด", str(answer))
 
-    def test_general_policy_answer_handles_project_topic_change(self) -> None:
-        answer = _build_general_policy_answer("หากต้องการเปลี่ยนหัวข้อโปรเจคต้องทำอย่างไร")
-        self.assertIsNotNone(answer)
-        self.assertIn("general", str(answer))
-        self.assertIn("อาจารย์ที่ปรึกษา", str(answer))
-
-    def test_general_policy_answer_handles_course_withdrawal_timing(self) -> None:
-        answer = _build_general_policy_answer("การลาออกจากรายวิชาทำได้เมื่อไร")
-        self.assertIsNotNone(answer)
-        self.assertIn("general", str(answer))
-        self.assertIn("ปฏิทินการศึกษา", str(answer))
-
     def test_generalized_announcement_answer_handles_wrong_course_registration(self) -> None:
         answer = render_generalized_announcement_answer("หากลงทะเบียนผิดวิชา ต้องแก้ไขอย่างไร")
         self.assertIsNotNone(answer)
         self.assertIn("announcements", str(answer))
         self.assertIn("ลงทะเบียน", str(answer))
         self.assertIn("คำร้อง", str(answer))
+
+    def test_regulations_form_followup_for_signers_stays_grounded(self) -> None:
+        result = structured_regulations_lookup("บริบทก่อนหน้า: ขอเอกสารใบลากิจ\nคำถามต่อเนื่อง: ต้องให้ใครเซ็นบ้าง")
+        answer = str(result.get("answer") or "")
+        self.assertEqual(result.get("lookup_mode"), "form_lookup")
+        self.assertIn("RO-16", answer)
+        self.assertIn("ยังไม่พบการระบุ", answer)
+
+    def test_regulations_form_followup_for_steps_mentions_known_and_unknown_parts(self) -> None:
+        result = structured_regulations_lookup("บริบทก่อนหน้า: ขอเอกสารใบลากิจ\nคำถามต่อเนื่อง: มีขั้นตอนการยื่นเอกสารยังไงบ้าง")
+        answer = str(result.get("answer") or "")
+        self.assertEqual(result.get("lookup_mode"), "form_lookup")
+        self.assertIn("RO-16", answer)
+        self.assertIn("ขั้นตอนที่ยืนยันได้จากเอกสาร", answer)
+        self.assertIn("ยังไม่ระบุชัด", answer)
 
     def test_fetch_exam_clause_uses_structured_artifact(self) -> None:
         clause = fetch_exam_clause("12")
@@ -276,6 +349,28 @@ class TestStructuredDeterministicPaths(unittest.TestCase):
         self.assertEqual(result.get("lookup_mode"), "form_lookup")
         self.assertIn("RO-16.pdf", answer)
         self.assertNotIn("service/form/]", answer)
+
+    def test_structured_regulations_lookup_returns_specific_general_request_form(self) -> None:
+        result = structured_regulations_lookup("คำร้องทั่วไปใช้ทำอะไร")
+        answer = str(result.get("answer") or "")
+        self.assertEqual(result.get("lookup_mode"), "form_lookup")
+        self.assertIn("RO-01.pdf", answer)
+        self.assertIn("ยื่นคำร้องทั่วไป", answer)
+
+    def test_structured_regulations_lookup_matches_form_code_directly(self) -> None:
+        result = structured_regulations_lookup("RO-26 ใช้ทำอะไร")
+        answer = str(result.get("answer") or "")
+        self.assertEqual(result.get("lookup_mode"), "form_lookup")
+        self.assertIn("RO-26Updated.pdf", answer)
+        self.assertIn("เพิ่ม ลด ถอนรายวิชา", answer)
+
+    def test_structured_regulations_lookup_returns_catalog_instead_of_forbidden_directory(self) -> None:
+        result = structured_regulations_lookup("มีแบบฟอร์มอะไรบ้าง")
+        answer = str(result.get("answer") or "")
+        self.assertEqual(result.get("lookup_mode"), "form_catalog")
+        self.assertIn("RO-01", answer)
+        self.assertIn("RO-26", answer)
+        self.assertIn("RO-16.pdf", answer)
 
 
 if __name__ == "__main__":

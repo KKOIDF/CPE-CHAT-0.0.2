@@ -162,6 +162,13 @@ def _extract_lng_language_spec(question: str) -> dict[str, tuple[str, ...]] | No
     return None
 
 
+def _followup_tail(question: str) -> str:
+    q = str(question or "").strip()
+    if "คำถามต่อเนื่อง:" in q:
+        return q.split("คำถามต่อเนื่อง:", 1)[1].strip()
+    return q
+
+
 def _canonical_instructor_cite(source: str) -> str:
     src = str(source or "").strip()
     if not src:
@@ -812,10 +819,15 @@ def _extract_instructor_name_candidates(text: str) -> list[str]:
         if not name:
             continue
         name = re.split(
-            r"\s*(?:สอนวิชาอะไร|วิชาที่สอน|มีวิชาอะไรบ้าง|วิชาอะไรบ้าง|คือใคร|คืออะไร|เรียนเกี่ยวกับอะไร|กี่หน่วยกิต)\b",
+            r"\s*(?:สอนวิชาอะไร|สอนอะไร|วิชาที่สอน|มีวิชาอะไรบ้าง|วิชาอะไรบ้าง|คือใคร|คืออะไร|เรียนเกี่ยวกับอะไร|กี่หน่วยกิต)\b",
             name,
             maxsplit=1,
         )[0].strip()
+        name = re.sub(
+            r"\s*(?:สอนวิชาอะไร|สอนอะไร|วิชาที่สอน|มีวิชาอะไรบ้าง|วิชาอะไรบ้าง|คือใคร|คืออะไร|เรียนเกี่ยวกับอะไร|กี่หน่วยกิต)\s*$",
+            "",
+            name,
+        ).strip()
         key = _normalize_instructor_name_key(name)
         if not key or key in seen:
             continue
@@ -1795,7 +1807,7 @@ def _sum_credits_answer(question: str, source_name: str, totals: dict[str, int])
 
     # Year sum across both terms.
     ym = re.search(r"(?:ชั้นปีที่|ปีที่|ปี)\s*([1-4])", q)
-    if ym and any(t in q for t in ('ทั้ง 2 ภาค', 'ทั้งสองภาค', 'ทั้งหมด', 'รวม')):
+    if ym and any(t in q for t in ('ทั้ง 2 ภาค', 'ทั้งสองภาค', 'ทั้งหมด', 'รวม', 'ต้องเรียนกี่หน่วยกิต', 'เรียนกี่หน่วยกิต', 'กี่หน่วยกิต')):
         year = int(ym.group(1))
         c1 = _parse_study_plan_courses(f"ชั้นปีที่ {year} ภาคการศึกษาที่ 1")
         c2 = _parse_study_plan_courses(f"ชั้นปีที่ {year} ภาคการศึกษาที่ 2")
@@ -1980,9 +1992,10 @@ def structured_curriculum_lookup(question: str, resolved_entity: dict[str, Any] 
     """
     raw_q = apply_resolved_entity_context(str(question or "").strip(), resolved_entity)
     q = normalize_question(raw_q)
+    instructor_candidates_preview = _extract_instructor_name_candidates(raw_q or q)
     instructor_intent = any(t in q for t in (
-        "ใครสอน", "ผู้สอน", "อาจารย์", "คนสอน", "สอนวิชาอะไร", "วิชาที่สอน", "มีวิชาอะไรบ้าง", "วิชาอะไรบ้าง"
-    ))
+        "ใครสอน", "ผู้สอน", "อาจารย์", "คนสอน", "สอนวิชาอะไร", "สอนอะไร", "วิชาที่สอน", "มีวิชาอะไรบ้าง", "วิชาอะไรบ้าง"
+    )) or bool(instructor_candidates_preview and any(t in q for t in ("สอน", "คือใคร", "ชื่อเต็ม", "ชื่อจริง")))
     source_name = "curriculum_sqlite"
     totals: dict[str, int] = {}
     qtype = _classify_curriculum_question_type(q)
@@ -2168,7 +2181,7 @@ def structured_curriculum_lookup(question: str, resolved_entity: dict[str, Any] 
             followup_codes = _codes_in_order(tail)
 
     codes = followup_codes or _codes_in_order(q)
-    instructor_names = _extract_instructor_name_candidates(raw_q or q)
+    instructor_names = instructor_candidates_preview
     if resolved_entity and str(resolved_entity.get("type") or "").strip().lower() == "instructor":
         val = str(resolved_entity.get("value") or "").strip()
         if val:
@@ -2249,6 +2262,30 @@ def structured_curriculum_lookup(question: str, resolved_entity: dict[str, Any] 
         relation_hit_any = False
         contact_hit_any = False
         exact_code_hit = 0
+
+        if not codes and instructor_names and any(t in q for t in ("คือใคร", "คืออะไร", "ชื่อเต็ม", "ชื่อจริง")):
+            for instructor_name in reversed(instructor_names):
+                matched_courses, canonical_name, cite = _lookup_courses_for_instructor(instructor_name)
+                if not matched_courses:
+                    continue
+                display_name = canonical_name or instructor_name
+                preview = ", ".join(code for code, _title, _course_cite in matched_courses[:4])
+                suffix = " ..." if len(matched_courses) > 4 else ""
+                return {
+                    "answer": (
+                        f"- หมายถึง {display_name} [{cite}]\n"
+                        f"- จากข้อมูลที่พบ อาจารย์ท่านนี้สอนรายวิชา เช่น {preview}{suffix} [{cite}]"
+                    ),
+                    "lookup_mode": "instructor_course_list",
+                    "miss_reason": "",
+                    "instructor_lookup_exact_code_hit": 0,
+                    "instructor_lookup_relation_hit": 1,
+                    "instructor_lookup_contact_hit": 0,
+                    "instructor_assignment_candidates_n": len(matched_courses),
+                    "instructor_assignment_confident": 1,
+                    "instructor_assignment_multi_match": 0,
+                    "instructor_assignment_soft_answer_used": 0,
+                }
 
         if not codes and instructor_names:
             for instructor_name in reversed(instructor_names):
@@ -2430,7 +2467,23 @@ def structured_curriculum_lookup(question: str, resolved_entity: dict[str, Any] 
     lang_spec = _extract_lng_language_spec(q)
     pref_hint = _extract_prefix_from_question(q)
     lng_signal = (pref_hint or "").upper() == "LNG" or ("lng" in q.lower())
-    if lang_spec and lng_signal and (not codes) and (not instructor_intent) and (not prereq_intent):
+    followup_tail = _followup_tail(q)
+    lang_followup_signal = any(
+        token in followup_tail.lower()
+        for token in (
+            'รหัสวิชา',
+            'โค้ดวิชา',
+            'วิชาอะไร',
+            'มีวิชาอะไร',
+            'วิชาอะไรบ้าง',
+            'รายวิชา',
+            'คำอธิบาย',
+            'เรียนเกี่ยวกับอะไร',
+            'หน่วยกิต',
+        )
+    )
+    lang_context_signal = ('บริบทก่อนหน้า:' in q) and bool(lang_spec)
+    if lang_spec and (lng_signal or (lang_context_signal and lang_followup_signal)) and (not codes) and (not instructor_intent) and (not prereq_intent):
         hints = lang_spec.get("hints") or ()
         lang_label = str(lang_spec.get("label") or "").strip()
 

@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import List, Dict, Optional
 
 from .config import CHUNK_MIN_TOKENS, CHUNK_MAX_TOKENS, CHUNK_OVERLAP_RATIO, CHAR_PER_TOKEN, CHUNK_STRATEGY, CURRICULUM_PROGRAM
+from .document_profiles import infer_document_profile
 from .utils import split_paragraphs_smart, segment_sentences_thai
 
 _HEADING_PATTS = [r"^บท\s*ที่\s*\d+", r"^หมวด\s*ที่?\s*\d+", r"^ภาคผนวก", r"^บท\s*\d+", r"^(?:\d+\.)+\s+", r"^\d+\)\s+", r"^[A-Za-zก-๙]+\s*:\s+"]
@@ -3430,7 +3431,9 @@ def _make_chunks_sentence_window(paragraphs: List[Dict], source_path: str) -> Li
 
 
 def make_chunks(paragraphs: List[Dict], source_path: str) -> List[Dict]:
-    strat = (CHUNK_STRATEGY or 'structure').strip().lower()
+    joined = "\n".join([str((p or {}).get('text') or '').strip() for p in (paragraphs or [])[:80] if str((p or {}).get('text') or '').strip()])
+    profile = infer_document_profile(source_path, joined)
+    strat = (profile.get('semantic_chunk_strategy') or CHUNK_STRATEGY or 'structure').strip().lower()
     if strat in ('langchain_recursive', 'langchain'):
         return _make_chunks_langchain_recursive(paragraphs, source_path)
     if strat == 'sentence_window':

@@ -1,11 +1,17 @@
 from __future__ import annotations
 
 from typing import Any, Dict, List
+from copy import deepcopy
 import os
 import re
+import threading
+import time
+import json
+from pathlib import Path
 
 from .perf import add_metric
 from .normalization import normalize_question, search_query_from_question
+from .config import KNOWN_DOMAINS, ROOT_DIR
 from .routing import (
     apply_resolved_entity_context,
     _filter_chunks_by_reference,
@@ -27,7 +33,8 @@ from .retrieval import (
     retrieve_multi_document as _retrieve_multi_document,
 )
 from .curriculum_deterministic import structured_curriculum_answer, structured_curriculum_lookup
-from .rerank import _normalize_source_key
+from .rerank import _normalize_source_key, apply_intent_aware_fact_boost
+from .structured_artifacts import search_fact_index
 
 
 _MULTI_DOC_MODE = (os.getenv('RAG_MULTI_DOC_MODE', 'auto') or 'auto').strip().lower()
@@ -48,9 +55,197 @@ try:
     _MIN_DOCS_FOR_CONFIDENT = max(1, int(os.getenv('RAG_ADAPTIVE_MIN_DOCS', '2') or '2'))
 except Exception:
     _MIN_DOCS_FOR_CONFIDENT = 2
+_RETRIEVAL_CACHE_ENABLE = (os.getenv('RAG_RETRIEVAL_CACHE_ENABLE', '1') or '1').strip().lower() in (
+    '1', 'true', 'yes', 'on'
+)
+try:
+    _RETRIEVAL_CACHE_TTL_SECONDS = max(5, int(os.getenv('RAG_RETRIEVAL_CACHE_TTL_SECONDS', '300') or '300'))
+except Exception:
+    _RETRIEVAL_CACHE_TTL_SECONDS = 300
+try:
+    _RETRIEVAL_CACHE_MAX_ENTRIES = max(16, int(os.getenv('RAG_RETRIEVAL_CACHE_MAX_ENTRIES', '256') or '256'))
+except Exception:
+    _RETRIEVAL_CACHE_MAX_ENTRIES = 256
+
+_RETRIEVAL_CACHE_LOCK = threading.Lock()
+_RETRIEVAL_CACHE: Dict[str, Dict[str, Any]] = {}
+_RETRIEVAL_REDIS_CLIENT = None
+_RETRIEVAL_REDIS_LOCK = threading.Lock()
 
 
 _INLINE_CITE_CAPTURE_RE = re.compile(r"\[([^\]]+?)/(\d+)\]")
+
+
+def _cache_file_signature(path: Path) -> tuple[int, int]:
+    try:
+        st = path.stat()
+        return int(st.st_mtime_ns), int(st.st_size)
+    except Exception:
+        return (-1, -1)
+
+
+def _retrieval_cache_redis_url() -> str:
+    return str(
+        os.getenv('RAG_RETRIEVAL_REDIS_URL')
+        or os.getenv('RAG_SESSION_REDIS_URL')
+        or ''
+    ).strip()
+
+
+def _get_retrieval_redis_client():
+    global _RETRIEVAL_REDIS_CLIENT
+    redis_url = _retrieval_cache_redis_url()
+    if not redis_url:
+        return None
+    if _RETRIEVAL_REDIS_CLIENT is not None:
+        return _RETRIEVAL_REDIS_CLIENT
+    with _RETRIEVAL_REDIS_LOCK:
+        if _RETRIEVAL_REDIS_CLIENT is not None:
+            return _RETRIEVAL_REDIS_CLIENT
+        try:
+            import redis  # type: ignore
+            _RETRIEVAL_REDIS_CLIENT = redis.from_url(redis_url, decode_responses=True)
+        except Exception:
+            _RETRIEVAL_REDIS_CLIENT = None
+        return _RETRIEVAL_REDIS_CLIENT
+
+
+def _redis_cache_key(key: str) -> str:
+    return f"rag:retrieval_cache:{key}"
+
+
+def _cache_domains_signature(domains: List[str]) -> str:
+    payload: Dict[str, tuple[int, int]] = {}
+    for dom in domains:
+        key = str(dom or '').strip().lower()
+        if not key:
+            continue
+        payload[f"{key}:sqlite"] = _cache_file_signature(ROOT_DIR / 'indexes' / key / 'vector' / 'sqlite' / 'ingestion.db')
+        payload[f"{key}:facts"] = _cache_file_signature(ROOT_DIR / 'indexes' / key / 'structured' / 'fact_index.json')
+        payload[f"{key}:profiles"] = _cache_file_signature(ROOT_DIR / 'indexes' / key / 'structured' / 'document_profiles.json')
+    return json.dumps(payload, sort_keys=True, ensure_ascii=False)
+
+
+def _retrieval_cacheable(question: str, retrieval_plan: dict | None = None) -> bool:
+    q = str(question or '').strip()
+    if not q:
+        return False
+    if q.startswith('บริบทก่อนหน้า:'):
+        return True
+    if len(q) <= 240:
+        return True
+    if is_multi_doc_question(q):
+        return True
+    return bool((retrieval_plan or {}).get('search_queries'))
+
+
+def _retrieval_cache_key(
+    *,
+    question: str,
+    domain: str | None,
+    planned_domains: List[str],
+    intent: str,
+    retrieval_plan: dict | None,
+) -> str:
+    payload = {
+        'question': normalize_question(question),
+        'domain': str(domain or '').strip().lower(),
+        'planned_domains': [str(v or '').strip().lower() for v in (planned_domains or []) if str(v or '').strip()],
+        'intent': str(intent or '').strip().lower(),
+        'search_queries': [str(v or '').strip() for v in ((retrieval_plan or {}).get('search_queries') or []) if str(v or '').strip()],
+        'needed_evidence': [str(v or '').strip().lower() for v in ((retrieval_plan or {}).get('needed_evidence') or []) if str(v or '').strip()],
+    }
+    return json.dumps(payload, sort_keys=True, ensure_ascii=False)
+
+
+def _retrieval_cache_get(key: str, domains: List[str]) -> Dict[str, Any] | None:
+    if not _RETRIEVAL_CACHE_ENABLE or not key:
+        return None
+    now = time.time()
+    sig = _cache_domains_signature(domains)
+    redis_client = _get_retrieval_redis_client()
+    if redis_client is not None:
+        try:
+            raw = redis_client.get(_redis_cache_key(key))
+            if raw:
+                entry = json.loads(raw)
+                if float(entry.get('expires_at') or 0.0) < now:
+                    try:
+                        redis_client.delete(_redis_cache_key(key))
+                    except Exception:
+                        pass
+                    add_metric('retrieval_cache_expired', 1)
+                    return None
+                if str(entry.get('index_signature') or '') != sig:
+                    try:
+                        redis_client.delete(_redis_cache_key(key))
+                    except Exception:
+                        pass
+                    add_metric('retrieval_cache_invalidated', 1)
+                    return None
+                add_metric('retrieval_cache_hit', 1)
+                add_metric('retrieval_cache_backend', 'redis')
+                return deepcopy(entry.get('value') or {})
+        except Exception:
+            pass
+    with _RETRIEVAL_CACHE_LOCK:
+        entry = _RETRIEVAL_CACHE.get(key)
+        if not entry:
+            return None
+        if float(entry.get('expires_at') or 0.0) < now:
+            _RETRIEVAL_CACHE.pop(key, None)
+            add_metric('retrieval_cache_expired', 1)
+            return None
+        if str(entry.get('index_signature') or '') != sig:
+            _RETRIEVAL_CACHE.pop(key, None)
+            add_metric('retrieval_cache_invalidated', 1)
+            return None
+        add_metric('retrieval_cache_hit', 1)
+        add_metric('retrieval_cache_backend', 'memory')
+        return deepcopy(entry.get('value') or {})
+
+
+def _retrieval_cache_put(key: str, domains: List[str], value: Dict[str, Any]) -> None:
+    if not _RETRIEVAL_CACHE_ENABLE or not key or not isinstance(value, dict):
+        return
+    entry = {
+        'expires_at': time.time() + _RETRIEVAL_CACHE_TTL_SECONDS,
+        'index_signature': _cache_domains_signature(domains),
+        'value': deepcopy(value),
+    }
+    redis_client = _get_retrieval_redis_client()
+    if redis_client is not None:
+        try:
+            redis_client.setex(
+                _redis_cache_key(key),
+                _RETRIEVAL_CACHE_TTL_SECONDS,
+                json.dumps(entry, ensure_ascii=False),
+            )
+            return
+        except Exception:
+            pass
+    with _RETRIEVAL_CACHE_LOCK:
+        _RETRIEVAL_CACHE[key] = entry
+        if len(_RETRIEVAL_CACHE) > _RETRIEVAL_CACHE_MAX_ENTRIES:
+            oldest_key = min(
+                _RETRIEVAL_CACHE.keys(),
+                key=lambda k: float((_RETRIEVAL_CACHE.get(k) or {}).get('expires_at') or 0.0),
+            )
+            if oldest_key != key:
+                _RETRIEVAL_CACHE.pop(oldest_key, None)
+
+
+def _clear_retrieval_cache() -> None:
+    redis_client = _get_retrieval_redis_client()
+    if redis_client is not None:
+        try:
+            keys = redis_client.keys("rag:retrieval_cache:*") or []
+            if keys:
+                redis_client.delete(*keys)
+        except Exception:
+            pass
+    with _RETRIEVAL_CACHE_LOCK:
+        _RETRIEVAL_CACHE.clear()
 
 
 def _row_as_dict(item: Any) -> Dict[str, Any]:
@@ -316,13 +511,31 @@ def _retrieval_intent_alias_contexts(question: str, domain: str | None) -> list[
     return out
 
 
-def rag_query(question: str, resolved_entity: dict | None = None) -> Dict:
+def rag_query(question: str, resolved_entity: dict | None = None, retrieval_plan: dict | None = None) -> Dict:
     question = apply_resolved_entity_context(question, resolved_entity)
     q_display = normalize_question(question)
-    q_search = search_query_from_question(question)
+    planned_queries = [str(v or '').strip() for v in ((retrieval_plan or {}).get('search_queries') or []) if str(v or '').strip()]
+    q_search = search_query_from_question(" ".join(planned_queries) if planned_queries else question)
     dom_initial = infer_domain(q_display) or _infer_domain_from_reference(question)
-    dom_inferred = dom_initial
+    planned_domains = [str(v or '').strip().lower() for v in ((retrieval_plan or {}).get('preferred_domains') or []) if str(v or '').strip()]
+    dom_inferred = planned_domains[0] if planned_domains and not dom_initial else dom_initial
     intent = classify_intent(q_display)
+    cache_domains = [d for d in dict.fromkeys([*(planned_domains or []), *(KNOWN_DOMAINS if not dom_inferred else [dom_inferred])]) if d in KNOWN_DOMAINS]
+    cache_key = ''
+    if _retrieval_cacheable(question, retrieval_plan):
+        cache_key = _retrieval_cache_key(
+            question=question,
+            domain=dom_inferred,
+            planned_domains=planned_domains,
+            intent=str((retrieval_plan or {}).get('intent') or intent),
+            retrieval_plan=retrieval_plan,
+        )
+        cached = _retrieval_cache_get(cache_key, cache_domains or list(KNOWN_DOMAINS))
+        if cached:
+            cached_meta = dict(cached.get('meta') or {})
+            cached_meta['retrieval_cache'] = {'hit': 1, 'scope': 'rag_query'}
+            cached['meta'] = cached_meta
+            return cached
     add_metric('routing_domain_initial', dom_initial or 'auto')
     ref_allow = _reference_candidates(question)
     strict_ref_hints = (os.getenv('STRICT_REFERENCE_HINTS', '1') or '1').strip().lower() in (
@@ -373,9 +586,9 @@ def rag_query(question: str, resolved_entity: dict | None = None) -> Dict:
                     adaptive['structured_rescue_succeeded'] = 1
                     retrieved = _structured_rows_from_answer(deterministic, domain='curriculum')
                 else:
-                    retrieved = _retrieve_by_domain(question, domain=dom, vector_enabled=False)
+                    retrieved = _retrieve_by_domain(q_search, domain=dom, vector_enabled=False)
             elif dom and not _SEARCH_ALL_DOMAINS:
-                retrieved = _retrieve_by_domain(question, domain=dom)
+                retrieved = _retrieve_by_domain(q_search, domain=dom)
                 if (not has_ref) and len(retrieved) < fallback_min_results():
                     add_metric('retrieval_domain_fallback_used', 1)
                     add_metric('retrieval_fallback_all_domains_triggered', 1)
@@ -384,7 +597,7 @@ def rag_query(question: str, resolved_entity: dict | None = None) -> Dict:
                     fallback_used = True
             else:
                 add_metric('retrieval_all_domains_forced', 1)
-                retrieved = _retrieve_all_domains(question)
+                retrieved = _retrieve_all_domains(q_search)
 
             adaptive['initial_retrieval_doc_count'] = len(retrieved or [])
             adaptive['initial_top_score'] = _top_retrieval_score(retrieved)
@@ -432,7 +645,20 @@ def rag_query(question: str, resolved_entity: dict | None = None) -> Dict:
                 add_metric('retrieval_fallback_all_domains_succeeded', 1)
                 adaptive['retrieval_fallback_all_domains_succeeded'] = 1
 
-    retrieved = _coerce_retrieved_rows(retrieved)
+    fact_rows = search_fact_index(
+        q_search,
+        domains=(planned_domains or ([dom_inferred] if dom_inferred else [])),
+        limit=5,
+        intent=str((retrieval_plan or {}).get('intent') or intent),
+        needed_evidence=((retrieval_plan or {}).get('needed_evidence') or []),
+    )
+    retrieved = _coerce_retrieved_rows((retrieved or []) + fact_rows)
+    retrieved = apply_intent_aware_fact_boost(
+        retrieved,
+        question=q_display,
+        intent=str((retrieval_plan or {}).get('intent') or intent),
+        needed_evidence=((retrieval_plan or {}).get('needed_evidence') or []),
+    )
     retrieved = _coerce_retrieved_rows(_filter_chunks_by_reference(retrieved, question, strict=has_ref))
 
     # --- Regulation Topic Map rerank ---
@@ -490,7 +716,7 @@ def rag_query(question: str, resolved_entity: dict | None = None) -> Dict:
         if dom2:
             unique_domains.add(dom2)
 
-    return {
+    result = {
         'prompt': prompt,
         'contexts': [
             {
@@ -514,15 +740,47 @@ def rag_query(question: str, resolved_entity: dict | None = None) -> Dict:
             'retrieved_unique_sources': len(unique_sources),
             'retrieved_unique_domains': len(unique_domains),
             'adaptive': adaptive,
+            'retrieval_plan': retrieval_plan or {},
+            'evidence_rows': [
+                {
+                    'source': str(r.get('source') or r.get('path') or '').strip(),
+                    'domain': str(r.get('domain') or '').strip(),
+                    'text': str(r.get('text') or '').strip()[:1200],
+                    'score': float(r.get('score_final') or r.get('score_rrf') or 0.0),
+                }
+                for r in retrieved[:5]
+            ],
         },
     }
+    if cache_key:
+        _retrieval_cache_put(cache_key, cache_domains or list(KNOWN_DOMAINS), result)
+    return result
 
 
-def rag_query_domain(question: str, domain: str | None, resolved_entity: dict | None = None) -> Dict:
+def rag_query_domain(question: str, domain: str | None, resolved_entity: dict | None = None, retrieval_plan: dict | None = None) -> Dict:
     question = apply_resolved_entity_context(question, resolved_entity)
     q_display = normalize_question(question)
-    dom = (domain or '').strip().lower()
+    planned_domains = [str(v or '').strip().lower() for v in ((retrieval_plan or {}).get('preferred_domains') or []) if str(v or '').strip()]
+    dom = (domain or '').strip().lower() or (planned_domains[0] if planned_domains else '')
     intent = classify_intent(q_display)
+    planned_queries = [str(v or '').strip() for v in ((retrieval_plan or {}).get('search_queries') or []) if str(v or '').strip()]
+    q_search = search_query_from_question(" ".join(planned_queries) if planned_queries else question)
+    cache_key = ''
+    cache_domains = [d for d in dict.fromkeys([dom, *planned_domains]) if d in KNOWN_DOMAINS]
+    if _retrieval_cacheable(question, retrieval_plan):
+        cache_key = _retrieval_cache_key(
+            question=question,
+            domain=dom,
+            planned_domains=planned_domains,
+            intent=str((retrieval_plan or {}).get('intent') or intent),
+            retrieval_plan=retrieval_plan,
+        )
+        cached = _retrieval_cache_get(cache_key, cache_domains or ([dom] if dom else list(KNOWN_DOMAINS)))
+        if cached:
+            cached_meta = dict(cached.get('meta') or {})
+            cached_meta['retrieval_cache'] = {'hit': 1, 'scope': 'rag_query_domain'}
+            cached['meta'] = cached_meta
+            return cached
     adaptive = _new_adaptive_state()
     add_metric('routing_domain_initial', dom or 'auto')
     add_metric('inferred_domain', dom or 'auto')
@@ -538,11 +796,11 @@ def rag_query_domain(question: str, domain: str | None, resolved_entity: dict | 
             adaptive['structured_rescue_succeeded'] = 1
             retrieved = _structured_rows_from_answer(deterministic, domain='curriculum')
         else:
-            retrieved = _retrieve_by_domain(question, domain=domain, vector_enabled=False)
+            retrieved = _retrieve_by_domain(q_search, domain=dom or domain, vector_enabled=False)
     else:
         retrieved = _retrieve_by_domain(
-            question,
-            domain=domain,
+            q_search,
+            domain=dom or domain,
             vector_enabled=True,
         )
     adaptive['initial_retrieval_doc_count'] = len(retrieved or [])
@@ -555,10 +813,10 @@ def rag_query_domain(question: str, domain: str | None, resolved_entity: dict | 
     if _ADAPTIVE_ORCHESTRATION and _is_low_confidence(retrieved) and (not skip_adaptive_retry):
         add_metric('retrieval_adaptive_retry_triggered', 1)
         adaptive['retrieval_adaptive_retry_triggered'] = 1
-        retry_q = _expand_query_for_retry(question, dom)
+        retry_q = _expand_query_for_retry(q_search, dom)
         retrieved_retry = _retrieve_by_domain(
             retry_q,
-            domain=domain,
+            domain=dom or domain,
             vector_enabled=not (dom == 'curriculum' and _CURRICULUM_BYPASS_VECTOR),
         )
         adaptive['retry_retrieval_doc_count'] = len(retrieved_retry or [])
@@ -573,7 +831,20 @@ def rag_query_domain(question: str, domain: str | None, resolved_entity: dict | 
     strict_ref_hints = (os.getenv('STRICT_REFERENCE_HINTS', '1') or '1').strip().lower() in (
         '1', 'true', 'yes', 'on'
     )
-    retrieved = _coerce_retrieved_rows(retrieved)
+    fact_rows = search_fact_index(
+        q_search,
+        domains=(planned_domains or ([dom] if dom else [])),
+        limit=5,
+        intent=str((retrieval_plan or {}).get('intent') or intent),
+        needed_evidence=((retrieval_plan or {}).get('needed_evidence') or []),
+    )
+    retrieved = _coerce_retrieved_rows((retrieved or []) + fact_rows)
+    retrieved = apply_intent_aware_fact_boost(
+        retrieved,
+        question=q_display,
+        intent=str((retrieval_plan or {}).get('intent') or intent),
+        needed_evidence=((retrieval_plan or {}).get('needed_evidence') or []),
+    )
     retrieved = _coerce_retrieved_rows(
         _filter_chunks_by_reference(
             retrieved,
@@ -602,7 +873,7 @@ def rag_query_domain(question: str, domain: str | None, resolved_entity: dict | 
     )
     ctx, cites = pack_context(retrieved, truncate_chars=(450 if wants_lng_list else None))
     prompt = build_prompt(q_display, ctx, cites, intent=intent)
-    return {
+    result = {
         'prompt': prompt,
         'contexts': [
             {
@@ -622,5 +893,18 @@ def rag_query_domain(question: str, domain: str | None, resolved_entity: dict | 
         'token_est': est_tokens(ctx),
         'meta': {
             'adaptive': adaptive,
+            'retrieval_plan': retrieval_plan or {},
+            'evidence_rows': [
+                {
+                    'source': str(r.get('source') or r.get('path') or '').strip(),
+                    'domain': str(r.get('domain') or '').strip(),
+                    'text': str(r.get('text') or '').strip()[:1200],
+                    'score': float(r.get('score_final') or r.get('score_rrf') or 0.0),
+                }
+                for r in retrieved[:5]
+            ],
         },
     }
+    if cache_key:
+        _retrieval_cache_put(cache_key, cache_domains or ([dom] if dom else list(KNOWN_DOMAINS)), result)
+    return result

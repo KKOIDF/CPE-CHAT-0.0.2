@@ -105,6 +105,14 @@ try:
     _MULTI_INTENT_FACT_MAX_TOTAL_DOCS = max(2, int(os.getenv('RAG_MULTI_INTENT_FACT_MAX_TOTAL_DOCS', '4') or '4'))
 except Exception:
     _MULTI_INTENT_FACT_MAX_TOTAL_DOCS = 4
+try:
+    _MULTI_DOC_COVERAGE_BONUS = float(os.getenv('RAG_MULTI_DOC_COVERAGE_BONUS', '0.14') or '0.14')
+except Exception:
+    _MULTI_DOC_COVERAGE_BONUS = 0.14
+try:
+    _MULTI_DOC_SEED_PER_SUBQ = max(1, int(os.getenv('RAG_MULTI_DOC_SEED_PER_SUBQ', '1') or '1'))
+except Exception:
+    _MULTI_DOC_SEED_PER_SUBQ = 1
 
 try:
     _HYBRID_SEMANTIC_WEIGHT = float(os.getenv('RAG_HYBRID_SEMANTIC_WEIGHT', '1.0') or '1.0')
@@ -277,6 +285,129 @@ def _merge_unique_docs(base: List[Dict], extra: List[Dict]) -> List[Dict]:
             seen.add(key)
         out.append(d)
     return out
+
+
+def _subquery_anchor_tokens(text: str) -> List[str]:
+    q = normalize_question(text or '')
+    if not q:
+        return []
+    tokens: List[str] = []
+    seen: set[str] = set()
+
+    for code in extract_course_codes(q):
+        val = str(code or '').strip().upper()
+        if val and val not in seen:
+            seen.add(val)
+            tokens.append(val)
+
+    for m in re.finditer(r"ข้อ\s*[๐-๙0-9]+(?:\.[๐-๙0-9]+)?", q):
+        val = re.sub(r"\s+", " ", str(m.group(0) or '').strip())
+        if val and val not in seen:
+            seen.add(val)
+            tokens.append(val)
+
+    for anchor in extract_lexical_anchors(q):
+        val = str(anchor or '').strip()
+        if len(val) < 3:
+            continue
+        low = val.lower()
+        if low in seen:
+            continue
+        seen.add(low)
+        tokens.append(val)
+    return tokens[:8]
+
+
+def _augment_subquery_with_parent_context(parent_question: str, subq: str) -> str:
+    sq = normalize_question(subq or '')
+    parent = normalize_question(parent_question or '')
+    if not sq or not parent:
+        return sq or parent
+
+    sq_l = sq.lower()
+    additions: List[str] = []
+    for token in _subquery_anchor_tokens(parent):
+        tok = str(token or '').strip()
+        if not tok:
+            continue
+        if tok.lower() in sq_l:
+            continue
+        additions.append(tok)
+
+    if not additions:
+        return sq
+    return f"{sq} {' '.join(additions[:4])}".strip()
+
+
+def _row_supports_text(row: Dict, text: str) -> bool:
+    hay = " ".join(
+        [
+            str(row.get('text') or ''),
+            str(row.get('source') or ''),
+            str(row.get('path') or ''),
+        ]
+    ).lower()
+    needle = normalize_question(text or '').lower()
+    if not hay or not needle:
+        return False
+    if needle in hay:
+        return True
+    for token in _subquery_anchor_tokens(text):
+        if str(token or '').strip().lower() in hay:
+            return True
+    return False
+
+
+def _apply_multi_doc_coverage_boost(items: List[Dict], subqs: Sequence[str]) -> List[Dict]:
+    if not items or not subqs:
+        return items or []
+
+    boosted: List[Dict] = []
+    for row in items:
+        matched = 0
+        for sq in subqs:
+            if _row_supports_text(row, sq):
+                matched += 1
+        updated = dict(row)
+        base = float(updated.get('score_final') or updated.get('score_rrf') or 0.0)
+        if matched > 1:
+            base += (matched - 1) * _MULTI_DOC_COVERAGE_BONUS
+        updated['score_multi_support'] = matched
+        updated['score_final'] = base
+        updated['score_rrf'] = base
+        boosted.append(updated)
+
+    boosted.sort(key=lambda x: float(x.get('score_final') or x.get('score_rrf') or 0.0), reverse=True)
+    return boosted
+
+
+def _seed_multi_doc_hits(
+    per_subq_hits: Sequence[Sequence[Dict]],
+    subqs: Sequence[str],
+    *,
+    limit_per_subq: int = _MULTI_DOC_SEED_PER_SUBQ,
+) -> List[Dict]:
+    if not per_subq_hits or not subqs:
+        return []
+    seeded: List[Dict] = []
+    seen: set[str] = set()
+    per_subq = max(1, int(limit_per_subq or 1))
+    for idx, hits in enumerate(per_subq_hits):
+        picked = 0
+        sq = subqs[idx] if idx < len(subqs) else ''
+        for row in hits or []:
+            key = str(row.get('doc_id') or row.get('source') or row.get('path') or '')
+            if key and key in seen:
+                continue
+            if sq and not _row_supports_text(row, sq):
+                continue
+            if key:
+                seen.add(key)
+            seeded.append(dict(row))
+            picked += 1
+            if picked >= per_subq:
+                break
+    return seeded
 
 
 def fuse_rrf_lists(lists: List[List[Dict]], weights: List[float] | None = None, k: int = RRF_K) -> List[Dict]:
@@ -543,6 +674,7 @@ def retrieve_multi_document(question: str) -> List[Dict]:
     subqs = decompose_question(question, max_parts=_MULTI_DOC_MAX_SUBQS)
     if not subqs:
         return []
+    expanded_subqs = [_augment_subquery_with_parent_context(question, sq) for sq in subqs]
 
     lists: List[List[Dict]] = []
     weights: List[float] = []
@@ -555,7 +687,7 @@ def retrieve_multi_document(question: str) -> List[Dict]:
         and all(i in fact_intents for i in subq_intents)
     )
     per_subq_limit = _MULTI_INTENT_FACT_MAX_DOCS_PER_SUBQ if is_regulations_fact_multi else None
-    for i, sq in enumerate(subqs):
+    for i, sq in enumerate(expanded_subqs):
         subq_domain = infer_domain(sq) or parent_domain
         if subq_domain in KNOWN_DOMAINS:
             hits = retrieve_by_domain(sq, subq_domain, k_vec=24, k_kw=40)
@@ -582,6 +714,7 @@ def retrieve_multi_document(question: str) -> List[Dict]:
     fused = fuse_rrf_lists(lists, weights=weights)
     anchors = extract_lexical_anchors(question)
     fused = promote_exact_anchor_hits(fused, anchors)
+    fused = _apply_multi_doc_coverage_boost(fused, expanded_subqs)
 
     # Regulations-specific rerank for clause coverage. Multi-doc fusion is intentionally
     # generic and can over-favor chunks that appear in both semantic+keyword lists.
@@ -616,6 +749,9 @@ def retrieve_multi_document(question: str) -> List[Dict]:
 
     # Doc stage: ensure we pull evidence from multiple documents, not only the single best chunk.
     doc_selected = select_chunks_from_top_documents(fused, top_docs=_MULTI_DOC_DOC_TOPN, per_doc=_MULTI_DOC_CHUNKS_PER_DOC)
+    seeded_hits = _seed_multi_doc_hits(lists, expanded_subqs, limit_per_subq=_MULTI_DOC_SEED_PER_SUBQ)
+    doc_selected = _merge_unique_docs(seeded_hits, doc_selected)
+    doc_selected.sort(key=lambda x: float(x.get('score_final') or x.get('score_rrf') or 0.0), reverse=True)
 
     # If a critical clause chunk exists in the fused pool but is not within the
     # top `per_doc` chunks for its document, inject it here so downstream
@@ -765,6 +901,7 @@ def retrieve_multi_document(question: str) -> List[Dict]:
         {
             'question': question,
             'subqs': subqs,
+            'expanded_subqs': expanded_subqs,
             'anchors': anchors,
             'fused_n': len(fused),
             'final_n': len(final),
@@ -3230,4 +3367,3 @@ def _retrieval_intent_alias_contexts(question: str, domain: str | None) -> list[
             }
         )
     return out
-

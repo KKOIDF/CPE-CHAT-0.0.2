@@ -14,6 +14,7 @@ from .routing import classify_intent
 _THAI_TO_ARABIC = str.maketrans('๐๑๒๓๔๕๖๗๘๙', '0123456789')
 _COURSE_CODE_RE = re.compile(r"\b([A-Za-z]{2,6})\s*[- ]?\s*(\d{3})\b")
 _STANDALONE_CODE_RE = re.compile(r"^\s*[A-Za-z]{2,6}\s*[- ]?\s*\d{3}\s*$")
+_FORM_CODE_RE = re.compile(r"\b(?:RO\s*[- ]?\s*\d{2}|ก\.ค\.\s*18)\b", re.IGNORECASE)
 _INSTRUCTOR_RE = re.compile(r"(?:อาจารย์|อ\.|ผศ\.|รศ\.|ศ\.|ดร\.)\s*([ก-๙A-Za-z]+(?:\s+[ก-๙A-Za-z]+){0,3})")
 _TERM_RE = re.compile(r"(?:ภาค(?:การศึกษา)?ที่\s*[1-3](?:/\d{4})?|เทอม\s*[1-3]|[1-3]/\d{4}|ปีการศึกษา\s*\d{4})")
 _META_TASK_RE = re.compile(
@@ -52,6 +53,17 @@ _NOISE_LINE_HINTS = (
     'guidelines:',
     'output:',
 )
+_GENERIC_TOPIC_PATTERNS: tuple[re.Pattern[str], ...] = (
+    re.compile(r"^(?:รหัสวิชา|โค้ดวิชา|course code)$", re.IGNORECASE),
+    re.compile(r"^(?:กี่หน่วยกิต|หน่วยกิต(?:เท่าไร)?|credits?)$", re.IGNORECASE),
+    re.compile(r"^(?:วิชาอะไร|วิชาอะไรบ้าง|มีวิชาอะไรบ้าง|มีวิชาอะไร)$", re.IGNORECASE),
+    re.compile(r"^(?:เรียนเกี่ยวกับอะไร|คำอธิบายรายวิชา|รายละเอียดรายวิชา)$", re.IGNORECASE),
+    re.compile(r"^(?:ใครสอน|วิชานี้ใครสอน|ใครสอนวิชานี้|อาจารย์ที่สอน(?:คือใคร)?)$", re.IGNORECASE),
+    re.compile(r"^(?:ต้องทำยังไง|ทำยังไง|ทำอย่างไร|ยังไงบ้าง|อย่างไรบ้าง)$", re.IGNORECASE),
+    re.compile(r"^(?:มีขั้นตอน(?:การยื่นเอกสาร)?ยังไงบ้าง|ขั้นตอน(?:การยื่นเอกสาร)?(?:เป็น)?ยังไงบ้าง|ขั้นตอน(?:การยื่นเอกสาร)?|วิธียื่น|วิธีการยื่น)$", re.IGNORECASE),
+    re.compile(r"^(?:ต้องให้ใครเซ็นบ้าง|ให้ใครเซ็นบ้าง|ใครเซ็นบ้าง|ต้องให้ใครลงนาม|ใครลงนาม)$", re.IGNORECASE),
+    re.compile(r"^(?:ติดต่อทางไหน(?:ได้บ้าง)?|ติดต่อยังไง|ช่องทางติดต่อ)$", re.IGNORECASE),
+)
 
 
 class SessionStore(Protocol):
@@ -67,6 +79,12 @@ class SessionStore(Protocol):
     def put_followup_hint(self, session_id: str, *, question: str, domain: str, intent: str) -> None:
         ...
 
+    def get_structured_state(self, session_id: str) -> dict[str, Any] | None:
+        ...
+
+    def put_structured_state(self, session_id: str, state: dict[str, Any]) -> None:
+        ...
+
 
 class InMemorySessionStore:
     def __init__(self, *, max_sessions: int = 512, max_turns: int = 6) -> None:
@@ -74,6 +92,7 @@ class InMemorySessionStore:
         self.max_turns = max(2, int(max_turns or 6))
         self._chat_memory: dict[str, list[str]] = {}
         self._followup_hints: dict[str, dict[str, str]] = {}
+        self._structured_state: dict[str, dict[str, Any]] = {}
 
     def get_chat_history(self, session_id: str) -> list[str]:
         sid = str(session_id or '').strip()
@@ -114,6 +133,21 @@ class InMemorySessionStore:
         while len(self._followup_hints) > self.max_sessions:
             self._followup_hints.pop(next(iter(self._followup_hints)), None)
 
+    def get_structured_state(self, session_id: str) -> dict[str, Any] | None:
+        sid = str(session_id or '').strip()
+        if not sid:
+            return None
+        state = self._structured_state.get(sid)
+        return dict(state) if isinstance(state, dict) else None
+
+    def put_structured_state(self, session_id: str, state: dict[str, Any]) -> None:
+        sid = str(session_id or '').strip()
+        if not sid or not isinstance(state, dict):
+            return
+        self._structured_state[sid] = dict(state)
+        while len(self._structured_state) > self.max_sessions:
+            self._structured_state.pop(next(iter(self._structured_state)), None)
+
 
 class RedisSessionStore(InMemorySessionStore):
     def __init__(self, *, redis_url: str, ttl_seconds: int = 3600, max_sessions: int = 512, max_turns: int = 6) -> None:
@@ -132,6 +166,9 @@ class RedisSessionStore(InMemorySessionStore):
 
     def _hint_key(self, session_id: str) -> str:
         return f"chat_followup:hint:{session_id}"
+
+    def _state_key(self, session_id: str) -> str:
+        return f"chat_followup:state:{session_id}"
 
     def get_chat_history(self, session_id: str) -> list[str]:
         sid = str(session_id or '').strip()
@@ -188,6 +225,29 @@ class RedisSessionStore(InMemorySessionStore):
             self._redis.setex(key, self.ttl_seconds, json.dumps(payload, ensure_ascii=False))
         except Exception:
             super().put_followup_hint(session_id, question=question, domain=domain, intent=intent)
+
+    def get_structured_state(self, session_id: str) -> dict[str, Any] | None:
+        sid = str(session_id or '').strip()
+        if not sid or self._redis is None:
+            return super().get_structured_state(session_id)
+        try:
+            raw = self._redis.get(self._state_key(sid))
+            if not raw:
+                return None
+            obj = json.loads(raw)
+            return obj if isinstance(obj, dict) else None
+        except Exception:
+            return super().get_structured_state(session_id)
+
+    def put_structured_state(self, session_id: str, state: dict[str, Any]) -> None:
+        sid = str(session_id or '').strip()
+        if not sid or self._redis is None:
+            super().put_structured_state(session_id, state)
+            return
+        try:
+            self._redis.setex(self._state_key(sid), self.ttl_seconds, json.dumps(state or {}, ensure_ascii=False))
+        except Exception:
+            super().put_structured_state(session_id, state)
 
 
 def build_session_store_from_env() -> SessionStore:
@@ -379,6 +439,17 @@ def _extract_term_mentions(text: str) -> list[str]:
 def _extract_topic_anchor(text: str) -> str:
     txt = re.sub(r"\s+", " ", str(text or '').strip())
     if not txt:
+        return ''
+    lowered = txt.lower()
+    if any(pat.fullmatch(txt) for pat in _GENERIC_TOPIC_PATTERNS):
+        return ''
+    if any(
+        token in lowered
+        for token in (
+            'คำถามต่อเนื่อง:',
+            'บริบทก่อนหน้า:',
+        )
+    ):
         return ''
     if any(rx.search(txt) for rx in (_COURSE_CODE_RE, _INSTRUCTOR_RE, _TERM_RE)):
         return ''
@@ -598,9 +669,30 @@ def _is_course_reference_followup(text: str) -> bool:
     return any(k in t for k in ('วิชานี้', 'รายวิชานี้', 'วิชานั้น', 'รายวิชานั้น', 'course นี้', 'course นั้น'))
 
 
+def _looks_standalone_form_query(text: str) -> bool:
+    t = unicodedata.normalize('NFKC', re.sub(r"\s+", " ", str(text or '').strip()))
+    if not t:
+        return False
+    tl = t.lower()
+    tl_norm = re.sub(r'[^a-z0-9\u0E00-\u0E7F]+', '', tl)
+    if _FORM_CODE_RE.search(t):
+        return True
+    form_terms = (
+        'แบบฟอร์ม', 'ฟอร์ม', 'คำร้อง', 'ใบลาออก', 'ใบลากิจ', 'ใบลาป่วย', 'ลาพักการศึกษา',
+        'มอบฉันทะ', 'คืนเงินค่าลงทะเบียน', 'บัตรนักศึกษา', 'สอบซ้อน', 'เทียบรายวิชา',
+        'เพิ่ม-ลด-ถอน', 'เพิ่มลดถอน', 'registration form', 'withdrawal form',
+    )
+    return any(
+        (term in tl) or (re.sub(r'[^a-z0-9\u0E00-\u0E7F]+', '', unicodedata.normalize('NFKC', term.lower())) in tl_norm)
+        for term in form_terms
+    )
+
+
 def _is_underspecified_followup(text: str) -> bool:
     t = re.sub(r"\s+", " ", str(text or '').strip().lower())
     if not t or _has_explicit_reference(text):
+        return False
+    if _looks_standalone_form_query(t):
         return False
     if len(t) <= 24:
         return True
@@ -610,6 +702,35 @@ def _is_underspecified_followup(text: str) -> bool:
     )):
         return True
     return False
+
+
+def _looks_slot_only_followup(text: str) -> bool:
+    txt = re.sub(r"\s+", " ", str(text or "").strip())
+    if not txt:
+        return False
+    refs = _extract_reference_entities(txt)
+    if len(refs) != 1:
+        return False
+    if _COURSE_CODE_RE.search(txt) or _INSTRUCTOR_RE.search(txt):
+        return False
+    lowered = txt.lower()
+    if any(
+        token in lowered
+        for token in (
+            'รหัสวิชา',
+            'หน่วยกิต',
+            'วิชาอะไร',
+            'มีวิชาอะไร',
+            'ใครสอน',
+            'ต้องทำยังไง',
+            'ขั้นตอน',
+            'เซ็น',
+            'ลงนาม',
+        )
+    ):
+        return False
+    compact = re.sub(r"[^a-z0-9\u0E00-\u0E7F]+", "", lowered)
+    return len(compact) <= 20
 
 
 def build_effective_question(messages: list[dict] | None, default_question: str) -> str:
@@ -635,9 +756,19 @@ def build_effective_question(messages: list[dict] | None, default_question: str)
     recent_user_window = user_msgs[-3:] if len(user_msgs) >= 3 else user_msgs
     if looks_like_new_code or looks_like_greeting:
         return last
+    if _looks_standalone_form_query(last):
+        return last
     if has_code_in_last:
         return last
+    if _looks_slot_only_followup(last):
+        anchor_entity = _latest_followup_anchor_from_messages(normalized[:-1])
+        if anchor_entity:
+            return f"บริบทก่อนหน้า: {anchor_entity}\nคำถามต่อเนื่อง: {last}".strip()
     if (looks_coreference_followup(last) or _is_underspecified_followup(last)) and not has_code_in_last:
+        assistant_refs = _latest_assistant_reference_entities(normalized)
+        assistant_course_refs = [ref for ref in assistant_refs if _entity_type_for_value(ref) == 'course']
+        if len(assistant_course_refs) == 1:
+            return f"บริบทก่อนหน้า: {assistant_course_refs[0]}\nคำถามต่อเนื่อง: {last}".strip()
         anchor_entity = _latest_followup_anchor_from_messages(normalized[:-1])
         if anchor_entity:
             return f"บริบทก่อนหน้า: {anchor_entity}\nคำถามต่อเนื่อง: {last}".strip()

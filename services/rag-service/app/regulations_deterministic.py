@@ -2,6 +2,7 @@ import re
 import os
 import glob
 import sqlite3
+import unicodedata
 from typing import Any
 from .routing import apply_resolved_entity_context
 
@@ -21,93 +22,268 @@ _TRUSTED_EXAM_SOURCE_PATTERNS = (
 
 _FORM_REGISTRY: list[dict[str, Any]] = [
     {
+        'form_code': 'RO-01',
+        'title': 'คำร้องทั่วไป (General Request Form)',
+        'description': 'ใช้สำหรับยื่นคำร้องทั่วไป เช่น ขอเปลี่ยนข้อมูลส่วนตัว ขอเอกสารเพิ่มเติม หรือดำเนินการอื่นที่ไม่มีแบบฟอร์มเฉพาะ',
+        'url': 'http://regis.kmutt.ac.th/service/form/RO-01.pdf',
+        'source': 'forms.txt/1',
+        'aliases': ('คำร้องทั่วไป', 'general request form', 'ขอเอกสารเพิ่มเติม'),
+    },
+    {
+        'form_code': 'RO-03',
+        'title': 'หนังสือรับรองของผู้ปกครอง (Recommendation Letter of Parent/Guardian)',
+        'description': 'ใช้ให้ผู้ปกครองรับรองข้อมูลของนักศึกษา เช่น การขอเลื่อนจ่ายค่าเทอม หรือการรับรองกรณีพิเศษ',
+        'url': 'http://regis.kmutt.ac.th/service/form/RO-03.pdf',
+        'source': 'forms.txt/1',
+        'aliases': ('หนังสือรับรองผู้ปกครอง', 'ผู้ปกครองรับรอง', 'recommendation letter of parent', 'parent/guardian'),
+    },
+    {
+        'form_code': 'RO-04',
+        'title': 'ใบมอบฉันทะ (Authorization Form)',
+        'description': 'ใช้กรณีที่นักศึกษามอบอำนาจให้ผู้อื่นดำเนินการแทน เช่น รับเอกสาร หรือชำระเงินแทน',
+        'url': 'http://regis.kmutt.ac.th/service/form/RO-04.pdf',
+        'source': 'forms.txt/1',
+        'aliases': ('ใบมอบฉันทะ', 'มอบอำนาจ', 'authorization form'),
+    },
+    {
+        'form_code': 'RO-08',
+        'title': 'คำร้องขอคืนเงินค่าลงทะเบียน (Request Form for Registration Reimbursement)',
+        'description': 'ใช้เมื่อมีเหตุผลในการขอคืนเงิน เช่น ถอนรายวิชาในระยะเวลาที่กำหนด หรือยกเลิกรายวิชาเนื่องจากเหตุจำเป็น',
+        'url': 'http://regis.kmutt.ac.th/service/form/RO-08.pdf',
+        'source': 'forms.txt/1',
+        'aliases': ('คืนเงินค่าลงทะเบียน', 'ขอคืนเงิน', 'registration reimbursement', 'reimbursement'),
+    },
+    {
+        'form_code': '18',
+        'title': 'แบบ ก.ค. 18',
+        'description': 'แบบฟอร์มราชการที่ใช้สำหรับเรื่องทางการศึกษาหรือการรับรองต่าง ๆ ที่ต้องใช้ตามระเบียบของกระทรวง',
+        'url': 'https://regis.kmutt.ac.th/service/form/18.pdf',
+        'source': 'forms.txt/1',
+        'aliases': ('ก.ค. 18', 'แบบ ก.ค. 18', '18.pdf'),
+    },
+    {
+        'form_code': 'RO-11',
+        'title': 'คำร้องขอเลื่อนรับพระราชทานปริญญาบัตร (Request Form for Postponing the Graduation)',
+        'description': 'ใช้เมื่อนักศึกษามีเหตุผลไม่สามารถเข้าร่วมพิธีรับปริญญาได้ ต้องการขอเลื่อนเข้ารับในปีถัดไป',
+        'url': 'http://regis.kmutt.ac.th/service/form/RO-11.pdf',
+        'source': 'forms.txt/1',
+        'aliases': ('เลื่อนรับปริญญา', 'เลื่อนรับพระราชทานปริญญาบัตร', 'postponing the graduation'),
+    },
+    {
         'form_code': 'RO-12',
         'title': 'คำร้องขอลาพักการศึกษา (Request Form for Intermission Leave)',
+        'description': 'ใช้ขอหยุดเรียนชั่วคราวในภาคเรียนหนึ่งหรือมากกว่า โดยต้องได้รับอนุมัติจากคณะ',
         'url': 'https://regis.kmutt.ac.th/service/form/RO-12Updated.pdf',
         'source': 'forms.txt/1',
-        'aliases': (
-            'ลาพัก',
-            'ลาพักการศึกษา',
-            'พักการศึกษา',
-            'intermission',
-            'intermission leave',
-        ),
+        'aliases': ('ลาพัก', 'ลาพักการศึกษา', 'พักการศึกษา', 'intermission', 'intermission leave'),
     },
     {
         'form_code': 'RO-13',
         'title': 'คำร้องขอลาออก (Request Form for Resignation)',
+        'description': 'ใช้เมื่อต้องการลาออกจากการเป็นนักศึกษาอย่างเป็นทางการ',
         'url': 'https://regis.kmutt.ac.th/service/form/RO-13Updated.pdf',
         'source': 'forms.txt/1',
-        'aliases': (
-            'ใบลาออก',
-            'ลาออก',
-            'คำร้องลาออก',
-            'resignation',
-            'request form for resignation',
-        ),
+        'aliases': ('ใบลาออก', 'ลาออก', 'คำร้องลาออก', 'resignation', 'request form for resignation'),
+    },
+    {
+        'form_code': 'RO-14',
+        'title': 'คำร้องขอเปลี่ยนแปลงข้อมูลในทะเบียนประวัติ (Request Form for Changing Information in Student Record)',
+        'description': 'ใช้กรณีเปลี่ยนข้อมูลส่วนตัว เช่น ชื่อ นามสกุล ที่อยู่ หรือข้อมูลติดต่อ',
+        'url': 'http://regis.kmutt.ac.th/service/form/RO-14.pdf',
+        'source': 'forms.txt/1',
+        'aliases': ('เปลี่ยนข้อมูลทะเบียนประวัติ', 'เปลี่ยนข้อมูลส่วนตัว', 'student record', 'changing information in student record'),
+    },
+    {
+        'form_code': 'RO-15',
+        'title': 'คำร้องขอทำบัตรนักศึกษา มจธ.-ธนาคารกรุงเทพ (Request Form for KMUTT-BANGKOK Bank Student Id. Card)',
+        'description': 'ใช้ขอทำบัตรนักศึกษาใหม่ หรือในกรณีที่บัตรสูญหายหรือชำรุด',
+        'url': 'https://regis.kmutt.ac.th/service/form/RO-15_160718.pdf',
+        'source': 'forms.txt/1',
+        'aliases': ('ทำบัตรนักศึกษา', 'บัตรนักศึกษา', 'บัตรหาย', 'บัตรชำรุด', 'student id card'),
+    },
+    {
+        'form_code': 'BFIRST-GUIDE',
+        'title': 'ขั้นตอนการติดต่อเพื่อทำบัตรบีเฟิสต์ประจำตัวนักศึกษา',
+        'description': 'คู่มือแนะนำขั้นตอนการติดต่อเพื่อทำบัตรนักศึกษาใหม่กับธนาคารกรุงเทพ',
+        'url': 'https://regis.kmutt.ac.th/service/form/bfirstkmutt_v.1.2_160718.pdf',
+        'source': 'forms.txt/1',
+        'aliases': ('บีเฟิสต์', 'bfirst', 'ขั้นตอนทำบัตร', 'คู่มือทำบัตรนักศึกษา'),
     },
     {
         'form_code': 'RO-16',
         'title': 'คำร้องขอลาป่วย/ลากิจ (Request Form for Sick/Business Leave)',
+        'description': 'ใช้เมื่อไม่สามารถเข้าเรียนได้ชั่วคราวเนื่องจากป่วยหรือต้องทำธุระส่วนตัว',
         'url': 'http://regis.kmutt.ac.th/service/form/RO-16.pdf',
         'source': 'forms.txt/1',
         'aliases': (
-            'ใบลากิจ',
-            'ลากิจ',
-            'ใบลาป่วย',
-            'ลาป่วย',
-            'ลาป่วยลากิจ',
-            'คำร้องลาป่วย',
-            'คำร้องลากิจ',
-            'sick leave',
-            'business leave',
+            'ใบลากิจ', 'ลากิจ', 'ใบลาป่วย', 'ลาป่วย', 'ลาป่วยลากิจ', 'คำร้องลาป่วย',
+            'คำร้องลากิจ', 'sick leave', 'business leave',
         ),
     },
     {
-        'form_code': 'FORM-DIRECTORY',
-        'title': 'ฟอร์มคำร้องงานทะเบียนนักศึกษา',
-        'url': 'https://regis.kmutt.ac.th/service/form/',
+        'form_code': 'RO-18',
+        'title': 'คำร้องขอลงทะเบียนต่ำกว่า/เกินกว่าหน่วยกิตที่กำหนด (Request Form for Registering Less/More than Required Credits)',
+        'description': 'ใช้เมื่อจำเป็นต้องลงทะเบียนหน่วยกิตต่ำกว่าหรือมากกว่าที่หลักสูตรกำหนดในภาคเรียนนั้น',
+        'url': 'http://regis.kmutt.ac.th/service/form/RO-18Updated.pdf',
         'source': 'forms.txt/1',
-        'aliases': (
-            'ฟอร์ม',
-            'แบบฟอร์ม',
-            'ฟอร์มคำร้อง',
-            'ฟอร์มงานทะเบียน',
-            'แบบฟอร์มงานทะเบียน',
-            'แบบฟอร์มคำร้อง',
-            'เอกสารฟอร์ม',
-        ),
+        'aliases': ('ลงทะเบียนต่ำกว่า', 'ลงทะเบียนเกินกว่าหน่วยกิต', 'เกินหน่วยกิต', 'less/more than required credits'),
+    },
+    {
+        'form_code': 'RO-19',
+        'title': 'คำร้องขอลงทะเบียนในรายวิชาที่มีเวลาสอบซ้อน (Permission Form for Registration with Examination Time Conflict)',
+        'description': 'ใช้กรณีรายวิชาที่ต้องการลงทะเบียนมีตารางสอบตรงกัน และต้องการขออนุญาตลงพร้อมกัน',
+        'url': 'http://regis.kmutt.ac.th/service/form/RO-19.pdf',
+        'source': 'forms.txt/1',
+        'aliases': ('สอบซ้อน', 'เวลาสอบซ้อน', 'examination time conflict', 'time conflict'),
+    },
+    {
+        'form_code': 'RO-20',
+        'title': 'คำร้องขอลงทะเบียนรายวิชานอกหลักสูตร (Request Form for Registration of Non-Requisite Course)',
+        'description': 'ใช้ขอเรียนรายวิชาที่อยู่นอกหลักสูตร เช่น รายวิชาเสริม หรือวิชาเพิ่มเติมจากคณะอื่น',
+        'url': 'http://regis.kmutt.ac.th/service/form/RO-20.pdf',
+        'source': 'forms.txt/1',
+        'aliases': ('รายวิชานอกหลักสูตร', 'นอกหลักสูตร', 'non-requisite course'),
+    },
+    {
+        'form_code': 'RO-21',
+        'title': 'คำร้องขอลงทะเบียนเรียนแบบบุคคลภายนอก (Request Form for Degree Registration for Visitor)',
+        'description': 'ใช้สำหรับบุคคลภายนอกที่ประสงค์จะลงทะเบียนเรียนรายวิชาของมหาวิทยาลัย',
+        'url': 'http://regis.kmutt.ac.th/service/form/RO-21.pdf',
+        'source': 'forms.txt/1',
+        'aliases': ('บุคคลภายนอก', 'visitor', 'degree registration for visitor'),
+    },
+    {
+        'form_code': 'RO-22',
+        'title': 'คำร้องขอสมัครสอบโดยไม่ต้องเข้าเรียน (Request Form for Examination without Attending Class)',
+        'description': 'ใช้กรณีพิเศษที่นักศึกษามีสิทธิ์เข้าสอบโดยไม่ต้องเข้าชั้นเรียน เช่น เคยเรียนวิชานั้นมาก่อน',
+        'url': 'http://regis.kmutt.ac.th/service/form/RO-22.pdf',
+        'source': 'forms.txt/1',
+        'aliases': ('สอบโดยไม่ต้องเข้าเรียน', 'ไม่ต้องเข้าเรียน', 'examination without attending class'),
+    },
+    {
+        'form_code': 'RO-23',
+        'title': 'คำร้องขอเปลี่ยน/เทียบรายวิชาเรียน (Request Form for Changing to Equivalent Course)',
+        'description': 'ใช้เมื่อต้องการเทียบรายวิชาที่เคยเรียน หรือเปลี่ยนรายวิชาเทียบเท่าตามหลักสูตรใหม่',
+        'url': 'http://regis.kmutt.ac.th/service/form/RO-23.pdf',
+        'source': 'forms.txt/1',
+        'aliases': ('เทียบรายวิชา', 'เปลี่ยนรายวิชา', 'รายวิชาเทียบเท่า', 'equivalent course'),
+    },
+    {
+        'form_code': 'RO-25',
+        'title': 'ใบลงทะเบียนเรียน (Registration Form)',
+        'description': 'ใช้สำหรับลงทะเบียนเรียนในแต่ละภาคการศึกษาในกรณีพิเศษ เช่น กรณีระบบออนไลน์มีปัญหา',
+        'url': 'http://regis.kmutt.ac.th/service/form/RO-25.pdf',
+        'source': 'forms.txt/1',
+        'aliases': ('ใบลงทะเบียนเรียน', 'registration form', 'ระบบลงทะเบียนมีปัญหา'),
+    },
+    {
+        'form_code': 'RO-26',
+        'title': 'ใบลงทะเบียนเพิ่ม-ลด-ถอน เปลี่ยนกลุ่ม (Additional, Withdrawal Form)',
+        'description': 'ใช้เมื่อมีการเพิ่ม ลด ถอนรายวิชา หรือเปลี่ยนกลุ่มเรียนภายหลังการลงทะเบียนหลัก',
+        'url': 'http://regis.kmutt.ac.th/service/form/RO-26Updated.pdf',
+        'source': 'forms.txt/1',
+        'aliases': ('เพิ่มลดถอน', 'เพิ่ม-ลด-ถอน', 'เปลี่ยนกลุ่ม', 'additional withdrawal form', 'add/drop'),
+    },
+    {
+        'form_code': 'FORM-SERVICE',
+        'title': 'แบบฟอร์มลงเวลาการปฏิบัติงานของนักศึกษาบำเพ็ญประโยชน์',
+        'description': 'ใช้บันทึกเวลาการปฏิบัติงานของนักศึกษาที่เข้าร่วมกิจกรรมบำเพ็ญประโยชน์',
+        'url': 'http://regis.kmutt.ac.th/service/onlineform/form_service.pdf',
+        'source': 'forms.txt/1',
+        'aliases': ('บำเพ็ญประโยชน์', 'ลงเวลาการปฏิบัติงาน', 'form_service', 'นักศึกษาบำเพ็ญประโยชน์'),
     },
 ]
+
+_FORM_DIRECTORY_ALIASES = (
+    'ฟอร์ม', 'แบบฟอร์ม', 'ฟอร์มคำร้อง', 'ฟอร์มงานทะเบียน', 'แบบฟอร์มงานทะเบียน',
+    'แบบฟอร์มคำร้อง', 'เอกสารฟอร์ม', 'มีฟอร์มอะไรบ้าง', 'รายการฟอร์ม',
+)
+
+
+def _normalize_form_text(text: str) -> str:
+    t = unicodedata.normalize('NFKC', str(text or '').strip().lower())
+    return re.sub(r'[^a-z0-9\u0E00-\u0E7F]+', '', t)
+
+
+def _render_form_answer(item: dict[str, Any]) -> str:
+    title = str(item.get('title') or '').strip()
+    desc = str(item.get('description') or '').strip()
+    url = str(item.get('url') or '').strip()
+    source = str(item.get('source') or 'forms.txt/1').strip()
+    code = str(item.get('form_code') or '').strip()
+    prefix = f"{code} " if code and not title.startswith(code) else ""
+    return f"- ต้องใช้ {prefix}{title}\n- รายละเอียด: {desc}\n- ลิงก์: {url} [{source}]".strip()
+
+
+def _render_form_followup_answer(item: dict[str, Any], question: str) -> str:
+    q = re.sub(r"\s+", " ", str(question or "").strip().lower())
+    base = _render_form_answer(item)
+    source = str(item.get('source') or 'forms.txt/1').strip()
+    title = str(item.get('title') or '').strip()
+
+    asks_steps = any(token in q for token in ('ขั้นตอน', 'ยื่นยังไง', 'ยื่นอย่างไร', 'ทำยังไง', 'ทำอย่างไร', 'วิธียื่น'))
+    asks_signer = any(token in q for token in ('เซ็น', 'ลงนาม'))
+    asks_process = asks_steps or asks_signer
+    if not asks_process:
+        return base
+
+    lines = [
+        f"- เอกสารที่ใช้: {title} [{source}]",
+        f"- แบบฟอร์ม: {str(item.get('form_code') or '').strip()}",
+        f"- ลิงก์ดาวน์โหลด: {str(item.get('url') or '').strip()} [{source}]",
+    ]
+    if asks_steps:
+        lines.append("- ขั้นตอนที่ยืนยันได้จากเอกสาร: ดาวน์โหลดและใช้แบบฟอร์มนี้สำหรับเรื่องดังกล่าว")
+        lines.append("- ข้อมูลที่เอกสารยังไม่ระบุชัด: ลำดับการยื่น ช่องทางยื่น และขั้นตอนอนุมัติรายหน่วยงาน")
+    if asks_signer:
+        lines.append("- ผู้ลงนามที่เอกสารยืนยันได้: ยังไม่พบการระบุรายชื่อหรือบทบาทผู้ลงนามไว้ชัดเจนในชุดข้อมูลนี้")
+    return "\n".join(lines).strip()
+
+
+def _render_form_catalog() -> str:
+    lines = ["- ฟอร์มที่มีในชุดข้อมูล `kmutt_forms`:"]
+    for item in _FORM_REGISTRY:
+        title = str(item.get('title') or '').strip()
+        url = str(item.get('url') or '').strip()
+        code = str(item.get('form_code') or '').strip()
+        source = str(item.get('source') or 'forms.txt/1').strip()
+        label = f"{code} {title}".strip() if code else title
+        lines.append(f"- {label}: {url} [{source}]")
+    return "\n".join(lines)
 
 
 def lookup_regulation_form(question: str) -> dict[str, Any] | None:
     q = (question or '').strip().lower()
     if not q:
         return None
+    q_norm = _normalize_form_text(q)
 
     for item in _FORM_REGISTRY:
         aliases = tuple(str(a or '').strip().lower() for a in (item.get('aliases') or ()))
-        if not aliases:
-            continue
-        if any(a and a in q for a in aliases):
-            title = str(item.get('title') or '').strip()
-            url = str(item.get('url') or '').strip()
-            source = str(item.get('source') or 'forms.txt/1').strip()
-            form_code = str(item.get('form_code') or '').strip()
-            if not title or not url:
-                return {
-                    'answer': None,
-                    'lookup_mode': 'form_lookup',
-                    'miss_reason': 'missing_url',
-                }
+        title = str(item.get('title') or '').strip()
+        form_code = str(item.get('form_code') or '').strip()
+        code_norm = _normalize_form_text(form_code)
+        title_norm = _normalize_form_text(title)
+        alias_hit = any(a and (a in q or _normalize_form_text(a) in q_norm) for a in aliases)
+        code_hit = bool(code_norm and code_norm in q_norm)
+        title_hit = bool(title_norm and title_norm in q_norm)
+        if alias_hit or code_hit or title_hit:
             return {
-                'answer': f"- ต้องใช้{title}: {url} [{source}]",
+                'answer': _render_form_followup_answer(item, question),
                 'lookup_mode': 'form_lookup',
                 'miss_reason': '',
                 'form_code': form_code,
-                'form_source': source,
+                'form_source': str(item.get('source') or 'forms.txt/1').strip(),
             }
+
+    if any(alias in q for alias in _FORM_DIRECTORY_ALIASES):
+        return {
+            'answer': _render_form_catalog(),
+            'lookup_mode': 'form_catalog',
+            'miss_reason': '',
+            'form_code': 'CATALOG',
+            'form_source': 'forms.txt/1',
+        }
     return None
 
 

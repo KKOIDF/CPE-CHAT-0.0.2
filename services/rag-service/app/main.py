@@ -30,6 +30,13 @@ from .chat_followup import (
     remember_chat_turn,
     remember_session_followup_hint as shared_remember_session_followup_hint,
 )
+from .auto_rag import (
+    extract_structured_memory,
+    rewrite_followup_with_llm,
+    plan_retrieval_with_llm,
+    verify_evidence_with_llm,
+)
+from .answer_policy import build_answer_messages
 
 logger = logging.getLogger("rag-service")
 
@@ -326,6 +333,25 @@ def _remember_session_state(
         effective_question,
         _SESSION_STORE,
     )
+    try:
+        prev_state = _SESSION_STORE.get_structured_state(session_id or '') or {}
+        next_state = extract_structured_memory(
+            effective_question,
+            history=[{'role': 'user', 'content': raw_last_user or raw_input_question or effective_question}],
+            previous_state=prev_state,
+        )
+        if next_state:
+            _SESSION_STORE.put_structured_state(session_id or '', next_state)
+    except Exception:
+        pass
+
+
+def _structured_session_state(session_id: str) -> dict[str, Any]:
+    try:
+        state = _SESSION_STORE.get_structured_state(session_id or '')
+        return dict(state) if isinstance(state, dict) else {}
+    except Exception:
+        return {}
 
 
 def _intent_alias_contexts(question: str, default_domain: str | None = None) -> list[dict[str, Any]]:
@@ -921,6 +947,57 @@ def _prepare_user_question(text: str, domain: str | None = None) -> str:
     return _maybe_rewrite_user_question(cleaned, domain)
 
 
+def _apply_auto_followup_rewrite(
+    question: str,
+    domain: str | None,
+    messages: list[dict[str, Any]] | None,
+    structured_state: dict[str, Any] | None = None,
+) -> tuple[str, dict[str, Any]]:
+    def _looks_self_contained(q: str) -> bool:
+        txt = (q or '').strip().lower()
+        if not txt:
+            return False
+        if _looks_coreference_followup(txt):
+            return False
+        short_followups = (
+            'รหัสวิชา', 'คนนี้', 'วิชานี้', 'อันนี้', 'อันนั้น', 'ต้องให้ใครเซ็น', 'ขั้นตอนยังไง',
+            'มีไหม', 'กี่หน่วยกิต', 'แล้วล่ะ', 'แล้วไง', 'แล้วต้องทำไง',
+        )
+        if any(txt == s or txt.startswith(f"{s} ") for s in short_followups):
+            return False
+        standalone_signals = (
+            'จำนวนหน่วยกิตรวม', 'หน่วยกิตรวม', 'ตลอดหลักสูตร', 'เครื่องคำนวณ', 'คิดเลข',
+            'ถอนรายวิชา', 'transcript', 'ทรานสคริป', 'ทรานสคริปต์', 'ปิดเทอม', 'ปิดภาค',
+            'เปิดเทอม', 'เปิดภาค', 'ภาคการศึกษาที่', 'เทอม 1', 'เทอม 2', 'เทอม 3',
+        )
+        return bool(re.search(r"\b\d+/\d{4}\b", txt)) or any(t in txt for t in standalone_signals)
+
+    result = rewrite_followup_with_llm(question, messages, domain, structured_state=structured_state)
+    rewritten = str(result.get('standalone_question') or '').strip() or str(question or '').strip()
+    confidence = float(result.get('confidence') or 0.0)
+    if _looks_self_contained(question) and not _looks_coreference_followup(question):
+        result['is_followup'] = False
+        result['source'] = str(result.get('source') or 'llm') + ':guarded_standalone'
+        add_metric('auto_followup_rewrite_guarded_standalone', 1)
+        return question, result
+    add_metric('auto_followup_rewrite_used', int(bool(result.get('is_followup')) and confidence >= 0.6 and rewritten != question))
+    add_metric('auto_followup_rewrite_confidence', confidence)
+    return (rewritten if confidence >= 0.6 and rewritten else question), result
+
+
+def _build_auto_not_found_answer(question: str, verdict: dict[str, Any] | None = None) -> str:
+    missing = [str(v or '').strip() for v in ((verdict or {}).get('missing_evidence') or []) if str(v or '').strip()]
+    strategy = str((verdict or {}).get('safe_answer_strategy') or 'say_not_found').strip()
+    lines = ["ตอนนี้ผมยังไม่เห็นหลักฐานที่พอใช้ยืนยันคำตอบนี้ได้จากข้อมูลที่ดึงมา"]
+    if missing:
+        lines.append(f"หลักฐานที่ยังขาดคือ {', '.join(missing[:3])}")
+    if strategy == 'answer_with_caveat':
+        lines.append("ถ้าต้องการ ผมสรุปเท่าที่หลักฐานตอนนี้ยืนยันได้ให้ก่อนได้")
+    else:
+        lines.append("น่าจะต้องดึงเอกสารที่ตรงหัวข้อมากกว่านี้ก่อน แล้วค่อยสรุปให้แม่นขึ้น")
+    return "\n".join([f"- {line}" for line in lines if line]).strip()
+
+
 def _sanitize_user_question_text(text: str) -> str:
     """Strip transport wrappers/instruction boilerplate from user question text."""
     t = (text or '').strip()
@@ -1499,7 +1576,153 @@ def _sanitize_answer_language(question: str, answer: str) -> str:
 def _finalize_user_answer_text(question: str, answer: str) -> str:
     """Normalize user-visible answers for chat UX: no source citations."""
     cleaned = _clean_answer_text(answer, strip_citations=True)
-    return _sanitize_answer_language(question, cleaned)
+    task = _detect_answer_task(question, None)
+    polished = _polish_user_answer_text(question, cleaned, task=task)
+    return _sanitize_answer_language(question, polished)
+
+
+def _polish_user_answer_text(question: str, answer: str, *, task: str = '') -> str:
+    """Turn schema-heavy internal answers into more natural chat responses."""
+    q = (question or '').strip()
+    a = (answer or '').strip()
+    if not q or not a:
+        return a
+
+    def _label_value(*labels: str) -> str:
+        for label in labels:
+            value = _extract_labeled_value(a, [label])
+            if value:
+                return value
+        return ''
+
+    def _is_unknown(value: str) -> bool:
+        v = (value or '').strip().lower()
+        if not v:
+            return True
+        return any(
+            token in v
+            for token in (
+                'ยังยืนยันไม่ได้จากเอกสาร',
+                'ไม่พบข้อมูลยืนยัน',
+                'ไม่สามารถยืนยัน',
+                'ไม่พบข้อความยืนยัน',
+                'ยังไม่พบข้อมูลยืนยัน',
+            )
+        )
+
+    def _join_known(parts: list[str]) -> str:
+        return "\n".join([p for p in parts if p.strip()]).strip()
+
+    def _lead(text: str) -> str:
+        t = (text or '').strip()
+        if not t:
+            return ''
+        return re.sub(r'^[-*]\s*', '', t)
+
+    if task == 'regulation_procedure' and 'ทำได้/ไม่ได้:' in a:
+        status = _label_value('ทำได้/ไม่ได้', 'status', 'สถานะ')
+        conditions = _label_value('เงื่อนไขหลัก', 'conditions', 'เงื่อนไข')
+        exceptions = _label_value('ข้อยกเว้น', 'เงื่อนไข/ข้อยกเว้น')
+        contact = _label_value('ต้องติดต่อใคร', 'contact', 'ติดต่อ')
+        documents = _label_value('เอกสารที่ต้องใช้', 'documents', 'เอกสาร')
+        steps = _label_value('ขั้นตอนทีละข้อ', 'steps', 'ขั้นตอน')
+        rejected = _label_value('หากถูกปฏิเสธ/เลยกำหนด ต้องทำอย่างไร', 'หากถูกปฏิเสธ ต้องทำอย่างไร')
+        unknowns = _label_value('ข้อมูลที่เอกสารไม่ได้ระบุ')
+        lines: list[str] = []
+        if status:
+            summary = f"- เรื่องนี้{status}"
+            if not _is_unknown(conditions):
+                summary = f"{summary} โดยเงื่อนไขหลักคือ {conditions}"
+            lines.append(summary)
+        if not _is_unknown(steps):
+            lines.append(f"- ถ้าจะทำเรื่องนี้ แนะนำให้ {steps}")
+        if not _is_unknown(contact):
+            lines.append(f"- ถ้าต้องติดต่อคนหรือหน่วยงาน ให้ติดต่อ {contact}")
+        if not _is_unknown(documents):
+            lines.append(f"- เอกสารที่ควรเตรียม: {documents}")
+        if not _is_unknown(exceptions):
+            lines.append(f"- ข้อควรระวังคือ {exceptions}")
+        if not _is_unknown(rejected):
+            lines.append(f"- ถ้าถูกปฏิเสธหรือเลยกำหนดแล้ว: {rejected}")
+        if not _is_unknown(unknowns):
+            lines.append(f"- ส่วนที่เอกสารยังไม่ยืนยันชัดเจนคือ {unknowns}")
+        return _join_known(lines) or a
+
+    if task == 'announcement_procedure' and 'แหล่งประกาศ:' in a:
+        source = _label_value('แหล่งประกาศ')
+        steps = _label_value('ขั้นตอน')
+        conditions = _label_value('เงื่อนไข')
+        limitations = _label_value('ข้อจำกัด')
+        next_step = _label_value('ขั้นตอนถัดไป')
+        lines: list[str] = []
+        if not _is_unknown(source):
+            lines.append(f"- เรื่องนี้ควรอ้างอิงจาก {source}")
+        if not _is_unknown(steps):
+            lines.append(f"- ถ้าจะดำเนินการ แนะนำให้ {steps}")
+        if not _is_unknown(conditions):
+            lines.append(f"- เงื่อนไขสำคัญคือ {conditions}")
+        if not _is_unknown(limitations):
+            lines.append(f"- ข้อจำกัดที่ควรรู้คือ {limitations}")
+        if not _is_unknown(next_step):
+            lines.append(f"- ถัดจากนี้ แนะนำให้ {next_step}")
+        return _join_known(lines) or a
+
+    if task == 'announcement_verification' and 'ผลการตรวจสอบ:' in a:
+        statement = _label_value('ข้อความประกาศ')
+        verdict = _label_value('ผลการตรวจสอบ')
+        reason = _label_value('เหตุผล/หลักฐาน')
+        next_step = _label_value('ขั้นตอนถัดไป')
+        lines: list[str] = []
+        if verdict:
+            prefix = f"- คำตอบสั้น ๆ คือ {verdict}"
+            if statement and statement != q:
+                prefix = f"{prefix} สำหรับข้อความ \"{statement}\""
+            lines.append(prefix)
+        if not _is_unknown(reason):
+            lines.append(f"- เพราะ {reason}")
+        if not _is_unknown(next_step):
+            lines.append(f"- ถ้าจะเช็กต่อ แนะนำให้ {next_step}")
+        return _join_known(lines) or a
+
+    if task == 'course_study_plan' and ('เทอม/ชั้นปีที่อยู่ในแผน:' in a or 'คำแนะนำการลงทะเบียน:' in a):
+        course = _label_value('รายวิชา', 'รหัสวิชา')
+        plan_term = _label_value('เทอม/ชั้นปีที่อยู่ในแผน', 'ช่วงเวลาที่ควรลงเรียน', 'ภาคการศึกษาที่ควรลงเรียน')
+        reason = _label_value('เหตุผลจากแผนเรียน', 'เหตุผล')
+        prereq = _label_value('วิชาบังคับก่อน')
+        recommendation = _label_value('คำแนะนำการลงทะเบียน', 'คำแนะนำ')
+        fallback = _label_value('ถ้าไม่พบในแผน')
+        lines: list[str] = []
+        if course and not _is_unknown(plan_term):
+            lines.append(f"- ถ้าดูตามแผนเรียน {course} ควรลงใน {plan_term}")
+        elif course:
+            lines.append(f"- รายวิชา: {course}")
+        if not _is_unknown(reason):
+            lines.append(f"- เหตุผลคือ {reason}")
+        if not _is_unknown(prereq):
+            lines.append(f"- วิชาบังคับก่อนคือ {prereq}")
+        if not _is_unknown(recommendation):
+            lines.append(f"- แนะนำว่า {recommendation}")
+        if not _is_unknown(fallback):
+            lines.append(f"- ถ้าไม่ตรงกับแผนที่คุณถืออยู่ตอนนี้ ให้ {fallback}")
+        return _join_known(lines) or a
+
+    if task == 'unanswerable_refusal' and 'เหตุผลปฏิเสธ:' in a:
+        reason = _label_value('เหตุผลปฏิเสธ')
+        alternative = _label_value('ทางเลือกที่ทำได้', 'ขั้นตอนถัดไป')
+        lines: list[str] = []
+        if reason:
+            lines.append(f"- เรื่องนี้ผมทำให้ตรง ๆ ไม่ได้ เพราะ {reason}")
+        if alternative:
+            lines.append(f"- ทางเลือกที่แนะนำคือ {alternative}")
+        return _join_known(lines) or a
+
+    if task == 'course_factual':
+        lines = [ln.strip() for ln in a.splitlines() if ln.strip()]
+        if 1 <= len(lines) <= 3 and all(ln.startswith('- ') for ln in lines):
+            cleaned = [_lead(ln) for ln in lines]
+            return "\n".join([f"- {ln}" for ln in cleaned if ln]).strip() or a
+
+    return a
 
 
 _ABSTAIN_PHRASES = (
@@ -2968,6 +3191,55 @@ def _build_unanswerable_answer(question: str) -> str:
         f"- เหตุผลปฏิเสธ: ไม่สามารถดำเนินการให้ได้ เพราะเป็นคำขอที่ไม่ควรตอบโดยตรง และไม่พบข้อมูลยืนยันจากเอกสารที่ใช้ประเมินว่าทำได้ {cite}\n"
         f"- ทางเลือกที่ทำได้: ควรใช้ช่องทางหรือประกาศทางการของมหาวิทยาลัย/ภาควิชาแทน {cite}"
     )
+
+
+def _build_smalltalk_answer(question: str) -> str:
+    q = (question or '').strip()
+    ql = q.lower()
+    fallback = (
+        "สวัสดีครับ ผมเป็นผู้ช่วยข้อมูลของ CPE KMUTT\n"
+        "- ช่วยตอบเรื่องหลักสูตร รายวิชา อาจารย์ ระเบียบ แบบฟอร์ม และปฏิทินการศึกษาได้\n"
+        "- ถ้ามีคำถามต่อ ลองพิมพ์มาได้เลย เช่น `วิชาบังคับ CPE มีอะไรบ้าง` หรือ `ถอนรายวิชาได้วันไหน`"
+    )
+    if any(t in ql for t in ('ตัวอย่างคำถาม', 'example', 'examples')) or any(t in ql for t in ('ช่วยอะไรได้บ้าง', 'ทำอะไรได้บ้าง', 'ถามอะไรได้บ้าง', 'ใช้งานยังไง')):
+        return (
+            "ผมช่วยได้หลายเรื่องครับ ตัวอย่างที่ถามได้มีประมาณนี้\n"
+            "- `วิชาบังคับ CPE มีอะไรบ้าง`\n"
+            "- `CPE 241 คือวิชาอะไร กี่หน่วยกิต`\n"
+            "- `ใครสอน CPE 101`\n"
+            "- `ถอนรายวิชาได้วันไหน`\n"
+            "- `RO-16 ใช้ทำอะไร`\n"
+            "- `เครื่องคิดเลขแบบไหนที่ใช้เข้าห้องสอบได้`"
+        )
+    try:
+        messages = [
+            {
+                'role': 'system',
+                'content': (
+                    "คุณคือผู้ช่วยข้อมูลนักศึกษาวิศวกรรมคอมพิวเตอร์ KMUTT "
+                    "ตอบ small talk แบบธรรมชาติ เป็นมิตร และกระชับ "
+                    "รองรับคำถามอย่าง สวัสดี คุณเป็นใคร ช่วยอะไรได้บ้าง ขอบคุณ "
+                    "ให้บอกตัวตนสั้น ๆ ว่าคุณช่วยเรื่องหลักสูตร รายวิชา อาจารย์ ระเบียบ แบบฟอร์ม และปฏิทินการศึกษาได้ "
+                    "ห้ามพูดเหมือนเอกสารระบบ และห้ามอ้างการค้นข้อมูลถ้ายังไม่ได้ถูกถามเรื่อง factual"
+                ),
+            },
+            {'role': 'user', 'content': q},
+        ]
+        answer = str(generate_text("(smalltalk)", messages=messages, task='answer') or '').strip()
+        if answer:
+            return answer
+    except Exception:
+        pass
+
+    if any(t in ql for t in ('ขอบคุณ', 'thank')):
+        return "ยินดีครับ ถ้ามีเรื่องหลักสูตร รายวิชา ระเบียบ หรือปฏิทินที่อยากเช็กต่อ ถามได้เลย"
+    if any(t in ql for t in ('คุณเป็นใคร', 'เธอเป็นใคร', 'who are you', 'what are you')):
+        return (
+            "ผมเป็นผู้ช่วยข้อมูลของ CPE KMUTT ครับ\n"
+            "- ช่วยตอบเรื่องหลักสูตร รายวิชา อาจารย์ ระเบียบ แบบฟอร์ม และปฏิทินการศึกษา\n"
+            "- ถ้ามีคำถามต่อ ลองพิมพ์มาได้เลย"
+        )
+    return fallback
 
 
 
@@ -5117,12 +5389,23 @@ def rag_answer_endpoint(req: RagAnswerRequest):
     raw_input_question = str(req.question or '').strip()
     req.question = prepared.question
     req.domain = prepared.domain
+    structured_state = _structured_session_state(req.session_id or '')
+    req.question, auto_rewrite_meta = _apply_auto_followup_rewrite(req.question, req.domain, prepared.messages, structured_state)
+    structured_state = extract_structured_memory(
+        req.question,
+        prepared.messages,
+        entities=auto_rewrite_meta.get('entities') if isinstance(auto_rewrite_meta.get('entities'), dict) else {},
+        previous_state=structured_state,
+    )
+    if structured_state:
+        _SESSION_STORE.put_structured_state(req.session_id or '', structured_state)
     resolved_entity = _resolved_entity_from_followup_meta(prepared.followup_meta)
 
     with request_timing('rag_answer', endpoint='/rag/answer', domain=req.domain, session_id=req.session_id):
         require_citations = bool(req.eval_mode) or _require_citations()
         
         decision = analyze_route(req.question, req.domain, resolved_entity=resolved_entity)
+        retrieval_plan = plan_retrieval_with_llm(req.question, decision.effective_domain or req.domain, structured_state=structured_state)
         strategy = select_resolution_strategy(decision)
         shortcut = _deterministic_domain_shortcut(
             req.question,
@@ -5166,6 +5449,8 @@ def rag_answer_endpoint(req: RagAnswerRequest):
         add_metric('resolved_entity_confidence', int(prepared.followup_meta.get('followup_resolved_entity_confidence') or 0))
         add_metric('followup_session_domain_lock_applied', int(prepared.lock_applied))
         add_metric('followup_session_domain_lock_reason', prepared.lock_reason)
+        add_metric('auto_followup_rewrite_source', str(auto_rewrite_meta.get('source') or 'fallback'))
+        add_metric('auto_retrieval_plan_source', str(retrieval_plan.get('source') or 'fallback'))
         clarify_followup = _clarify_from_followup_meta(prepared.followup_meta)
         if clarify_followup and int(prepared.followup_meta.get('followup_resolved_entity_confidence') or 0) <= 1:
             add_metric('followup_clarify_resolved_entity', 1)
@@ -5176,6 +5461,20 @@ def rag_answer_endpoint(req: RagAnswerRequest):
                 contexts=[],
                 token_est=0,
                 meta={'followup_clarification': True},
+            )
+
+        if decision.primary_intent == 'smalltalk':
+            answer = _finalize_user_answer_text(req.question, _build_smalltalk_answer(req.question))
+            add_metric('smalltalk_path_hit', 1)
+            add_metric('answer', answer)
+            add_metric('answer_chars', len(answer))
+            return RagAnswerResponse(
+                question=req.question,
+                prompt='(smalltalk)',
+                answer=answer,
+                contexts=[],
+                token_est=0,
+                meta={'smalltalk': True},
             )
 
         if decision.primary_intent == 'unanswerable' or is_unanswerable_query(req.question):
@@ -5429,7 +5728,7 @@ def rag_answer_endpoint(req: RagAnswerRequest):
                 add_metric('structured_regulations_strict_mode', 1)
                 add_metric('path_nonstructured_used', 1)
                 with time_block('rag_query'):
-                    result = rag_query_domain(req.question, 'regulations', resolved_entity=resolved_entity)
+                    result = rag_query_domain(req.question, 'regulations', resolved_entity=resolved_entity, retrieval_plan=retrieval_plan)
             else:
                 if use_langchain and lc is not None:
                     add_metric('path_langchain_used', 1)
@@ -5455,11 +5754,11 @@ def rag_answer_endpoint(req: RagAnswerRequest):
                         add_metric('langchain_low_confidence_fallback', 1)
                         add_metric('path_nonstructured_used', 1)
                         with time_block('rag_query'):
-                            result = rag_query_domain(req.question, effective_domain, resolved_entity=resolved_entity) if effective_domain else rag_query(req.question, resolved_entity=resolved_entity)
+                            result = rag_query_domain(req.question, effective_domain, resolved_entity=resolved_entity, retrieval_plan=retrieval_plan) if effective_domain else rag_query(req.question, resolved_entity=resolved_entity, retrieval_plan=retrieval_plan)
                 else:
                     add_metric('path_nonstructured_used', 1)
                     with time_block('rag_query'):
-                        result = rag_query_domain(req.question, effective_domain, resolved_entity=resolved_entity) if effective_domain else rag_query(req.question, resolved_entity=resolved_entity)
+                        result = rag_query_domain(req.question, effective_domain, resolved_entity=resolved_entity, retrieval_plan=retrieval_plan) if effective_domain else rag_query(req.question, resolved_entity=resolved_entity, retrieval_plan=retrieval_plan)
         except Exception as e:
             logger.error("/rag/answer failed: %s\n%s", str(e), traceback.format_exc())
             add_metric('error', 1)
@@ -5474,6 +5773,24 @@ def rag_answer_endpoint(req: RagAnswerRequest):
 
         result_contexts = _normalize_contexts_for_eval(result.get('contexts') or [], default_domain=effective_domain)
         result['contexts'] = result_contexts
+        verifier_verdict = verify_evidence_with_llm(req.question, (result.get('meta') or {}).get('evidence_rows') or [])
+        add_metric('auto_evidence_verifier_source', str(verifier_verdict.get('source') or 'fallback'))
+        add_metric('auto_evidence_support_level', str(verifier_verdict.get('support_level') or 'none'))
+        if not bool(verifier_verdict.get('is_answerable')) and decision.structured_kind not in ('curriculum', 'regulations'):
+            answer = _build_auto_not_found_answer(req.question, verifier_verdict)
+            return RagAnswerResponse(
+                question=req.question,
+                prompt=str(result.get('prompt') or '(auto_verifier_safe_fallback)'),
+                answer=answer,
+                contexts=result_contexts,
+                token_est=int(result.get('token_est') or 0),
+                meta={
+                    **(result.get('meta') or {}),
+                    'auto_followup_rewrite': auto_rewrite_meta,
+                    'auto_retrieval_plan': retrieval_plan,
+                    'auto_evidence_verdict': verifier_verdict,
+                },
+            )
 
         add_metric('ctx_n', len(result_contexts))
         add_metric('token_est', result.get('token_est', 0))
@@ -5482,8 +5799,14 @@ def rag_answer_endpoint(req: RagAnswerRequest):
         add_metric('prompt_chars', len(result.get('prompt') or ''))
 
         # Build chat style messages for models that support it
-        system_msg = { 'role': 'system', 'content': 'คุณคือผู้ช่วยของภาควิชาวิศวกรรมคอมพิวเตอร์ ใช้เฉพาะข้อมูลในบริบทเท่านั้น ตอบโดยตรงและชัดเจน ห้ามให้ลิงก์/URL ภายนอก เว้นแต่ปรากฏอยู่ในบริบท หากคำถามกำกวมให้ถามกลับ 1 คำถามสั้น ๆ เพื่อขอรายละเอียดที่จำเป็น หากมีหลักฐานครบให้ตอบตรง ๆ และไม่ต้องเติมข้อความปฏิเสธท้ายคำตอบ' }
-        user_msg = { 'role': 'user', 'content': result['prompt'] }
+        answer_messages = build_answer_messages(
+            original_question=raw_input_question or req.question,
+            standalone_question=req.question,
+            retrieval_prompt=str(result.get('prompt') or ''),
+            intent=decision.primary_intent,
+            verdict=verifier_verdict,
+            structured_state=structured_state,
+        )
 
         # Hard guardrails: if no context, never hallucinate.
         answer_task_name = _detect_answer_task(req.question, effective_domain)
@@ -5575,7 +5898,7 @@ def rag_answer_endpoint(req: RagAnswerRequest):
                                                         with time_block('llm_generate'):
                                                             answer = generate_text(
                                                                 result['prompt'],
-                                                                messages=[system_msg, user_msg],
+                                                                messages=answer_messages,
                                                                 task='answer',
                                                                 requested_model=str(req.model or ''),
                                                             )
@@ -5583,7 +5906,7 @@ def rag_answer_endpoint(req: RagAnswerRequest):
                                                     with time_block('llm_generate'):
                                                         answer = generate_text(
                                                             result['prompt'],
-                                                            messages=[system_msg, user_msg],
+                                                            messages=answer_messages,
                                                             task='answer',
                                                             requested_model=str(req.model or ''),
                                                         )
@@ -5670,6 +5993,9 @@ def rag_answer_endpoint(req: RagAnswerRequest):
         response_meta = dict(result.get('meta') or {})
         if isinstance(answer_schema_meta, dict) and answer_schema_meta:
             response_meta['answer_schema'] = answer_schema_meta
+        response_meta['auto_followup_rewrite'] = auto_rewrite_meta
+        response_meta['auto_retrieval_plan'] = retrieval_plan
+        response_meta['auto_evidence_verdict'] = verifier_verdict
 
         return RagAnswerResponse(
             question=req.question,
@@ -5728,8 +6054,19 @@ def openai_compatible_endpoint(request: dict):
     lock_applied = prepared.lock_applied
     lock_reason = prepared.lock_reason
     followup_meta = prepared.followup_meta
+    structured_state = _structured_session_state(session_id)
+    question, auto_rewrite_meta = _apply_auto_followup_rewrite(question, domain, prepared.messages, structured_state)
+    structured_state = extract_structured_memory(
+        question,
+        prepared.messages,
+        entities=auto_rewrite_meta.get('entities') if isinstance(auto_rewrite_meta.get('entities'), dict) else {},
+        previous_state=structured_state,
+    )
+    if structured_state:
+        _SESSION_STORE.put_structured_state(session_id or '', structured_state)
     resolved_entity = _resolved_entity_from_followup_meta(followup_meta)
     decision = analyze_route(question, domain, resolved_entity=resolved_entity)
+    retrieval_plan = plan_retrieval_with_llm(question, decision.effective_domain or domain, structured_state=structured_state)
     configured_models = list_configured_models()
     default_model_id = str(configured_models[0].get('id') or 'typhoon-rag') if configured_models else 'typhoon-rag'
     request_model = str(request.get('model') or default_model_id)
@@ -5798,6 +6135,8 @@ def openai_compatible_endpoint(request: dict):
         add_metric('session_has_id', int(bool(session_id)))
         add_metric('followup_session_domain_lock_applied', int(lock_applied))
         add_metric('followup_session_domain_lock_reason', lock_reason)
+        add_metric('auto_followup_rewrite_source', str(auto_rewrite_meta.get('source') or 'fallback'))
+        add_metric('auto_retrieval_plan_source', str(retrieval_plan.get('source') or 'fallback'))
         clarify_followup = _clarify_from_followup_meta(followup_meta)
         if clarify_followup and int(followup_meta.get('followup_resolved_entity_confidence') or 0) <= 1:
             add_metric('followup_clarify_resolved_entity', 1)
@@ -5811,6 +6150,26 @@ def openai_compatible_endpoint(request: dict):
                     {
                         "index": 0,
                         "message": {"role": "assistant", "content": clarify_followup},
+                        "finish_reason": "stop",
+                    }
+                ],
+                "usage": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
+            }
+
+        if decision.primary_intent == 'smalltalk':
+            answer = _finalize_user_answer_text(question, _build_smalltalk_answer(question))
+            add_metric('smalltalk_path_hit', 1)
+            add_metric('answer', answer)
+            add_metric('answer_chars', len(answer))
+            return {
+                "id": f"chatcpe-{uuid.uuid4().hex[:12]}",
+                "object": "chat.completion",
+                "created": int(time.time()),
+                "model": request_model,
+                "choices": [
+                    {
+                        "index": 0,
+                        "message": {"role": "assistant", "content": answer},
                         "finish_reason": "stop",
                     }
                 ],
@@ -6128,12 +6487,32 @@ def openai_compatible_endpoint(request: dict):
             else:
                 add_metric('path_nonstructured_used', 1)
                 with time_block('rag_query'):
-                    result = rag_query_domain(question, domain, resolved_entity=resolved_entity) if domain else rag_query(question, resolved_entity=resolved_entity)
+                    result = rag_query_domain(question, domain, resolved_entity=resolved_entity, retrieval_plan=retrieval_plan) if domain else rag_query(question, resolved_entity=resolved_entity, retrieval_plan=retrieval_plan)
         except Exception as e:
             add_metric('error', 1)
             add_metric('failure_intent', _infer_primary_intent(question))
             return {
                 "error": f"RAG query failed: {str(e)}"
+            }
+
+        verifier_verdict = verify_evidence_with_llm(question, (result.get('meta') or {}).get('evidence_rows') or [])
+        add_metric('auto_evidence_verifier_source', str(verifier_verdict.get('source') or 'fallback'))
+        add_metric('auto_evidence_support_level', str(verifier_verdict.get('support_level') or 'none'))
+        if not bool(verifier_verdict.get('is_answerable')) and decision.structured_kind not in ('curriculum', 'regulations'):
+            answer = _finalize_user_answer_text(question, _build_auto_not_found_answer(question, verifier_verdict))
+            return {
+                "id": f"chatcpe-{uuid.uuid4().hex[:12]}",
+                "object": "chat.completion",
+                "created": int(time.time()),
+                "model": request_model,
+                "choices": [
+                    {
+                        "index": 0,
+                        "message": {"role": "assistant", "content": answer},
+                        "finish_reason": "stop",
+                    }
+                ],
+                "usage": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
             }
 
         add_metric('ctx_n', len(result.get('contexts') or []))
@@ -6142,9 +6521,14 @@ def openai_compatible_endpoint(request: dict):
         add_metric('ctx_sources', ','.join(_context_source_names(result)))
         add_metric('prompt_chars', len(result.get('prompt') or ''))
 
-        # Build system message for RAG context (clean answers, no forced citations)
-        system_msg = { 'role': 'system', 'content': 'คุณคือผู้ช่วยของภาควิชาวิศวกรรมคอมพิวเตอร์ ใช้เฉพาะข้อมูลในบริบทเท่านั้น ตอบโดยตรงและชัดเจน ห้ามคัดลอกบริบททั้งก้อน ห้ามให้ลิงก์/URL ภายนอก เว้นแต่ปรากฏอยู่ในบริบท หากคำถามกำกวมให้ถามกลับ 1 คำถามสั้น ๆ เพื่อขอรายละเอียดที่จำเป็น หากมีหลักฐานครบให้ตอบตรง ๆ และไม่ต้องเติมข้อความปฏิเสธท้ายคำตอบ' }
-        user_msg = { 'role': 'user', 'content': result['prompt'] }
+        answer_messages = build_answer_messages(
+            original_question=str(request.get('question') or question),
+            standalone_question=question,
+            retrieval_prompt=str(result.get('prompt') or ''),
+            intent=decision.primary_intent,
+            verdict=verifier_verdict,
+            structured_state=structured_state,
+        )
 
         # Generate answer
         answer_task_name = _detect_answer_task(question, domain)
@@ -6201,7 +6585,7 @@ def openai_compatible_endpoint(request: dict):
                                             with time_block('llm_generate'):
                                                 answer = generate_text(
                                                     result['prompt'],
-                                                    messages=[system_msg, user_msg],
+                                                    messages=answer_messages,
                                                     task='answer',
                                                     requested_model=str(request.get('model', '') or ''),
                                                 )

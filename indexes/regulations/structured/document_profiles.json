@@ -1,0 +1,213 @@
+{
+  "domain": "regulations",
+  "kind": "document_profiles",
+  "profiles": [
+    {
+      "source_path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations/129.txt",
+      "source_name": "129.txt",
+      "domain": "regulations",
+      "doc_type": "regulation_clause",
+      "semantic_chunk_strategy": "regulation_template",
+      "extractor_profile": "regulation_clauses",
+      "confidence": 0.9
+    },
+    {
+      "source_path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations/133.txt",
+      "source_name": "133.txt",
+      "domain": "regulations",
+      "doc_type": "regulation_clause",
+      "semantic_chunk_strategy": "regulation_template",
+      "extractor_profile": "regulation_clauses",
+      "confidence": 0.9
+    },
+    {
+      "source_path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations/135.txt",
+      "source_name": "135.txt",
+      "domain": "regulations",
+      "doc_type": "regulation_clause",
+      "semantic_chunk_strategy": "regulation_template",
+      "extractor_profile": "regulation_clauses",
+      "confidence": 0.9
+    },
+    {
+      "source_path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations/2018_06_08_15_10_33.txt",
+      "source_name": "2018_06_08_15_10_33.txt",
+      "domain": "regulations",
+      "doc_type": "regulation_clause",
+      "semantic_chunk_strategy": "regulation_template",
+      "extractor_profile": "regulation_clauses",
+      "confidence": 0.9
+    },
+    {
+      "source_path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations/COVID-19 (2).txt",
+      "source_name": "COVID-19 (2).txt",
+      "domain": "regulations",
+      "doc_type": "regulation_clause",
+      "semantic_chunk_strategy": "regulation_template",
+      "extractor_profile": "regulation_clauses",
+      "confidence": 0.9
+    },
+    {
+      "source_path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations/IP2565.txt",
+      "source_name": "IP2565.txt",
+      "domain": "regulations",
+      "doc_type": "regulation_clause",
+      "semantic_chunk_strategy": "regulation_template",
+      "extractor_profile": "regulation_clauses",
+      "confidence": 0.9
+    },
+    {
+      "source_path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations/OBEM.txt",
+      "source_name": "OBEM.txt",
+      "domain": "regulations",
+      "doc_type": "regulation_clause",
+      "semantic_chunk_strategy": "regulation_template",
+      "extractor_profile": "regulation_clauses",
+      "confidence": 0.9
+    },
+    {
+      "source_path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations/OBEM2566update.txt",
+      "source_name": "OBEM2566update.txt",
+      "domain": "regulations",
+      "doc_type": "regulation_clause",
+      "semantic_chunk_strategy": "regulation_template",
+      "extractor_profile": "regulation_clauses",
+      "confidence": 0.9
+    },
+    {
+      "source_path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations/ad_out57.txt",
+      "source_name": "ad_out57.txt",
+      "domain": "regulations",
+      "doc_type": "regulation_clause",
+      "semantic_chunk_strategy": "regulation_template",
+      "extractor_profile": "regulation_clauses",
+      "confidence": 0.9
+    },
+    {
+      "source_path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations/celemony2539.txt",
+      "source_name": "celemony2539.txt",
+      "domain": "regulations",
+      "doc_type": "regulation_general",
+      "semantic_chunk_strategy": "regulation_template",
+      "extractor_profile": "regulation_general",
+      "confidence": 0.72
+    },
+    {
+      "source_path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations/contacts.txt",
+      "source_name": "contacts.txt",
+      "domain": "regulations",
+      "doc_type": "contact_directory",
+      "semantic_chunk_strategy": "regulation_template",
+      "extractor_profile": "contact_blocks",
+      "confidence": 0.96
+    },
+    {
+      "source_path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations/discipline2566_fulltext.txt",
+      "source_name": "discipline2566_fulltext.txt",
+      "domain": "regulations",
+      "doc_type": "regulation_clause",
+      "semantic_chunk_strategy": "regulation_template",
+      "extractor_profile": "regulation_clauses",
+      "confidence": 0.9
+    },
+    {
+      "source_path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations/forms.txt",
+      "source_name": "forms.txt",
+      "domain": "regulations",
+      "doc_type": "form_directory",
+      "semantic_chunk_strategy": "regulation_template",
+      "extractor_profile": "form_blocks",
+      "confidence": 0.98
+    },
+    {
+      "source_path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations/handbook2562g.txt",
+      "source_name": "handbook2562g.txt",
+      "domain": "regulations",
+      "doc_type": "regulation_clause",
+      "semantic_chunk_strategy": "regulation_template",
+      "extractor_profile": "regulation_clauses",
+      "confidence": 0.9
+    },
+    {
+      "source_path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations/privacy2563.txt",
+      "source_name": "privacy2563.txt",
+      "domain": "regulations",
+      "doc_type": "regulation_clause",
+      "semantic_chunk_strategy": "regulation_template",
+      "extractor_profile": "regulation_clauses",
+      "confidence": 0.9
+    },
+    {
+      "source_path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations/rule2563-2g.txt",
+      "source_name": "rule2563-2g.txt",
+      "domain": "regulations",
+      "doc_type": "regulation_general",
+      "semantic_chunk_strategy": "regulation_template",
+      "extractor_profile": "regulation_general",
+      "confidence": 0.72
+    },
+    {
+      "source_path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations/rule2563-4b.txt",
+      "source_name": "rule2563-4b.txt",
+      "domain": "regulations",
+      "doc_type": "regulation_clause",
+      "semantic_chunk_strategy": "regulation_template",
+      "extractor_profile": "regulation_clauses",
+      "confidence": 0.9
+    },
+    {
+      "source_path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations/rule57.txt",
+      "source_name": "rule57.txt",
+      "domain": "regulations",
+      "doc_type": "regulation_clause",
+      "semantic_chunk_strategy": "regulation_template",
+      "extractor_profile": "regulation_clauses",
+      "confidence": 0.9
+    },
+    {
+      "source_path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations/rule57_2.txt",
+      "source_name": "rule57_2.txt",
+      "domain": "regulations",
+      "doc_type": "regulation_clause",
+      "semantic_chunk_strategy": "regulation_template",
+      "extractor_profile": "regulation_clauses",
+      "confidence": 0.9
+    },
+    {
+      "source_path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations/ruleG2568.txt",
+      "source_name": "ruleG2568.txt",
+      "domain": "regulations",
+      "doc_type": "regulation_clause",
+      "semantic_chunk_strategy": "regulation_template",
+      "extractor_profile": "regulation_clauses",
+      "confidence": 0.9
+    },
+    {
+      "source_path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations/rule_covid2564.txt",
+      "source_name": "rule_covid2564.txt",
+      "domain": "regulations",
+      "doc_type": "regulation_clause",
+      "semantic_chunk_strategy": "regulation_template",
+      "extractor_profile": "regulation_clauses",
+      "confidence": 0.9
+    },
+    {
+      "source_path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations/rule_exam2560.txt",
+      "source_name": "rule_exam2560.txt",
+      "domain": "regulations",
+      "doc_type": "regulation_clause",
+      "semantic_chunk_strategy": "regulation_template",
+      "extractor_profile": "regulation_clauses",
+      "confidence": 0.9
+    },
+    {
+      "source_path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations/tf_out.txt",
+      "source_name": "tf_out.txt",
+      "domain": "regulations",
+      "doc_type": "regulation_clause",
+      "semantic_chunk_strategy": "regulation_template",
+      "extractor_profile": "regulation_clauses",
+      "confidence": 0.9
+    }
+  ]
+}
