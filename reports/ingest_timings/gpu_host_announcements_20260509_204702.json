@@ -1,0 +1,264 @@
+{
+  "label": "gpu_host:announcements",
+  "domain": "announcements",
+  "input_dir": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/announcements",
+  "output_base": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/db/announcements",
+  "store": true,
+  "embed": true,
+  "generated_at": "2026-05-09T13:47:38.455063+00:00",
+  "counts": {
+    "files": 39,
+    "records": 39,
+    "paragraphs": 1069,
+    "chunks": 104,
+    "flagged_chunks": 0,
+    "embedded_chunks": 104
+  },
+  "phase_ms": {
+    "extract_total_ms": 295.0,
+    "records_write_ms": 5.831,
+    "chunking_ms": 77.866,
+    "chunks_write_ms": 5.344,
+    "db_store_ms": 697.148,
+    "structured_artifacts_ms": 97.746,
+    "embedding_ms": 15426.886,
+    "neo4j_ms": 0.0
+  },
+  "total_ms": 35373.235,
+  "file_timings": [
+    {
+      "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/announcements/131.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 106.159
+    },
+    {
+      "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/announcements/137.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 1.478
+    },
+    {
+      "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/announcements/139.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 1.508
+    },
+    {
+      "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/announcements/2018_06_08_15_13_16.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 3.757
+    },
+    {
+      "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/announcements/2568THV3-5TH(1).txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 6.584
+    },
+    {
+      "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/announcements/2568THV3-5TH.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 6.592
+    },
+    {
+      "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/announcements/AcademicCalendar2025TH.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 13.897
+    },
+    {
+      "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/announcements/Approved-exam2568.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 1.549
+    },
+    {
+      "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/announcements/ENG-B2568.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 10.892
+    },
+    {
+      "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/announcements/ENG-D2568.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 12.937
+    },
+    {
+      "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/announcements/ENG-M2568.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 11.81
+    },
+    {
+      "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/announcements/ENG2561.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 6.827
+    },
+    {
+      "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/announcements/English_Grad_2017.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 2.929
+    },
+    {
+      "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/announcements/Pre-requisite2567-final.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 2.997
+    },
+    {
+      "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/announcements/announce_financ.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 3.706
+    },
+    {
+      "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/announcements/announce_financCancel.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 1.814
+    },
+    {
+      "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/announcements/anounc_move52ene.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 1.908
+    },
+    {
+      "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/announcements/calculator2023-2.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 1.404
+    },
+    {
+      "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/announcements/calculator2023.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 1.963
+    },
+    {
+      "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/announcements/develop_eng-2563covid19.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 2.867
+    },
+    {
+      "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/announcements/develop_eng-2564covid19.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 3.083
+    },
+    {
+      "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/announcements/duplicate2551.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 2.487
+    },
+    {
+      "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/announcements/eng2564B.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 10.142
+    },
+    {
+      "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/announcements/eng2564D.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 10.175
+    },
+    {
+      "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/announcements/eng2564M.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 11.993
+    },
+    {
+      "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/announcements/etc1.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 1.95
+    },
+    {
+      "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/announcements/fee2567update.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 3.492
+    },
+    {
+      "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/announcements/industraltranning2563update.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 4.307
+    },
+    {
+      "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/announcements/insurance-inter-std.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 4.412
+    },
+    {
+      "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/announcements/insurance-std (1).txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 4.923
+    },
+    {
+      "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/announcements/insurance-std.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 4.04
+    },
+    {
+      "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/announcements/new_2558.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 4.04
+    },
+    {
+      "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/announcements/pre-co-obem2567.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 2.373
+    },
+    {
+      "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/announcements/price.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 2.203
+    },
+    {
+      "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/announcements/schedule2565.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 3.948
+    },
+    {
+      "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/announcements/t_fee.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 2.598
+    },
+    {
+      "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/announcements/tetet2562doctor.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 5.491
+    },
+    {
+      "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/announcements/ปฏิทินการศึกษา 2568.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 4.01
+    },
+    {
+      "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/announcements/ประกาศ_มจธ_หลักเกณฑ์การจัดสรรผลประโยชน์_พศ2566_ฉบับเต็ม.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 5.753
+    }
+  ]
+}

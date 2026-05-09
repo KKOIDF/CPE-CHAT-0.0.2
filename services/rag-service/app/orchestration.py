@@ -71,6 +71,17 @@ _RETRIEVAL_CACHE_LOCK = threading.Lock()
 _RETRIEVAL_CACHE: Dict[str, Dict[str, Any]] = {}
 _RETRIEVAL_REDIS_CLIENT = None
 _RETRIEVAL_REDIS_LOCK = threading.Lock()
+_CACHE_STATS_LOCK = threading.Lock()
+_CACHE_STATS: Dict[str, int] = {
+    'requests': 0,
+    'hits': 0,
+    'misses': 0,
+    'writes': 0,
+    'expired': 0,
+    'invalidated': 0,
+    'fallback_to_memory': 0,
+    'redis_errors': 0,
+}
 
 
 _INLINE_CITE_CAPTURE_RE = re.compile(r"\[([^\]]+?)/(\d+)\]")
@@ -92,6 +103,40 @@ def _retrieval_cache_redis_url() -> str:
     ).strip()
 
 
+def _retrieval_cache_namespace() -> str:
+    service = str(os.getenv('RAG_CACHE_SERVICE_NAME') or os.getenv('RAG_SERVICE_NAME') or 'rag-service').strip() or 'rag-service'
+    env_name = str(os.getenv('RAG_CACHE_ENV') or os.getenv('RAG_ENVIRONMENT') or os.getenv('ENVIRONMENT') or 'dev').strip() or 'dev'
+    custom = str(os.getenv('RAG_RETRIEVAL_CACHE_NAMESPACE') or '').strip()
+    if custom:
+        return custom
+    return f"{env_name}:{service}:retrieval"
+
+
+def _cache_stat_inc(key: str, value: int = 1) -> None:
+    with _CACHE_STATS_LOCK:
+        _CACHE_STATS[key] = int(_CACHE_STATS.get(key) or 0) + int(value)
+
+
+def get_retrieval_cache_metrics_snapshot() -> Dict[str, Any]:
+    with _CACHE_STATS_LOCK:
+        counters = dict(_CACHE_STATS)
+    with _RETRIEVAL_CACHE_LOCK:
+        memory_entries = len(_RETRIEVAL_CACHE)
+    redis_enabled = bool(_retrieval_cache_redis_url())
+    redis_client = _get_retrieval_redis_client() if redis_enabled else None
+    return {
+        'enabled': bool(_RETRIEVAL_CACHE_ENABLE),
+        'backend': 'redis' if redis_client is not None else 'memory',
+        'redis_configured': int(redis_enabled),
+        'redis_connected': int(redis_client is not None),
+        'namespace': _retrieval_cache_namespace(),
+        'ttl_seconds': int(_RETRIEVAL_CACHE_TTL_SECONDS),
+        'max_entries_memory': int(_RETRIEVAL_CACHE_MAX_ENTRIES),
+        'memory_entries': int(memory_entries),
+        'counters': counters,
+    }
+
+
 def _get_retrieval_redis_client():
     global _RETRIEVAL_REDIS_CLIENT
     redis_url = _retrieval_cache_redis_url()
@@ -111,7 +156,7 @@ def _get_retrieval_redis_client():
 
 
 def _redis_cache_key(key: str) -> str:
-    return f"rag:retrieval_cache:{key}"
+    return f"rag:{_retrieval_cache_namespace()}:{key}"
 
 
 def _cache_domains_signature(domains: List[str]) -> str:
@@ -161,6 +206,7 @@ def _retrieval_cache_key(
 def _retrieval_cache_get(key: str, domains: List[str]) -> Dict[str, Any] | None:
     if not _RETRIEVAL_CACHE_ENABLE or not key:
         return None
+    _cache_stat_inc('requests', 1)
     now = time.time()
     sig = _cache_domains_signature(domains)
     redis_client = _get_retrieval_redis_client()
@@ -174,6 +220,7 @@ def _retrieval_cache_get(key: str, domains: List[str]) -> Dict[str, Any] | None:
                         redis_client.delete(_redis_cache_key(key))
                     except Exception:
                         pass
+                    _cache_stat_inc('expired', 1)
                     add_metric('retrieval_cache_expired', 1)
                     return None
                 if str(entry.get('index_signature') or '') != sig:
@@ -181,27 +228,40 @@ def _retrieval_cache_get(key: str, domains: List[str]) -> Dict[str, Any] | None:
                         redis_client.delete(_redis_cache_key(key))
                     except Exception:
                         pass
+                    _cache_stat_inc('invalidated', 1)
                     add_metric('retrieval_cache_invalidated', 1)
                     return None
+                _cache_stat_inc('hits', 1)
                 add_metric('retrieval_cache_hit', 1)
                 add_metric('retrieval_cache_backend', 'redis')
+                add_metric('retrieval_cache_namespace', _retrieval_cache_namespace())
                 return deepcopy(entry.get('value') or {})
         except Exception:
-            pass
+            _cache_stat_inc('redis_errors', 1)
+            _cache_stat_inc('fallback_to_memory', 1)
+            add_metric('retrieval_cache_fallback_to_memory', 1)
+            add_metric('retrieval_cache_backend', 'memory')
+            add_metric('retrieval_cache_namespace', _retrieval_cache_namespace())
     with _RETRIEVAL_CACHE_LOCK:
         entry = _RETRIEVAL_CACHE.get(key)
         if not entry:
+            _cache_stat_inc('misses', 1)
+            add_metric('retrieval_cache_miss', 1)
             return None
         if float(entry.get('expires_at') or 0.0) < now:
             _RETRIEVAL_CACHE.pop(key, None)
+            _cache_stat_inc('expired', 1)
             add_metric('retrieval_cache_expired', 1)
             return None
         if str(entry.get('index_signature') or '') != sig:
             _RETRIEVAL_CACHE.pop(key, None)
+            _cache_stat_inc('invalidated', 1)
             add_metric('retrieval_cache_invalidated', 1)
             return None
+        _cache_stat_inc('hits', 1)
         add_metric('retrieval_cache_hit', 1)
         add_metric('retrieval_cache_backend', 'memory')
+        add_metric('retrieval_cache_namespace', _retrieval_cache_namespace())
         return deepcopy(entry.get('value') or {})
 
 
@@ -221,11 +281,15 @@ def _retrieval_cache_put(key: str, domains: List[str], value: Dict[str, Any]) ->
                 _RETRIEVAL_CACHE_TTL_SECONDS,
                 json.dumps(entry, ensure_ascii=False),
             )
+            _cache_stat_inc('writes', 1)
             return
         except Exception:
-            pass
+            _cache_stat_inc('redis_errors', 1)
+            _cache_stat_inc('fallback_to_memory', 1)
+            add_metric('retrieval_cache_fallback_to_memory', 1)
     with _RETRIEVAL_CACHE_LOCK:
         _RETRIEVAL_CACHE[key] = entry
+        _cache_stat_inc('writes', 1)
         if len(_RETRIEVAL_CACHE) > _RETRIEVAL_CACHE_MAX_ENTRIES:
             oldest_key = min(
                 _RETRIEVAL_CACHE.keys(),
@@ -239,7 +303,7 @@ def _clear_retrieval_cache() -> None:
     redis_client = _get_retrieval_redis_client()
     if redis_client is not None:
         try:
-            keys = redis_client.keys("rag:retrieval_cache:*") or []
+            keys = redis_client.keys(f"rag:{_retrieval_cache_namespace()}:*") or []
             if keys:
                 redis_client.delete(*keys)
         except Exception:

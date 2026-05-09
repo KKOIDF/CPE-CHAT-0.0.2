@@ -72,6 +72,52 @@ def _expected_refs_from_text(text: str) -> list[str]:
     return [h.strip() for h in hits]
 
 
+def _load_document_profile_lookup() -> dict[str, dict[str, str]]:
+    lookup: dict[str, dict[str, str]] = {}
+    for dom in ("announcements", "regulations", "curriculum"):
+        p = REPO_ROOT / "indexes" / dom / "structured" / "document_profiles.json"
+        if not p.exists():
+            continue
+        try:
+            obj = json.loads(p.read_text(encoding="utf-8"))
+        except Exception:
+            continue
+        for prof in (obj.get("profiles") or []):
+            src = _normalize_filename(str((prof or {}).get("source_name") or (prof or {}).get("source_path") or ""))
+            if not src:
+                continue
+            lookup[src] = {
+                "domain": str((prof or {}).get("domain") or dom).strip().lower(),
+                "doc_type": str((prof or {}).get("doc_type") or "unknown").strip().lower() or "unknown",
+                "extractor_profile": str((prof or {}).get("extractor_profile") or "generic").strip().lower() or "generic",
+            }
+    return lookup
+
+
+def _expected_document_format(
+    expected_norm: list[str],
+    section_name: str,
+    profile_lookup: dict[str, dict[str, str]],
+) -> tuple[str | None, str | None]:
+    if not expected_norm:
+        return None, None
+    formats: list[str] = []
+    extractors: list[str] = []
+    for ref in expected_norm:
+        meta = profile_lookup.get(ref) or {}
+        doc_type = str(meta.get("doc_type") or "").strip().lower()
+        extractor = str(meta.get("extractor_profile") or "").strip().lower()
+        if doc_type:
+            formats.append(doc_type)
+        if extractor:
+            extractors.append(extractor)
+    if not formats:
+        return f"{section_name}_unknown", None
+    top_format = Counter(formats).most_common(1)[0][0]
+    top_extractor = Counter(extractors).most_common(1)[0][0] if extractors else None
+    return top_format, top_extractor
+
+
 def _find_header_row(rows: list[list[str]]) -> tuple[int, list[str]]:
     for i, row in enumerate(rows):
         if len(row) >= 2 and row[0].strip() == "ลำดับ" and row[1].strip() == "คำถาม":
@@ -217,6 +263,8 @@ class RowResult:
     top5_majority_section_match: bool
     expected_refs: list[str]
     expected_refs_norm: list[str]
+    expected_doc_format: str | None
+    expected_extractor_profile: str | None
     hit_rank: int | None
     mrr: float
     hit_at_1: bool
@@ -244,6 +292,7 @@ def main() -> int:
     from app.rag_logic import infer_domain, normalize_question, rag_query  # type: ignore
 
     sections = _load_sections(csv_path)
+    profile_lookup = _load_document_profile_lookup()
 
     results: list[RowResult] = []
     evaluated = 0
@@ -260,6 +309,11 @@ def main() -> int:
                 expected = _expected_refs_from_text(rec.get("คำตอบที่คาดว่าจะตอบ", ""))
 
             expected_norm = [_normalize_filename(e) for e in expected if (e or "").strip()]
+            expected_doc_format, expected_extractor_profile = _expected_document_format(
+                expected_norm,
+                section_name,
+                profile_lookup,
+            )
 
             q_display = normalize_question(question)
             dom = infer_domain(q_display)
@@ -300,6 +354,8 @@ def main() -> int:
                     top5_majority_section_match=top5_majority_match,
                     expected_refs=expected,
                     expected_refs_norm=expected_norm,
+                    expected_doc_format=expected_doc_format,
+                    expected_extractor_profile=expected_extractor_profile,
                     hit_rank=hit_rank,
                     mrr=mrr,
                     hit_at_1=hit_at_1,
@@ -345,6 +401,24 @@ def main() -> int:
 
     miss_by_domain = Counter((r.inferred_domain or "") for r in with_gt if not r.hit_at_10)
     miss_by_section = Counter(r.section for r in with_gt if not r.hit_at_10)
+    format_stats: dict[str, dict[str, float | int]] = {}
+    by_format = defaultdict(list)
+    for row in with_gt:
+        by_format[row.expected_doc_format or "unknown"].append(row)
+    for fmt, rows in by_format.items():
+        total_fmt = len(rows)
+        hit1_fmt = sum(1 for r in rows if r.hit_at_1)
+        hit3_fmt = sum(1 for r in rows if r.hit_at_3)
+        hit5_fmt = sum(1 for r in rows if r.hit_at_5)
+        hit10_fmt = sum(1 for r in rows if r.hit_at_10)
+        format_stats[fmt] = {
+            "rows": total_fmt,
+            "hit@1": hit1_fmt,
+            "hit@3": hit3_fmt,
+            "hit@5": hit5_fmt,
+            "hit@10": hit10_fmt,
+            "mrr": (sum(r.mrr for r in rows) / total_fmt) if total_fmt else 0.0,
+        }
 
     payload = {
         "csv": str(csv_path),
@@ -360,6 +434,7 @@ def main() -> int:
         "domain_top5_majority_accuracy": top5_dom_acc,
         "miss_by_inferred_domain": dict(miss_by_domain),
         "miss_by_section": dict(miss_by_section),
+        "by_document_format": format_stats,
         "results": [
             {
                 "qid": r.qid,
@@ -372,6 +447,8 @@ def main() -> int:
                 "top5_majority_section_match": r.top5_majority_section_match,
                 "expected_refs": r.expected_refs,
                 "expected_refs_norm": r.expected_refs_norm,
+                "expected_doc_format": r.expected_doc_format,
+                "expected_extractor_profile": r.expected_extractor_profile,
                 "hit_rank": r.hit_rank,
                 "mrr": r.mrr,
                 "hit@1": r.hit_at_1,
@@ -389,6 +466,16 @@ def main() -> int:
 
     lines: list[str] = []
     lines.append(f"# Retrieval Eval ({ts})")
+    lines.append("")
+
+    lines.append("## By document format")
+    for fmt, stats in sorted(format_stats.items(), key=lambda kv: (-int(kv[1].get("rows") or 0), kv[0])):
+        rows_n = int(stats.get("rows") or 0)
+        if rows_n <= 0:
+            continue
+        lines.append(
+            f"- {fmt}: rows={rows_n} hit@1={int(stats.get('hit@1') or 0)}/{rows_n} hit@3={int(stats.get('hit@3') or 0)}/{rows_n} hit@5={int(stats.get('hit@5') or 0)}/{rows_n} hit@10={int(stats.get('hit@10') or 0)}/{rows_n} mrr={float(stats.get('mrr') or 0.0):.4f}"
+        )
     lines.append("")
     lines.append(f"- CSV: {csv_path}")
     lines.append(f"- Evaluated: {total}")

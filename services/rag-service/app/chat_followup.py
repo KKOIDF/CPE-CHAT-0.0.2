@@ -395,6 +395,20 @@ def _extract_course_codes_from_text(text: str) -> list[str]:
     return [f"{(a or '').upper()} {(b or '')}".strip() for a, b in _COURSE_CODE_RE.findall(text or '')]
 
 
+def _extract_form_codes_from_text(text: str) -> list[str]:
+    out: list[str] = []
+    seen: set[str] = set()
+    for match in _FORM_CODE_RE.finditer(text or ''):
+        digits = re.search(r"\d{2}", str(match.group(0) or ''))
+        if not digits:
+            continue
+        normalized = f"RO-{digits.group(0)}"
+        if normalized not in seen:
+            seen.add(normalized)
+            out.append(normalized)
+    return out
+
+
 def _latest_course_code_from_messages(messages: list[dict] | None) -> str:
     normalized = coerce_chat_messages(messages)
     for m in reversed(normalized):
@@ -451,9 +465,9 @@ def _extract_topic_anchor(text: str) -> str:
         )
     ):
         return ''
-    if any(rx.search(txt) for rx in (_COURSE_CODE_RE, _INSTRUCTOR_RE, _TERM_RE)):
+    if any(rx.search(txt) for rx in (_COURSE_CODE_RE, _FORM_CODE_RE, _INSTRUCTOR_RE, _TERM_RE)):
         return ''
-    if len(txt) <= 40 and not any(p in txt.lower() for p in ('อะไร', 'เมื่อไร', 'ยังไง', 'อย่างไร', 'ไหม', 'มั้ย', 'กี่', 'where', 'when', 'what')):
+    if len(txt) <= 40 and not any(p in txt.lower() for p in ('อะไร', 'เมื่อไร', 'ยังไง', 'อย่างไร', 'ไหม', 'มั้ย', 'กี่', 'ใคร', 'where', 'when', 'what', 'who')):
         return txt
     return ''
 
@@ -465,6 +479,10 @@ def _extract_reference_entities(text: str) -> list[str]:
         if code not in seen:
             seen.add(code)
             out.append(code)
+    for form_code in _extract_form_codes_from_text(text):
+        if form_code not in seen:
+            seen.add(form_code)
+            out.append(form_code)
     for name in _extract_instructor_mentions(text):
         anchor = f"อาจารย์{name}".strip()
         if anchor not in seen:
@@ -490,11 +508,116 @@ def _entity_type_for_value(value: str) -> str:
         return ''
     if _COURSE_CODE_RE.search(v):
         return 'course'
+    if _FORM_CODE_RE.search(v):
+        return 'form'
     if v.startswith('อาจารย์'):
         return 'instructor'
     if _TERM_RE.search(v):
         return 'term'
     return 'topic'
+
+
+def _clarify_prefix_for_domain(domain: str | None, entity_type: str | None = None) -> str:
+    dom = str(domain or '').strip().lower()
+    et = str(entity_type or '').strip().lower()
+    if dom == 'curriculum':
+        if et == 'course':
+            return 'หมายถึงวิชาไหนครับ'
+        if et == 'instructor':
+            return 'หมายถึงอาจารย์ท่านไหนครับ'
+        if et == 'term':
+            return 'หมายถึงเทอมหรือภาคการศึกษาไหนครับ'
+        return 'หมายถึงเรื่องหรือรายวิชาไหนครับ'
+    if dom == 'regulations':
+        if et in {'course', 'form'}:
+            return 'หมายถึงระเบียบหรือแบบฟอร์มไหนครับ'
+        if et == 'term':
+            return 'หมายถึงช่วงเวลาหรือเงื่อนไขไหนครับ'
+        return 'หมายถึงระเบียบหรือแบบฟอร์มไหนครับ'
+    if dom == 'announcements':
+        if et == 'term':
+            return 'หมายถึงภาคการศึกษาหรือช่วงเวลาไหนครับ'
+        return 'หมายถึงประกาศหรือกำหนดการไหนครับ'
+    return 'หมายถึงอันไหนครับ'
+
+
+def _build_clarification_message(
+    *,
+    domain: str | None,
+    entity_type: str | None,
+    values: list[str],
+) -> str:
+    labels = [str(v or '').strip() for v in (values or []) if str(v or '').strip()]
+    prefix = _clarify_prefix_for_domain(domain, entity_type)
+    if not labels:
+        return f"{prefix} ช่วยระบุเพิ่มอีกนิด"
+    return f"{prefix}: " + " / ".join(labels[:3])
+
+
+def _compute_followup_ambiguity(
+    *,
+    candidate_rows: list[tuple[str, str, int]],
+    requested_domain: str | None,
+) -> tuple[int, str, str]:
+    if not candidate_rows:
+        return 3, 'no_candidates', ''
+    top_type, _top_value, top_conf = candidate_rows[0]
+    unique_values = []
+    seen_values: set[str] = set()
+    same_type_count = 0
+    same_type_top_values: list[str] = []
+    for etype, value, conf in candidate_rows:
+        val = str(value or '').strip()
+        if not val:
+            continue
+        key = f"{etype}:{val}".lower()
+        if key not in seen_values:
+            seen_values.add(key)
+            unique_values.append((etype, val, conf))
+        if etype == top_type:
+            same_type_count += 1
+            if val not in same_type_top_values:
+                same_type_top_values.append(val)
+
+    second_conf = unique_values[1][2] if len(unique_values) > 1 else 0
+    ambiguity = 0
+    reason = 'resolved'
+    message = ''
+
+    if top_conf <= 1:
+        ambiguity = 3
+        reason = 'low_confidence'
+        message = _build_clarification_message(
+            domain=requested_domain,
+            entity_type=top_type,
+            values=[v for t, v, _c in unique_values[:3] if t == top_type] or [v for _t, v, _c in unique_values[:3]],
+        )
+    elif same_type_count >= 2 and second_conf >= top_conf:
+        ambiguity = 3
+        reason = 'multiple_equal_candidates'
+        message = _build_clarification_message(
+            domain=requested_domain,
+            entity_type=top_type,
+            values=same_type_top_values[:3],
+        )
+    elif same_type_count >= 2 and (top_conf - second_conf) <= 1:
+        ambiguity = 2
+        reason = 'close_candidates'
+        message = _build_clarification_message(
+            domain=requested_domain,
+            entity_type=top_type,
+            values=same_type_top_values[:3],
+        )
+    elif len(unique_values) >= 3 and top_conf <= 2:
+        ambiguity = 2
+        reason = 'many_candidates'
+        message = _build_clarification_message(
+            domain=requested_domain,
+            entity_type=top_type,
+            values=[v for _t, v, _c in unique_values[:3]],
+        )
+
+    return ambiguity, reason, message
 
 
 def _rank_followup_candidates(messages: list[dict] | None) -> list[tuple[str, str, int]]:
@@ -563,7 +686,11 @@ def is_meta_followup_generation_prompt(text: str) -> bool:
     return ('### chat history:' in tl) and ('follow-up questions' in tl)
 
 
-def analyze_followup_entities(messages: list[dict] | None, effective_question: str) -> dict[str, str | int]:
+def analyze_followup_entities(
+    messages: list[dict] | None,
+    effective_question: str,
+    requested_domain: str | None = None,
+) -> dict[str, str | int]:
     out: dict[str, str | int] = {
         'followup_latest_entity': '',
         'followup_previous_entity': '',
@@ -575,6 +702,8 @@ def analyze_followup_entities(messages: list[dict] | None, effective_question: s
         'followup_resolved_entity_candidates': '',
         'followup_needs_clarification': 0,
         'followup_clarification_message': '',
+        'followup_ambiguity_score': 0,
+        'followup_ambiguity_reason': 'resolved',
     }
     normalized = coerce_chat_messages(messages)
     user_msgs = [content_to_text(m.get('content')) for m in normalized if (m.get('role') or '').strip().lower() == 'user']
@@ -613,7 +742,13 @@ def analyze_followup_entities(messages: list[dict] | None, effective_question: s
             resolved_confidence = 3
         else:
             out['followup_needs_clarification'] = 1
-            out['followup_clarification_message'] = "หมายถึงวิชาไหนครับ: " + " / ".join(assistant_course_refs[:3])
+            out['followup_clarification_message'] = _build_clarification_message(
+                domain=requested_domain,
+                entity_type='course',
+                values=assistant_course_refs[:3],
+            )
+            out['followup_ambiguity_score'] = 3
+            out['followup_ambiguity_reason'] = 'assistant_multiple_courses'
     elif anchor_from_effective_q:
         resolved_value = anchor_from_effective_q
         resolved_type = _entity_type_for_value(resolved_value)
@@ -639,12 +774,18 @@ def analyze_followup_entities(messages: list[dict] | None, effective_question: s
     out['followup_resolved_entity_candidates'] = '|'.join(
         f"{etype}:{value}:{conf}" for etype, value, conf in candidate_rows[:5]
     )
-    if (not out['followup_needs_clarification']) and candidate_rows:
-        top_conf = candidate_rows[0][2]
-        second_conf = candidate_rows[1][2] if len(candidate_rows) > 1 else 0
-        same_top_type = len(candidate_rows) > 1 and candidate_rows[0][0] == candidate_rows[1][0]
-        needs_clarification = (top_conf <= 1) or (same_top_type and second_conf >= top_conf)
-        out['followup_needs_clarification'] = int(needs_clarification)
+    if candidate_rows:
+        ambiguity_score, ambiguity_reason, ambiguity_message = _compute_followup_ambiguity(
+            candidate_rows=candidate_rows,
+            requested_domain=requested_domain,
+        )
+        if ambiguity_score > int(out.get('followup_ambiguity_score') or 0):
+            out['followup_ambiguity_score'] = ambiguity_score
+            out['followup_ambiguity_reason'] = ambiguity_reason
+        if (not out['followup_needs_clarification']) and ambiguity_score >= 2:
+            out['followup_needs_clarification'] = 1
+            if ambiguity_message:
+                out['followup_clarification_message'] = ambiguity_message
     return out
 
 
@@ -880,6 +1021,8 @@ def prepare_chat_request(
             raw_last_user = content_to_text(msg.get('content', ''))
             break
     effective_question = build_effective_question(normalized_messages, raw_last_user or raw_input_question)
+    if raw_input_question and _has_explicit_reference(raw_input_question) and not str(effective_question or '').startswith('บริบทก่อนหน้า:'):
+        effective_question = raw_input_question
     effective_question = question_preparer(effective_question or raw_input_question, domain)
     effective_question, effective_domain, lock_applied, lock_reason = apply_session_followup_lock(
         effective_question,
@@ -887,7 +1030,7 @@ def prepare_chat_request(
         sid,
         session_store,
     )
-    meta = analyze_followup_entities(normalized_messages, effective_question)
+    meta = analyze_followup_entities(normalized_messages, effective_question, requested_domain=effective_domain or domain)
     return PreparedChatRequest(
         question=effective_question,
         domain=effective_domain,

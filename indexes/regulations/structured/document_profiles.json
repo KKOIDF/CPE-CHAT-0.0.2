@@ -5,209 +5,531 @@
     {
       "source_path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations/129.txt",
       "source_name": "129.txt",
+      "source_ext": ".txt",
       "domain": "regulations",
       "doc_type": "regulation_clause",
       "semantic_chunk_strategy": "regulation_template",
       "extractor_profile": "regulation_clauses",
-      "confidence": 0.9
+      "confidence": 0.9,
+      "layout_signals": {
+        "heading_count": 9,
+        "clause_count": 5,
+        "course_code_hits": 0,
+        "plo_hits": 0,
+        "semester_hits": 1,
+        "date_hits": 0,
+        "email_hits": 0,
+        "phone_hits": 0,
+        "table_row_count": 0,
+        "table_header_score": 3,
+        "mixed_layout_score": 0
+      }
     },
     {
       "source_path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations/133.txt",
       "source_name": "133.txt",
+      "source_ext": ".txt",
       "domain": "regulations",
-      "doc_type": "regulation_clause",
+      "doc_type": "amendment",
       "semantic_chunk_strategy": "regulation_template",
-      "extractor_profile": "regulation_clauses",
-      "confidence": 0.9
+      "extractor_profile": "amendment_blocks",
+      "confidence": 0.93,
+      "layout_signals": {
+        "heading_count": 10,
+        "clause_count": 9,
+        "course_code_hits": 0,
+        "plo_hits": 0,
+        "semester_hits": 1,
+        "date_hits": 0,
+        "email_hits": 0,
+        "phone_hits": 0,
+        "table_row_count": 0,
+        "table_header_score": 3,
+        "mixed_layout_score": 0
+      }
     },
     {
       "source_path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations/135.txt",
       "source_name": "135.txt",
+      "source_ext": ".txt",
       "domain": "regulations",
-      "doc_type": "regulation_clause",
+      "doc_type": "amendment",
       "semantic_chunk_strategy": "regulation_template",
-      "extractor_profile": "regulation_clauses",
-      "confidence": 0.9
+      "extractor_profile": "amendment_blocks",
+      "confidence": 0.93,
+      "layout_signals": {
+        "heading_count": 3,
+        "clause_count": 2,
+        "course_code_hits": 0,
+        "plo_hits": 0,
+        "semester_hits": 0,
+        "date_hits": 0,
+        "email_hits": 0,
+        "phone_hits": 0,
+        "table_row_count": 0,
+        "table_header_score": 2,
+        "mixed_layout_score": 0
+      }
     },
     {
       "source_path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations/2018_06_08_15_10_33.txt",
       "source_name": "2018_06_08_15_10_33.txt",
+      "source_ext": ".txt",
       "domain": "regulations",
-      "doc_type": "regulation_clause",
+      "doc_type": "amendment",
       "semantic_chunk_strategy": "regulation_template",
-      "extractor_profile": "regulation_clauses",
-      "confidence": 0.9
+      "extractor_profile": "amendment_blocks",
+      "confidence": 0.93,
+      "layout_signals": {
+        "heading_count": 7,
+        "clause_count": 1,
+        "course_code_hits": 0,
+        "plo_hits": 0,
+        "semester_hits": 0,
+        "date_hits": 0,
+        "email_hits": 0,
+        "phone_hits": 0,
+        "table_row_count": 0,
+        "table_header_score": 3,
+        "mixed_layout_score": 0
+      }
     },
     {
       "source_path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations/COVID-19 (2).txt",
       "source_name": "COVID-19 (2).txt",
+      "source_ext": ".txt",
       "domain": "regulations",
-      "doc_type": "regulation_clause",
+      "doc_type": "amendment",
       "semantic_chunk_strategy": "regulation_template",
-      "extractor_profile": "regulation_clauses",
-      "confidence": 0.9
+      "extractor_profile": "amendment_blocks",
+      "confidence": 0.93,
+      "layout_signals": {
+        "heading_count": 22,
+        "clause_count": 6,
+        "course_code_hits": 0,
+        "plo_hits": 0,
+        "semester_hits": 14,
+        "date_hits": 0,
+        "email_hits": 0,
+        "phone_hits": 0,
+        "table_row_count": 1,
+        "table_header_score": 4,
+        "mixed_layout_score": 0
+      }
     },
     {
       "source_path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations/IP2565.txt",
       "source_name": "IP2565.txt",
+      "source_ext": ".txt",
       "domain": "regulations",
-      "doc_type": "regulation_clause",
+      "doc_type": "amendment",
       "semantic_chunk_strategy": "regulation_template",
-      "extractor_profile": "regulation_clauses",
-      "confidence": 0.9
+      "extractor_profile": "amendment_blocks",
+      "confidence": 0.93,
+      "layout_signals": {
+        "heading_count": 7,
+        "clause_count": 6,
+        "course_code_hits": 0,
+        "plo_hits": 0,
+        "semester_hits": 0,
+        "date_hits": 0,
+        "email_hits": 0,
+        "phone_hits": 0,
+        "table_row_count": 0,
+        "table_header_score": 3,
+        "mixed_layout_score": 0
+      }
     },
     {
       "source_path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations/OBEM.txt",
       "source_name": "OBEM.txt",
+      "source_ext": ".txt",
       "domain": "regulations",
-      "doc_type": "regulation_clause",
+      "doc_type": "amendment",
       "semantic_chunk_strategy": "regulation_template",
-      "extractor_profile": "regulation_clauses",
-      "confidence": 0.9
+      "extractor_profile": "amendment_blocks",
+      "confidence": 0.93,
+      "layout_signals": {
+        "heading_count": 14,
+        "clause_count": 11,
+        "course_code_hits": 0,
+        "plo_hits": 0,
+        "semester_hits": 1,
+        "date_hits": 0,
+        "email_hits": 0,
+        "phone_hits": 0,
+        "table_row_count": 0,
+        "table_header_score": 3,
+        "mixed_layout_score": 0
+      }
     },
     {
       "source_path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations/OBEM2566update.txt",
       "source_name": "OBEM2566update.txt",
+      "source_ext": ".txt",
       "domain": "regulations",
-      "doc_type": "regulation_clause",
+      "doc_type": "amendment",
       "semantic_chunk_strategy": "regulation_template",
-      "extractor_profile": "regulation_clauses",
-      "confidence": 0.9
+      "extractor_profile": "amendment_blocks",
+      "confidence": 0.93,
+      "layout_signals": {
+        "heading_count": 14,
+        "clause_count": 9,
+        "course_code_hits": 0,
+        "plo_hits": 0,
+        "semester_hits": 4,
+        "date_hits": 0,
+        "email_hits": 0,
+        "phone_hits": 0,
+        "table_row_count": 0,
+        "table_header_score": 4,
+        "mixed_layout_score": 0
+      }
     },
     {
       "source_path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations/ad_out57.txt",
       "source_name": "ad_out57.txt",
+      "source_ext": ".txt",
       "domain": "regulations",
-      "doc_type": "regulation_clause",
+      "doc_type": "amendment",
       "semantic_chunk_strategy": "regulation_template",
-      "extractor_profile": "regulation_clauses",
-      "confidence": 0.9
+      "extractor_profile": "amendment_blocks",
+      "confidence": 0.93,
+      "layout_signals": {
+        "heading_count": 7,
+        "clause_count": 2,
+        "course_code_hits": 0,
+        "plo_hits": 0,
+        "semester_hits": 0,
+        "date_hits": 0,
+        "email_hits": 0,
+        "phone_hits": 0,
+        "table_row_count": 0,
+        "table_header_score": 5,
+        "mixed_layout_score": 0
+      }
     },
     {
       "source_path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations/celemony2539.txt",
       "source_name": "celemony2539.txt",
+      "source_ext": ".txt",
       "domain": "regulations",
-      "doc_type": "regulation_general",
+      "doc_type": "amendment",
       "semantic_chunk_strategy": "regulation_template",
-      "extractor_profile": "regulation_general",
-      "confidence": 0.72
+      "extractor_profile": "amendment_blocks",
+      "confidence": 0.93,
+      "layout_signals": {
+        "heading_count": 0,
+        "clause_count": 0,
+        "course_code_hits": 0,
+        "plo_hits": 0,
+        "semester_hits": 0,
+        "date_hits": 0,
+        "email_hits": 0,
+        "phone_hits": 0,
+        "table_row_count": 0,
+        "table_header_score": 2,
+        "mixed_layout_score": 0
+      }
     },
     {
       "source_path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations/contacts.txt",
       "source_name": "contacts.txt",
+      "source_ext": ".txt",
       "domain": "regulations",
       "doc_type": "contact_directory",
       "semantic_chunk_strategy": "regulation_template",
       "extractor_profile": "contact_blocks",
-      "confidence": 0.96
+      "confidence": 0.97,
+      "layout_signals": {
+        "heading_count": 208,
+        "clause_count": 0,
+        "course_code_hits": 0,
+        "plo_hits": 0,
+        "semester_hits": 0,
+        "date_hits": 0,
+        "email_hits": 56,
+        "phone_hits": 45,
+        "table_row_count": 0,
+        "table_header_score": 13,
+        "mixed_layout_score": 0
+      }
     },
     {
       "source_path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations/discipline2566_fulltext.txt",
       "source_name": "discipline2566_fulltext.txt",
+      "source_ext": ".txt",
       "domain": "regulations",
-      "doc_type": "regulation_clause",
+      "doc_type": "amendment",
       "semantic_chunk_strategy": "regulation_template",
-      "extractor_profile": "regulation_clauses",
-      "confidence": 0.9
+      "extractor_profile": "amendment_blocks",
+      "confidence": 0.93,
+      "layout_signals": {
+        "heading_count": 81,
+        "clause_count": 28,
+        "course_code_hits": 0,
+        "plo_hits": 0,
+        "semester_hits": 0,
+        "date_hits": 0,
+        "email_hits": 0,
+        "phone_hits": 0,
+        "table_row_count": 0,
+        "table_header_score": 5,
+        "mixed_layout_score": 0
+      }
     },
     {
       "source_path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations/forms.txt",
       "source_name": "forms.txt",
+      "source_ext": ".txt",
       "domain": "regulations",
       "doc_type": "form_directory",
       "semantic_chunk_strategy": "regulation_template",
       "extractor_profile": "form_blocks",
-      "confidence": 0.98
+      "confidence": 0.98,
+      "layout_signals": {
+        "heading_count": 105,
+        "clause_count": 0,
+        "course_code_hits": 0,
+        "plo_hits": 0,
+        "semester_hits": 0,
+        "date_hits": 0,
+        "email_hits": 0,
+        "phone_hits": 0,
+        "table_row_count": 0,
+        "table_header_score": 7,
+        "mixed_layout_score": 0
+      }
     },
     {
       "source_path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations/handbook2562g.txt",
       "source_name": "handbook2562g.txt",
+      "source_ext": ".txt",
       "domain": "regulations",
-      "doc_type": "regulation_clause",
+      "doc_type": "amendment",
       "semantic_chunk_strategy": "regulation_template",
-      "extractor_profile": "regulation_clauses",
-      "confidence": 0.9
+      "extractor_profile": "amendment_blocks",
+      "confidence": 0.93,
+      "layout_signals": {
+        "heading_count": 42,
+        "clause_count": 10,
+        "course_code_hits": 0,
+        "plo_hits": 0,
+        "semester_hits": 1,
+        "date_hits": 0,
+        "email_hits": 0,
+        "phone_hits": 0,
+        "table_row_count": 0,
+        "table_header_score": 8,
+        "mixed_layout_score": 0
+      }
     },
     {
       "source_path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations/privacy2563.txt",
       "source_name": "privacy2563.txt",
+      "source_ext": ".txt",
       "domain": "regulations",
       "doc_type": "regulation_clause",
       "semantic_chunk_strategy": "regulation_template",
       "extractor_profile": "regulation_clauses",
-      "confidence": 0.9
+      "confidence": 0.9,
+      "layout_signals": {
+        "heading_count": 37,
+        "clause_count": 4,
+        "course_code_hits": 0,
+        "plo_hits": 0,
+        "semester_hits": 0,
+        "date_hits": 0,
+        "email_hits": 0,
+        "phone_hits": 0,
+        "table_row_count": 0,
+        "table_header_score": 6,
+        "mixed_layout_score": 0
+      }
     },
     {
       "source_path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations/rule2563-2g.txt",
       "source_name": "rule2563-2g.txt",
+      "source_ext": ".txt",
       "domain": "regulations",
       "doc_type": "regulation_general",
       "semantic_chunk_strategy": "regulation_template",
       "extractor_profile": "regulation_general",
-      "confidence": 0.72
+      "confidence": 0.72,
+      "layout_signals": {
+        "heading_count": 0,
+        "clause_count": 0,
+        "course_code_hits": 0,
+        "plo_hits": 1,
+        "semester_hits": 0,
+        "date_hits": 0,
+        "email_hits": 0,
+        "phone_hits": 0,
+        "table_row_count": 0,
+        "table_header_score": 2,
+        "mixed_layout_score": 0
+      }
     },
     {
       "source_path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations/rule2563-4b.txt",
       "source_name": "rule2563-4b.txt",
+      "source_ext": ".txt",
       "domain": "regulations",
-      "doc_type": "regulation_clause",
+      "doc_type": "amendment",
       "semantic_chunk_strategy": "regulation_template",
-      "extractor_profile": "regulation_clauses",
-      "confidence": 0.9
+      "extractor_profile": "amendment_blocks",
+      "confidence": 0.93,
+      "layout_signals": {
+        "heading_count": 1,
+        "clause_count": 1,
+        "course_code_hits": 0,
+        "plo_hits": 1,
+        "semester_hits": 1,
+        "date_hits": 0,
+        "email_hits": 0,
+        "phone_hits": 0,
+        "table_row_count": 0,
+        "table_header_score": 3,
+        "mixed_layout_score": 0
+      }
     },
     {
       "source_path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations/rule57.txt",
       "source_name": "rule57.txt",
+      "source_ext": ".txt",
       "domain": "regulations",
-      "doc_type": "regulation_clause",
-      "semantic_chunk_strategy": "regulation_template",
-      "extractor_profile": "regulation_clauses",
-      "confidence": 0.9
+      "doc_type": "fee_table",
+      "semantic_chunk_strategy": "table_aware",
+      "extractor_profile": "fee_rows",
+      "confidence": 0.95,
+      "layout_signals": {
+        "heading_count": 46,
+        "clause_count": 14,
+        "course_code_hits": 0,
+        "plo_hits": 0,
+        "semester_hits": 4,
+        "date_hits": 0,
+        "email_hits": 0,
+        "phone_hits": 0,
+        "table_row_count": 3,
+        "table_header_score": 7,
+        "mixed_layout_score": 2
+      }
     },
     {
       "source_path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations/rule57_2.txt",
       "source_name": "rule57_2.txt",
+      "source_ext": ".txt",
       "domain": "regulations",
-      "doc_type": "regulation_clause",
-      "semantic_chunk_strategy": "regulation_template",
-      "extractor_profile": "regulation_clauses",
-      "confidence": 0.9
+      "doc_type": "amendment",
+      "semantic_chunk_strategy": "mixed_layout",
+      "extractor_profile": "amendment_blocks",
+      "confidence": 0.93,
+      "layout_signals": {
+        "heading_count": 60,
+        "clause_count": 1,
+        "course_code_hits": 0,
+        "plo_hits": 0,
+        "semester_hits": 3,
+        "date_hits": 0,
+        "email_hits": 0,
+        "phone_hits": 0,
+        "table_row_count": 7,
+        "table_header_score": 24,
+        "mixed_layout_score": 3
+      }
     },
     {
       "source_path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations/ruleG2568.txt",
       "source_name": "ruleG2568.txt",
+      "source_ext": ".txt",
       "domain": "regulations",
-      "doc_type": "regulation_clause",
+      "doc_type": "amendment",
       "semantic_chunk_strategy": "regulation_template",
-      "extractor_profile": "regulation_clauses",
-      "confidence": 0.9
+      "extractor_profile": "amendment_blocks",
+      "confidence": 0.93,
+      "layout_signals": {
+        "heading_count": 31,
+        "clause_count": 8,
+        "course_code_hits": 0,
+        "plo_hits": 0,
+        "semester_hits": 1,
+        "date_hits": 0,
+        "email_hits": 0,
+        "phone_hits": 0,
+        "table_row_count": 0,
+        "table_header_score": 3,
+        "mixed_layout_score": 0
+      }
     },
     {
       "source_path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations/rule_covid2564.txt",
       "source_name": "rule_covid2564.txt",
+      "source_ext": ".txt",
       "domain": "regulations",
-      "doc_type": "regulation_clause",
+      "doc_type": "amendment",
       "semantic_chunk_strategy": "regulation_template",
-      "extractor_profile": "regulation_clauses",
-      "confidence": 0.9
+      "extractor_profile": "amendment_blocks",
+      "confidence": 0.93,
+      "layout_signals": {
+        "heading_count": 9,
+        "clause_count": 2,
+        "course_code_hits": 0,
+        "plo_hits": 0,
+        "semester_hits": 13,
+        "date_hits": 0,
+        "email_hits": 0,
+        "phone_hits": 0,
+        "table_row_count": 0,
+        "table_header_score": 4,
+        "mixed_layout_score": 0
+      }
     },
     {
       "source_path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations/rule_exam2560.txt",
       "source_name": "rule_exam2560.txt",
+      "source_ext": ".txt",
       "domain": "regulations",
-      "doc_type": "regulation_clause",
+      "doc_type": "amendment",
       "semantic_chunk_strategy": "regulation_template",
-      "extractor_profile": "regulation_clauses",
-      "confidence": 0.9
+      "extractor_profile": "amendment_blocks",
+      "confidence": 0.93,
+      "layout_signals": {
+        "heading_count": 84,
+        "clause_count": 30,
+        "course_code_hits": 0,
+        "plo_hits": 0,
+        "semester_hits": 0,
+        "date_hits": 0,
+        "email_hits": 0,
+        "phone_hits": 0,
+        "table_row_count": 0,
+        "table_header_score": 2,
+        "mixed_layout_score": 0
+      }
     },
     {
       "source_path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations/tf_out.txt",
       "source_name": "tf_out.txt",
+      "source_ext": ".txt",
       "domain": "regulations",
       "doc_type": "regulation_clause",
       "semantic_chunk_strategy": "regulation_template",
       "extractor_profile": "regulation_clauses",
-      "confidence": 0.9
+      "confidence": 0.9,
+      "layout_signals": {
+        "heading_count": 9,
+        "clause_count": 2,
+        "course_code_hits": 0,
+        "plo_hits": 0,
+        "semester_hits": 1,
+        "date_hits": 0,
+        "email_hits": 0,
+        "phone_hits": 0,
+        "table_row_count": 0,
+        "table_header_score": 8,
+        "mixed_layout_score": 0
+      }
     }
   ]
 }

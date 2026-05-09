@@ -5,74 +5,186 @@
     {
       "source_path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/curriculum/FOE10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt",
       "source_name": "FOE10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt",
+      "source_ext": ".txt",
       "domain": "curriculum",
-      "doc_type": "course_catalog",
-      "semantic_chunk_strategy": "curriculum_course",
-      "extractor_profile": "course_blocks",
-      "confidence": 0.9
+      "doc_type": "study_plan_table",
+      "semantic_chunk_strategy": "table_aware",
+      "extractor_profile": "study_plan_table",
+      "confidence": 0.9,
+      "layout_signals": {
+        "heading_count": 16,
+        "clause_count": 0,
+        "course_code_hits": 43,
+        "plo_hits": 0,
+        "semester_hits": 10,
+        "date_hits": 9,
+        "email_hits": 0,
+        "phone_hits": 0,
+        "table_row_count": 28,
+        "table_header_score": 13,
+        "mixed_layout_score": 3
+      }
     },
     {
       "source_path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/curriculum/SSC.txt",
       "source_name": "SSC.txt",
+      "source_ext": ".txt",
       "domain": "curriculum",
       "doc_type": "course_catalog",
       "semantic_chunk_strategy": "curriculum_course",
       "extractor_profile": "course_blocks",
-      "confidence": 0.9
+      "confidence": 0.91,
+      "layout_signals": {
+        "heading_count": 0,
+        "clause_count": 0,
+        "course_code_hits": 15,
+        "plo_hits": 0,
+        "semester_hits": 0,
+        "date_hits": 0,
+        "email_hits": 0,
+        "phone_hits": 0,
+        "table_row_count": 11,
+        "table_header_score": 9,
+        "mixed_layout_score": 1
+      }
     },
     {
       "source_path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/curriculum/teacher.txt",
       "source_name": "teacher.txt",
+      "source_ext": ".txt",
       "domain": "curriculum",
       "doc_type": "course_catalog",
       "semantic_chunk_strategy": "curriculum_course",
       "extractor_profile": "course_blocks",
-      "confidence": 0.9
+      "confidence": 0.91,
+      "layout_signals": {
+        "heading_count": 61,
+        "clause_count": 0,
+        "course_code_hits": 41,
+        "plo_hits": 0,
+        "semester_hits": 0,
+        "date_hits": 0,
+        "email_hits": 0,
+        "phone_hits": 0,
+        "table_row_count": 66,
+        "table_header_score": 11,
+        "mixed_layout_score": 3
+      }
     },
     {
       "source_path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/curriculum/teacher_profiles.csv",
       "source_name": "teacher_profiles.csv",
+      "source_ext": ".csv",
       "domain": "curriculum",
       "doc_type": "course_catalog",
       "semantic_chunk_strategy": "curriculum_course",
       "extractor_profile": "course_blocks",
-      "confidence": 0.9
+      "confidence": 0.91,
+      "layout_signals": {
+        "heading_count": 32,
+        "clause_count": 0,
+        "course_code_hits": 49,
+        "plo_hits": 0,
+        "semester_hits": 0,
+        "date_hits": 0,
+        "email_hits": 0,
+        "phone_hits": 0,
+        "table_row_count": 91,
+        "table_header_score": 13,
+        "mixed_layout_score": 3
+      }
     },
     {
       "source_path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/curriculum/teacher_profiles_by_course.csv",
       "source_name": "teacher_profiles_by_course.csv",
+      "source_ext": ".csv",
       "domain": "curriculum",
       "doc_type": "teacher_profile_csv",
-      "semantic_chunk_strategy": "curriculum_course",
+      "semantic_chunk_strategy": "table_aware",
       "extractor_profile": "teacher_profiles",
-      "confidence": 0.98
+      "confidence": 0.99,
+      "layout_signals": {
+        "heading_count": 0,
+        "clause_count": 0,
+        "course_code_hits": 126,
+        "plo_hits": 0,
+        "semester_hits": 0,
+        "date_hits": 0,
+        "email_hits": 0,
+        "phone_hits": 0,
+        "table_row_count": 127,
+        "table_header_score": 3,
+        "mixed_layout_score": 0
+      }
     },
     {
       "source_path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/curriculum/วศ.บ.-วศวกรรมคอมพวเตอร-ปรบปรง.64.txt",
       "source_name": "วศ.บ.-วศวกรรมคอมพวเตอร-ปรบปรง.64.txt",
+      "source_ext": ".txt",
       "domain": "curriculum",
-      "doc_type": "curriculum_general",
-      "semantic_chunk_strategy": "curriculum_course",
-      "extractor_profile": "curriculum_general",
-      "confidence": 0.72
+      "doc_type": "curriculum_mixed_layout",
+      "semantic_chunk_strategy": "mixed_layout",
+      "extractor_profile": "curriculum_mixed",
+      "confidence": 0.8,
+      "layout_signals": {
+        "heading_count": 116,
+        "clause_count": 0,
+        "course_code_hits": 0,
+        "plo_hits": 0,
+        "semester_hits": 1,
+        "date_hits": 0,
+        "email_hits": 0,
+        "phone_hits": 0,
+        "table_row_count": 4,
+        "table_header_score": 5,
+        "mixed_layout_score": 3
+      }
     },
     {
       "source_path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/curriculum/วิชา LNG 2562.txt",
       "source_name": "วิชา LNG 2562.txt",
+      "source_ext": ".txt",
       "domain": "curriculum",
       "doc_type": "course_catalog",
       "semantic_chunk_strategy": "curriculum_course",
       "extractor_profile": "course_blocks",
-      "confidence": 0.9
+      "confidence": 0.91,
+      "layout_signals": {
+        "heading_count": 28,
+        "clause_count": 0,
+        "course_code_hits": 20,
+        "plo_hits": 0,
+        "semester_hits": 0,
+        "date_hits": 0,
+        "email_hits": 0,
+        "phone_hits": 0,
+        "table_row_count": 14,
+        "table_header_score": 5,
+        "mixed_layout_score": 3
+      }
     },
     {
       "source_path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/curriculum/โครงสร้างหลักสูตรรายวิชาศึกษาทั่วไป มจธ.txt",
       "source_name": "โครงสร้างหลักสูตรรายวิชาศึกษาทั่วไป มจธ.txt",
+      "source_ext": ".txt",
       "domain": "curriculum",
       "doc_type": "course_catalog",
       "semantic_chunk_strategy": "curriculum_course",
       "extractor_profile": "course_blocks",
-      "confidence": 0.9
+      "confidence": 0.91,
+      "layout_signals": {
+        "heading_count": 39,
+        "clause_count": 0,
+        "course_code_hits": 40,
+        "plo_hits": 0,
+        "semester_hits": 0,
+        "date_hits": 0,
+        "email_hits": 0,
+        "phone_hits": 0,
+        "table_row_count": 7,
+        "table_header_score": 13,
+        "mixed_layout_score": 3
+      }
     }
   ]
 }

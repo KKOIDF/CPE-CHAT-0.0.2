@@ -3,12 +3,21 @@ import re
 import logging
 import traceback
 import sqlite3
+import threading
+from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel
 from typing import Any
-from .orchestration import rag_query, rag_query_domain, structured_curriculum_answer, structured_curriculum_lookup
+from .orchestration import (
+    rag_query,
+    rag_query_domain,
+    structured_curriculum_answer,
+    structured_curriculum_lookup,
+    get_retrieval_cache_metrics_snapshot,
+)
 from .llm import generate_text, list_configured_models
 from .config import KNOWN_DOMAINS
 from .normalization import normalize_question
@@ -39,6 +48,7 @@ from .auto_rag import (
 from .answer_policy import build_answer_messages
 
 logger = logging.getLogger("rag-service")
+_WARMUP_THREAD: threading.Thread | None = None
 
 # Ensure timing logs are emitted when enabled.
 if (os.getenv("RAG_TIMING", "0") or "0").strip().lower() in ("1", "true", "yes", "on"):
@@ -131,6 +141,127 @@ def _structured_curriculum_result_allowed(cur_result: dict[str, Any]) -> bool:
         'lng_language_list',
         'prefix_list',
     }
+
+
+def _warmup_enabled() -> bool:
+    return (os.getenv('RAG_WARMUP_ENABLE', '0') or '0').strip().lower() in ('1', 'true', 'yes', 'on')
+
+
+def _parse_warmup_queries() -> list[tuple[str | None, str]]:
+    raw_queries = str(os.getenv('RAG_WARMUP_QUERIES') or '').strip()
+    raw_file = str(os.getenv('RAG_WARMUP_FILE') or '').strip()
+    parts: list[str] = []
+    if raw_queries:
+        normalized = raw_queries.replace('||', '\n')
+        parts.extend([p.strip() for p in normalized.splitlines() if p.strip()])
+    if raw_file:
+        try:
+            txt = Path(raw_file).read_text(encoding='utf-8')
+            parts.extend([p.strip() for p in txt.splitlines() if p.strip() and not p.strip().startswith('#')])
+        except Exception:
+            logger.warning("Warmup file unreadable: %s", raw_file)
+    out: list[tuple[str | None, str]] = []
+    try:
+        limit = max(1, int(os.getenv('RAG_WARMUP_LIMIT', '20') or '20'))
+    except Exception:
+        limit = 20
+    for item in parts:
+        dom: str | None = None
+        query = item
+        if '::' in item:
+            maybe_dom, rest = item.split('::', 1)
+            maybe_dom = maybe_dom.strip().lower()
+            if maybe_dom in KNOWN_DOMAINS:
+                dom = maybe_dom
+                query = rest.strip()
+        if query:
+            out.append((dom, query))
+        if len(out) >= limit:
+            break
+    return out
+
+
+def _run_retrieval_warmup() -> None:
+    warmups = _parse_warmup_queries()
+    if not warmups:
+        logger.info("Retrieval warmup enabled but no warmup queries configured")
+        return
+    logger.info("Starting retrieval warmup for %s queries", len(warmups))
+    for dom, query in warmups:
+        try:
+            if dom:
+                rag_query_domain(query, dom)
+            else:
+                rag_query(query)
+        except Exception as e:
+            logger.warning("Warmup query failed for domain=%s query=%s err=%s", dom or 'auto', query[:120], e)
+    logger.info("Retrieval warmup completed for %s queries", len(warmups))
+
+
+def _prometheus_escape_label(value: str) -> str:
+    return str(value or '').replace('\\', '\\\\').replace('"', '\\"').replace('\n', '\\n')
+
+
+def _render_prometheus_metrics() -> str:
+    lines: list[str] = []
+    snapshot = get_retrieval_cache_metrics_snapshot()
+    counters = dict(snapshot.get('counters') or {})
+    backend = str(snapshot.get('backend') or 'memory')
+    namespace = str(snapshot.get('namespace') or 'unknown')
+
+    lines.append("# HELP rag_retrieval_cache_enabled Whether retrieval cache is enabled.")
+    lines.append("# TYPE rag_retrieval_cache_enabled gauge")
+    lines.append(f"rag_retrieval_cache_enabled {1 if snapshot.get('enabled') else 0}")
+    lines.append("# HELP rag_retrieval_cache_memory_entries Number of in-process retrieval cache entries.")
+    lines.append("# TYPE rag_retrieval_cache_memory_entries gauge")
+    lines.append(f"rag_retrieval_cache_memory_entries {int(snapshot.get('memory_entries') or 0)}")
+    lines.append("# HELP rag_retrieval_cache_redis_configured Whether Redis is configured for retrieval cache.")
+    lines.append("# TYPE rag_retrieval_cache_redis_configured gauge")
+    lines.append(f"rag_retrieval_cache_redis_configured {int(snapshot.get('redis_configured') or 0)}")
+    lines.append("# HELP rag_retrieval_cache_redis_connected Whether Redis is currently connected for retrieval cache.")
+    lines.append("# TYPE rag_retrieval_cache_redis_connected gauge")
+    lines.append(f"rag_retrieval_cache_redis_connected {int(snapshot.get('redis_connected') or 0)}")
+    lines.append("# HELP rag_retrieval_cache_ttl_seconds Retrieval cache TTL in seconds.")
+    lines.append("# TYPE rag_retrieval_cache_ttl_seconds gauge")
+    lines.append(f"rag_retrieval_cache_ttl_seconds {int(snapshot.get('ttl_seconds') or 0)}")
+    lines.append("# HELP rag_retrieval_cache_events_total Retrieval cache events by type, backend, and namespace.")
+    lines.append("# TYPE rag_retrieval_cache_events_total counter")
+    for key, value in counters.items():
+        labels = f'type="{_prometheus_escape_label(key)}",backend="{_prometheus_escape_label(backend)}",namespace="{_prometheus_escape_label(namespace)}"'
+        lines.append(f"rag_retrieval_cache_events_total{{{labels}}} {int(value)}")
+
+    obs = init_mlflow_observability()
+    if obs is not None:
+        try:
+            obs_snapshot = obs.snapshot()
+            counts = dict(obs_snapshot.get('counts') or {})
+            errors = dict(obs_snapshot.get('errors') or {})
+            latencies = dict(obs_snapshot.get('latencies') or {})
+            lines.append("# HELP rag_requests_total Requests observed by endpoint.")
+            lines.append("# TYPE rag_requests_total counter")
+            for ep, count in counts.items():
+                lines.append(
+                    f'rag_requests_total{{endpoint="{_prometheus_escape_label(str(ep))}"}} {int(count)}'
+                )
+            lines.append("# HELP rag_errors_total Errors observed by endpoint.")
+            lines.append("# TYPE rag_errors_total counter")
+            for ep, count in errors.items():
+                lines.append(
+                    f'rag_errors_total{{endpoint="{_prometheus_escape_label(str(ep))}"}} {int(count)}'
+                )
+            lines.append("# HELP rag_latency_ms_avg Rolling average latency in milliseconds by endpoint.")
+            lines.append("# TYPE rag_latency_ms_avg gauge")
+            for ep, vals in latencies.items():
+                if not vals:
+                    continue
+                avg = float(sum(vals) / len(vals))
+                lines.append(
+                    f'rag_latency_ms_avg{{endpoint="{_prometheus_escape_label(str(ep))}"}} {avg:.6f}'
+                )
+        except Exception:
+            pass
+
+    return "\n".join(lines) + "\n"
 
 
 def _deterministic_domain_shortcut(question: str, domain: str | None = None, resolved_entity: dict[str, Any] | None = None) -> dict[str, Any] | None:
@@ -681,9 +812,17 @@ app = FastAPI(title="RAG Service", version="0.1.0")
 
 @app.on_event("startup")
 def _startup_observability() -> None:
+    global _WARMUP_THREAD
     obs = init_mlflow_observability()
     if obs and getattr(obs, "enabled", lambda: False)():
         set_observer(obs.observe)
+    if _warmup_enabled():
+        background = (os.getenv('RAG_WARMUP_BACKGROUND', '1') or '1').strip().lower() in ('1', 'true', 'yes', 'on')
+        if background:
+            _WARMUP_THREAD = threading.Thread(target=_run_retrieval_warmup, name="rag-warmup", daemon=True)
+            _WARMUP_THREAD.start()
+        else:
+            _run_retrieval_warmup()
 
 
 @app.on_event('shutdown')
@@ -6642,6 +6781,23 @@ def health():
     return {'status': 'ok'}
 
 
+@app.get('/debug/cache-metrics')
+def debug_cache_metrics():
+    if not _truthy_env(os.getenv("RAG_EXPOSE_CACHE_METRICS", "0")):
+        raise HTTPException(status_code=404, detail="Not found")
+    return {
+        'service': 'rag-service',
+        'retrieval_cache': get_retrieval_cache_metrics_snapshot(),
+    }
+
+
+@app.get('/metrics', response_class=PlainTextResponse)
+def prometheus_metrics():
+    if not _truthy_env(os.getenv("RAG_EXPOSE_PROMETHEUS_METRICS", "1")):
+        raise HTTPException(status_code=404, detail="Not found")
+    return _render_prometheus_metrics()
+
+
 def _truthy_env(v: str) -> bool:
     return (v or "").strip().lower() in {"1", "true", "yes", "y"}
 
@@ -6702,6 +6858,20 @@ def _public_config() -> dict:
         "RAG_LC_ROUTE_LLM",
         "RAG_LC_STRUCTURED",
         "RAG_LC_ENFORCE_CITATIONS",
+        "RAG_RETRIEVAL_CACHE_ENABLE",
+        "RAG_RETRIEVAL_CACHE_TTL_SECONDS",
+        "RAG_RETRIEVAL_CACHE_MAX_ENTRIES",
+        "RAG_RETRIEVAL_CACHE_NAMESPACE",
+        "RAG_CACHE_ENV",
+        "RAG_CACHE_SERVICE_NAME",
+        "RAG_SERVICE_NAME",
+        "RAG_ENVIRONMENT",
+        "RAG_EXPOSE_CACHE_METRICS",
+        "RAG_EXPOSE_PROMETHEUS_METRICS",
+        "RAG_WARMUP_ENABLE",
+        "RAG_WARMUP_BACKGROUND",
+        "RAG_WARMUP_LIMIT",
+        "RAG_WARMUP_FILE",
     ]
 
     deny = ("KEY", "TOKEN", "SECRET", "PASSWORD")

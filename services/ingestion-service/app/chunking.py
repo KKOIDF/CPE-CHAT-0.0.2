@@ -2,7 +2,7 @@ import math, time, re
 import csv
 import hashlib
 from pathlib import Path
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Any
 
 from .config import CHUNK_MIN_TOKENS, CHUNK_MAX_TOKENS, CHUNK_OVERLAP_RATIO, CHAR_PER_TOKEN, CHUNK_STRATEGY, CURRICULUM_PROGRAM
 from .document_profiles import infer_document_profile
@@ -3430,6 +3430,168 @@ def _make_chunks_sentence_window(paragraphs: List[Dict], source_path: str) -> Li
     return chunks
 
 
+def _flatten_lines_with_pages(paragraphs: List[Dict]) -> tuple[List[str], List[int]]:
+    lines: List[str] = []
+    pages: List[int] = []
+    for p in paragraphs:
+        page_raw = p.get('page', 0)
+        try:
+            page = int(page_raw) if page_raw is not None else 0
+        except (ValueError, TypeError):
+            page = 0
+        txt = (p.get('text') or '').strip()
+        if not txt:
+            continue
+        for ln in txt.splitlines():
+            s = (ln or '').strip()
+            if not s:
+                continue
+            lines.append(s)
+            pages.append(page)
+    return lines, pages
+
+
+def _is_table_like_line(line: str) -> bool:
+    cells = _split_table_cells(line)
+    return len(cells) >= 3
+
+
+def _base_meta_from_profile(source_path: str, lines: List[str], profile: Dict) -> Dict:
+    full_text = "\n".join(lines)
+    dom = str(profile.get('domain') or '').strip().lower()
+    base: Dict = {
+        'doc_title': _infer_doc_title(lines, source_path),
+        'doc_type': str(profile.get('doc_type') or 'unknown'),
+        'year_be': _extract_year_be_from_text_or_source(full_text, source_path),
+        'effective_from': _infer_effective_from(full_text),
+    }
+    if dom == 'regulations':
+        base['topic'] = _infer_reg_topic(full_text, source_path)
+        base['effective_to'] = _infer_effective_to(full_text)
+    else:
+        base['topic'] = _infer_topic(full_text, source_path)
+        base['audience'] = _infer_audience(full_text)
+    return base
+
+
+def _make_chunks_table_aware(paragraphs: List[Dict], source_path: str, profile: Optional[Dict] = None) -> List[Dict]:
+    profile = profile or infer_document_profile(source_path, "\n".join([str((p or {}).get('text') or '') for p in (paragraphs or [])[:80]]))
+    lines, pages = _flatten_lines_with_pages(paragraphs)
+    if not lines:
+        return []
+
+    resolved_source = normalize_doc_name(source_path)
+    resolved_path = str(Path(source_path).resolve())
+    base_meta = _base_meta_from_profile(source_path, lines, profile)
+    chunks: List[Dict] = []
+
+    blocks: List[Dict[str, Any]] = []
+    current_kind = ''
+    current_lines: List[str] = []
+    current_pages: List[int] = []
+    current_heading = ''
+    recent_heading = ''
+
+    def flush_block() -> None:
+        nonlocal current_kind, current_lines, current_pages, current_heading
+        if not current_lines:
+            return
+        blocks.append({
+            'kind': current_kind or 'prose',
+            'lines': list(current_lines),
+            'pages': list(current_pages),
+            'heading': current_heading or recent_heading,
+        })
+        current_kind = ''
+        current_lines = []
+        current_pages = []
+        current_heading = ''
+
+    for ln, pg in zip(lines, pages):
+        is_heading_line = is_heading(ln)
+        is_table_line = _is_table_like_line(ln)
+        kind = 'table' if is_table_line else 'prose'
+        if is_heading_line:
+            recent_heading = ln[:120]
+            if current_lines and current_kind == 'table':
+                flush_block()
+        if current_lines and current_kind != kind:
+            flush_block()
+        if not current_lines:
+            current_kind = kind
+            current_heading = recent_heading
+        current_lines.append(ln)
+        current_pages.append(pg)
+    flush_block()
+
+    for bi, block in enumerate(blocks):
+        block_lines = list(block.get('lines') or [])
+        block_pages = list(block.get('pages') or [])
+        heading = str(block.get('heading') or '').strip()
+        if not block_lines:
+            continue
+        block_kind = str(block.get('kind') or 'prose')
+        if block_kind == 'table':
+            header_lines: List[str] = []
+            if heading:
+                header_lines.append(heading)
+            header_lines.extend(block_lines[:2])
+            table_keys: List[str] = []
+            for row in block_lines[:12]:
+                table_keys.extend(_split_table_cells(row)[:4])
+                if len(table_keys) >= 10:
+                    break
+            extra = {
+                'section_path': f"Table > {heading or base_meta.get('doc_type') or 'table'}",
+                'table_like': 1,
+                'table_row_count': len(block_lines),
+                'table_keys': '; '.join([k for k in table_keys if k][:10]),
+            }
+            chunks.extend(_pack_lines_to_chunks(
+                source_path=source_path,
+                resolved_source=resolved_source,
+                resolved_path=resolved_path,
+                pages=block_pages,
+                lines=header_lines + block_lines,
+                base_meta=base_meta,
+                section='table',
+                clause_id=(heading or f"table:{bi+1}")[:80],
+                extra_meta=extra,
+            ))
+        else:
+            extra = {
+                'section_path': f"Section > {heading or 'body'}",
+                'table_like': 0,
+            }
+            chunks.extend(_pack_lines_to_chunks(
+                source_path=source_path,
+                resolved_source=resolved_source,
+                resolved_path=resolved_path,
+                pages=block_pages,
+                lines=block_lines,
+                base_meta=base_meta,
+                section='mixed_prose' if str(profile.get('semantic_chunk_strategy') or '') == 'mixed_layout' else 'prose',
+                clause_id=(heading or f"section:{bi+1}")[:80],
+                extra_meta=extra,
+            ))
+
+    for idx, ch in enumerate(chunks):
+        ch.setdefault('chunk_id', idx)
+    return chunks
+
+
+def _make_chunks_mixed_layout(paragraphs: List[Dict], source_path: str, profile: Optional[Dict] = None) -> List[Dict]:
+    profile = profile or infer_document_profile(source_path, "\n".join([str((p or {}).get('text') or '') for p in (paragraphs or [])[:80]]))
+    lines, _pages = _flatten_lines_with_pages(paragraphs)
+    if not lines:
+        return []
+    table_lines = sum(1 for line in lines if _is_table_like_line(line))
+    heading_lines = sum(1 for line in lines if is_heading(line))
+    if table_lines >= 4 and heading_lines >= 1:
+        return _make_chunks_table_aware(paragraphs, source_path, profile=profile)
+    return _make_chunks_structure(paragraphs, source_path)
+
+
 def make_chunks(paragraphs: List[Dict], source_path: str) -> List[Dict]:
     joined = "\n".join([str((p or {}).get('text') or '').strip() for p in (paragraphs or [])[:80] if str((p or {}).get('text') or '').strip()])
     profile = infer_document_profile(source_path, joined)
@@ -3438,6 +3600,10 @@ def make_chunks(paragraphs: List[Dict], source_path: str) -> List[Dict]:
         return _make_chunks_langchain_recursive(paragraphs, source_path)
     if strat == 'sentence_window':
         return _make_chunks_sentence_window(paragraphs, source_path)
+    if strat in ('table_aware', 'table'):
+        return _make_chunks_table_aware(paragraphs, source_path, profile=profile)
+    if strat in ('mixed_layout', 'mixed'):
+        return _make_chunks_mixed_layout(paragraphs, source_path, profile=profile)
     if strat in ('announcement_template', 'announcements'):
         return _make_chunks_announcement_template(paragraphs, source_path)
     if strat in ('curriculum_course', 'course_centric', 'course'):

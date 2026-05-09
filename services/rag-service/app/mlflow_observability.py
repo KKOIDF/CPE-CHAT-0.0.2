@@ -27,6 +27,8 @@ _CATEGORICAL_METRIC_KEYS = {
     "structured_regulations_miss_reason",
     "structured_regulations_source_kind",
     "structured_curriculum_consistency_guard_mode",
+    "retrieval_cache_backend",
+    "retrieval_cache_namespace",
 }
 
 
@@ -357,6 +359,13 @@ class MlflowObservability:
                 "path_nonstructured_used": metrics.get("path_nonstructured_used"),
                 "citation_repair_attempt": metrics.get("citation_repair_attempt"),
                 "citation_repair_success": metrics.get("citation_repair_success"),
+                "retrieval_cache_hit": metrics.get("retrieval_cache_hit"),
+                "retrieval_cache_miss": metrics.get("retrieval_cache_miss"),
+                "retrieval_cache_expired": metrics.get("retrieval_cache_expired"),
+                "retrieval_cache_invalidated": metrics.get("retrieval_cache_invalidated"),
+                "retrieval_cache_fallback_to_memory": metrics.get("retrieval_cache_fallback_to_memory"),
+                "retrieval_cache_backend": metrics.get("retrieval_cache_backend"),
+                "retrieval_cache_namespace": metrics.get("retrieval_cache_namespace"),
             }
 
             # Store question always (requirement), with truncation.
@@ -499,6 +508,11 @@ class MlflowObservability:
             path_nonstructured_used = float(metric_sums.get("path_nonstructured_used") or 0.0)
             cite_attempt = float(metric_sums.get("citation_repair_attempt") or 0.0)
             cite_success = float(metric_sums.get("citation_repair_success") or 0.0)
+            cache_hit = float(metric_sums.get("retrieval_cache_hit") or 0.0)
+            cache_miss = float(metric_sums.get("retrieval_cache_miss") or 0.0)
+            cache_expired = float(metric_sums.get("retrieval_cache_expired") or 0.0)
+            cache_invalidated = float(metric_sums.get("retrieval_cache_invalidated") or 0.0)
+            cache_fallback = float(metric_sums.get("retrieval_cache_fallback_to_memory") or 0.0)
 
             if structured_eligible > 0:
                 metrics_to_log[f"rate__structured_path_hit__{ep}"] = structured_hit / structured_eligible
@@ -510,6 +524,12 @@ class MlflowObservability:
                 metrics_to_log[f"rate__path_nonstructured_used__{ep}"] = path_nonstructured_used / float(n)
             if cite_attempt > 0:
                 metrics_to_log[f"rate__citation_repair_success__{ep}"] = cite_success / cite_attempt
+            cache_attempts = cache_hit + cache_miss + cache_expired + cache_invalidated
+            if cache_attempts > 0:
+                metrics_to_log[f"rate__retrieval_cache_hit__{ep}"] = cache_hit / cache_attempts
+                metrics_to_log[f"rate__retrieval_cache_stale__{ep}"] = (cache_expired + cache_invalidated) / cache_attempts
+            if n > 0:
+                metrics_to_log[f"rate__retrieval_cache_fallback_to_memory__{ep}"] = cache_fallback / float(n)
 
             # Top categorical signals (intent/domain/failure_intent).
             for cat_key, cat_vals in (category_counts_all.get(ep) or {}).items():
@@ -573,6 +593,18 @@ class MlflowObservability:
             self.flush()
         except Exception:
             pass
+
+    def snapshot(self) -> Dict[str, Any]:
+        with self._lock:
+            counts = dict(self._counts)
+            errors = dict(self._errors)
+            latencies = {k: list(v) for k, v in self._latencies.items()}
+        return {
+            "enabled": bool(self._cfg.enabled),
+            "counts": counts,
+            "errors": errors,
+            "latencies": latencies,
+        }
 
     def _log_trace(
         self,

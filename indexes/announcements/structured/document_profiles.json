@@ -5,353 +5,899 @@
     {
       "source_path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/announcements/131.txt",
       "source_name": "131.txt",
+      "source_ext": ".txt",
       "domain": "announcements",
-      "doc_type": "academic_calendar",
+      "doc_type": "announcement_procedure",
       "semantic_chunk_strategy": "announcement_template",
-      "extractor_profile": "calendar_events",
-      "confidence": 0.96
+      "extractor_profile": "procedure_blocks",
+      "confidence": 0.86,
+      "layout_signals": {
+        "heading_count": 17,
+        "clause_count": 0,
+        "course_code_hits": 0,
+        "plo_hits": 0,
+        "semester_hits": 0,
+        "date_hits": 0,
+        "email_hits": 0,
+        "phone_hits": 0,
+        "table_row_count": 0,
+        "table_header_score": 4,
+        "mixed_layout_score": 0
+      }
     },
     {
       "source_path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/announcements/137.txt",
       "source_name": "137.txt",
+      "source_ext": ".txt",
       "domain": "announcements",
       "doc_type": "announcement_procedure",
       "semantic_chunk_strategy": "announcement_template",
       "extractor_profile": "procedure_blocks",
-      "confidence": 0.82
+      "confidence": 0.86,
+      "layout_signals": {
+        "heading_count": 3,
+        "clause_count": 0,
+        "course_code_hits": 0,
+        "plo_hits": 0,
+        "semester_hits": 0,
+        "date_hits": 0,
+        "email_hits": 0,
+        "phone_hits": 0,
+        "table_row_count": 0,
+        "table_header_score": 3,
+        "mixed_layout_score": 0
+      }
     },
     {
       "source_path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/announcements/139.txt",
       "source_name": "139.txt",
+      "source_ext": ".txt",
       "domain": "announcements",
       "doc_type": "announcement_procedure",
       "semantic_chunk_strategy": "announcement_template",
       "extractor_profile": "procedure_blocks",
-      "confidence": 0.82
+      "confidence": 0.86,
+      "layout_signals": {
+        "heading_count": 11,
+        "clause_count": 0,
+        "course_code_hits": 0,
+        "plo_hits": 0,
+        "semester_hits": 0,
+        "date_hits": 0,
+        "email_hits": 0,
+        "phone_hits": 0,
+        "table_row_count": 0,
+        "table_header_score": 2,
+        "mixed_layout_score": 0
+      }
     },
     {
       "source_path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/announcements/2018_06_08_15_13_16.txt",
       "source_name": "2018_06_08_15_13_16.txt",
-      "domain": "announcements",
-      "doc_type": "announcement_procedure",
-      "semantic_chunk_strategy": "announcement_template",
-      "extractor_profile": "procedure_blocks",
-      "confidence": 0.82
-    },
-    {
-      "source_path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/announcements/2568THV3-5TH(1).txt",
-      "source_name": "2568THV3-5TH(1).txt",
-      "domain": "announcements",
-      "doc_type": "academic_calendar",
-      "semantic_chunk_strategy": "announcement_template",
-      "extractor_profile": "calendar_events",
-      "confidence": 0.96
-    },
-    {
-      "source_path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/announcements/2568THV3-5TH.txt",
-      "source_name": "2568THV3-5TH.txt",
-      "domain": "announcements",
-      "doc_type": "academic_calendar",
-      "semantic_chunk_strategy": "announcement_template",
-      "extractor_profile": "calendar_events",
-      "confidence": 0.96
-    },
-    {
-      "source_path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/announcements/AcademicCalendar2025TH.txt",
-      "source_name": "AcademicCalendar2025TH.txt",
-      "domain": "announcements",
-      "doc_type": "academic_calendar",
-      "semantic_chunk_strategy": "announcement_template",
-      "extractor_profile": "calendar_events",
-      "confidence": 0.96
-    },
-    {
-      "source_path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/announcements/Approved-exam2568.txt",
-      "source_name": "Approved-exam2568.txt",
+      "source_ext": ".txt",
       "domain": "announcements",
       "doc_type": "announcement_general",
       "semantic_chunk_strategy": "announcement_template",
       "extractor_profile": "announcement_general",
-      "confidence": 0.7
+      "confidence": 0.7,
+      "layout_signals": {
+        "heading_count": 1,
+        "clause_count": 0,
+        "course_code_hits": 0,
+        "plo_hits": 0,
+        "semester_hits": 0,
+        "date_hits": 0,
+        "email_hits": 0,
+        "phone_hits": 0,
+        "table_row_count": 0,
+        "table_header_score": 11,
+        "mixed_layout_score": 0
+      }
+    },
+    {
+      "source_path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/announcements/2568THV3-5TH(1).txt",
+      "source_name": "2568THV3-5TH(1).txt",
+      "source_ext": ".txt",
+      "domain": "announcements",
+      "doc_type": "academic_calendar",
+      "semantic_chunk_strategy": "announcement_template",
+      "extractor_profile": "calendar_events",
+      "confidence": 0.97,
+      "layout_signals": {
+        "heading_count": 9,
+        "clause_count": 0,
+        "course_code_hits": 0,
+        "plo_hits": 0,
+        "semester_hits": 2,
+        "date_hits": 0,
+        "email_hits": 0,
+        "phone_hits": 0,
+        "table_row_count": 1,
+        "table_header_score": 3,
+        "mixed_layout_score": 0
+      }
+    },
+    {
+      "source_path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/announcements/2568THV3-5TH.txt",
+      "source_name": "2568THV3-5TH.txt",
+      "source_ext": ".txt",
+      "domain": "announcements",
+      "doc_type": "academic_calendar",
+      "semantic_chunk_strategy": "announcement_template",
+      "extractor_profile": "calendar_events",
+      "confidence": 0.97,
+      "layout_signals": {
+        "heading_count": 9,
+        "clause_count": 0,
+        "course_code_hits": 0,
+        "plo_hits": 0,
+        "semester_hits": 2,
+        "date_hits": 0,
+        "email_hits": 0,
+        "phone_hits": 0,
+        "table_row_count": 1,
+        "table_header_score": 3,
+        "mixed_layout_score": 0
+      }
+    },
+    {
+      "source_path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/announcements/AcademicCalendar2025TH.txt",
+      "source_name": "AcademicCalendar2025TH.txt",
+      "source_ext": ".txt",
+      "domain": "announcements",
+      "doc_type": "academic_calendar",
+      "semantic_chunk_strategy": "table_aware",
+      "extractor_profile": "calendar_events",
+      "confidence": 0.97,
+      "layout_signals": {
+        "heading_count": 6,
+        "clause_count": 0,
+        "course_code_hits": 0,
+        "plo_hits": 0,
+        "semester_hits": 12,
+        "date_hits": 0,
+        "email_hits": 0,
+        "phone_hits": 0,
+        "table_row_count": 5,
+        "table_header_score": 5,
+        "mixed_layout_score": 3
+      }
+    },
+    {
+      "source_path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/announcements/Approved-exam2568.txt",
+      "source_name": "Approved-exam2568.txt",
+      "source_ext": ".txt",
+      "domain": "announcements",
+      "doc_type": "announcement_contact_list",
+      "semantic_chunk_strategy": "mixed_layout",
+      "extractor_profile": "contact_blocks",
+      "confidence": 0.84,
+      "layout_signals": {
+        "heading_count": 0,
+        "clause_count": 0,
+        "course_code_hits": 0,
+        "plo_hits": 0,
+        "semester_hits": 1,
+        "date_hits": 1,
+        "email_hits": 0,
+        "phone_hits": 1,
+        "table_row_count": 0,
+        "table_header_score": 4,
+        "mixed_layout_score": 0
+      }
     },
     {
       "source_path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/announcements/ENG-B2568.txt",
       "source_name": "ENG-B2568.txt",
+      "source_ext": ".txt",
       "domain": "announcements",
       "doc_type": "academic_calendar",
       "semantic_chunk_strategy": "announcement_template",
       "extractor_profile": "calendar_events",
-      "confidence": 0.96
+      "confidence": 0.97,
+      "layout_signals": {
+        "heading_count": 26,
+        "clause_count": 10,
+        "course_code_hits": 3,
+        "plo_hits": 0,
+        "semester_hits": 1,
+        "date_hits": 0,
+        "email_hits": 0,
+        "phone_hits": 0,
+        "table_row_count": 0,
+        "table_header_score": 2,
+        "mixed_layout_score": 0
+      }
     },
     {
       "source_path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/announcements/ENG-D2568.txt",
       "source_name": "ENG-D2568.txt",
+      "source_ext": ".txt",
       "domain": "announcements",
       "doc_type": "announcement_procedure",
       "semantic_chunk_strategy": "announcement_template",
       "extractor_profile": "procedure_blocks",
-      "confidence": 0.82
+      "confidence": 0.86,
+      "layout_signals": {
+        "heading_count": 34,
+        "clause_count": 10,
+        "course_code_hits": 14,
+        "plo_hits": 0,
+        "semester_hits": 1,
+        "date_hits": 0,
+        "email_hits": 0,
+        "phone_hits": 0,
+        "table_row_count": 1,
+        "table_header_score": 2,
+        "mixed_layout_score": 0
+      }
     },
     {
       "source_path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/announcements/ENG-M2568.txt",
       "source_name": "ENG-M2568.txt",
+      "source_ext": ".txt",
       "domain": "announcements",
       "doc_type": "announcement_procedure",
       "semantic_chunk_strategy": "announcement_template",
       "extractor_profile": "procedure_blocks",
-      "confidence": 0.82
+      "confidence": 0.86,
+      "layout_signals": {
+        "heading_count": 25,
+        "clause_count": 10,
+        "course_code_hits": 11,
+        "plo_hits": 0,
+        "semester_hits": 1,
+        "date_hits": 0,
+        "email_hits": 0,
+        "phone_hits": 0,
+        "table_row_count": 2,
+        "table_header_score": 2,
+        "mixed_layout_score": 0
+      }
     },
     {
       "source_path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/announcements/ENG2561.txt",
       "source_name": "ENG2561.txt",
+      "source_ext": ".txt",
       "domain": "announcements",
       "doc_type": "announcement_procedure",
       "semantic_chunk_strategy": "announcement_template",
       "extractor_profile": "procedure_blocks",
-      "confidence": 0.82
+      "confidence": 0.86,
+      "layout_signals": {
+        "heading_count": 11,
+        "clause_count": 6,
+        "course_code_hits": 6,
+        "plo_hits": 0,
+        "semester_hits": 0,
+        "date_hits": 0,
+        "email_hits": 0,
+        "phone_hits": 0,
+        "table_row_count": 1,
+        "table_header_score": 2,
+        "mixed_layout_score": 0
+      }
     },
     {
       "source_path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/announcements/English_Grad_2017.txt",
       "source_name": "English_Grad_2017.txt",
+      "source_ext": ".txt",
       "domain": "announcements",
       "doc_type": "announcement_procedure",
       "semantic_chunk_strategy": "announcement_template",
       "extractor_profile": "procedure_blocks",
-      "confidence": 0.82
+      "confidence": 0.86,
+      "layout_signals": {
+        "heading_count": 12,
+        "clause_count": 0,
+        "course_code_hits": 2,
+        "plo_hits": 0,
+        "semester_hits": 0,
+        "date_hits": 0,
+        "email_hits": 0,
+        "phone_hits": 0,
+        "table_row_count": 0,
+        "table_header_score": 5,
+        "mixed_layout_score": 0
+      }
     },
     {
       "source_path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/announcements/Pre-requisite2567-final.txt",
       "source_name": "Pre-requisite2567-final.txt",
+      "source_ext": ".txt",
       "domain": "announcements",
       "doc_type": "announcement_procedure",
-      "semantic_chunk_strategy": "announcement_template",
+      "semantic_chunk_strategy": "mixed_layout",
       "extractor_profile": "procedure_blocks",
-      "confidence": 0.82
+      "confidence": 0.86,
+      "layout_signals": {
+        "heading_count": 3,
+        "clause_count": 0,
+        "course_code_hits": 0,
+        "plo_hits": 0,
+        "semester_hits": 1,
+        "date_hits": 1,
+        "email_hits": 0,
+        "phone_hits": 0,
+        "table_row_count": 3,
+        "table_header_score": 5,
+        "mixed_layout_score": 2
+      }
     },
     {
       "source_path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/announcements/announce_financ.txt",
       "source_name": "announce_financ.txt",
+      "source_ext": ".txt",
       "domain": "announcements",
       "doc_type": "announcement_procedure",
       "semantic_chunk_strategy": "announcement_template",
       "extractor_profile": "procedure_blocks",
-      "confidence": 0.82
+      "confidence": 0.86,
+      "layout_signals": {
+        "heading_count": 8,
+        "clause_count": 0,
+        "course_code_hits": 0,
+        "plo_hits": 0,
+        "semester_hits": 0,
+        "date_hits": 0,
+        "email_hits": 0,
+        "phone_hits": 0,
+        "table_row_count": 0,
+        "table_header_score": 2,
+        "mixed_layout_score": 0
+      }
     },
     {
       "source_path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/announcements/announce_financCancel.txt",
       "source_name": "announce_financCancel.txt",
+      "source_ext": ".txt",
       "domain": "announcements",
-      "doc_type": "announcement_procedure",
+      "doc_type": "announcement_general",
       "semantic_chunk_strategy": "announcement_template",
-      "extractor_profile": "procedure_blocks",
-      "confidence": 0.82
+      "extractor_profile": "announcement_general",
+      "confidence": 0.7,
+      "layout_signals": {
+        "heading_count": 0,
+        "clause_count": 0,
+        "course_code_hits": 0,
+        "plo_hits": 0,
+        "semester_hits": 1,
+        "date_hits": 0,
+        "email_hits": 0,
+        "phone_hits": 0,
+        "table_row_count": 0,
+        "table_header_score": 2,
+        "mixed_layout_score": 0
+      }
     },
     {
       "source_path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/announcements/anounc_move52ene.txt",
       "source_name": "anounc_move52ene.txt",
+      "source_ext": ".txt",
       "domain": "announcements",
       "doc_type": "announcement_procedure",
       "semantic_chunk_strategy": "announcement_template",
       "extractor_profile": "procedure_blocks",
-      "confidence": 0.82
+      "confidence": 0.86,
+      "layout_signals": {
+        "heading_count": 4,
+        "clause_count": 0,
+        "course_code_hits": 0,
+        "plo_hits": 0,
+        "semester_hits": 1,
+        "date_hits": 0,
+        "email_hits": 0,
+        "phone_hits": 0,
+        "table_row_count": 0,
+        "table_header_score": 3,
+        "mixed_layout_score": 0
+      }
     },
     {
       "source_path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/announcements/calculator2023-2.txt",
       "source_name": "calculator2023-2.txt",
+      "source_ext": ".txt",
       "domain": "announcements",
-      "doc_type": "announcement_procedure",
+      "doc_type": "announcement_general",
       "semantic_chunk_strategy": "announcement_template",
-      "extractor_profile": "procedure_blocks",
-      "confidence": 0.82
+      "extractor_profile": "announcement_general",
+      "confidence": 0.7,
+      "layout_signals": {
+        "heading_count": 0,
+        "clause_count": 0,
+        "course_code_hits": 0,
+        "plo_hits": 0,
+        "semester_hits": 0,
+        "date_hits": 0,
+        "email_hits": 0,
+        "phone_hits": 0,
+        "table_row_count": 0,
+        "table_header_score": 1,
+        "mixed_layout_score": 0
+      }
     },
     {
       "source_path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/announcements/calculator2023.txt",
       "source_name": "calculator2023.txt",
+      "source_ext": ".txt",
       "domain": "announcements",
       "doc_type": "announcement_procedure",
       "semantic_chunk_strategy": "announcement_template",
       "extractor_profile": "procedure_blocks",
-      "confidence": 0.82
+      "confidence": 0.86,
+      "layout_signals": {
+        "heading_count": 5,
+        "clause_count": 0,
+        "course_code_hits": 0,
+        "plo_hits": 0,
+        "semester_hits": 1,
+        "date_hits": 0,
+        "email_hits": 0,
+        "phone_hits": 0,
+        "table_row_count": 0,
+        "table_header_score": 1,
+        "mixed_layout_score": 0
+      }
     },
     {
       "source_path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/announcements/develop_eng-2563covid19.txt",
       "source_name": "develop_eng-2563covid19.txt",
+      "source_ext": ".txt",
       "domain": "announcements",
       "doc_type": "announcement_procedure",
       "semantic_chunk_strategy": "announcement_template",
       "extractor_profile": "procedure_blocks",
-      "confidence": 0.82
+      "confidence": 0.86,
+      "layout_signals": {
+        "heading_count": 3,
+        "clause_count": 3,
+        "course_code_hits": 0,
+        "plo_hits": 0,
+        "semester_hits": 0,
+        "date_hits": 0,
+        "email_hits": 0,
+        "phone_hits": 0,
+        "table_row_count": 2,
+        "table_header_score": 2,
+        "mixed_layout_score": 0
+      }
     },
     {
       "source_path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/announcements/develop_eng-2564covid19.txt",
       "source_name": "develop_eng-2564covid19.txt",
+      "source_ext": ".txt",
       "domain": "announcements",
       "doc_type": "announcement_procedure",
       "semantic_chunk_strategy": "announcement_template",
       "extractor_profile": "procedure_blocks",
-      "confidence": 0.82
+      "confidence": 0.86,
+      "layout_signals": {
+        "heading_count": 3,
+        "clause_count": 3,
+        "course_code_hits": 0,
+        "plo_hits": 0,
+        "semester_hits": 0,
+        "date_hits": 0,
+        "email_hits": 0,
+        "phone_hits": 0,
+        "table_row_count": 2,
+        "table_header_score": 2,
+        "mixed_layout_score": 0
+      }
     },
     {
       "source_path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/announcements/duplicate2551.txt",
       "source_name": "duplicate2551.txt",
+      "source_ext": ".txt",
       "domain": "announcements",
       "doc_type": "announcement_procedure",
       "semantic_chunk_strategy": "announcement_template",
       "extractor_profile": "procedure_blocks",
-      "confidence": 0.82
+      "confidence": 0.86,
+      "layout_signals": {
+        "heading_count": 10,
+        "clause_count": 0,
+        "course_code_hits": 0,
+        "plo_hits": 0,
+        "semester_hits": 0,
+        "date_hits": 0,
+        "email_hits": 0,
+        "phone_hits": 0,
+        "table_row_count": 0,
+        "table_header_score": 2,
+        "mixed_layout_score": 0
+      }
     },
     {
       "source_path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/announcements/eng2564B.txt",
       "source_name": "eng2564B.txt",
+      "source_ext": ".txt",
       "domain": "announcements",
       "doc_type": "announcement_procedure",
       "semantic_chunk_strategy": "announcement_template",
       "extractor_profile": "procedure_blocks",
-      "confidence": 0.82
+      "confidence": 0.86,
+      "layout_signals": {
+        "heading_count": 37,
+        "clause_count": 8,
+        "course_code_hits": 3,
+        "plo_hits": 0,
+        "semester_hits": 0,
+        "date_hits": 0,
+        "email_hits": 0,
+        "phone_hits": 0,
+        "table_row_count": 2,
+        "table_header_score": 3,
+        "mixed_layout_score": 0
+      }
     },
     {
       "source_path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/announcements/eng2564D.txt",
       "source_name": "eng2564D.txt",
+      "source_ext": ".txt",
       "domain": "announcements",
       "doc_type": "announcement_procedure",
       "semantic_chunk_strategy": "announcement_template",
       "extractor_profile": "procedure_blocks",
-      "confidence": 0.82
+      "confidence": 0.86,
+      "layout_signals": {
+        "heading_count": 21,
+        "clause_count": 11,
+        "course_code_hits": 11,
+        "plo_hits": 0,
+        "semester_hits": 0,
+        "date_hits": 0,
+        "email_hits": 0,
+        "phone_hits": 0,
+        "table_row_count": 0,
+        "table_header_score": 3,
+        "mixed_layout_score": 0
+      }
     },
     {
       "source_path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/announcements/eng2564M.txt",
       "source_name": "eng2564M.txt",
+      "source_ext": ".txt",
       "domain": "announcements",
       "doc_type": "announcement_procedure",
       "semantic_chunk_strategy": "announcement_template",
       "extractor_profile": "procedure_blocks",
-      "confidence": 0.82
+      "confidence": 0.86,
+      "layout_signals": {
+        "heading_count": 49,
+        "clause_count": 9,
+        "course_code_hits": 9,
+        "plo_hits": 0,
+        "semester_hits": 0,
+        "date_hits": 0,
+        "email_hits": 0,
+        "phone_hits": 0,
+        "table_row_count": 0,
+        "table_header_score": 3,
+        "mixed_layout_score": 0
+      }
     },
     {
       "source_path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/announcements/etc1.txt",
       "source_name": "etc1.txt",
+      "source_ext": ".txt",
       "domain": "announcements",
       "doc_type": "announcement_procedure",
       "semantic_chunk_strategy": "announcement_template",
       "extractor_profile": "procedure_blocks",
-      "confidence": 0.82
+      "confidence": 0.86,
+      "layout_signals": {
+        "heading_count": 5,
+        "clause_count": 0,
+        "course_code_hits": 0,
+        "plo_hits": 0,
+        "semester_hits": 0,
+        "date_hits": 0,
+        "email_hits": 0,
+        "phone_hits": 0,
+        "table_row_count": 0,
+        "table_header_score": 3,
+        "mixed_layout_score": 0
+      }
     },
     {
       "source_path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/announcements/fee2567update.txt",
       "source_name": "fee2567update.txt",
+      "source_ext": ".txt",
       "domain": "announcements",
       "doc_type": "announcement_procedure",
       "semantic_chunk_strategy": "announcement_template",
       "extractor_profile": "procedure_blocks",
-      "confidence": 0.82
+      "confidence": 0.86,
+      "layout_signals": {
+        "heading_count": 6,
+        "clause_count": 6,
+        "course_code_hits": 0,
+        "plo_hits": 0,
+        "semester_hits": 1,
+        "date_hits": 0,
+        "email_hits": 0,
+        "phone_hits": 0,
+        "table_row_count": 0,
+        "table_header_score": 2,
+        "mixed_layout_score": 0
+      }
     },
     {
       "source_path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/announcements/industraltranning2563update.txt",
       "source_name": "industraltranning2563update.txt",
+      "source_ext": ".txt",
       "domain": "announcements",
       "doc_type": "announcement_procedure",
       "semantic_chunk_strategy": "announcement_template",
       "extractor_profile": "procedure_blocks",
-      "confidence": 0.82
+      "confidence": 0.86,
+      "layout_signals": {
+        "heading_count": 13,
+        "clause_count": 13,
+        "course_code_hits": 0,
+        "plo_hits": 0,
+        "semester_hits": 1,
+        "date_hits": 0,
+        "email_hits": 0,
+        "phone_hits": 0,
+        "table_row_count": 0,
+        "table_header_score": 3,
+        "mixed_layout_score": 0
+      }
     },
     {
       "source_path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/announcements/insurance-inter-std.txt",
       "source_name": "insurance-inter-std.txt",
+      "source_ext": ".txt",
       "domain": "announcements",
       "doc_type": "announcement_procedure",
       "semantic_chunk_strategy": "announcement_template",
       "extractor_profile": "procedure_blocks",
-      "confidence": 0.82
+      "confidence": 0.86,
+      "layout_signals": {
+        "heading_count": 2,
+        "clause_count": 0,
+        "course_code_hits": 1,
+        "plo_hits": 0,
+        "semester_hits": 0,
+        "date_hits": 0,
+        "email_hits": 0,
+        "phone_hits": 0,
+        "table_row_count": 1,
+        "table_header_score": 2,
+        "mixed_layout_score": 0
+      }
     },
     {
       "source_path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/announcements/insurance-std (1).txt",
       "source_name": "insurance-std (1).txt",
+      "source_ext": ".txt",
       "domain": "announcements",
       "doc_type": "announcement_procedure",
       "semantic_chunk_strategy": "announcement_template",
       "extractor_profile": "procedure_blocks",
-      "confidence": 0.82
+      "confidence": 0.86,
+      "layout_signals": {
+        "heading_count": 5,
+        "clause_count": 5,
+        "course_code_hits": 1,
+        "plo_hits": 0,
+        "semester_hits": 0,
+        "date_hits": 0,
+        "email_hits": 0,
+        "phone_hits": 0,
+        "table_row_count": 1,
+        "table_header_score": 2,
+        "mixed_layout_score": 0
+      }
     },
     {
       "source_path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/announcements/insurance-std.txt",
       "source_name": "insurance-std.txt",
+      "source_ext": ".txt",
       "domain": "announcements",
       "doc_type": "announcement_procedure",
       "semantic_chunk_strategy": "announcement_template",
       "extractor_profile": "procedure_blocks",
-      "confidence": 0.82
+      "confidence": 0.86,
+      "layout_signals": {
+        "heading_count": 5,
+        "clause_count": 5,
+        "course_code_hits": 1,
+        "plo_hits": 0,
+        "semester_hits": 0,
+        "date_hits": 0,
+        "email_hits": 0,
+        "phone_hits": 0,
+        "table_row_count": 1,
+        "table_header_score": 2,
+        "mixed_layout_score": 0
+      }
     },
     {
       "source_path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/announcements/new_2558.txt",
       "source_name": "new_2558.txt",
+      "source_ext": ".txt",
       "domain": "announcements",
       "doc_type": "announcement_procedure",
       "semantic_chunk_strategy": "announcement_template",
       "extractor_profile": "procedure_blocks",
-      "confidence": 0.82
+      "confidence": 0.86,
+      "layout_signals": {
+        "heading_count": 11,
+        "clause_count": 3,
+        "course_code_hits": 0,
+        "plo_hits": 0,
+        "semester_hits": 0,
+        "date_hits": 0,
+        "email_hits": 0,
+        "phone_hits": 0,
+        "table_row_count": 1,
+        "table_header_score": 6,
+        "mixed_layout_score": 0
+      }
     },
     {
       "source_path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/announcements/pre-co-obem2567.txt",
       "source_name": "pre-co-obem2567.txt",
+      "source_ext": ".txt",
       "domain": "announcements",
-      "doc_type": "announcement_procedure",
+      "doc_type": "announcement_general",
       "semantic_chunk_strategy": "announcement_template",
-      "extractor_profile": "procedure_blocks",
-      "confidence": 0.82
+      "extractor_profile": "announcement_general",
+      "confidence": 0.7,
+      "layout_signals": {
+        "heading_count": 0,
+        "clause_count": 0,
+        "course_code_hits": 0,
+        "plo_hits": 0,
+        "semester_hits": 2,
+        "date_hits": 0,
+        "email_hits": 0,
+        "phone_hits": 0,
+        "table_row_count": 3,
+        "table_header_score": 3,
+        "mixed_layout_score": 0
+      }
     },
     {
       "source_path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/announcements/price.txt",
       "source_name": "price.txt",
+      "source_ext": ".txt",
       "domain": "announcements",
       "doc_type": "announcement_procedure",
       "semantic_chunk_strategy": "announcement_template",
       "extractor_profile": "procedure_blocks",
-      "confidence": 0.82
+      "confidence": 0.86,
+      "layout_signals": {
+        "heading_count": 4,
+        "clause_count": 0,
+        "course_code_hits": 0,
+        "plo_hits": 0,
+        "semester_hits": 1,
+        "date_hits": 0,
+        "email_hits": 0,
+        "phone_hits": 0,
+        "table_row_count": 0,
+        "table_header_score": 4,
+        "mixed_layout_score": 0
+      }
     },
     {
       "source_path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/announcements/schedule2565.txt",
       "source_name": "schedule2565.txt",
+      "source_ext": ".txt",
       "domain": "announcements",
       "doc_type": "announcement_procedure",
       "semantic_chunk_strategy": "announcement_template",
       "extractor_profile": "procedure_blocks",
-      "confidence": 0.82
+      "confidence": 0.86,
+      "layout_signals": {
+        "heading_count": 4,
+        "clause_count": 0,
+        "course_code_hits": 0,
+        "plo_hits": 0,
+        "semester_hits": 0,
+        "date_hits": 0,
+        "email_hits": 0,
+        "phone_hits": 0,
+        "table_row_count": 0,
+        "table_header_score": 4,
+        "mixed_layout_score": 0
+      }
     },
     {
       "source_path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/announcements/t_fee.txt",
       "source_name": "t_fee.txt",
+      "source_ext": ".txt",
       "domain": "announcements",
-      "doc_type": "announcement_procedure",
+      "doc_type": "announcement_general",
       "semantic_chunk_strategy": "announcement_template",
-      "extractor_profile": "procedure_blocks",
-      "confidence": 0.82
+      "extractor_profile": "announcement_general",
+      "confidence": 0.7,
+      "layout_signals": {
+        "heading_count": 1,
+        "clause_count": 1,
+        "course_code_hits": 0,
+        "plo_hits": 0,
+        "semester_hits": 0,
+        "date_hits": 0,
+        "email_hits": 0,
+        "phone_hits": 0,
+        "table_row_count": 0,
+        "table_header_score": 2,
+        "mixed_layout_score": 0
+      }
     },
     {
       "source_path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/announcements/tetet2562doctor.txt",
       "source_name": "tetet2562doctor.txt",
+      "source_ext": ".txt",
       "domain": "announcements",
       "doc_type": "announcement_procedure",
       "semantic_chunk_strategy": "announcement_template",
       "extractor_profile": "procedure_blocks",
-      "confidence": 0.82
+      "confidence": 0.86,
+      "layout_signals": {
+        "heading_count": 3,
+        "clause_count": 3,
+        "course_code_hits": 7,
+        "plo_hits": 0,
+        "semester_hits": 0,
+        "date_hits": 0,
+        "email_hits": 0,
+        "phone_hits": 0,
+        "table_row_count": 0,
+        "table_header_score": 3,
+        "mixed_layout_score": 0
+      }
     },
     {
       "source_path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/announcements/ปฏิทินการศึกษา 2568.txt",
       "source_name": "ปฏิทินการศึกษา 2568.txt",
+      "source_ext": ".txt",
       "domain": "announcements",
       "doc_type": "academic_calendar",
-      "semantic_chunk_strategy": "announcement_template",
+      "semantic_chunk_strategy": "table_aware",
       "extractor_profile": "calendar_events",
-      "confidence": 0.96
+      "confidence": 0.97,
+      "layout_signals": {
+        "heading_count": 14,
+        "clause_count": 0,
+        "course_code_hits": 14,
+        "plo_hits": 0,
+        "semester_hits": 6,
+        "date_hits": 7,
+        "email_hits": 0,
+        "phone_hits": 0,
+        "table_row_count": 4,
+        "table_header_score": 5,
+        "mixed_layout_score": 3
+      }
     },
     {
       "source_path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/announcements/ประกาศ_มจธ_หลักเกณฑ์การจัดสรรผลประโยชน์_พศ2566_ฉบับเต็ม.txt",
       "source_name": "ประกาศ_มจธ_หลักเกณฑ์การจัดสรรผลประโยชน์_พศ2566_ฉบับเต็ม.txt",
+      "source_ext": ".txt",
       "domain": "announcements",
       "doc_type": "announcement_procedure",
       "semantic_chunk_strategy": "announcement_template",
       "extractor_profile": "procedure_blocks",
-      "confidence": 0.82
+      "confidence": 0.86,
+      "layout_signals": {
+        "heading_count": 11,
+        "clause_count": 10,
+        "course_code_hits": 0,
+        "plo_hits": 0,
+        "semester_hits": 0,
+        "date_hits": 0,
+        "email_hits": 0,
+        "phone_hits": 0,
+        "table_row_count": 0,
+        "table_header_score": 3,
+        "mixed_layout_score": 0
+      }
     }
   ]
 }

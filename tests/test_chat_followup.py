@@ -237,6 +237,59 @@ class TestChatFollowupPipeline(unittest.TestCase):
         self.assertEqual(prepared.followup_meta.get("followup_needs_clarification"), 1)
         self.assertIn("CPE 100", str(prepared.followup_meta.get("followup_clarification_message") or ""))
         self.assertIn("CPE 324", str(prepared.followup_meta.get("followup_clarification_message") or ""))
+        self.assertIn("หมายถึงวิชาไหนครับ", str(prepared.followup_meta.get("followup_clarification_message") or ""))
+        self.assertEqual(prepared.followup_meta.get("followup_ambiguity_score"), 3)
+        self.assertEqual(prepared.followup_meta.get("followup_ambiguity_reason"), "assistant_multiple_courses")
+
+    def test_regulations_followup_uses_domain_specific_clarification_message(self) -> None:
+        store = InMemorySessionStore()
+        messages = [
+            {"role": "user", "content": "RO-16 ใช้ทำอะไร"},
+            {"role": "assistant", "content": "..."},
+            {"role": "user", "content": "RO-17 ต่างกันยังไง"},
+            {"role": "assistant", "content": "..."},
+            {"role": "user", "content": "ต้องให้ใครเซ็น"},
+        ]
+
+        prepared = prepare_chat_request(
+            question="ต้องให้ใครเซ็น",
+            domain="regulations",
+            session_id="s2c5_reg",
+            messages=messages,
+            session_store=store,
+            question_preparer=lambda q, _d: q,
+        )
+
+        self.assertEqual(prepared.followup_meta.get("followup_needs_clarification"), 1)
+        self.assertIn("หมายถึงระเบียบหรือแบบฟอร์มไหนครับ", str(prepared.followup_meta.get("followup_clarification_message") or ""))
+        self.assertIn("RO-16", str(prepared.followup_meta.get("followup_clarification_message") or ""))
+        self.assertIn("RO-17", str(prepared.followup_meta.get("followup_clarification_message") or ""))
+        self.assertEqual(prepared.followup_meta.get("followup_ambiguity_reason"), "close_candidates")
+
+    def test_announcements_followup_uses_domain_specific_clarification_message(self) -> None:
+        store = InMemorySessionStore()
+        messages = [
+            {"role": "user", "content": "ประกาศทุนการศึกษา 2568"},
+            {"role": "assistant", "content": "..."},
+            {"role": "user", "content": "ปฏิทินการศึกษา 2568"},
+            {"role": "assistant", "content": "..."},
+            {"role": "user", "content": "หมดเขตเมื่อไร"},
+        ]
+
+        prepared = prepare_chat_request(
+            question="หมดเขตเมื่อไร",
+            domain="announcements",
+            session_id="s2c5_ann",
+            messages=messages,
+            session_store=store,
+            question_preparer=lambda q, _d: q,
+        )
+
+        self.assertEqual(prepared.followup_meta.get("followup_needs_clarification"), 1)
+        self.assertIn("หมายถึงประกาศหรือกำหนดการไหนครับ", str(prepared.followup_meta.get("followup_clarification_message") or ""))
+        self.assertIn("ประกาศทุนการศึกษา 2568", str(prepared.followup_meta.get("followup_clarification_message") or ""))
+        self.assertIn("ปฏิทินการศึกษา 2568", str(prepared.followup_meta.get("followup_clarification_message") or ""))
+        self.assertEqual(prepared.followup_meta.get("followup_ambiguity_reason"), "close_candidates")
 
     def test_instructor_course_list_followup_reuses_latest_instructor(self) -> None:
         store = InMemorySessionStore()
