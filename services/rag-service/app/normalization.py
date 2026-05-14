@@ -51,6 +51,12 @@ _COMMON_TYPO_FIXES: list[tuple[str, str]] = [
     ('มั๊ย', 'ไหม'),
     ('ได้ปะ', 'ได้ไหม'),
     ('ปรึกสา', 'ปรึกษา'),
+    ('ถอดรายวิชา', 'ถอนรายวิชา'),
+    ('ถอดวิชา', 'ถอนวิชา'),
+    ('ดรอปรายวิชา', 'ถอนรายวิชา'),
+    ('ดรอปวิชา', 'ถอนวิชา'),
+    ('drop รายวิชา', 'ถอนรายวิชา'),
+    ('withdraw รายวิชา', 'ถอนรายวิชา'),
     ('กำหนดส่งเอกสาร', 'กำหนดส่งเอกสาร'),
     # common Thai chat shorthand / colloquial phrasing
     ('เรียนไรบ้าง', 'เรียนอะไรบ้าง'),
@@ -209,6 +215,8 @@ def search_query_from_question(question: str) -> str:
     ql = q.lower()
     if re.search(r"\blng\s*[- ]?\s*\d{3}\b", q, flags=re.IGNORECASE) and ('language course' not in ql):
         q = f"{q} (language course รายวิชาภาษา)"
+    if any(t in q for t in ('ถอนรายวิชา', 'ถอนวิชา', 'ลดรายวิชา')) and ('withdraw' not in ql):
+        q = f"{q} (withdraw drop add/drop W เพิ่ม-ลด ถอนวิชา ลดรายวิชา)"
 
     variants = _expand_course_code_variants(q)
     if not variants:
@@ -256,8 +264,9 @@ def build_retrieval_queries(question: str) -> tuple[str, str]:
     raw = (question or '').strip()
     if not raw:
         return '', ''
-    semantic_q = normalize_query_for_retrieval(search_query_from_question(raw))
-    keyword_q = normalize_query_for_keyword(raw)
+    normalized = normalize_question(raw)
+    semantic_q = normalize_query_for_retrieval(search_query_from_question(normalized))
+    keyword_q = normalize_query_for_keyword(normalized)
     return semantic_q, keyword_q
 
 
@@ -311,6 +320,8 @@ def extract_lexical_anchors(q: str) -> List[str]:
         'prerequisite', 'pre-requisite', 'gpa', 'เกรด',
         # regulations-ish
         'ระเบียบ', 'ข้อบังคับ', 'อุทธรณ์', 'ทุจริต', 'วินัย', 'มาสาย', 'หมดสิทธิ์',
+        # registrar / announcement-ish
+        'ถอนรายวิชา', 'ถอนวิชา', 'ลดรายวิชา', 'เพิ่ม-ลด', 'ลงทะเบียน', 'w', 'withdrawn',
     ]
     for t in keyword_anchors:
         if t and t.lower() in ql:

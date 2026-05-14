@@ -44,9 +44,7 @@ _SEARCH_ALL_DOMAINS = (os.getenv('RAG_SEARCH_ALL_DOMAINS', '1') or '1').strip().
 _ADAPTIVE_ORCHESTRATION = (os.getenv('RAG_ADAPTIVE_ORCHESTRATION', '1') or '1').strip().lower() in (
     '1', 'true', 'yes', 'on'
 )
-_CURRICULUM_BYPASS_VECTOR = (os.getenv('RAG_CURRICULUM_BYPASS_VECTOR', '1') or '1').strip().lower() in (
-    '1', 'true', 'yes', 'on'
-)
+_CURRICULUM_BYPASS_VECTOR = False
 try:
     _LOW_SCORE_THRESHOLD = float(os.getenv('RAG_ADAPTIVE_LOW_SCORE', '0.06') or '0.06')
 except Exception:
@@ -757,8 +755,13 @@ def rag_query(question: str, resolved_entity: dict | None = None, retrieval_plan
             add_metric('clause_filter_empty_fallback', 1)
             retrieved = pre_clause
 
-    # Keep more evidence for binary claim verification to reduce false abstains.
-    max_ctx = 6 if intent == 'claim_verification' else 3
+    # Keep enough evidence for retrieval-first answers. A hard Top-3 cap drops
+    # neighboring chunks needed for course descriptions, calendar notes, or
+    # regulation subclauses.
+    try:
+        max_ctx = max(6, int(os.getenv('MAX_CONTEXTS', '8') or '8'))
+    except Exception:
+        max_ctx = 8
     if retrieved and len(retrieved) > max_ctx:
         retrieved = retrieved[:max_ctx]
 
@@ -927,9 +930,15 @@ def rag_query_domain(question: str, domain: str | None, resolved_entity: dict | 
             add_metric('clause_filter_empty_fallback', 1)
             retrieved = pre_clause
     
-    # Restrict to Top-3 for latency optimization
-    if retrieved and len(retrieved) > 3:
-        retrieved = retrieved[:3]
+    # Keep enough evidence for retrieval-first answers. The retriever already
+    # applies MAX_CONTEXTS; avoid a hard Top-3 cap that drops neighboring
+    # chunks needed for course clauses, calendar notes, or regulation subclauses.
+    try:
+        max_ctx = max(6, int(os.getenv('MAX_CONTEXTS', '8') or '8'))
+    except Exception:
+        max_ctx = 8
+    if retrieved and len(retrieved) > max_ctx:
+        retrieved = retrieved[:max_ctx]
         
     wants_lng_list = (
         re.search(r"LNG", q_display, re.IGNORECASE) is not None

@@ -29,6 +29,10 @@ from .announcement_deterministic import (
     render_fast_announcement_calendar_answer,
     render_generalized_announcement_answer,
 )
+from .curriculum_deterministic import (
+    CURRICULUM_EXACT_LOOKUP_MODES,
+    CURRICULUM_SOFT_LOOKUP_MODES,
+)
 from .chat_followup import (
     build_followup_summary_answer as shared_build_followup_summary_answer,
     build_session_store_from_env,
@@ -106,6 +110,12 @@ _INLINE_CITE_RE = re.compile(r"\s*\[[^\]]+?/\d+\]")
 _QUERY_REWRITE_ENABLE = (os.getenv('RAG_QUERY_REWRITE_ENABLE', '1') or '1').strip().lower() in ('1', 'true', 'yes', 'on')
 _QUERY_REWRITE_MAX_CHARS = max(20, int(os.getenv('RAG_QUERY_REWRITE_MAX_CHARS', '160') or '160'))
 _QUERY_REWRITE_MAX_WORDS = max(4, int(os.getenv('RAG_QUERY_REWRITE_MAX_WORDS', '24') or '24'))
+_CURRICULUM_NARRATIVE_REWRITE_ENABLE = (os.getenv('RAG_CURRICULUM_NARRATIVE_REWRITE_ENABLE', '1') or '1').strip().lower() in ('1', 'true', 'yes', 'on')
+_CURRICULUM_NARRATIVE_REWRITE_MODES = frozenset({
+    'study_plan',
+    'study_plan_course',
+})
+_DETERMINISTIC_ANSWER_BYPASS_ENABLED = False
 _QUERY_REWRITE_COLLOQUIAL_RE = re.compile(
     r"(เรียนไร|วิชาไร|มีไร|คือไร|ทำไร|เอาไร|ใช้ไร|ได้ไร|ไรบ้าง|ยังไง|ได้ปะ|มั้ย|งับ|ค้าบ|คั้บ|อารัย|อะรัย)",
     re.IGNORECASE,
@@ -123,24 +133,11 @@ def _structured_curriculum_result_allowed(cur_result: dict[str, Any]) -> bool:
     if str(cur_result.get('miss_reason') or '').strip():
         return False
     lookup_mode = str(cur_result.get('lookup_mode') or '').strip().lower()
-    if lookup_mode in ('', 'none', 'instructor_soft', 'prereq_clarify', 'prereq_exact_miss'):
+    if lookup_mode in ('', 'none', 'prereq_clarify', 'prereq_exact_miss'):
         return False
-    return lookup_mode in {
-        'exact_code',
-        'exact_code_missing_hint',
-        'exact_title',
-        'title_reference_text',
-        'study_plan',
-        'study_plan_course',
-        'study_plan_group_list',
-        'sum_credits',
-        'program_metadata',
-        'prereq_exact',
-        'instructor_exact_code',
-        'instructor_course_list',
-        'lng_language_list',
-        'prefix_list',
-    }
+    if lookup_mode in CURRICULUM_SOFT_LOOKUP_MODES:
+        return False
+    return lookup_mode in CURRICULUM_EXACT_LOOKUP_MODES
 
 
 def _warmup_enabled() -> bool:
@@ -265,83 +262,11 @@ def _render_prometheus_metrics() -> str:
 
 
 def _deterministic_domain_shortcut(question: str, domain: str | None = None, resolved_entity: dict[str, Any] | None = None) -> dict[str, Any] | None:
-    default_domain = str(domain or '').strip().lower() or 'general'
-    shortcut = None
-
-    if default_domain == 'announcements':
-        answer = _try_fast_announcement_calendar_answer(question, domain=default_domain)
-        if answer:
-            shortcut = {
-                'prompt': '(deterministic_domain_shortcut)',
-                'answer': answer,
-                'contexts': _normalize_contexts_for_eval(
-                    _contexts_from_answer_citations(answer, default_domain=default_domain)
-                    + _intent_alias_contexts(question, default_domain=default_domain),
-                    default_domain=default_domain,
-                ),
-                'token_est': 0,
-                'meta': {
-                    'answer_schema': {
-                        'task': 'announcement_temporal',
-                        'missing_slots_before_count': 0,
-                        'missing_slots_after_count': 0,
-                        'repair_attempted': 0,
-                        'repair_success': 1,
-                    },
-                    'shortcut': f'deterministic_domain:{default_domain}',
-                },
-            }
-    elif default_domain == 'curriculum':
-        cur = structured_curriculum_lookup(question, resolved_entity=resolved_entity)
-        if _structured_curriculum_result_allowed(cur):
-            answer = str(cur.get('answer') or '').strip()
-            shortcut = {
-                'prompt': '(deterministic_domain_shortcut)',
-                'answer': answer,
-                'contexts': _normalize_contexts_for_eval(
-                    _contexts_from_answer_citations(answer, default_domain=default_domain)
-                    + _intent_alias_contexts(question, default_domain=default_domain),
-                    default_domain=default_domain,
-                ),
-                'token_est': 0,
-                'meta': {
-                    'answer_schema': {
-                        'task': str(cur.get('lookup_mode') or 'curriculum_fact'),
-                        'missing_slots_before_count': 0,
-                        'missing_slots_after_count': 0,
-                        'repair_attempted': 0,
-                        'repair_success': 1,
-                    },
-                    'shortcut': f'deterministic_domain:{default_domain}',
-                },
-            }
-    elif default_domain == 'regulations':
-        from .regulations_deterministic import structured_regulations_lookup
-        reg = structured_regulations_lookup(question, resolved_entity=resolved_entity)
-        if _structured_regulations_result_allowed(reg):
-            answer = str(reg.get('answer') or '').strip()
-            shortcut = {
-                'prompt': '(deterministic_domain_shortcut)',
-                'answer': answer,
-                'contexts': _normalize_contexts_for_eval(
-                    _contexts_from_answer_citations(answer, default_domain=default_domain)
-                    + _intent_alias_contexts(question, default_domain=default_domain),
-                    default_domain=default_domain,
-                ),
-                'token_est': 0,
-                'meta': {
-                    'answer_schema': {
-                        'task': str(reg.get('lookup_mode') or 'regulations_fact'),
-                        'missing_slots_before_count': 0,
-                        'missing_slots_after_count': 0,
-                        'repair_attempted': 0,
-                        'repair_success': 1,
-                    },
-                    'shortcut': f'deterministic_domain:{default_domain}',
-                },
-            }
-
-    return shortcut
+    # No domain may return a deterministic final answer from the public RAG
+    # path. Deterministic helpers remain available for guard/diagnostic use
+    # after retrieval, but final answers must come from retrieved context + LLM.
+    add_metric('deterministic_answer_bypassed', 0)
+    return None
 
 
 def _extract_allowed_cites(prompt: str) -> list[str]:
@@ -365,6 +290,73 @@ def _extract_allowed_cites(prompt: str) -> list[str]:
 
 def _has_citations(answer: str) -> bool:
     return bool(_CITE_MATCH_RE.search(answer or ''))
+
+
+def _rewrite_curriculum_narrative_answer(
+    question: str,
+    structured_result: dict[str, Any] | None,
+    answer: str,
+) -> str:
+    if not _CURRICULUM_NARRATIVE_REWRITE_ENABLE:
+        return answer
+
+    result = structured_result or {}
+    lookup_mode = str(result.get('lookup_mode') or '').strip().lower()
+    if lookup_mode not in _CURRICULUM_NARRATIVE_REWRITE_MODES:
+        return answer
+
+    raw_answer = str(answer or '').strip()
+    if not raw_answer:
+        return answer
+
+    system_msg = {
+        'role': 'system',
+        'content': (
+            'คุณมีหน้าที่เรียบเรียงคำตอบหลักสูตรจาก facts ที่กำหนดให้เท่านั้น '
+            'ห้ามเพิ่มข้อมูลใหม่ ห้ามคาดเดา ห้ามสรุปเกิน facts '
+            'ถ้ามี citation ใน facts เช่น [file/1] ให้คง citation เหล่านั้นไว้กับข้อเท็จจริงที่เกี่ยวข้อง '
+            'ตอบเป็นภาษาไทยที่ลื่นไหล อ่านง่าย และตรงคำถาม '
+            'ถ้าเป็นคำถามภาพรวมแผนการเรียน ให้สรุปภาพรวมสั้น ๆ ก่อน แล้วค่อยแยกเป็นเทอม '
+            'ใช้เฉพาะข้อมูลที่มีใน facts ด้านล่างเท่านั้น'
+        ),
+    }
+    user_msg = {
+        'role': 'user',
+        'content': (
+            f"คำถามผู้ใช้: {str(question or '').strip()}\n"
+            f"lookup_mode: {lookup_mode}\n\n"
+            f"facts:\n{raw_answer}\n\n"
+            "จงเรียบเรียงเป็นคำตอบสุดท้ายเท่านั้น"
+        ),
+    }
+
+    try:
+        rewritten = str(
+            generate_text(
+                "(curriculum narrative rewrite)",
+                messages=[system_msg, user_msg],
+                task='rewrite',
+            ) or ''
+        ).strip()
+    except Exception:
+        add_metric('curriculum_narrative_rewrite_failed', 1)
+        return answer
+
+    if not rewritten or rewritten.startswith('('):
+        add_metric('curriculum_narrative_rewrite_failed', 1)
+        return answer
+
+    original_cites = set(_extract_allowed_cites(raw_answer))
+    rewritten_cites = set(_extract_allowed_cites(rewritten))
+    if original_cites and not rewritten_cites:
+        add_metric('curriculum_narrative_rewrite_failed', 1)
+        return answer
+    if original_cites and not rewritten_cites.issubset(original_cites):
+        add_metric('curriculum_narrative_rewrite_failed', 1)
+        return answer
+
+    add_metric('curriculum_narrative_rewrite_succeeded', 1)
+    return rewritten
 
 
 def _strip_inline_citations(answer: str) -> str:
@@ -475,6 +467,31 @@ def _remember_session_state(
             _SESSION_STORE.put_structured_state(session_id or '', next_state)
     except Exception:
         pass
+
+
+def _reset_session_state(session_id: str) -> None:
+    sid = (session_id or '').strip()
+    if not sid:
+        return
+    try:
+        _SESSION_STORE.clear_session(sid)
+    except Exception:
+        pass
+
+
+def _is_not_found_answer(answer: str) -> bool:
+    txt = (answer or '').strip().lower()
+    if not txt:
+        return False
+    markers = (
+        _FALLBACK.lower(),
+        'หาเอกสารไม่เจอ',
+        'เอกสารที่มีนั้นไม่เพียงพอ',
+        'ไม่พบข้อมูลในเอกสาร',
+        'ไม่พบข้อความยืนยัน',
+        'ยังไม่เห็นหลักฐานที่พอใช้ยืนยันคำตอบนี้ได้จากข้อมูลที่ดึงมา',
+    )
+    return any(marker in txt for marker in markers)
 
 
 def _structured_session_state(session_id: str) -> dict[str, Any]:
@@ -910,7 +927,7 @@ class ChatCompletionResponse(BaseModel):
     usage: dict = {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
 
 
-_FALLBACK = 'ไม่พบข้อมูลในเอกสาร'
+_FALLBACK = 'ขออภัยด้วยนะครับ เนื่องจากเราหาเอกสารไม่เจอหรือเอกสารที่มีนั้นไม่เพียงพอ ยังไงลองถามอย่างอื่นมาได้เลยนะครับ'
 
 _SESSION_FOLLOWUP_HINTS: dict[str, dict[str, str]] = {}
 try:
@@ -1125,16 +1142,7 @@ def _apply_auto_followup_rewrite(
 
 
 def _build_auto_not_found_answer(question: str, verdict: dict[str, Any] | None = None) -> str:
-    missing = [str(v or '').strip() for v in ((verdict or {}).get('missing_evidence') or []) if str(v or '').strip()]
-    strategy = str((verdict or {}).get('safe_answer_strategy') or 'say_not_found').strip()
-    lines = ["ตอนนี้ผมยังไม่เห็นหลักฐานที่พอใช้ยืนยันคำตอบนี้ได้จากข้อมูลที่ดึงมา"]
-    if missing:
-        lines.append(f"หลักฐานที่ยังขาดคือ {', '.join(missing[:3])}")
-    if strategy == 'answer_with_caveat':
-        lines.append("ถ้าต้องการ ผมสรุปเท่าที่หลักฐานตอนนี้ยืนยันได้ให้ก่อนได้")
-    else:
-        lines.append("น่าจะต้องดึงเอกสารที่ตรงหัวข้อมากกว่านี้ก่อน แล้วค่อยสรุปให้แม่นขึ้น")
-    return "\n".join([f"- {line}" for line in lines if line]).strip()
+    return _FALLBACK
 
 
 def _sanitize_user_question_text(text: str) -> str:
@@ -2484,7 +2492,19 @@ def _try_extract_exam_late_entry_rule(prompt: str, question: str) -> str | None:
     ql = q.lower()
     if any(t in ql for t in ('เครื่องคำนวณ', 'คิดเลข', 'สติกเกอร์')):
         return None
-    late_terms = ('มาสาย', 'สายเกิน', 'เข้าสอบสาย', 'เกิน 15', 'เกิน 60', 'สิบห้านาที', 'หกสิบนาที', 'หมดสิทธิ์เข้าห้องสอบ')
+    late_terms = (
+        'มาสาย',
+        'สายเกิน',
+        'เข้าสอบสาย',
+        'เข้าห้องสอบสาย',
+        'เข้าสอบช้า',
+        'มาสอบช้า',
+        'เกิน 15',
+        'เกิน 60',
+        'สิบห้านาที',
+        'หกสิบนาที',
+        'หมดสิทธิ์เข้าห้องสอบ',
+    )
     if not (('สอบ' in ql or 'ห้องสอบ' in ql) and any(t in ql for t in late_terms)):
         return None
 
@@ -2492,9 +2512,17 @@ def _try_extract_exam_late_entry_rule(prompt: str, question: str) -> str | None:
     if not blocks:
         return None
 
+    asks_time_window = any(t in ql for t in ('กี่นาที', 'ได้กี่นาที', 'สายได้กี่นาที'))
+
     for cite, text in blocks:
         t = (text or '')
         if ('ข้อ 12' in t) and ('ห้องสอบ' in t) and (('สิบห้านาที' in t) or ('15' in t)) and (('หกสิบนาที' in t) or ('60' in t)):
+            if asks_time_window:
+                return (
+                    f"- เข้าสอบสายได้ไม่เกิน 60 นาที [{cite}]\n"
+                    f"- ถ้าสายเกิน 15 นาที แต่ไม่เกิน 60 นาที ต้องยื่นคำร้องขอเข้าห้องสอบและรออนุญาตก่อน [{cite}]\n"
+                    f"- ถ้าเกิน 60 นาที หมดสิทธิ์เข้าห้องสอบ [{cite}]"
+                )
             return (
                 f"- หากมาสายเกิน 15 นาที แต่ไม่เกิน 60 นาที ต้องยื่นคำร้องขอเข้าห้องสอบเพื่อพิจารณาอนุญาตก่อนเข้าห้องสอบ [{cite}]\n"
                 f"- หากมาสายเกิน 60 นาที ถือว่าหมดสิทธิ์เข้าห้องสอบ [{cite}]"
@@ -2896,7 +2924,8 @@ def _try_extract_course_instructors(
 
 def _try_extract_withdraw_w_dates(prompt: str, question: str | None = None) -> str | None:
     q = (question or '').lower()
-    if q and ('ถอน' not in q or 'w' not in q):
+    has_withdraw_term = any(t in q for t in ('ถอน', 'ถอด'))
+    if q and (not has_withdraw_term or 'w' not in q):
         # If question is provided and doesn't look like W-withdrawal, skip.
         return None
 
@@ -3746,6 +3775,9 @@ def is_sufficient_structured_answer(decision: Any, structured_result: dict[str, 
     if not raw:
         miss_reason = str((structured_result or {}).get('miss_reason') or 'no_exact_course_match').strip()
         return False, (miss_reason or 'no_exact_course_match')
+    lookup_mode = str((structured_result or {}).get('lookup_mode') or '').strip().lower()
+    if lookup_mode in CURRICULUM_SOFT_LOOKUP_MODES:
+        return False, 'soft_inference_only'
 
     intent = str(getattr(decision, 'primary_intent', '') or '').strip().lower()
     q = str(getattr(decision, 'normalized_question', '') or '').strip()
@@ -3942,20 +3974,6 @@ def _enforce_answer_completeness(
 
     ans = _append_known_course_title_aliases(ans)
 
-    regulations_numeric_signal = (
-        intent == 'exam_policy'
-        and any(t in ql for t in ('กี่นาที', 'ผ่านไปกี่นาที', 'กี่เครื่อง', 'จำนวนเครื่อง', 'กี่วัน'))
-    )
-    if regulations_numeric_signal and (not _has_required_numeric_slot(q, ans)):
-        try:
-            from app.regulations_deterministic import structured_regulations_lookup
-            reg = structured_regulations_lookup(q, resolved_entity=resolved_entity)
-            fixed = str(reg.get('answer') or '').strip()
-        except Exception:
-            fixed = ''
-        if fixed:
-            return fixed
-
     announcement_schedule_signal = (
         (_classify_announcement_intent_v2(q, domain) == 'date_lookup')
         or any(t in ql for t in ('ลงทะเบียน', 'ชำระเงิน', 'ถอนรายวิชา', 'ลดรายวิชา', 'โมดูล 5 สัปดาห์', 'เปิดให้บริการ'))
@@ -3964,21 +3982,6 @@ def _enforce_answer_completeness(
         fixed = _try_fast_announcement_calendar_answer(q, domain=domain)
         if fixed:
             add_metric('answer_completeness_announcement_rescue', 1)
-            return fixed
-
-    regulations_procedure_signal = (
-        intent == 'exam_policy'
-        and any(t in ql for t in ('ต้องทำยังไง', 'ทำยังไง', 'ขั้นตอน', 'ติดต่อใคร', 'เอกสารอะไร'))
-    )
-    if regulations_procedure_signal and (not _answer_has_regulation_procedure_slots(q, ans)):
-        try:
-            from app.regulations_deterministic import structured_regulations_lookup
-            reg = structured_regulations_lookup(q, resolved_entity=resolved_entity)
-            fixed = str(reg.get('answer') or '').strip()
-        except Exception:
-            fixed = ''
-        if fixed and _answer_has_regulation_procedure_slots(q, fixed):
-            add_metric('answer_completeness_regulations_rescue', 1)
             return fixed
 
     return ans
@@ -4566,6 +4569,11 @@ def _try_fast_announcement_calendar_answer(question: str, domain: str | None = N
     return render_generalized_announcement_answer(question)
 
 
+def _should_use_primary_announcement_shortcut(question: str, domain: str | None = None) -> bool:
+    """Primary answering now prefers retrieval + extraction for announcements."""
+    return False
+
+
 def _try_extract_announcements_temporal_answer(prompt: str, question: str, domain: str | None = None) -> str | None:
     if not _is_announcement_temporal_intent(question, domain=domain):
         return None
@@ -4659,7 +4667,7 @@ def _try_extract_announcements_temporal_answer(prompt: str, question: str, domai
                 return f"- นักศึกษาอยู่ในระบบลงทะเบียนได้ครั้งละไม่เกิน {m.group(1)} นาที [{_pick_announcement_cite(prefer_calendar=True)}]"
 
     # 3) withdraw result/status (W)
-    if ('ถอนรายวิชา' in ql or 'ถอน' in ql) and any(t in ql for t in ('ผลการประเมิน', 'ผลการเรียน', 'เป็นอะไร', 'สถานะ')):
+    if any(t in ql for t in ('ถอนรายวิชา', 'ถอนวิชา', 'ถอน', 'ถอดรายวิชา', 'ถอดวิชา', 'ถอด')) and any(t in ql for t in ('ผลการประเมิน', 'ผลการเรียน', 'เป็นอะไร', 'สถานะ')):
         for cite, text in norm_blocks:
             m = re.search(r"(?:ผลการประเมิน|ผลการเรียน)[^\n]{0,60}?เป็น\s*[\"“”']?([A-Za-z])", text, flags=re.IGNORECASE)
             if m:
@@ -4709,7 +4717,7 @@ def _try_extract_announcements_temporal_answer(prompt: str, question: str, domai
         return f"- วันสุดท้ายของการชำระเงินค่าลงทะเบียนภาค 2/2568 คือ พฤ.8 มกราคม 2569 [{_pick_announcement_cite(prefer_calendar=True)}]"
     if 'โมดูล 5 สัปดาห์' in ql and 'ช่วงที่ 1' in ql:
         return f"- กำหนดการลดรายวิชาโมดูล 5 สัปดาห์ ช่วงที่ 1 คือ วันเสาร์ที่ 24 มกราคม - วันศุกร์ที่ 6 กุมภาพันธ์ 2569 [{_pick_announcement_cite(prefer_calendar=True)}]"
-    if ('ถอนรายวิชา' in ql or 'ถอน' in ql) and any(t in ql for t in ('ผลการประเมิน', 'ผลการเรียน', 'เป็นอะไร', 'สถานะ')):
+    if any(t in ql for t in ('ถอนรายวิชา', 'ถอนวิชา', 'ถอน', 'ถอดรายวิชา', 'ถอดวิชา', 'ถอด')) and any(t in ql for t in ('ผลการประเมิน', 'ผลการเรียน', 'เป็นอะไร', 'สถานะ')):
         return f"- การถอนรายวิชาในช่วงเวลาดังกล่าวได้ผลการประเมินเป็น W (Withdrawn) [{_pick_announcement_cite(prefer_calendar=True)}]"
     if any(t in ql for t in ('รหัส 66', 'ปี 3', 'ปี3')) and any(t in ql for t in ('ลงทะเบียน', 'ช่วงวันใด', 'ช่วงวัน')):
         return f"- นักศึกษาปี 3 (รหัส 66) ลงทะเบียนภาค 2/2568 ช่วง อา.4 - พ.7 มกราคม 2569 [{_pick_announcement_cite(prefer_calendar=True)}]"
@@ -4750,10 +4758,7 @@ def _try_extract_announcements_temporal_answer(prompt: str, question: str, domai
 
 
 def _should_use_regulations_strict_fallback(question: str, domain: str | None) -> bool:
-    d = (domain or '').strip().lower()
-    if d not in ('', 'auto', 'regulations'):
-        return False
-    return _infer_primary_intent(question) == 'exam_policy'
+    return False
 
 
 def _observe_entry_metrics(question: str, requested_domain: str | None, *, use_langchain: bool) -> None:
@@ -5059,7 +5064,7 @@ def _process_multi_intent(
             if sq_contexts:
                 all_contexts.extend(sq_contexts)
 
-        if (not ans) and (sq_intent == 'prerequisite_lookup' or _looks_like_prerequisite_question(sq)):
+        if _DETERMINISTIC_ANSWER_BYPASS_ENABLED and (not ans) and (sq_intent == 'prerequisite_lookup' or _looks_like_prerequisite_question(sq)):
             prereq_payload = _run_prerequisite_structured_guard(
                 sq,
                 require_citations=True,
@@ -5074,12 +5079,12 @@ def _process_multi_intent(
             if sq_contexts:
                 all_contexts.extend(sq_contexts)
 
-        if (not ans) and sq_domain in (None, 'regulations'):
+        if _DETERMINISTIC_ANSWER_BYPASS_ENABLED and (not ans) and sq_domain in (None, 'regulations') and sq_intent == 'regulation_forms':
             reg_result = structured_regulations_lookup(sq, resolved_entity=resolved_entity)
             if _structured_regulations_result_allowed(reg_result):
                 ans = str(reg_result.get('answer') or '').strip()
             
-        if (not ans) and _USE_STRUCTURED_CURRICULUM and sq_domain in (None, 'curriculum'):
+        if _DETERMINISTIC_ANSWER_BYPASS_ENABLED and (not ans) and _USE_STRUCTURED_CURRICULUM and sq_domain in (None, 'curriculum'):
             curr_result = structured_curriculum_lookup(sq, resolved_entity=resolved_entity)
             if curr_result and curr_result.get('answer'):
                 ans = str(curr_result.get('answer'))
@@ -5115,20 +5120,16 @@ def _process_multi_intent(
                     or "ไม่พบข้อมูลที่เกี่ยวข้อง"
                 )
             else:
-                if _should_use_regulations_strict_fallback(sq, sq_domain):
-                    add_metric('structured_regulations_strict_mode', 1)
-                    res = rag_query_domain(sq, 'regulations', resolved_entity=resolved_entity)
+                if use_langchain_subq and lc_subq is not None:
+                    with time_block('langchain_rag'):
+                        res = lc_subq.rag_query_langchain(sq, sq_domain)
                 else:
-                    if use_langchain_subq and lc_subq is not None:
-                        with time_block('langchain_rag'):
-                            res = lc_subq.rag_query_langchain(sq, sq_domain)
+                    # Intent-isolated retrieval: lock each subquery to its own domain.
+                    # Avoid global auto retrieval at this stage to reduce cross-intent leakage.
+                    if sq_domain:
+                        res = rag_query_domain(sq, sq_domain, resolved_entity=resolved_entity)
                     else:
-                        # Intent-isolated retrieval: lock each subquery to its own domain.
-                        # Avoid global auto retrieval at this stage to reduce cross-intent leakage.
-                        if sq_domain:
-                            res = rag_query_domain(sq, sq_domain, resolved_entity=resolved_entity)
-                        else:
-                            res = rag_query_domain(sq, parent_domain_hint, resolved_entity=resolved_entity)
+                        res = rag_query_domain(sq, parent_domain_hint, resolved_entity=resolved_entity)
 
                     # Rescue pass for multi-intent subqueries: if domain-locked retrieval is thin,
                     # retry once in auto mode only for mixed-domain parent questions.
@@ -5149,10 +5150,13 @@ def _process_multi_intent(
                     all_contexts.extend(norm_ctx)
                     total_tokens += res.get('token_est', 0)
                     sq_contexts.extend(norm_ctx)
-                    extracted_announce_time = _try_extract_announcements_temporal_answer(
-                        sq_prompt,
-                        sq,
-                        domain=sq_domain,
+                    extracted_announce_time = (
+                        _try_extract_announcements_temporal_answer(
+                            sq_prompt,
+                            sq,
+                            domain=sq_domain,
+                        )
+                        if _DETERMINISTIC_ANSWER_BYPASS_ENABLED else None
                     )
                     if extracted_announce_time:
                         ans = extracted_announce_time
@@ -5402,6 +5406,8 @@ def run_structured_curriculum_path(
             structured_raw = ''
             miss_reason = reason or miss_reason
             structured_result['miss_reason'] = miss_reason
+
+    structured_raw = _rewrite_curriculum_narrative_answer(question, structured_result, structured_raw)
 
     structured = structured_raw if (require_citations and return_contexts) else _strip_inline_citations(structured_raw)
     add_metric('curriculum_lookup_mode', structured_result.get('lookup_mode') or 'none')
@@ -5660,7 +5666,7 @@ def rag_answer_endpoint(req: RagAnswerRequest):
 
         # Hard prerequisite route: always enforce deterministic schema to prevent
         # free-form prerequisite hallucinations.
-        if decision.primary_intent == 'prerequisite_lookup':
+        if _DETERMINISTIC_ANSWER_BYPASS_ENABLED and decision.primary_intent == 'prerequisite_lookup':
             prereq_payload = _run_prerequisite_structured_guard(
                 req.question,
                 require_citations=require_citations,
@@ -5694,7 +5700,7 @@ def rag_answer_endpoint(req: RagAnswerRequest):
 
         # Hard claim-verification route: abstain if deterministic verifier has no support,
         # to avoid fact-card hallucinations for yes/no traps.
-        if decision.primary_intent == 'claim_verification' and (not force_multi_first):
+        if _DETERMINISTIC_ANSWER_BYPASS_ENABLED and decision.primary_intent == 'claim_verification' and (not force_multi_first):
             claim_payload = None
             if _BINARY_CLAIM_STRICT:
                 claim_payload = run_structured_curriculum_path(
@@ -5769,11 +5775,7 @@ def rag_answer_endpoint(req: RagAnswerRequest):
                 token_est=t_est,
             )
 
-        force_clause9_device = _is_strict_clause9_device_question(req.question)
-        if force_clause9_device and (not structured_reg_eligible):
-            add_metric('routing_force_structured_reg_clause9_device', 1)
-
-        if structured_reg_eligible or force_clause9_device:
+        if _DETERMINISTIC_ANSWER_BYPASS_ENABLED and structured_reg_eligible:
             reg_payload = run_structured_regulations_path(
                 req.question,
                 require_citations=require_citations,
@@ -5800,19 +5802,7 @@ def rag_answer_endpoint(req: RagAnswerRequest):
                     token_est=reg_token_est,
                     meta=reg_payload.get('meta') or None,
                 )
-            if force_clause9_device:
-                add_metric('structured_path_miss_reason', 'forced_clause9_device_unresolved')
-                add_metric('fallback_answer_used', 1)
-                return RagAnswerResponse(
-                    question=req.question,
-                    prompt='(forced clause9 device deterministic miss)',
-                    answer='- ไม่พบข้อความยืนยันของข้อ 9 ที่เกี่ยวกับอุปกรณ์สื่อสารโดยตรงในแหล่งข้อมูลที่พร้อมใช้งาน',
-                    contexts=[],
-                    token_est=0,
-                    meta={'structured_guard': 'forced_clause9_device_miss'},
-                )
-
-        if decision.structured_kind == 'curriculum':
+        if _DETERMINISTIC_ANSWER_BYPASS_ENABLED and decision.structured_kind == 'curriculum':
             curr_payload = run_structured_curriculum_path(
                 req.question,
                 decision,
@@ -5842,7 +5832,7 @@ def rag_answer_endpoint(req: RagAnswerRequest):
 
         # Announcements calendar/schedule intents are deterministic and can bypass
         # retrieval+generation entirely to keep p95 latency below production limits.
-        fast_announce = _try_fast_announcement_calendar_answer(req.question, domain=effective_domain)
+        fast_announce = _try_fast_announcement_calendar_answer(req.question, domain=effective_domain) if _should_use_primary_announcement_shortcut(req.question, effective_domain) else None
         if fast_announce:
             fast_ctx = _contexts_from_answer_citations(fast_announce, default_domain='announcements')
             add_metric('announcements_fast_calendar_path', 1)
@@ -5917,6 +5907,7 @@ def rag_answer_endpoint(req: RagAnswerRequest):
         add_metric('auto_evidence_support_level', str(verifier_verdict.get('support_level') or 'none'))
         if not bool(verifier_verdict.get('is_answerable')) and decision.structured_kind not in ('curriculum', 'regulations'):
             answer = _build_auto_not_found_answer(req.question, verifier_verdict)
+            _reset_session_state(req.session_id or '')
             return RagAnswerResponse(
                 question=req.question,
                 prompt=str(result.get('prompt') or '(auto_verifier_safe_fallback)'),
@@ -5954,101 +5945,39 @@ def rag_answer_endpoint(req: RagAnswerRequest):
         if not (result.get('contexts') or []):
             answer = _clarify_when_no_context(req.question) or _FALLBACK
         else:
-            # If we can deterministically answer from the retrieved context, do it.
-            extracted = _try_extract_total_credits(result.get('prompt') or '', question=req.question)
-            if extracted:
-                answer = extracted
-                answer_from_extractor = True
+            guarded = _low_confidence_guardrail(req.question, result)
+            if guarded:
+                add_metric('guardrail_triggered', 1)
+                answer = guarded
             else:
-                extracted_instructor = _try_extract_course_instructors(
-                    result.get('prompt') or '',
+                if _should_fast_fail_announcements_query_only(
                     question=req.question,
+                    effective_domain=effective_domain,
+                    query_only_mode=langchain_query_only_mode,
                     contexts=result.get('contexts') or [],
-                    domain=effective_domain,
-                )
-                if extracted_instructor:
-                    answer = extracted_instructor
-                    answer_from_extractor = True
+                ):
+                    add_metric('announcements_fast_fail_query_only', 1)
+                    answer = _FALLBACK
                 else:
-                    extracted_leave = _try_extract_intermission_leave(result.get('prompt') or '', question=req.question)
-                    if extracted_leave:
-                        answer = extracted_leave
-                        answer_from_extractor = True
+                    if _USE_LANGCHAIN:
+                        answer = result.get('answer') or ''
+                        # Query-only langchain path may intentionally skip generation.
+                        if not (answer or '').strip():
+                            with time_block('llm_generate'):
+                                answer = generate_text(
+                                    result['prompt'],
+                                    messages=answer_messages,
+                                    task='answer',
+                                    requested_model=str(req.model or ''),
+                                )
                     else:
-                        extracted_w = _try_extract_withdraw_w_dates(result.get('prompt') or '', question=req.question)
-                        if extracted_w:
-                            answer = extracted_w
-                            answer_from_extractor = True
-                        else:
-                            extracted_announce_time = _try_extract_announcements_temporal_answer(
-                                result.get('prompt') or '',
-                                req.question,
-                                domain=effective_domain,
+                        with time_block('llm_generate'):
+                            answer = generate_text(
+                                result['prompt'],
+                                messages=answer_messages,
+                                task='answer',
+                                requested_model=str(req.model or ''),
                             )
-                            if extracted_announce_time:
-                                answer = extracted_announce_time
-                                answer_from_extractor = True
-                            else:
-                            # Exam-room policies can be multi-intent (e.g., มาสาย + ออกชั่วคราว).
-                            # Don't return early on the first extractor hit; combine when applicable.
-                                extracted_exam_late = _try_extract_exam_late_entry_rule(result.get('prompt') or '', question=req.question)
-                                extracted_exam_temp = _try_extract_exam_temp_leave_rule(result.get('prompt') or '', question=req.question)
-                                extracted_exam_exit = _try_extract_exam_exit_rule(result.get('prompt') or '', question=req.question)
-
-                                if extracted_exam_late and extracted_exam_temp:
-                                    answer = f"{extracted_exam_late}\n{extracted_exam_temp}"
-                                    answer_from_extractor = True
-                                elif extracted_exam_late:
-                                    answer = extracted_exam_late
-                                    answer_from_extractor = True
-                                elif extracted_exam_exit:
-                                    answer = extracted_exam_exit
-                                    answer_from_extractor = True
-                                elif extracted_exam_temp:
-                                    answer = extracted_exam_temp
-                                    answer_from_extractor = True
-                                else:
-                                    curriculum_guard_answer = _curriculum_consistency_guard(
-                                        req.question,
-                                        effective_domain,
-                                        resolved_entity=resolved_entity,
-                                    )
-                                    if curriculum_guard_answer:
-                                        answer = curriculum_guard_answer
-                                    else:
-                                        guarded = _low_confidence_guardrail(req.question, result)
-                                        if guarded:
-                                            add_metric('guardrail_triggered', 1)
-                                            answer = guarded
-                                        else:
-                                            if _should_fast_fail_announcements_query_only(
-                                                question=req.question,
-                                                effective_domain=effective_domain,
-                                                query_only_mode=langchain_query_only_mode,
-                                                contexts=result.get('contexts') or [],
-                                            ):
-                                                add_metric('announcements_fast_fail_query_only', 1)
-                                                answer = _FALLBACK
-                                            else:
-                                                if _USE_LANGCHAIN:
-                                                    answer = result.get('answer') or ''
-                                                    # Query-only langchain path may intentionally skip generation.
-                                                    if not (answer or '').strip():
-                                                        with time_block('llm_generate'):
-                                                            answer = generate_text(
-                                                                result['prompt'],
-                                                                messages=answer_messages,
-                                                                task='answer',
-                                                                requested_model=str(req.model or ''),
-                                                            )
-                                                else:
-                                                    with time_block('llm_generate'):
-                                                        answer = generate_text(
-                                                            result['prompt'],
-                                                            messages=answer_messages,
-                                                            task='answer',
-                                                            requested_model=str(req.model or ''),
-                                                        )
 
                     answer = _enforce_answer_completeness(
                         req.question,
@@ -6113,6 +6042,8 @@ def rag_answer_endpoint(req: RagAnswerRequest):
                 if _FALLBACK in answer and answer != _FALLBACK:
                     answer = _FALLBACK
 
+        if _is_not_found_answer(answer or ''):
+            _reset_session_state(req.session_id or '')
         if (answer or '').strip() == _FALLBACK:
             add_metric('fallback_answer_used', 1)
             add_metric('failure_intent', _infer_primary_intent(req.question))
@@ -6135,6 +6066,10 @@ def rag_answer_endpoint(req: RagAnswerRequest):
         response_meta['auto_followup_rewrite'] = auto_rewrite_meta
         response_meta['auto_retrieval_plan'] = retrieval_plan
         response_meta['auto_evidence_verdict'] = verifier_verdict
+        response_meta['deterministic_guard_checked'] = 0
+        response_meta['deterministic_guard_mode'] = 'retrieval_first_no_bypass'
+        response_meta['deterministic_guard_conflict'] = 0
+        response_meta['deterministic_answer_bypassed'] = 0
 
         return RagAnswerResponse(
             question=req.question,
@@ -6387,7 +6322,7 @@ def openai_compatible_endpoint(request: dict):
                 "usage": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
             }
 
-        if decision.primary_intent == 'prerequisite_lookup':
+        if _DETERMINISTIC_ANSWER_BYPASS_ENABLED and decision.primary_intent == 'prerequisite_lookup':
             prereq_payload = _run_prerequisite_structured_guard(
                 question,
                 require_citations=False,
@@ -6469,7 +6404,7 @@ def openai_compatible_endpoint(request: dict):
                     "usage": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
                 }
 
-        if decision.primary_intent == 'claim_verification':
+        if _DETERMINISTIC_ANSWER_BYPASS_ENABLED and decision.primary_intent == 'claim_verification':
             claim_payload = None
             if _BINARY_CLAIM_STRICT:
                 claim_payload = run_structured_curriculum_path(
@@ -6518,11 +6453,7 @@ def openai_compatible_endpoint(request: dict):
                 "usage": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
             }
 
-        force_clause9_device = _is_strict_clause9_device_question(question)
-        if force_clause9_device and (not structured_reg_eligible):
-            add_metric('routing_force_structured_reg_clause9_device', 1)
-
-        if structured_reg_eligible or force_clause9_device:
+        if _DETERMINISTIC_ANSWER_BYPASS_ENABLED and structured_reg_eligible:
             reg_payload = run_structured_regulations_path(
                 question,
                 require_citations=False,
@@ -6553,30 +6484,8 @@ def openai_compatible_endpoint(request: dict):
                     ],
                     "usage": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
                 }
-            if force_clause9_device:
-                add_metric('structured_path_miss_reason', 'forced_clause9_device_unresolved')
-                fallback_answer = '- ไม่พบข้อความยืนยันของข้อ 9 ที่เกี่ยวกับอุปกรณ์สื่อสารโดยตรงในแหล่งข้อมูลที่พร้อมใช้งาน'
-                add_metric('answer', fallback_answer)
-                add_metric('answer_chars', len(fallback_answer))
-                import time
-                import uuid
-                return {
-                    "id": f"chatcpe-{uuid.uuid4().hex[:12]}",
-                    "object": "chat.completion",
-                    "created": int(time.time()),
-                    "model": request_model,
-                    "choices": [
-                        {
-                            "index": 0,
-                            "message": {"role": "assistant", "content": fallback_answer},
-                            "finish_reason": "stop",
-                        }
-                    ],
-                    "usage": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
-                }
-
         # Structured curriculum shortcut for OpenWebUI (works even without retrieval)
-        if structured_eligible:
+        if _DETERMINISTIC_ANSWER_BYPASS_ENABLED and structured_eligible:
             curr_payload = run_structured_curriculum_path(
                 question,
                 decision,
@@ -6639,6 +6548,7 @@ def openai_compatible_endpoint(request: dict):
         add_metric('auto_evidence_support_level', str(verifier_verdict.get('support_level') or 'none'))
         if not bool(verifier_verdict.get('is_answerable')) and decision.structured_kind not in ('curriculum', 'regulations'):
             answer = _finalize_user_answer_text(question, _build_auto_not_found_answer(question, verifier_verdict))
+            _reset_session_state(session_id)
             return {
                 "id": f"chatcpe-{uuid.uuid4().hex[:12]}",
                 "object": "chat.completion",
@@ -6675,59 +6585,29 @@ def openai_compatible_endpoint(request: dict):
         if not (result.get('contexts') or []):
             answer = _clarify_when_no_context(question) or _FALLBACK
         else:
-            extracted = _try_extract_total_credits(result.get('prompt') or '', question=question)
-            if extracted:
-                answer = extracted
-                answer_from_extractor = True
+            guarded = _low_confidence_guardrail(question, result)
+            if guarded:
+                add_metric('guardrail_triggered', 1)
+                answer = guarded
             else:
-                extracted_instructor = _try_extract_course_instructors(
-                    result.get('prompt') or '',
-                    question=question,
-                    contexts=result.get('contexts') or [],
-                    domain=domain,
-                )
-                if extracted_instructor:
-                    answer = extracted_instructor
-                    answer_from_extractor = True
+                if _USE_LANGCHAIN:
+                    answer = result.get('answer') or ''
+                    if not (answer or '').strip():
+                        with time_block('llm_generate'):
+                            answer = generate_text(
+                                result['prompt'],
+                                messages=answer_messages,
+                                task='answer',
+                                requested_model=str(request.get('model', '') or ''),
+                            )
                 else:
-                    extracted_leave = _try_extract_intermission_leave(result.get('prompt') or '', question=question)
-                    if extracted_leave:
-                        answer = extracted_leave
-                        answer_from_extractor = True
-                    else:
-                        extracted_w = _try_extract_withdraw_w_dates(result.get('prompt') or '', question=question)
-                        if extracted_w:
-                            answer = extracted_w
-                            answer_from_extractor = True
-                        else:
-                            extracted_exam_late = _try_extract_exam_late_entry_rule(result.get('prompt') or '', question=question)
-                            if extracted_exam_late:
-                                answer = extracted_exam_late
-                                answer_from_extractor = True
-                            else:
-                                curriculum_guard_answer = _curriculum_consistency_guard(
-                                    question,
-                                    domain,
-                                    resolved_entity=resolved_entity,
-                                )
-                                if curriculum_guard_answer:
-                                    answer = curriculum_guard_answer
-                                else:
-                                    guarded = _low_confidence_guardrail(question, result)
-                                    if guarded:
-                                        add_metric('guardrail_triggered', 1)
-                                        answer = guarded
-                                    else:
-                                        if _USE_LANGCHAIN:
-                                            answer = result.get('answer') or ''
-                                        else:
-                                            with time_block('llm_generate'):
-                                                answer = generate_text(
-                                                    result['prompt'],
-                                                    messages=answer_messages,
-                                                    task='answer',
-                                                    requested_model=str(request.get('model', '') or ''),
-                                                )
+                    with time_block('llm_generate'):
+                        answer = generate_text(
+                            result['prompt'],
+                            messages=answer_messages,
+                            task='answer',
+                            requested_model=str(request.get('model', '') or ''),
+                        )
 
             if not (answer or '').strip().startswith('('):
                 answer = _strip_false_abstain(_strip_spurious_abstain_phrases(answer))
@@ -6746,6 +6626,8 @@ def openai_compatible_endpoint(request: dict):
                     )
                 answer = _finalize_user_answer_text(question, answer)
 
+        if _is_not_found_answer(answer or ''):
+            _reset_session_state(session_id)
         if (answer or '').strip() == _FALLBACK:
             add_metric('fallback_answer_used', 1)
             add_metric('failure_intent', _infer_primary_intent(question))

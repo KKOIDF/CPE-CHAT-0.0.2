@@ -85,6 +85,9 @@ class SessionStore(Protocol):
     def put_structured_state(self, session_id: str, state: dict[str, Any]) -> None:
         ...
 
+    def clear_session(self, session_id: str) -> None:
+        ...
+
 
 class InMemorySessionStore:
     def __init__(self, *, max_sessions: int = 512, max_turns: int = 6) -> None:
@@ -147,6 +150,14 @@ class InMemorySessionStore:
         self._structured_state[sid] = dict(state)
         while len(self._structured_state) > self.max_sessions:
             self._structured_state.pop(next(iter(self._structured_state)), None)
+
+    def clear_session(self, session_id: str) -> None:
+        sid = str(session_id or '').strip()
+        if not sid:
+            return
+        self._chat_memory.pop(sid, None)
+        self._followup_hints.pop(sid, None)
+        self._structured_state.pop(sid, None)
 
 
 class RedisSessionStore(InMemorySessionStore):
@@ -248,6 +259,18 @@ class RedisSessionStore(InMemorySessionStore):
             self._redis.setex(self._state_key(sid), self.ttl_seconds, json.dumps(state or {}, ensure_ascii=False))
         except Exception:
             super().put_structured_state(session_id, state)
+
+    def clear_session(self, session_id: str) -> None:
+        sid = str(session_id or '').strip()
+        if not sid:
+            return
+        super().clear_session(sid)
+        if self._redis is None:
+            return
+        try:
+            self._redis.delete(self._chat_key(sid), self._hint_key(sid), self._state_key(sid))
+        except Exception:
+            pass
 
 
 def build_session_store_from_env() -> SessionStore:
@@ -874,6 +897,29 @@ def _looks_slot_only_followup(text: str) -> bool:
     return len(compact) <= 20
 
 
+def _looks_new_regulations_policy_followup(text: str) -> bool:
+    q = re.sub(r"\s+", " ", str(text or "").strip().lower())
+    if not q:
+        return False
+    policy_cues = (
+        'ติด w',
+        '(w)',
+        'withdrawn',
+        'ถอนรายวิชา',
+        'ถอนวิชา',
+        'w ไหม',
+        'ติดโปร',
+        'พ้นสภาพ',
+        'ลงทะเบียน',
+        'เกรด',
+    )
+    if not any(cue in q for cue in policy_cues) and not re.search(r"\bw\b", q, re.IGNORECASE):
+        return False
+    if any(cue in q for cue in ('แบบฟอร์ม', 'คำร้อง', 'ro-', 'ใบลา', 'เอกสาร')):
+        return False
+    return True
+
+
 def build_effective_question(messages: list[dict] | None, default_question: str) -> str:
     normalized = coerce_chat_messages(messages)
     if not normalized:
@@ -896,6 +942,8 @@ def build_effective_question(messages: list[dict] | None, default_question: str)
     has_code_in_prev = _COURSE_CODE_RE.search(prev) is not None
     recent_user_window = user_msgs[-3:] if len(user_msgs) >= 3 else user_msgs
     if looks_like_new_code or looks_like_greeting:
+        return last
+    if _looks_new_regulations_policy_followup(last):
         return last
     if _looks_standalone_form_query(last):
         return last
@@ -1008,6 +1056,7 @@ def prepare_chat_request(
 ) -> PreparedChatRequest:
     raw_input_question = str(question or '').strip()
     normalized_messages = coerce_chat_messages(messages)
+    normalized_messages = _trim_messages_after_not_found_reset(normalized_messages)
     sid = str(session_id or '').strip()
     if (not normalized_messages) and sid:
         remembered = session_store.get_chat_history(sid)
@@ -1045,3 +1094,36 @@ def prepare_chat_request(
 
 def remember_chat_turn(session_id: str, raw_last_user: str, raw_input_question: str, effective_question: str, session_store: SessionStore) -> None:
     session_store.append_chat_turn(session_id, raw_last_user or raw_input_question or effective_question)
+
+
+_NOT_FOUND_RESET_MARKERS = (
+    'ขออภัยด้วยนะครับ เนื่องจากเราหาเอกสารไม่เจอหรือเอกสารที่มีนั้นไม่เพียงพอ',
+    'ขออภัยด้วยนะคะ เนื่องจากเราหาเอกสารไม่เจอหรือเอกสารที่มีนั้นไม่เพียงพอ',
+    'ไม่พบข้อมูลในเอกสาร',
+    'หาเอกสารไม่เจอ',
+    'เอกสารที่มีนั้นไม่เพียงพอ',
+    'ยังไม่เห็นหลักฐานที่พอใช้ยืนยันคำตอบนี้ได้จากข้อมูลที่ดึงมา',
+)
+
+
+def _is_not_found_reset_answer(text: str) -> bool:
+    txt = str(text or '').strip().lower()
+    if not txt:
+        return False
+    return any(marker.lower() in txt for marker in _NOT_FOUND_RESET_MARKERS)
+
+
+def _trim_messages_after_not_found_reset(messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    if not messages:
+        return messages
+    last_reset_idx = -1
+    for idx, msg in enumerate(messages):
+        role = str(msg.get('role') or '').strip().lower()
+        if role != 'assistant':
+            continue
+        if _is_not_found_reset_answer(content_to_text(msg.get('content'))):
+            last_reset_idx = idx
+    if last_reset_idx < 0:
+        return messages
+    trimmed = messages[last_reset_idx + 1:]
+    return trimmed or []

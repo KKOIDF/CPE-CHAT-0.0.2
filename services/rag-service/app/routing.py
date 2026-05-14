@@ -7,6 +7,7 @@ import re
 from dataclasses import dataclass, field
 
 from .config import KNOWN_DOMAINS, ROOT_DIR
+from .normalization import normalize_question
 
 _AGGRESSIVE_BINARY_ROUTING = (os.getenv('RAG_AGGRESSIVE_BINARY_ROUTING', '0') or '0').strip().lower() in (
     '1', 'true', 'yes', 'on'
@@ -35,11 +36,11 @@ class RouteDecision:
 
 @dataclass
 class ResolutionStrategy:
-    # structured_exact: Must strictly match structure logic, else drop to RAG
+    # structured_exact: Legacy deterministic answer path; disabled in retrieval-first routing.
     # keyword_only: Just boolean keyword lookups
     # multi_intent_split: Split into subqueries and merge answers/contexts
-    # multi_intent_structured_or_extract: Multi-intent regulations fact lookup via deterministic/extractive path
-    # structured_regulation_form: Deterministic regulations form lookup
+    # multi_intent_structured_or_extract: Legacy deterministic/extractive path; disabled in retrieval-first routing.
+    # structured_regulation_form: Legacy deterministic form lookup; disabled in retrieval-first routing.
     # full_rag: The heavy generative pipeline
     resolution_path: str  # "structured_exact", "keyword_only", "multi_intent_split", "multi_intent_structured_or_extract", "structured_regulation_form", "full_rag"
 
@@ -184,12 +185,16 @@ def classify_intent(question: str) -> str:
 
     _exam_policy_terms = (
         'ห้องสอบ', 'เข้าห้องสอบ', 'ออกห้องสอบ', 'ออกจากห้องสอบ', 'ออกห้องสอบชั่วคราว',
-        'มาสาย', 'สายเกิน', 'เข้าห้องสอบได้', 'กรรมการคุมสอบ', 'คุมสอบ', 'ทุจริต', 'ส่อ', 'ลงโทษ', 'อุทธรณ์', 'ข้อสอบ', 'วินัย'
+        'มาสาย', 'สายเกิน', 'เข้าสอบสาย', 'เข้าสอบช้า', 'เข้าห้องสอบช้า',
+        'เข้าห้องสอบได้', 'กรรมการคุมสอบ', 'คุมสอบ', 'ทุจริต', 'ส่อ', 'ลงโทษ', 'อุทธรณ์', 'ข้อสอบ', 'วินัย'
     )
     if any(t in q for t in _exam_policy_terms):
         return 'exam_policy'
     if any(t in ql for t in ('เครื่องคำนวณ', 'คิดเลข', 'calculator', 'calc')):
         return 'exam_policy'
+
+    if re.search(r"\bRO\s*[- ]?\s*\d{2}\b", q, flags=re.IGNORECASE):
+        return 'regulation_forms'
 
     _academic_status_terms = (
         'ติดโปร', 'probation', 'ไทร์', 'retire', 'พ้นสภาพ', 'พ้นสถานภาพ', 'เกรด f', 'ได้ f', 'ได้f'
@@ -265,33 +270,37 @@ def analyze_route(question: str, requested_domain: Optional[str] = None, resolve
     use_structured_curriculum = (os.getenv('RAG_USE_STRUCTURED_CURRICULUM', '1') or '1').strip().lower() in ('1', 'true', 'yes', 'on')
     
     has_course_entity = bool(entities) or (resolved_type == 'course' and resolved_confidence > 0)
-    has_instructor_entity = bool(resolved_type == 'instructor' and resolved_value and resolved_confidence > 0) or (
-        primary_intent == 'instructor_lookup' and any(t in q for t in ('อาจารย์', 'ผู้สอน', 'ใครสอน', 'สอนวิชาอะไร', 'วิชาที่สอน'))
-    )
-    exact_curriculum_info = primary_intent == 'curriculum_course_info' and has_course_entity
     exact_claim = primary_intent == 'claim_verification' and (
         has_course_entity or any(t in q for t in ('รหัสหลักสูตร', 'ภาษาในการเรียนการสอน', 'วิชาบังคับ', 'วิชาเลือก'))
     )
+    exact_credit = primary_intent == 'credit_lookup' and has_course_entity
+    exact_prereq = primary_intent == 'prerequisite_lookup' and has_course_entity
     curric_eligible = use_structured_curriculum and (effective_domain in ('curriculum', 'auto')) and (
-        primary_intent in ('credit_lookup', 'prerequisite_lookup')
-        or exact_curriculum_info
-        or has_instructor_entity
+        exact_credit
+        or exact_prereq
         or exact_claim
     )
     
+    # Prefer retrieval + extraction for exam-policy questions. Keep deterministic
+    # structured routing for form lookups, which are catalog-like and stable.
     structured_regulation_intents = {
-        'exam_policy',
         'regulation_forms',
     }
     reg_eligible = effective_domain in ('regulations', 'auto') and primary_intent in structured_regulation_intents
     
-    structured_eligible = curric_eligible or reg_eligible
-    structured_kind = 'curriculum' if curric_eligible else ('regulations' if reg_eligible else 'none')
+    # Public answer paths are retrieval-first for every domain. Structured
+    # deterministic helpers remain available as verifier/diagnostic utilities,
+    # but route decisions must not send requests to deterministic answer paths.
+    deterministic_guard_candidate = bool(curric_eligible or reg_eligible)
+    structured_eligible = False
+    structured_kind = 'none'
 
-    if structured_eligible:
+    if deterministic_guard_candidate:
+        structured_eligibility_reason = 'retrieval_first_no_bypass'
+    elif structured_eligible:
         structured_eligibility_reason = 'qualified'
     elif not use_structured_curriculum and primary_intent in (
-        'instructor_lookup', 'credit_lookup', 'prerequisite_lookup', 'curriculum_course_info'
+        'credit_lookup', 'prerequisite_lookup', 'claim_verification'
     ):
         structured_eligibility_reason = 'env_disabled'
     elif effective_domain not in ('curriculum', 'regulations', 'auto'):
@@ -337,28 +346,8 @@ def analyze_route(question: str, requested_domain: Optional[str] = None, resolve
 
 def select_resolution_strategy(decision: RouteDecision) -> ResolutionStrategy:
     """Determine the optimal resolution path based on intent and constraints."""
-    if decision.primary_intent == 'regulation_forms' and decision.structured_kind == 'regulations':
-        return ResolutionStrategy(resolution_path="structured_regulation_form")
-
     if decision.is_multi_intent:
-        fact_intents = {
-            'exam_policy',
-            'academic_status_policy',
-            'registration_policy',
-            'regulation_forms',
-        }
-        subqs = decompose_question(decision.normalized_question, max_parts=3)
-        if subqs:
-            subq_domains = [(infer_domain(sq) or decision.effective_domain or '').strip().lower() for sq in subqs]
-            subq_intents = [classify_intent(sq) for sq in subqs]
-            if all(d == 'regulations' for d in subq_domains) and all(i in fact_intents for i in subq_intents):
-                return ResolutionStrategy(resolution_path="multi_intent_structured_or_extract")
         return ResolutionStrategy(resolution_path="multi_intent_split")
-
-    if decision.structured_eligible:
-        # Factual lookups must succeed completely (exact schema requirements)
-        if decision.primary_intent in ('credit_lookup', 'prerequisite_lookup', 'instructor_lookup', 'exam_policy', 'claim_verification', 'curriculum_course_info', 'regulation_forms'):
-            return ResolutionStrategy(resolution_path="structured_exact")
 
     return ResolutionStrategy(resolution_path="full_rag")
 
@@ -410,7 +399,7 @@ def infer_domain(question: str) -> str | None:
     Returns one of KNOWN_DOMAINS (e.g., 'curriculum', 'regulations', 'announcements')
     or None if unclear.
     """
-    q = (question or '').strip()
+    q = normalize_question(question)
     if not q:
         return None
 
@@ -455,7 +444,7 @@ def infer_domain(question: str) -> str | None:
     )
 
     # Don't route registrar operations to curriculum
-    _registrar_ops = ('ถอนรายวิชา', 'เพิ่ม-ลด', 'เพิ่มลด', 'ลงทะเบียน', 'ปฏิทิน', 'กำหนดการ')
+    _registrar_ops = ('ถอนรายวิชา', 'ถอนวิชา', 'เพิ่ม-ลด', 'เพิ่มลด', 'ลงทะเบียน', 'ปฏิทิน', 'กำหนดการ')
 
     if any(t in q for t in curriculum_indicators) and not any(op in q for op in _registrar_ops):
         return 'curriculum'
@@ -468,7 +457,8 @@ def infer_domain(question: str) -> str | None:
     # Exam-policy / discipline questions should go to regulations even if they contain time words.
     _exam_policy_terms = (
         'ห้องสอบ', 'เข้าห้องสอบ', 'ออกห้องสอบ', 'ออกจากห้องสอบ', 'ออกห้องสอบชั่วคราว',
-        'มาสาย', 'สายเกิน', 'เข้าห้องสอบได้', 'เข้าห้องสอบได้ไหม', 'เข้าห้องสอบได้ปะ',
+        'มาสาย', 'สายเกิน', 'เข้าสอบสาย', 'เข้าสอบช้า', 'เข้าห้องสอบช้า',
+        'เข้าห้องสอบได้', 'เข้าห้องสอบได้ไหม', 'เข้าห้องสอบได้ปะ',
         'กรรมการคุมสอบ', 'คุมสอบ', 'ข้อสอบ', 'กระดาษคำตอบ', 'สมุดคำตอบ',
         'ทุจริต', 'ส่อ', 'ลงโทษ', 'บทลงโทษ', 'อุทธรณ์', 'คำอุทธรณ์',
         'คณะกรรมการกลาง', 'คณะกรรมการสอบ',
@@ -491,7 +481,7 @@ def infer_domain(question: str) -> str | None:
         return 'announcements'
 
     # Withdraw/W questions often need the academic calendar (announcements) more than policy text.
-    if ('ถอนรายวิชา' in q or re.search(r"\bW\b|\(W\)", q, re.IGNORECASE)):
+    if any(t in q for t in ('ถอนรายวิชา', 'ถอนวิชา')) or re.search(r"\bW\b|\(W\)", q, re.IGNORECASE):
         if any(t in ql for t in ('transcript', 'ทรานสคริป', 'ทรานสคริปต์', 'ใบแสดงผลการเรียน')):
             return 'announcements'
         # If user asks for when/how, prefer announcements.
@@ -503,6 +493,9 @@ def infer_domain(question: str) -> str | None:
         return 'announcements'
 
     if any(t in ql for t in ('เครื่องคำนวณ', 'คิดเลข', 'calculator', 'calc')):
+        return 'regulations'
+
+    if re.search(r"\bRO\s*[- ]?\s*\d{2}\b", q, flags=re.IGNORECASE):
         return 'regulations'
 
     if any(t in q for t in ('คำร้อง', 'แบบฟอร์ม', 'RO-', 'ใบลา', 'เอกสารใบลา', 'ลาออก', 'ลาป่วย', 'ลากิจ', 'ทัณฑ์บน', 'วินัย', 'ตัดคะแนนความประพฤติ', 'สอบซ้อน', 'เข้าสอบ')):
@@ -520,7 +513,7 @@ def infer_domain_bias(question: str) -> str | None:
 
     Used only as a soft hint (never a hard gate) by all-domain fusion.
     """
-    q = (question or '').strip().lower()
+    q = normalize_question(question).lower()
     if not q:
         return None
 

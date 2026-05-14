@@ -71,13 +71,13 @@ CHROMA_DIR, SQLITE_PATH = domain_paths(os.getenv('CPE_DOMAIN'))
 EMBEDDING_MODEL = os.getenv('EMBEDDING_MODEL', 'BAAI/bge-m3')
 EMBED_BATCH = int(os.getenv('EMBED_BATCH', '32'))
 EMBEDDING_DIM = int(os.getenv('EMBEDDING_DIM', '512'))
-TOKEN_BUDGET = int(os.getenv('TOKEN_BUDGET', '1200'))
+TOKEN_BUDGET = int(os.getenv('TOKEN_BUDGET', '2400'))
 RRF_K = int(os.getenv('RRF_K', '60'))
 MAX_CONTEXTS = int(os.getenv('MAX_CONTEXTS', '8'))
 RAG_RESPONSE_PROFILE = (os.getenv('RAG_RESPONSE_PROFILE', 'balanced') or 'balanced').strip().lower()
 if RAG_RESPONSE_PROFILE not in ('fast', 'balanced', 'quality'):
 	RAG_RESPONSE_PROFILE = 'balanced'
-RAG_FAST_MAX_CONTEXTS = max(2, int(os.getenv('RAG_FAST_MAX_CONTEXTS', '4') or '4'))
+RAG_FAST_MAX_CONTEXTS = max(2, int(os.getenv('RAG_FAST_MAX_CONTEXTS', '8') or '8'))
 
 # LLM settings (default switched to lighter 7B for 6GB GPUs)
 LLM_MODEL = os.getenv('LLM_MODEL', 'Qwen/Qwen2.5-7B-Instruct')

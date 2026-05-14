@@ -1683,7 +1683,7 @@ def retrieve_by_domain(
         hints: list[str] = []
 
         # Exam room entry/late arrival
-        if ('เข้าห้องสอบ' in q) or ('มาสาย' in q) or ('สาย' in q and 'สอบ' in q):
+        if ('เข้าห้องสอบ' in q) or ('มาสาย' in q) or ('เข้าสอบสาย' in q) or ('เข้าสอบช้า' in q) or ('สาย' in q and 'สอบ' in q):
             hints.extend([
                 'ห้องสอบ', 'การสอบ',
                 'ข้อ 12',
@@ -2236,10 +2236,13 @@ def retrieve_by_domain(
     semantic_q, keyword_q = build_retrieval_queries(question)
     if dom == 'regulations':
         semantic_q = _augment_regulations_query(question, semantic_q)
+        keyword_q = _augment_regulations_query(question, keyword_q)
     elif dom == 'curriculum':
         semantic_q = _augment_curriculum_query(question, semantic_q)
+        keyword_q = _augment_curriculum_query(question, keyword_q)
     elif dom == 'announcements':
         semantic_q = _augment_announcements_query(question, semantic_q)
+        keyword_q = _augment_announcements_query(question, keyword_q)
 
     anchors = extract_lexical_anchors(keyword_q or question)
 
@@ -2251,6 +2254,17 @@ def retrieve_by_domain(
     strict_ref = bool(source_allowlist) and strict_ref_hints
     add_metric('retrieval_ref_hint_count', len(ref_allow or []))
     add_metric('retrieval_strict_ref', int(strict_ref))
+
+    def _tag_domain(items: List[Dict], active_domain: str | None) -> List[Dict]:
+        d = (active_domain or '').strip().lower()
+        if not d or not items:
+            return items or []
+        out: List[Dict] = []
+        for item in items:
+            updated = dict(item)
+            updated.setdefault('domain', d)
+            out.append(updated)
+        return out
 
     # Domain 1&2: vector + keyword/FTS
     if dom in ('announcements', 'regulations'):
@@ -2499,6 +2513,7 @@ def retrieve_by_domain(
         add_metric('retrieval_final_n', len(picked))
         if dom == 'regulations':
             picked = [_clip_long_regulations_text(it, question) for it in picked]
+        picked = _tag_domain(picked, dom)
         _log_retrieval(
             'retrieve_by_domain',
             {
@@ -2857,7 +2872,17 @@ def retrieve_by_domain(
     # keyword ranks
     credit_total_re = None
     if dom == 'curriculum' and ('หน่วยกิต' in (question or '')):
-        credit_total_re = re.compile(r"จ\s*า\s*น\s*ว\s*น\s*หน่วยกิต\s*ที่\s*เรียน\s*ตลอด\s*หลักสูตร[^\d]{0,60}(\d{2,3})\s*หน่วยกิต")
+        credit_total_re = re.compile(
+            r"(?:จ\s*า\s*น\s*ว\s*น|จำนวน)\s*หน่วยกิต"
+            r"(?:\s*ที่\s*เรียน)?\s*ตลอด\s*หลักสูตร[^\d]{0,80}(\d{2,3})\s*หน่วยกิต"
+        )
+    curriculum_program_intent = False
+    if dom == 'curriculum':
+        q_for_program = (question or '').strip().lower()
+        curriculum_program_intent = (
+            any(t in q_for_program for t in ('โครงสร้างหลักสูตร', 'หน่วยกิตรวม', 'รวมกี่หน่วยกิต', 'ตลอดหลักสูตร', 'หมวดวิชา'))
+            and not instructor_intent
+        )
 
     for r, d in enumerate(kw_docs, 1):
         doc_id = d.get('doc_id') or f'kw_{r}'
@@ -2870,13 +2895,28 @@ def retrieve_by_domain(
             if txt and credit_total_re.search(txt):
                 ranks[doc_id] = ranks.get(doc_id, 0.0) + 1.0
 
+        if curriculum_program_intent:
+            txt = str(d.get('text') or '')
+            src_l = str(d.get('source') or d.get('path') or '').lower()
+            if 'teacher_profiles_by_course' in src_l:
+                ranks[doc_id] = ranks.get(doc_id, 0.0) - 0.45
+            if 'ภาระงานสอนในหลักสูตรนี้' in txt:
+                ranks[doc_id] = ranks.get(doc_id, 0.0) - 0.35
+            if any(t in txt for t in ('จำนวนหน่วยกิตรวมตลอดหลักสูตร', 'โครงสร้างหลักสูตร', 'หมวดวิชาเฉพาะ', 'หมวดวิชาศึกษาทั่วไป')):
+                ranks[doc_id] = ranks.get(doc_id, 0.0) + 0.65
+
     # LNG anchor ranks (boost diverse languages to surface options beyond EN/TH)
     if wants_lng_list and lng_diverse_docs:
         for r, d in enumerate(lng_diverse_docs, 1):
             doc_id = d.get('doc_id') or f'lng_{r}'
             bank.setdefault(doc_id, d)
-            # Stronger boost for list-style questions so multiple languages appear in context.
-            ranks[doc_id] = ranks.get(doc_id, 0.0) + 6.0 / (RRF_K + r)
+            src_l = str(d.get('source') or d.get('path') or '').lower()
+            txt_l = str(d.get('text') or '').lower()
+            is_lng_source = ('lng' in src_l) or ('รายวิชา: lng' in txt_l)
+            bonus = 0.75 if is_lng_source else 0.12
+            # Stronger boost for real LNG catalog chunks so generic curriculum/teacher
+            # chunks do not crowd out the course list.
+            ranks[doc_id] = ranks.get(doc_id, 0.0) + bonus + (6.0 / (RRF_K + r))
 
     # Course-prefix anchor ranks (e.g., SSC/GEN/LNG*)
     if dom == 'curriculum' and wants_prefix_list and prefix_docs:
@@ -2925,6 +2965,23 @@ def retrieve_by_domain(
             add_metric('retrieval_teacher_course_intent', 1)
             add_metric('retrieval_fac_rel_boosted_n', boosted)
 
+        if curriculum_program_intent:
+            adjusted = 0
+            for doc_id, d in bank.items():
+                txt = str(d.get('text') or '')
+                src_l = str(d.get('source') or d.get('path') or '').lower()
+                delta = 0.0
+                if 'teacher_profiles_by_course' in src_l:
+                    delta -= 0.45
+                if 'ภาระงานสอนในหลักสูตรนี้' in txt:
+                    delta -= 0.35
+                if any(t in txt for t in ('จำนวนหน่วยกิตรวมตลอดหลักสูตร', 'โครงสร้างหลักสูตร', 'หมวดวิชาเฉพาะ', 'หมวดวิชาศึกษาทั่วไป')):
+                    delta += 0.65
+                if delta:
+                    ranks[doc_id] = ranks.get(doc_id, 0.0) + delta
+                    adjusted += 1
+            add_metric('retrieval_curriculum_program_intent_adjusted_n', adjusted)
+
     merged = [{**bank[k], 'score_rrf': v, 'doc_id': k} for k, v in ranks.items()]
     merged.sort(key=lambda x: x['score_rrf'], reverse=True)
     
@@ -2942,18 +2999,78 @@ def retrieve_by_domain(
         seen: set[str] = set()
 
         # Prioritize exact chunks that visibly include the target code and non-empty text.
+        def _exact_course_sort_key(d: Dict) -> tuple:
+            txt = str(d.get('text') or '')
+            norm = _normalize_code_text(txt)
+            positions = [norm.find(t) for t in target_codes if t and norm.find(t) >= 0]
+            first_pos = min(positions) if positions else 10**9
+            code_line_hit = 1
+            for t in target_codes:
+                if not t:
+                    continue
+                m = re.match(r"^([A-Z]{2,6})(\d{3})$", t)
+                if not m:
+                    continue
+                patt = re.compile(rf"\b{re.escape(m.group(1))}\s*[- ]?\s*{re.escape(m.group(2))}\b[^\n]{{0,120}}\d\s*\(")
+                if patt.search(txt):
+                    code_line_hit = 0
+                    break
+            preferred_source = 0 if 'foe10' in str(d.get('source') or '').lower() else 1
+            empty_text = 0 if txt.strip() else 1
+            return (
+                code_line_hit,
+                0 if first_pos < 10**9 else 1,
+                first_pos,
+                preferred_source,
+                empty_text,
+                abs(len(txt.strip()) - 900),
+            )
+
+        def _clip_exact_course_text(d: Dict) -> Dict:
+            txt = str(d.get('text') or '')
+            if not txt:
+                return d
+            best_start = None
+            best_end = None
+            for t in target_codes:
+                m = re.match(r"^([A-Z]{2,6})(\d{3})$", t or '')
+                if not m:
+                    continue
+                patt = re.compile(rf"\b{re.escape(m.group(1))}\s*[- ]?\s*{re.escape(m.group(2))}\b")
+                hit = patt.search(txt)
+                if not hit:
+                    continue
+                start = max(0, hit.start() - 120)
+                end = min(len(txt), hit.start() + 900)
+                if best_start is None or start < best_start:
+                    best_start = start
+                    best_end = end
+            if best_start is None or best_end is None:
+                return d
+            clipped = txt[best_start:best_end].strip()
+            if best_start > 0:
+                clipped = '... ' + clipped
+            if best_end < len(txt):
+                clipped = clipped + ' ...'
+            out = dict(d)
+            out['text'] = clipped
+            out['tokens_est'] = est_tokens(clipped)
+            return out
+
         exact_sorted = sorted(
             exact_code_docs,
-            key=lambda d: (
-                0 if _contains_target_code_in_visible_fields(d, target_codes) else 1,
-                0 if str(d.get('text') or '').strip() else 1,
-                len((d.get('text') or '').strip()) if isinstance(d.get('text'), str) else 10**9,
-            ),
+            key=_exact_course_sort_key,
         )
-        for d in exact_sorted:
+        for idx, d in enumerate(exact_sorted):
             did = d.get('doc_id')
             if isinstance(did, str) and did not in seen:
-                picked.append(d)
+                boosted_exact = _clip_exact_course_text(d)
+                boosted_exact['score_rrf'] = max(
+                    float(boosted_exact.get('score_rrf') or boosted_exact.get('score_final') or 0.0),
+                    2.0 - (idx * 0.05),
+                )
+                boosted_exact['score_final'] = boosted_exact['score_rrf']
+                picked.append(boosted_exact)
                 seen.add(did)
                 if len(picked) >= must_include:
                     break
@@ -2968,6 +3085,7 @@ def retrieve_by_domain(
         add_metric('retrieval_merged_n', len(merged))
         add_metric('retrieval_final_n', len(picked))
         picked = _finalize_picks(picked, max_contexts)
+        picked = _tag_domain(picked, dom)
         _log_retrieval(
             'retrieve_by_domain',
             {
@@ -3057,6 +3175,7 @@ def retrieve_by_domain(
     add_metric('retrieval_merged_n', len(merged))
     candidates = merged[: max(max_contexts * 4, max_contexts)]
     picked = _finalize_picks(candidates, max_contexts)
+    picked = _tag_domain(picked, dom or None)
     add_metric('retrieval_final_n', len(picked))
     _log_retrieval(
         'retrieve_by_domain',

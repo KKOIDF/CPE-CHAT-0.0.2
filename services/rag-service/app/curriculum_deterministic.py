@@ -49,6 +49,49 @@ _PROGRAM_FIELD_ALIASES: dict[str, tuple[str, ...]] = {
 _PROGRAM_META_CACHE: dict[str, str] | None = None
 _STAFF_COURSE_RECORDS_CACHE: list[tuple[str, list[tuple[str, str]], str]] | None = None
 
+CURRICULUM_EXACT_LOOKUP_MODES = frozenset({
+    'exact_code',
+    'exact_code_missing_hint',
+    'exact_title',
+    'study_plan',
+    'study_plan_course',
+    'study_plan_group_list',
+    'sum_credits',
+    'program_metadata',
+    'prereq_exact',
+    'instructor_exact_code',
+    'claim_verification',
+})
+
+CURRICULUM_SOFT_LOOKUP_MODES = frozenset({
+    'title_reference_text',
+    'instructor_course_list',
+    'instructor_soft',
+    'lng_language_list',
+    'prefix_list',
+})
+
+
+def curriculum_lookup_response_class(lookup_mode: str | None) -> str:
+    mode = str(lookup_mode or '').strip().lower()
+    if mode in CURRICULUM_EXACT_LOOKUP_MODES:
+        return 'exact_schema'
+    if mode in CURRICULUM_SOFT_LOOKUP_MODES:
+        return 'soft_inference'
+    return 'none'
+
+
+def _soft_lookup_filtered_result(result: dict[str, Any]) -> dict[str, Any]:
+    filtered = dict(result or {})
+    soft_mode = str(filtered.get('lookup_mode') or '').strip().lower()
+    miss_reason = str(filtered.get('miss_reason') or '').strip() or 'soft_lookup_filtered'
+    filtered['answer'] = None
+    filtered['lookup_mode'] = 'none'
+    filtered['miss_reason'] = f'soft_lookup_filtered:{soft_mode or "unknown"}'
+    filtered['soft_lookup_mode'] = soft_mode
+    filtered['soft_lookup_original_miss_reason'] = miss_reason
+    return filtered
+
 _COURSE_ALIASES = {
     "introduction to computer engineering": "CPE100",
     "engineering exploration": "CPE101",
@@ -616,6 +659,85 @@ def _parse_study_plan_courses(question: str) -> list[Course]:
     return sorted(bank.values(), key=_k)
 
 
+def _course_display_line(course: Course, source_name: str) -> str:
+    cred = f" ({course.credits} หน่วยกิต)" if course.credits else ""
+    return f"- {course.prefix} {course.number} {course.title_th}{cred} [{source_name}/1]"
+
+
+def _course_focus_labels(courses: list[Course]) -> list[str]:
+    labels: list[str] = []
+    seen: set[str] = set()
+    for course in courses:
+        key = f"{course.prefix}{course.number}".upper()
+        title = (course.title_th or "").lower()
+
+        def _add(label: str) -> None:
+            if label not in seen:
+                seen.add(label)
+                labels.append(label)
+
+        if key.startswith("CPE100") or key.startswith("CPE112") or "การเขียนโปรแกรม" in title:
+            _add("การเขียนโปรแกรม")
+        if key.startswith("CPE111") or "ดิสครีต" in title or "ตรรก" in title:
+            _add("ตรรกะและคณิตศาสตร์ดิสครีต")
+        if course.prefix == "MTH" or "คณิตศาสตร์" in title or "calcul" in title:
+            _add("คณิตศาสตร์พื้นฐาน")
+        if course.prefix == "PHY" or "ฟิสิกส์" in title:
+            _add("ฟิสิกส์สำหรับวิศวกรรม")
+        if course.prefix == "LNG" or "ภาษาอังกฤษ" in title or "english" in title:
+            _add("ภาษาอังกฤษ")
+        if course.prefix == "GEN" or "ทักษะการเรียนรู้" in title:
+            _add("ทักษะการเรียนรู้และการทำงาน")
+        if key.startswith("CPE101") or "เปิดโลกวิศวกรรม" in title:
+            _add("การสำรวจภาพรวมงานวิศวกรรม")
+        if key.startswith("CPE121") or "วงจรไฟฟ้า" in title or "อิเล็กทรอนิกส์" in title:
+            _add("พื้นฐานไฟฟ้าและอิเล็กทรอนิกส์")
+    return labels
+
+
+def _join_thai_list(items: list[str]) -> str:
+    vals = [str(item or "").strip() for item in items if str(item or "").strip()]
+    if not vals:
+        return ""
+    if len(vals) == 1:
+        return vals[0]
+    if len(vals) == 2:
+        return f"{vals[0]} และ {vals[1]}"
+    return f"{', '.join(vals[:-1])} และ {vals[-1]}"
+
+
+def _study_plan_overview_line(year: int, courses: list[Course], source_name: str) -> str:
+    focuses = _course_focus_labels(courses)
+    focus_text = _join_thai_list(focuses[:4])
+    if year == 1 and focus_text:
+        return (
+            f"สำหรับวิศวกรรมคอมพิวเตอร์ (CPE) ชั้นปีที่ {year} ในแผนการศึกษาหลักสูตรปรับปรุง พ.ศ. 2564 "
+            f"จะเน้นปูพื้นฐานด้าน{focus_text}เป็นหลัก [{source_name}/1]"
+        )
+    if focus_text:
+        return (
+            f"สำหรับชั้นปีที่ {year} รายวิชาที่อยู่ในแผนจะเน้นเรื่อง{focus_text}เป็นหลัก "
+            f"ตามแผนการศึกษาของหลักสูตร [{source_name}/1]"
+        )
+    return f"สำหรับชั้นปีที่ {year} รายวิชาต่อไปนี้เป็นรายวิชาที่พบในแผนการศึกษาของหลักสูตร [{source_name}/1]"
+
+
+def _term_summary_line(year: int, term: int, courses: list[Course], source_name: str) -> str:
+    focuses = _course_focus_labels(courses)
+    focus_text = _join_thai_list(focuses[:3])
+    if year == 1 and term == 1:
+        if focus_text:
+            return f"เทอมที่ 1 จะเป็นช่วงปรับพื้นฐาน โดยเน้น{focus_text} [{source_name}/1]"
+        return f"เทอมที่ 1 จะเป็นช่วงปรับพื้นฐานของหลักสูตร [{source_name}/1]"
+    if year == 1 and term == 2:
+        if focus_text:
+            return f"เทอมที่ 2 จะต่อยอดจากเทอมแรก โดยเน้น{focus_text} [{source_name}/1]"
+        return f"เทอมที่ 2 จะต่อยอดจากพื้นฐานที่เรียนมาในเทอมแรก [{source_name}/1]"
+    if focus_text:
+        return f"ภาคการศึกษาที่ {term} จะเน้น{focus_text} [{source_name}/1]"
+    return f"ภาคการศึกษาที่ {term} มีรายวิชาตามแผนดังนี้ [{source_name}/1]"
+
+
 def _format_study_plan_answer(question: str, courses: list[Course], source_name: str) -> str | None:
     if not courses:
         return None
@@ -624,14 +746,42 @@ def _format_study_plan_answer(question: str, courses: list[Course], source_name:
         return None
 
     if term is not None:
-        hdr = f"ชั้นปีที่ {year} ภาคการศึกษาที่ {term}"
-    else:
-        hdr = f"ชั้นปีที่ {year}"
+        lines = [
+            f"สำหรับชั้นปีที่ {year} ภาคการศึกษาที่ {term} รายวิชาที่พบในแผนการศึกษามีดังนี้ [{source_name}/1]",
+            _term_summary_line(year, term, courses, source_name),
+            "",
+        ]
+        for c in courses:
+            lines.append(_course_display_line(c, source_name))
+        return "\n".join(lines).strip()
 
-    lines = [f"รายวิชาที่พบใน {hdr}:"]
-    for c in courses:
-        cred = f" ({c.credits} หน่วยกิต)" if c.credits else ""
-        lines.append(f"- {c.prefix} {c.number} {c.title_th}{cred} [{source_name}/1]")
+    term_sections: list[tuple[int, list[Course]]] = []
+    for maybe_term in (1, 2, 3):
+        term_courses = _parse_study_plan_courses(f"ชั้นปีที่ {year} ภาคการศึกษาที่ {maybe_term}")
+        if term_courses:
+            term_sections.append((maybe_term, term_courses))
+
+    if not term_sections:
+        return None
+
+    all_courses: list[Course] = []
+    seen_codes: set[str] = set()
+    for _, term_courses in term_sections:
+        for course in term_courses:
+            code = f"{course.prefix}{course.number}".upper()
+            if code in seen_codes:
+                continue
+            seen_codes.add(code)
+            all_courses.append(course)
+
+    lines = [_study_plan_overview_line(year, all_courses, source_name), ""]
+    for idx, (term_no, term_courses) in enumerate(term_sections):
+        lines.append(f"เทอมที่ {term_no}:")
+        lines.append(_term_summary_line(year, term_no, term_courses, source_name))
+        for course in term_courses:
+            lines.append(_course_display_line(course, source_name))
+        if idx != len(term_sections) - 1:
+            lines.append("")
     return "\n".join(lines).strip()
 
 
@@ -1982,8 +2132,8 @@ def _claim_verification_answer(question: str, source_name: str) -> str | None:
     return None
 
 
-def structured_curriculum_lookup(question: str, resolved_entity: dict[str, Any] | None = None) -> dict[str, Any]:
-    """Deterministic curriculum lookup with debug metadata.
+def _structured_curriculum_lookup_impl(question: str, resolved_entity: dict[str, Any] | None = None) -> dict[str, Any]:
+    """Curriculum deterministic lookup with debug metadata.
 
     Returns keys:
       - answer: str | None
@@ -2579,6 +2729,29 @@ def structured_curriculum_lookup(question: str, resolved_entity: dict[str, Any] 
     return {"answer": None, "lookup_mode": "none", "miss_reason": "no_deterministic_match"}
 
 
+def structured_curriculum_lookup(question: str, resolved_entity: dict[str, Any] | None = None) -> dict[str, Any]:
+    """Primary deterministic curriculum lookup.
+
+    This entrypoint is exact-only by default. Soft inference helpers such as
+    instructor course lists, prefix catalogs, and title-reference resolution
+    must be requested explicitly through `structured_curriculum_fallback_lookup`.
+    """
+    result = _structured_curriculum_lookup_impl(question, resolved_entity=resolved_entity)
+    if curriculum_lookup_response_class(result.get('lookup_mode')) == 'soft_inference':
+        return _soft_lookup_filtered_result(result)
+    return result
+
+
+def structured_curriculum_fallback_lookup(question: str, resolved_entity: dict[str, Any] | None = None) -> dict[str, Any]:
+    """Explicit rescue/fallback curriculum lookup, including soft helpers."""
+    return _structured_curriculum_lookup_impl(question, resolved_entity=resolved_entity)
+
+
 def structured_curriculum_answer(question: str, resolved_entity: dict[str, Any] | None = None) -> str | None:
-    """Backward-compatible wrapper returning only answer text."""
+    """Backward-compatible wrapper returning only exact-answer text."""
     return structured_curriculum_lookup(question, resolved_entity=resolved_entity).get("answer")
+
+
+def structured_curriculum_fallback_answer(question: str, resolved_entity: dict[str, Any] | None = None) -> str | None:
+    """Fallback wrapper returning exact or soft curriculum answer text."""
+    return structured_curriculum_fallback_lookup(question, resolved_entity=resolved_entity).get("answer")

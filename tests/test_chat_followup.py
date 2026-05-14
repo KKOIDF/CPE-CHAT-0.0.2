@@ -443,13 +443,19 @@ class TestChatFollowupPipeline(unittest.TestCase):
         self.assertEqual(decision.primary_intent, "general_info")
         self.assertEqual(strategy.resolution_path, "full_rag")
 
-    def test_deterministic_shortcut_only_fires_for_data_backed_announcement_calendar(self) -> None:
+    def test_deterministic_shortcut_prefers_retrieval_first_for_announcements(self) -> None:
         shortcut = _deterministic_domain_shortcut("นักศึกษาปี 3 รหัส 66 ลงทะเบียนภาค 2/2568 ช่วงวันใด", "announcements")
         broad = _deterministic_domain_shortcut("การขอ transcript ต้องทำอย่างไร", "announcements")
 
-        self.assertIsNotNone(shortcut)
-        self.assertIn("announcement", str((shortcut or {}).get("answer") or "").lower())
+        self.assertIsNone(shortcut)
         self.assertIsNone(broad)
+
+    def test_deterministic_shortcut_is_disabled_for_regulation_forms_too(self) -> None:
+        form_shortcut = _deterministic_domain_shortcut("RO-26 ใช้ทำอะไร", "regulations")
+        policy_shortcut = _deterministic_domain_shortcut("เข้าสอบสายได้กี่นาที", "regulations")
+
+        self.assertIsNone(form_shortcut)
+        self.assertIsNone(policy_shortcut)
 
     def test_short_summary_followup_uses_session_hint(self) -> None:
         store = InMemorySessionStore()
@@ -547,6 +553,44 @@ class TestChatFollowupPipeline(unittest.TestCase):
         )
 
         self.assertEqual(prepared.question, "มีแบบฟอร์มอะไรบ้าง")
+
+    def test_regulations_policy_followup_does_not_inherit_form_catalog_context(self) -> None:
+        store = InMemorySessionStore()
+        messages = [
+            {"role": "user", "content": "แบบฟอร์มที่ต้องใช้ มีอะไรบ้าง"},
+            {"role": "assistant", "content": "- RO-01 ...\n- RO-26 ..."},
+            {"role": "user", "content": "ถ้าติด W"},
+        ]
+
+        prepared = prepare_chat_request(
+            question="ถ้าติด W",
+            domain="regulations",
+            session_id="forms3",
+            messages=messages,
+            session_store=store,
+            question_preparer=lambda q, _d: q,
+        )
+
+        self.assertEqual(prepared.question, "ถ้าติด W")
+
+    def test_regulations_withdraw_followup_does_not_inherit_form_catalog_context(self) -> None:
+        store = InMemorySessionStore()
+        messages = [
+            {"role": "user", "content": "แบบฟอร์มที่ต้องใช้ มีอะไรบ้าง"},
+            {"role": "assistant", "content": "- RO-01 ...\n- RO-26 ..."},
+            {"role": "user", "content": "ถ้าเราถอนรายวิชา"},
+        ]
+
+        prepared = prepare_chat_request(
+            question="ถ้าเราถอนรายวิชา",
+            domain="regulations",
+            session_id="forms4",
+            messages=messages,
+            session_store=store,
+            question_preparer=lambda q, _d: q,
+        )
+
+        self.assertEqual(prepared.question, "ถ้าเราถอนรายวิชา")
 
     def test_redis_session_store_shares_memory_across_instances(self) -> None:
         shared = _FakeRedis()

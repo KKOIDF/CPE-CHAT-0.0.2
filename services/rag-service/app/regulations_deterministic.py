@@ -205,6 +205,38 @@ def _normalize_form_text(text: str) -> str:
     return re.sub(r'[^a-z0-9\u0E00-\u0E7F]+', '', t)
 
 
+def _active_followup_clause(text: str) -> str:
+    raw = re.sub(r"\s+", " ", str(text or "").strip())
+    if not raw:
+        return ""
+    if 'คำถามต่อเนื่อง:' in raw:
+        return raw.split('คำถามต่อเนื่อง:', 1)[1].strip()
+    return raw
+
+
+def _should_bypass_form_lookup(question: str) -> bool:
+    active = _active_followup_clause(question).lower()
+    if not active:
+        return False
+    policy_cues = (
+        'ติด w',
+        '(w)',
+        'withdrawn',
+        'ถอนรายวิชา',
+        'ถอนวิชา',
+        'ถอดรายวิชา',
+        'ถอดวิชา',
+        'เกรด',
+        'พ้นสภาพ',
+        'ติดโปร',
+        'ลงทะเบียน',
+    )
+    if not any(cue in active for cue in policy_cues) and not re.search(r"\bw\b", active, re.IGNORECASE):
+        return False
+    explicit_form_cues = ('แบบฟอร์ม', 'คำร้อง', 'ro-', 'ใบลา', 'เอกสาร')
+    return not any(cue in active for cue in explicit_form_cues)
+
+
 def _render_form_answer(item: dict[str, Any]) -> str:
     title = str(item.get('title') or '').strip()
     desc = str(item.get('description') or '').strip()
@@ -256,6 +288,8 @@ def lookup_regulation_form(question: str) -> dict[str, Any] | None:
     q = (question or '').strip().lower()
     if not q:
         return None
+    if _should_bypass_form_lookup(question):
+        return None
     q_norm = _normalize_form_text(q)
 
     for item in _FORM_REGISTRY:
@@ -274,6 +308,26 @@ def lookup_regulation_form(question: str) -> dict[str, Any] | None:
                 'miss_reason': '',
                 'form_code': form_code,
                 'form_source': str(item.get('source') or 'forms.txt/1').strip(),
+            }
+
+    explicit_ro = re.search(r"\bRO\s*[- ]?\s*(\d{2})\b", question or '', flags=re.IGNORECASE)
+    if explicit_ro:
+        code = f"RO-{explicit_ro.group(1)}".upper()
+        known_codes = {
+            str(item.get('form_code') or '').strip().upper()
+            for item in _FORM_REGISTRY
+            if str(item.get('form_code') or '').strip()
+        }
+        if code not in known_codes:
+            return {
+                'answer': (
+                    f"- ไม่พบแบบฟอร์ม {code} ในฐานข้อมูล/รายการฟอร์มที่ระบบมีอยู่ตอนนี้ [forms.txt/1]\n"
+                    "- เพื่อไม่ให้เดาข้อมูลเอกสารผิด ควรตรวจสอบกับหน้าแบบฟอร์มงานทะเบียนหรืออัปเดตชุดข้อมูลฟอร์มก่อนถามรายละเอียดของเอกสารนี้"
+                ),
+                'lookup_mode': 'form_missing',
+                'miss_reason': '',
+                'form_code': code,
+                'form_source': 'forms.txt/1',
             }
 
     if any(alias in q for alias in _FORM_DIRECTORY_ALIASES):
@@ -1117,10 +1171,9 @@ def _topic_lookup(q: str, rules_text: str) -> dict[str, Any] | None:
 def structured_regulations_lookup(question: str, resolved_entity: dict[str, Any] | None = None) -> dict[str, Any]:
     """Deterministic lookup for regulations domain.
 
-    Priority:
-    0. Multi-intent clause merge  (ข้อ 12 + ข้อ 16 in same query)
-    1. Numbered clause lookup      (single ข้อ N)
-    2. Topic keyword lookup        (ทุจริต, อุทธรณ์, แต่งกาย, ...)
+    Policy: keep deterministic handling only for form/catalog lookups.
+    Exam-policy and other regulation explanations should use RAG retrieval
+    plus extractive answering instead of hard-coded phrase maps.
     """
     q = apply_resolved_entity_context((question or "").strip(), resolved_entity)
 
@@ -1131,205 +1184,11 @@ def structured_regulations_lookup(question: str, resolved_entity: dict[str, Any]
         out['rules_files_n'] = 1
         out['rules_source_kind'] = 'form_registry'
         return out
-
-    source = exam_rules_source_status()
-    rules_text = _read_exam_rules() if source["ready"] else ""
-    clause_nums = _extract_clause_tokens(q)
-
-    if not source["ready"]:
-        return _with_source_meta({
-            "answer": None,
-            "lookup_mode": "none",
-            "miss_reason": "form_registry_unavailable",
-        }, source)
-
-    def _exam_phrase_lookup(q_str: str) -> dict[str, Any] | None:
-        ql = q_str.lower()
-
-        strict_hit = _strict_repeated_eval_case_lock(q_str)
-        if strict_hit is not None:
-            return strict_hit
-
-        locked = _locked_exam_case_phrase(q_str)
-        if locked is not None:
-            return locked
-
-        if any(t in ql for t in ('สิ่งของ', 'ของส่วนตัว', 'ห้ามนำเข้าห้องสอบ', 'อุปกรณ์ต้องห้าม')):
-            return {
-                "answer": "- ตามระเบียบการสอบ ห้ามนำโทรศัพท์หรืออุปกรณ์สื่อสารเข้าห้องสอบ และรายการสิ่งของต้องห้ามอื่นให้ยึดตามประกาศสนามสอบหรือคำสั่งกรรมการคุมสอบ [rule_exam2560.txt/1]",
-                "lookup_mode": "exam_phrase_forbidden_items",
-                "miss_reason": "",
-            }
-
-        # Deterministic guard for clause/device asks that frequently miss exact clause spans
-        # in chunked sources (e.g., "ข้อ 9 ... อุปกรณ์สื่อสาร").
-        if any(t in ql for t in ('อุปกรณ์สื่อสาร', 'เครื่องมือสื่อสาร', 'โทรศัพท์')):
-            if any(t in ql for t in ('ข้อ 9', 'ข้อ9', 'ข้อ๙', 'ระเบียบการสอบ')):
-                return {
-                    "answer": "- ตามระเบียบการสอบ ข้อ 9 ห้ามนำโทรศัพท์หรืออุปกรณ์สื่อสารเข้าห้องสอบ และห้ามใช้งานระหว่างการสอบ [rule_exam2560.txt/1]",
-                    "lookup_mode": "exam_phrase_device_clause9",
-                    "miss_reason": "",
-                }
-
-        # Targeted deterministic answers for eval-sensitive regulations intents.
-        if any(t in ql for t in ('เครื่องคำนวณ', 'คิดเลข')):
-            ans = fetch_exam_clause('11', rules_text)
-            if ans and _is_exam_policy_clause_valid(ans, q_str):
-                return {
-                    "answer": "- นำเครื่องคำนวณเข้าห้องสอบได้เฉพาะรุ่นที่มหาวิทยาลัยกำหนด ต้องนำไปตรวจสอบและติดสติกเกอร์จากสำนักงานทะเบียนนักศึกษา และอนุญาตให้นำได้เพียงคนละ 1 เครื่อง [rule_exam2560_calculator.txt/1]",
-                    "lookup_mode": "exam_phrase_calculator",
-                    "miss_reason": "",
-                }
-
-        if any(t in ql for t in ('ออกจากห้องสอบ', 'ออกห้องสอบ')) and any(t in ql for t in ('กี่นาที', 'ผ่านไปกี่นาที', 'เมื่อผ่านไป')) and 'ชั่วคราว' not in ql:
-            return {
-                "answer": "- ระเบียบการสอบอนุญาตให้นักศึกษาออกจากห้องสอบได้เมื่อการสอบผ่านไปแล้ว 60 นาที [rule_exam2560.txt/1]",
-                "lookup_mode": "exam_phrase_leave_60",
-                "miss_reason": "",
-            }
-
-        if any(t in ql for t in ('ชั่วคราว', 'เข้าห้องน้ำ', 'ออกห้องสอบชั่วคราว')):
-            ans = fetch_exam_clause('16', rules_text)
-            if ans and _is_exam_policy_clause_valid(ans, q_str):
-                return {
-                    "answer": "- การออกจากห้องสอบชั่วคราวต้องได้รับอนุญาตจากกรรมการคุมสอบ และห้ามนำเครื่องมือสื่อสารติดตัวไป [rule_exam2560.txt/1]",
-                    "lookup_mode": "exam_phrase_leave_temp_structured",
-                    "miss_reason": "",
-                }
-
-        if 'อุทธรณ์' in ql and any(t in ql for t in ('28.1', '๒๘.๑')):
-            ans = fetch_exam_clause('28', rules_text)
-            if ans and _is_exam_policy_clause_valid(ans, q_str):
-                return {
-                    "answer": "- ตามข้อ 28.1 ต้องยื่นอุทธรณ์ต่ออธิการบดีภายใน 15 วัน นับแต่วันได้รับแจ้งคำสั่งลงโทษ [rule_exam2560_appeal.txt/1]",
-                    "lookup_mode": "exam_phrase_appeal_281",
-                    "miss_reason": "",
-                }
-
-        if 'อุทธรณ์' in ql and any(t in ql for t in ('28.2', '๒๘.๒')):
-            ans = fetch_exam_clause('28', rules_text)
-            if ans and _is_exam_policy_clause_valid(ans, q_str):
-                return {
-                    "answer": "- ตามข้อ 28.2 การอุทธรณ์ทำได้เฉพาะตนเอง อุทธรณ์แทนผู้อื่นไม่ได้ [rule_exam2560_appeal.txt/1]",
-                    "lookup_mode": "exam_phrase_appeal_282",
-                    "miss_reason": "",
-                }
-
-        late_words = ('มาสาย', 'สายเกิน', 'เข้าสอบสาย', 'เข้าห้องสอบ', 'เข้าสอบ', 'มาสอบช้า')
-        if any(t in ql for t in late_words):
-            if ('15' not in ql) and any(t in ql for t in ('เกิน60', 'เกิน 60', 'มากกว่า 60', 'หกสิบ', 'หนึ่งชั่วโมง', 'เกินชั่วโมง', '60')):
-                return {
-                    "answer": "- ระเบียบการสอบกำหนดว่า หากมาสายเกิน 60 นาที หมดสิทธิ์เข้าห้องสอบ [rule_exam2560.txt/1]",
-                    "lookup_mode": "exam_phrase_late_60",
-                    "miss_reason": "",
-                }
-            if any(t in ql for t in ('15', 'สิบห้า', '15นาที', 'สิบห้านาที')):
-                ans = fetch_exam_clause('12', rules_text)
-                if ans and _is_exam_policy_clause_valid(ans, q_str):
-                    return {
-                        "answer": f"ระเบียบการสอบ ข้อ 12 กำหนดไว้ดังนี้:\n\n{ans}\n\n[rule_exam2560.txt/1]",
-                        "lookup_mode": "exam_phrase_late_15",
-                        "miss_reason": "",
-                    }
-            if any(t in ql for t in ('ได้ปะ', 'ได้ไหม', 'ได้มั้ย', 'ได้หรือไม่', 'ทำอย่างไร')):
-                ans = fetch_exam_clause('12', rules_text)
-                if ans and _is_exam_policy_clause_valid(ans, q_str):
-                    return {
-                        "answer": f"ระเบียบการสอบ ข้อ 12 กำหนดไว้ดังนี้:\n\n{ans}\n\n[rule_exam2560.txt/1]",
-                        "lookup_mode": "exam_phrase_late_generic",
-                        "miss_reason": "",
-                    }
-
-        if any(t in ql for t in ('ชั่วคราว', 'เข้าห้องน้ำ', 'ออกห้องสอบชั่วคราว')):
-            if any(t in ql for t in ('ออก', 'ห้องสอบ')):
-                ans = fetch_exam_clause('16', rules_text)
-                if ans and _is_exam_policy_clause_valid(ans, q_str):
-                    return {
-                        "answer": f"ระเบียบการสอบ ข้อ 16 กำหนดไว้ดังนี้:\n\n{ans}\n\n[rule_exam2560.txt/1]",
-                        "lookup_mode": "exam_phrase_leave_temp",
-                        "miss_reason": "",
-                    }
-
-        if any(t in ql for t in ('ออกจากห้องสอบ', 'ออกห้องสอบ')) and 'ชั่วคราว' not in ql:
-            ans = fetch_exam_clause('15', rules_text)
-            if ans and _is_exam_policy_clause_valid(ans, q_str):
-                return {
-                    "answer": f"ระเบียบการสอบ ข้อ 15 กำหนดไว้ดังนี้:\n\n{ans}\n\n[rule_exam2560.txt/1]",
-                    "lookup_mode": "exam_phrase_leave",
-                    "miss_reason": "",
-                }
-
-        if 'อุทธรณ์' in ql and any(t in ql for t in ('28', '28.1', '28.2', '๒๘', '๒๘.๑', '๒๘.๒')):
-            ans = fetch_exam_clause('28', rules_text)
-            if ans and _is_exam_policy_clause_valid(ans, q_str):
-                return {
-                    "answer": f"ระเบียบการสอบ ข้อ 28 กำหนดการอุทธรณ์ดังนี้:\n\n{ans}\n\n[rule_exam2560.txt/1]",
-                    "lookup_mode": "exam_phrase_appeal",
-                    "miss_reason": "",
-                }
-
-        return None
-
-    # Priority 0: Numbered clause(s) must be anchored strictly to asked clause.
-    if clause_nums and _has_exam_policy_signal(q):
-        # Clause 28.x appeal asks are eval-sensitive: return concise deterministic
-        # sentence with explicit numeric window and appeal source token.
-        if 'อุทธรณ์' in q.lower():
-            appeal_parts: list[str] = []
-            for clause_num in clause_nums:
-                if clause_num == '28.1':
-                    appeal_parts.append('- ตามข้อ 28.1 ต้องยื่นอุทธรณ์ต่ออธิการบดีภายใน 15 วัน นับแต่วันได้รับแจ้งคำสั่งลงโทษ [rule_exam2560_appeal.txt/1]')
-                elif clause_num == '28.2':
-                    appeal_parts.append('- ตามข้อ 28.2 การอุทธรณ์ทำได้เฉพาะตนเอง ไม่ได้ทำแทนผู้อื่น [rule_exam2560_appeal.txt/1]')
-            if appeal_parts:
-                return _with_source_meta({
-                    'answer': '\n'.join(appeal_parts),
-                    'lookup_mode': 'exam_clause_appeal_strict',
-                    'miss_reason': '',
-                }, source)
-
-        parts: list[str] = []
-        for clause_num in clause_nums:
-            clause_text = fetch_exam_clause(clause_num, rules_text)
-            if clause_text and _is_exam_policy_clause_valid(clause_text, q):
-                parts.append(f"ระเบียบการสอบ ข้อ {clause_num} กำหนดไว้ดังนี้:\n\n{clause_text}")
-        if parts:
-            ans = "\n\n---\n\n".join(parts) + "\n\n[rule_exam2560.txt/1]"
-            mode = f"exam_clause_{'_'.join(clause_nums)}" if len(clause_nums) > 1 else f"exam_clause_{clause_nums[0]}"
-            return _with_source_meta({
-                "answer": ans,
-                "lookup_mode": mode,
-                "miss_reason": "",
-            }, source)
-
-        # If exact clause extraction misses (common with split chunks), fallback to
-        # deterministic phrase policy before declaring miss.
-        phrase_match = _exam_phrase_lookup(q)
-        if phrase_match:
-            return _with_source_meta(phrase_match, source)
-
-        return _with_source_meta({
-            "answer": None,
-            "lookup_mode": "none",
-            "miss_reason": "no_exact_clause_match",
-        }, source)
-
-    # Priority 1: Exact phrasing matches (e.g. natural language policy questions)
-    phrase_match = _exam_phrase_lookup(q)
-    if phrase_match:
-        return _with_source_meta(phrase_match, source)
-
-    # Priority 2: Topic-based search
-    if rules_text:
-        result = _topic_lookup(q, rules_text)
-        if result:
-            return _with_source_meta(result, source)
-
-    miss_reason = "no_deterministic_match"
-    if _has_exam_policy_signal(q):
-        miss_reason = "exam_policy_unmatched_phrase"
-    return _with_source_meta({
+    return {
         "answer": None,
         "lookup_mode": "none",
-        "miss_reason": miss_reason,
-    }, source)
+        "miss_reason": "non_form_lookup_disabled",
+        "rules_source_ready": 1,
+        "rules_files_n": 0,
+        "rules_source_kind": "form_registry",
+    }

@@ -171,11 +171,72 @@ class TestAutoRagRuntime(unittest.TestCase):
         self.assertIn("W (Withdrawn)", answer or "")
         self.assertIn("Transcript", answer or "")
 
+    def test_announcement_generalized_answer_no_longer_handles_procedure(self) -> None:
+        import app.announcement_deterministic as ann  # noqa: E402
+
+        answer = ann.render_generalized_announcement_answer("การขอ transcript ต้องทำอย่างไร")
+        self.assertIsNone(answer)
+
     def test_calculator_routes_to_exam_policy(self) -> None:
         import app.routing as routing  # noqa: E402
 
         self.assertEqual(routing.classify_intent("เครื่องคิดเลขแบบไหนที่ใช้เข้าห้องสอบได้"), "exam_policy")
         self.assertEqual(routing.infer_domain("เครื่องคิดเลขแบบไหนที่ใช้เข้าห้องสอบได้"), "regulations")
+
+    def test_exam_policy_prefers_retrieval_and_extraction_over_structured_regulations(self) -> None:
+        import app.routing as routing  # noqa: E402
+
+        decision = routing.analyze_route("เข้าสอบสายได้กี่นาที", "regulations")
+        strategy = routing.select_resolution_strategy(decision)
+
+        self.assertEqual(decision.primary_intent, "exam_policy")
+        self.assertEqual(decision.structured_kind, "none")
+        self.assertEqual(strategy.resolution_path, "full_rag")
+
+    def test_exact_fact_intents_still_route_retrieval_first(self) -> None:
+        import app.routing as routing  # noqa: E402
+
+        cases = [
+            ("RO-26 ใช้ทำอะไร", "regulations", "regulation_forms"),
+            ("CPE 342 กี่หน่วยกิต", "curriculum", "credit_lookup"),
+            ("LNG 220 มีวิชาบังคับก่อนอะไร", "curriculum", "prerequisite_lookup"),
+            ("CPE 100 เป็นวิชาเลือกใช่ไหม", "curriculum", "claim_verification"),
+        ]
+        for question, domain, intent in cases:
+            with self.subTest(question=question):
+                decision = routing.analyze_route(question, domain)
+                strategy = routing.select_resolution_strategy(decision)
+                self.assertEqual(decision.primary_intent, intent)
+                self.assertFalse(decision.structured_eligible)
+                self.assertEqual(decision.structured_kind, "none")
+                self.assertEqual(decision.structured_eligibility_reason, "retrieval_first_no_bypass")
+                self.assertEqual(strategy.resolution_path, "full_rag")
+
+    def test_exam_late_entry_extractor_handles_time_window_question(self) -> None:
+        import app.main as main  # noqa: E402
+
+        prompt = (
+            "บริบท\n"
+            "[rule_exam2560.txt/1] ข้อ 12 นักศึกษาต้องเข้าห้องสอบถามเวลาและสถานที่ที่มหาวิทยาลัยกำหนด "
+            "กรณีที่นักศึกษามาถึงห้องสอบสายเกินกว่าสิบห้านาที แต่ไม่เกินหกสิบนาที "
+            "ให้นักศึกษายื่นคำร้องขอเข้าห้องสอบต่อประธานกรรมการจัดการสอบ หรือผู้ที่ประธานกรรมการมอบหมาย "
+            "เพื่อพิจารณาอนุญาตก่อนเข้าห้องสอบ หากเกินกว่าหกสิบนาทีให้ถือว่าหมดสิทธิ์เข้าห้องสอบ\n\n"
+            "คำตอบ:"
+        )
+
+        answer = main._try_extract_exam_late_entry_rule(prompt, "เข้าสอบสายได้กี่นาที")
+
+        self.assertIsNotNone(answer)
+        self.assertIn("ไม่เกิน 60 นาที", answer or "")
+        self.assertIn("เกิน 15 นาที", answer or "")
+        self.assertIn("เกิน 60 นาที", answer or "")
+
+    def test_curriculum_soft_inference_modes_do_not_qualify_for_primary_structured_shortcut(self) -> None:
+        import app.main as main  # noqa: E402
+
+        self.assertFalse(main._structured_curriculum_result_allowed({"answer": "x", "lookup_mode": "prefix_list", "miss_reason": ""}))
+        self.assertFalse(main._structured_curriculum_result_allowed({"answer": "x", "lookup_mode": "lng_language_list", "miss_reason": ""}))
+        self.assertTrue(main._structured_curriculum_result_allowed({"answer": "x", "lookup_mode": "exact_code", "miss_reason": ""}))
 
     def test_smalltalk_routes_cleanly(self) -> None:
         import app.routing as routing  # noqa: E402

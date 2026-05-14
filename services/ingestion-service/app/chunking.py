@@ -3592,25 +3592,200 @@ def _make_chunks_mixed_layout(paragraphs: List[Dict], source_path: str, profile:
     return _make_chunks_structure(paragraphs, source_path)
 
 
+def _score_chunk_candidates(chunks: List[Dict], total_tokens: int) -> float:
+    if not chunks:
+        return float("-inf")
+
+    tiny_cutoff = max(10, int(CHUNK_MIN_TOKENS * 0.2))
+    oversize_cutoff = max(CHUNK_MAX_TOKENS, int(CHUNK_MAX_TOKENS * 1.15))
+
+    score = 0.0
+    non_empty = 0
+    covered_tokens = 0
+    tiny_count = 0
+    oversize_count = 0
+    pages_covered: set[int] = set()
+
+    for ch in chunks:
+        txt = str((ch or {}).get('text') or '').strip()
+        tok = est_tokens(txt)
+        if txt:
+            non_empty += 1
+            covered_tokens += tok
+        if tok < tiny_cutoff:
+            tiny_count += 1
+        if tok > oversize_cutoff:
+            oversize_count += 1
+        for page_key in ('page', 'page_start', 'page_end'):
+            page_val = (ch or {}).get(page_key)
+            try:
+                if page_val is not None:
+                    pages_covered.add(int(page_val))
+            except Exception:
+                pass
+
+    score += non_empty * 3.0
+    score -= tiny_count * 1.75
+    score -= oversize_count * 3.0
+    score += min(1.5, len(pages_covered) * 0.15)
+
+    if total_tokens > 0:
+        coverage_ratio = min(1.2, covered_tokens / float(total_tokens))
+        score += coverage_ratio * 4.0
+        if total_tokens > (CHUNK_MAX_TOKENS * 1.4) and len(chunks) >= 2:
+            score += 2.0
+        if total_tokens > (CHUNK_MAX_TOKENS * 2.2) and len(chunks) == 1:
+            score -= 5.0
+
+    return score
+
+
+def _chunks_need_fallback(chunks: List[Dict], total_tokens: int) -> bool:
+    if not chunks:
+        return True
+    if total_tokens > (CHUNK_MAX_TOKENS * 1.4) and len(chunks) < 2:
+        return True
+
+    tiny_cutoff = max(10, int(CHUNK_MIN_TOKENS * 0.2))
+    tiny_count = 0
+    oversize_count = 0
+    for ch in chunks:
+        tok = est_tokens(str((ch or {}).get('text') or ''))
+        if tok < tiny_cutoff:
+            tiny_count += 1
+        if tok > max(CHUNK_MAX_TOKENS, int(CHUNK_MAX_TOKENS * 1.15)):
+            oversize_count += 1
+
+    if oversize_count > 0:
+        return True
+    if len(chunks) >= 3 and tiny_count >= max(2, len(chunks) // 2):
+        return True
+    return False
+
+
+def _merge_adjacent_context_chunks(chunks: List[Dict]) -> List[Dict]:
+    """Merge adjacent same-entity chunks when they still fit the larger budget.
+
+    Domain strategies already split by course/clause/calendar structure. With
+    larger chunk defaults, this pass keeps split description/LO, clause/table,
+    or calendar note fragments together without merging unrelated courses.
+    """
+    if not chunks:
+        return []
+
+    def _key(ch: Dict) -> tuple[str, str, str, str]:
+        src = str(ch.get('source') or ch.get('path') or '').strip().lower()
+        course = str(ch.get('course_code_norm') or '').strip().upper()
+        clause = str(ch.get('clause_id') or '').strip().lower()
+        section_path = str(ch.get('section_path') or ch.get('path_text') or '').strip().lower()
+        section = str(ch.get('section') or '').strip().lower()
+        if course:
+            return (src, 'course', course, '')
+        if clause:
+            return (src, 'clause', clause, '')
+        if section_path:
+            return (src, 'path', section_path, '')
+        return (src, 'section', section, '')
+
+    def _mergeable(a: Dict, b: Dict) -> bool:
+        if _key(a) != _key(b):
+            return False
+        kind = _key(a)[1]
+        if kind == 'section' and not _key(a)[2]:
+            return False
+        ta = str(a.get('text') or '').strip()
+        tb = str(b.get('text') or '').strip()
+        if not ta or not tb:
+            return False
+        combined_tokens = est_tokens(f"{ta}\n{tb}")
+        if combined_tokens > CHUNK_MAX_TOKENS:
+            return False
+        # Keep broad body/prose sections from swallowing unrelated paragraphs.
+        if kind == 'section' and combined_tokens > max(CHUNK_MIN_TOKENS, int(CHUNK_MAX_TOKENS * 0.65)):
+            return False
+        return True
+
+    def _merge_pair(a: Dict, b: Dict) -> Dict:
+        out = dict(a)
+        ta = str(a.get('text') or '').strip()
+        tb = str(b.get('text') or '').strip()
+        out['text'] = f"{ta}\n{tb}".strip()
+        out['tokens_est'] = est_tokens(out['text'])
+        for k in ('page', 'page_start'):
+            try:
+                av = int(a.get(k) or a.get('page_start') or 0)
+                bv = int(b.get(k) or b.get('page_start') or av)
+                out[k] = min(av, bv)
+            except Exception:
+                pass
+        try:
+            out['page_end'] = max(int(a.get('page_end') or a.get('page_start') or 0), int(b.get('page_end') or b.get('page_start') or 0))
+        except Exception:
+            pass
+        basis = f"{out.get('source_file') or out.get('source') or ''}|{_key(out)}|{out.get('page_start') or 0}|{out.get('page_end') or 0}|{out.get('tokens_est') or 0}"
+        out['chunk_uid'] = hashlib.sha1(basis.encode('utf-8', 'ignore')).hexdigest()[:32]
+        return out
+
+    merged: List[Dict] = []
+    for ch in chunks:
+        cur = dict(ch or {})
+        if merged and _mergeable(merged[-1], cur):
+            merged[-1] = _merge_pair(merged[-1], cur)
+        else:
+            merged.append(cur)
+    return merged
+
+
 def make_chunks(paragraphs: List[Dict], source_path: str) -> List[Dict]:
     joined = "\n".join([str((p or {}).get('text') or '').strip() for p in (paragraphs or [])[:80] if str((p or {}).get('text') or '').strip()])
     profile = infer_document_profile(source_path, joined)
     strat = (profile.get('semantic_chunk_strategy') or CHUNK_STRATEGY or 'structure').strip().lower()
-    if strat in ('langchain_recursive', 'langchain'):
-        return _make_chunks_langchain_recursive(paragraphs, source_path)
-    if strat == 'sentence_window':
-        return _make_chunks_sentence_window(paragraphs, source_path)
-    if strat in ('table_aware', 'table'):
-        return _make_chunks_table_aware(paragraphs, source_path, profile=profile)
-    if strat in ('mixed_layout', 'mixed'):
-        return _make_chunks_mixed_layout(paragraphs, source_path, profile=profile)
-    if strat in ('announcement_template', 'announcements'):
-        return _make_chunks_announcement_template(paragraphs, source_path)
-    if strat in ('curriculum_course', 'course_centric', 'course'):
-        return _make_chunks_curriculum_course(paragraphs, source_path)
-    if strat in ('regulation_template', 'regulations'):
-        return _make_chunks_regulation_template(paragraphs, source_path)
-    return _make_chunks_structure(paragraphs, source_path)
+    total_text = "\n".join([str((p or {}).get('text') or '').strip() for p in (paragraphs or []) if str((p or {}).get('text') or '').strip()])
+    total_tokens = est_tokens(total_text)
+
+    def _run_strategy(name: str) -> List[Dict]:
+        if name in ('langchain_recursive', 'langchain'):
+            return _make_chunks_langchain_recursive(paragraphs, source_path)
+        if name == 'sentence_window':
+            return _make_chunks_sentence_window(paragraphs, source_path)
+        if name in ('table_aware', 'table'):
+            return _make_chunks_table_aware(paragraphs, source_path, profile=profile)
+        if name in ('mixed_layout', 'mixed'):
+            return _make_chunks_mixed_layout(paragraphs, source_path, profile=profile)
+        if name in ('announcement_template', 'announcements'):
+            return _make_chunks_announcement_template(paragraphs, source_path)
+        if name in ('curriculum_course', 'course_centric', 'course'):
+            return _make_chunks_curriculum_course(paragraphs, source_path)
+        if name in ('regulation_template', 'regulations'):
+            return _make_chunks_regulation_template(paragraphs, source_path)
+        return _make_chunks_structure(paragraphs, source_path)
+
+    fallback_order = [strat]
+    for cand in (
+        'mixed_layout',
+        'table_aware',
+        'sentence_window',
+        'structure',
+        'langchain_recursive',
+    ):
+        if cand not in fallback_order:
+            fallback_order.append(cand)
+
+    best_chunks = _run_strategy(strat)
+    best_score = _score_chunk_candidates(best_chunks, total_tokens)
+
+    if _chunks_need_fallback(best_chunks, total_tokens):
+        for cand in fallback_order[1:]:
+            chunks = _run_strategy(cand)
+            score = _score_chunk_candidates(chunks, total_tokens)
+            if score > best_score:
+                best_chunks = chunks
+                best_score = score
+
+    best_chunks = _merge_adjacent_context_chunks(best_chunks)
+    for idx, ch in enumerate(best_chunks):
+        ch['chunk_id'] = idx
+    return best_chunks
 
 
 def _make_chunks_langchain_recursive(paragraphs: List[Dict], source_path: str) -> List[Dict]:

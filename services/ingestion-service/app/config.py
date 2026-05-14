@@ -86,22 +86,22 @@ def _get_str(key: str, default: str) -> str:
 
 
 # Chunking settings (domain-aware)
-_DEFAULT_CHUNK_MIN = 400
-_DEFAULT_CHUNK_MAX = 800
-_DEFAULT_CHUNK_OVERLAP = 0.12
+_DEFAULT_CHUNK_MIN = 500
+_DEFAULT_CHUNK_MAX = 1100
+_DEFAULT_CHUNK_OVERLAP = 0.18
 if DOMAIN == 'announcements':
     # Announcements are clause/schedule driven; smaller chunks work better.
     # NOTE: Keep min low enough that heading boundaries can flush chunks
     # in sentence/structure strategies (common OCR output yields many mid-size chunks).
-    _DEFAULT_CHUNK_MIN = 150
-    _DEFAULT_CHUNK_MAX = 450
-    _DEFAULT_CHUNK_OVERLAP = 0.12
+    _DEFAULT_CHUNK_MIN = 220
+    _DEFAULT_CHUNK_MAX = 700
+    _DEFAULT_CHUNK_OVERLAP = 0.15
 elif DOMAIN == 'regulations':
     # Regulations: clause/subclause oriented; keep overlap low.
     # NOTE: Lower min so heading boundaries can flush chunks in edge cases (e.g., COVID/calendar sections).
-    _DEFAULT_CHUNK_MIN = 120
-    _DEFAULT_CHUNK_MAX = 450
-    _DEFAULT_CHUNK_OVERLAP = 0.08
+    _DEFAULT_CHUNK_MIN = 250
+    _DEFAULT_CHUNK_MAX = 850
+    _DEFAULT_CHUNK_OVERLAP = 0.15
 
 CHUNK_MIN_TOKENS = _get_int('CHUNK_MIN_TOKENS', _DEFAULT_CHUNK_MIN)
 CHUNK_MAX_TOKENS = _get_int('CHUNK_MAX_TOKENS', _DEFAULT_CHUNK_MAX)

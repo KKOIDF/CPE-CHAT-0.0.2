@@ -21,8 +21,9 @@ services:
       # Embedding configuration
       EMBEDDING_MODEL: "BAAI/bge-m3"
       EMBEDDING_DIM: "512"
-      TOKEN_BUDGET: "${TOKEN_BUDGET:-1200}"
+      TOKEN_BUDGET: "${TOKEN_BUDGET:-2400}"
       MAX_CONTEXTS: "${MAX_CONTEXTS:-8}"
+      RAG_CURRICULUM_BYPASS_VECTOR: "${RAG_CURRICULUM_BYPASS_VECTOR:-0}"
       
       # LLM Configuration - gemma primary with Typhoon fallback for answers
       LLM_ENABLE: "1"
@@ -69,7 +70,7 @@ services:
       # LangChain orchestration defaults.
       RAG_USE_LANGCHAIN: "${RAG_USE_LANGCHAIN:-1}"
       RAG_RESPONSE_PROFILE: "${RAG_RESPONSE_PROFILE:-fast}"
-      RAG_FAST_MAX_CONTEXTS: "${RAG_FAST_MAX_CONTEXTS:-4}"
+      RAG_FAST_MAX_CONTEXTS: "${RAG_FAST_MAX_CONTEXTS:-8}"
       RAG_LC_MULTIQUERY: "${RAG_LC_MULTIQUERY:-1}"
       RAG_LC_MULTIQUERY_N: "${RAG_LC_MULTIQUERY_N:-4}"
       RAG_LC_MULTIQUERY_ALL: "${RAG_LC_MULTIQUERY_ALL:-0}"
