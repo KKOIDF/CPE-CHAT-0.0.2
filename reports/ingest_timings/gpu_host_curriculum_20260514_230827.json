@@ -1,0 +1,78 @@
+{
+  "label": "gpu_host:curriculum",
+  "domain": "curriculum",
+  "input_dir": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/curriculum",
+  "output_base": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/db/curriculum",
+  "store": true,
+  "embed": true,
+  "generated_at": "2026-05-14T16:12:15.591194+00:00",
+  "counts": {
+    "files": 8,
+    "records": 8,
+    "paragraphs": 3256,
+    "chunks": 957,
+    "flagged_chunks": 3,
+    "embedded_chunks": 957
+  },
+  "phase_ms": {
+    "extract_total_ms": 748.331,
+    "records_write_ms": 13.424,
+    "chunking_ms": 8913.613,
+    "chunks_write_ms": 43.416,
+    "db_store_ms": 4646.256,
+    "structured_artifacts_ms": 3501.141,
+    "embedding_ms": 89482.106,
+    "neo4j_ms": 0.0
+  },
+  "total_ms": 132866.104,
+  "file_timings": [
+    {
+      "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/curriculum/FOE10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 130.45
+    },
+    {
+      "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/curriculum/SSC.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 23.636
+    },
+    {
+      "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/curriculum/teacher.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 41.208
+    },
+    {
+      "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/curriculum/teacher_profiles.csv",
+      "file_type": "csv",
+      "records": 1,
+      "elapsed_ms": 70.339
+    },
+    {
+      "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/curriculum/teacher_profiles_by_course.csv",
+      "file_type": "csv",
+      "records": 1,
+      "elapsed_ms": 14.918
+    },
+    {
+      "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/curriculum/วศ.บ.-วศวกรรมคอมพวเตอร-ปรบปรง.64.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 348.841
+    },
+    {
+      "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/curriculum/วิชา LNG 2562.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 83.35
+    },
+    {
+      "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/curriculum/โครงสร้างหลักสูตรรายวิชาศึกษาทั่วไป มจธ.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 35.588
+    }
+  ]
+}

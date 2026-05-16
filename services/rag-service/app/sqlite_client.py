@@ -5,7 +5,7 @@ import os
 from typing import List, Dict, Optional, Sequence, Any
 from pathlib import Path
 
-from .config import SQLITE_PATH, domain_paths
+from .config import RAG_GLOBAL_SQLITE_PATH, SQLITE_PATH, domain_paths
 
 
 _thread_local = threading.local()
@@ -315,7 +315,6 @@ def keyword_search(
     if not like_ids:
         return ids
 
-    # Union while preserving order (FTS first, then LIKE additions).
     merged: List[str] = []
     seen = set()
     for did in (ids + like_ids):
@@ -325,6 +324,80 @@ def keyword_search(
         if len(merged) >= limit:
             break
     return merged
+
+
+def _build_chunk_row(row: Any) -> Dict[str, Any]:
+    data = dict(row) if not isinstance(row, dict) else row
+    return {
+        'stable_chunk_id': data.get('stable_chunk_id') or data.get('doc_id'),
+        'doc_id': data.get('stable_chunk_id') or data.get('doc_id'),
+        'source_id': data.get('source_id'),
+        'domain': data.get('domain'),
+        'source_name': data.get('source_name') or data.get('source'),
+        'source': data.get('source_name') or data.get('source'),
+        'source_path': data.get('source_path') or data.get('path'),
+        'path': data.get('source_path') or data.get('path'),
+        'file_name': data.get('file_name'),
+        'title': data.get('title'),
+        'section_heading': data.get('section_heading'),
+        'page': data.get('page'),
+        'page_start': data.get('page'),
+        'page_end': data.get('page'),
+        'text': data.get('text'),
+        'keyword_score': float(data.get('bm25') or 0.0),
+    }
+
+
+def keyword_search_global_chunks(
+    query: str,
+    limit: int = 30,
+    strict_domain: str | None = None,
+    sqlite_path: Optional[str] = None,
+) -> List[Dict[str, Any]]:
+    path = sqlite_path or str(RAG_GLOBAL_SQLITE_PATH)
+    conn = get_conn(path)
+    sanitized = (query or '').replace('"', '""')
+    for char in ['/', '(', ')', '-', ':', '*', '?', '[', ']', '{', '}']:
+        sanitized = sanitized.replace(char, ' ')
+    if not sanitized.strip():
+        return []
+    params: list[Any] = [sanitized]
+    where = ""
+    if strict_domain:
+        where = " AND c.domain = ?"
+        params.append(strict_domain)
+    params.append(limit)
+    sql = (
+        "SELECT c.*, bm25(rag_chunks_fts) AS bm25 "
+        "FROM rag_chunks_fts "
+        "JOIN rag_chunks c ON c.stable_chunk_id = rag_chunks_fts.stable_chunk_id "
+        "WHERE rag_chunks_fts MATCH ?"
+        f"{where} "
+        "ORDER BY bm25 LIMIT ?"
+    )
+    try:
+        cur = conn.execute(sql, params)
+        rows = [_build_chunk_row(row) for row in cur.fetchall()]
+        if rows:
+            return rows
+    except Exception:
+        pass
+
+    like_query = f"%{query.strip()}%"
+    try:
+        if strict_domain:
+            cur = conn.execute(
+                "SELECT * FROM rag_chunks WHERE domain = ? AND (text LIKE ? OR source_name LIKE ? OR title LIKE ? OR section_heading LIKE ?) LIMIT ?",
+                (strict_domain, like_query, like_query, like_query, like_query, limit),
+            )
+        else:
+            cur = conn.execute(
+                "SELECT * FROM rag_chunks WHERE text LIKE ? OR source_name LIKE ? OR title LIKE ? OR section_heading LIKE ? LIMIT ?",
+                (like_query, like_query, like_query, like_query, limit),
+            )
+        return [_build_chunk_row(row) for row in cur.fetchall()]
+    except Exception:
+        return []
 
 
 def fetch_docs(doc_ids: List[str]) -> List[Dict]:

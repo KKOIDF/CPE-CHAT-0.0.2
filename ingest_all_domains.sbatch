@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --job-name=cpe-ingest-all
 #SBATCH --output=slurm-ingest-%j.log
-#SBATCH --partition=gpu3060
+#SBATCH --partition=gpu4090
 #SBATCH --gres=gpu:1
 #SBATCH --cpus-per-task=4
 #SBATCH --mem=16G

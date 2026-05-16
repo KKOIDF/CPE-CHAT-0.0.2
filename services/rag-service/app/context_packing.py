@@ -6,6 +6,7 @@ from typing import Dict, List, Tuple
 
 from .config import TOKEN_BUDGET
 from .normalization import CHAR_PER_TOKEN
+from .open_notebook_rag import build_source_labeled_context
 
 
 def est_tokens(text: str) -> int:
@@ -198,3 +199,15 @@ def pack_context(
         used += t
         cites[i] = cite
     return '\n\n'.join(packed_blocks), cites
+
+
+def pack_open_notebook_context(
+    question: str,
+    chunks: List[Dict],
+    budget_tokens: int = TOKEN_BUDGET,
+) -> Tuple[str, Dict[int, str], Dict[str, object]]:
+    payload = build_source_labeled_context(question=question, chunks=chunks, token_budget=budget_tokens)
+    cites: Dict[int, str] = {}
+    for idx, chunk in enumerate(payload.get('chunks_used') or [], start=1):
+        cites[idx] = _cite_label(chunk)
+    return str(payload.get('formatted_context') or ''), cites, payload

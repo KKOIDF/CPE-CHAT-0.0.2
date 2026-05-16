@@ -11,7 +11,7 @@ from pathlib import Path
 
 from .perf import add_metric
 from .normalization import normalize_question, search_query_from_question
-from .config import KNOWN_DOMAINS, ROOT_DIR
+from .config import KNOWN_DOMAINS, ROOT_DIR, RAG_ENGINE, RAG_CHROMA_DIR, RAG_GLOBAL_SQLITE_PATH
 from .routing import (
     apply_resolved_entity_context,
     _filter_chunks_by_reference,
@@ -24,7 +24,7 @@ from .routing import (
     is_multi_doc_question,
     classify_intent,
 )
-from .context_packing import est_tokens, pack_context, pack_context_grouped
+from .context_packing import est_tokens, pack_context, pack_context_grouped, pack_open_notebook_context
 from .prompting import build_prompt
 
 from .retrieval import (
@@ -32,6 +32,7 @@ from .retrieval import (
     retrieve_by_domain as _retrieve_by_domain,
     retrieve_multi_document as _retrieve_multi_document,
 )
+from .config import RAG_ENGINE
 from .curriculum_deterministic import structured_curriculum_answer, structured_curriculum_lookup
 from .rerank import _normalize_source_key, apply_intent_aware_fact_boost
 from .structured_artifacts import search_fact_index
@@ -159,6 +160,9 @@ def _redis_cache_key(key: str) -> str:
 
 def _cache_domains_signature(domains: List[str]) -> str:
     payload: Dict[str, tuple[int, int]] = {}
+    if str(RAG_ENGINE or '').strip().lower() == 'open_notebook_style':
+        payload['global:chroma'] = _cache_file_signature(Path(RAG_CHROMA_DIR) / 'chroma.sqlite3')
+        payload['global:sqlite'] = _cache_file_signature(Path(RAG_GLOBAL_SQLITE_PATH))
     for dom in domains:
         key = str(dom or '').strip().lower()
         if not key:
@@ -765,7 +769,10 @@ def rag_query(question: str, resolved_entity: dict | None = None, retrieval_plan
     if retrieved and len(retrieved) > max_ctx:
         retrieved = retrieved[:max_ctx]
 
-    if _MULTI_DOC_MODE == 'auto' and is_multi_doc_question(q_display):
+    context_payload: dict[str, Any] | None = None
+    if RAG_ENGINE == 'open_notebook_style':
+        ctx, cites, context_payload = pack_open_notebook_context(q_display, retrieved)
+    elif _MULTI_DOC_MODE == 'auto' and is_multi_doc_question(q_display):
         ctx, cites = pack_context_grouped(retrieved)
     elif _MULTI_DOC_MODE in ('1', 'true', 'yes', 'on'):
         ctx, cites = pack_context_grouped(retrieved)
@@ -773,6 +780,14 @@ def rag_query(question: str, resolved_entity: dict | None = None, retrieval_plan
         ctx, cites = pack_context(retrieved)
     prompt = build_prompt(q_display, ctx, cites, intent=intent)
 
+    print(
+        f"[rag] engine={'open_notebook_derived' if RAG_ENGINE == 'open_notebook_style' else 'legacy'} "
+        f"context_chars={len(ctx or '')} sources_used={len((context_payload or {}).get('sources_used', []))}"
+    )
+    print(
+        f"[rag] engine={'open_notebook_derived' if RAG_ENGINE == 'open_notebook_style' else 'legacy'} "
+        f"context_chars={len(ctx or '')} sources_used={len((context_payload or {}).get('sources_used', []))}"
+    )
     unique_sources: set[str] = set()
     unique_domains: set[str] = set()
     for r in (retrieved or []):
@@ -799,6 +814,13 @@ def rag_query(question: str, resolved_entity: dict | None = None, retrieval_plan
         ] + _retrieval_intent_alias_contexts(question, dom_inferred),
         'token_est': est_tokens(ctx),
         'meta': {
+            'retrieval_mode': 'global_hybrid' if RAG_ENGINE == 'open_notebook_style' else 'legacy',
+            'engine': 'open_notebook_derived' if RAG_ENGINE == 'open_notebook_style' else 'legacy',
+            'formatted_context_preview': ctx[:2000],
+            'sources_used': (context_payload or {}).get('sources_used', []),
+            'chunks_used': (context_payload or {}).get('chunks_used', []),
+            'context_token_count': (context_payload or {}).get('context_token_count', est_tokens(ctx)),
+            'warnings': (context_payload or {}).get('warnings', []),
             'multi_doc_mode': _MULTI_DOC_MODE,
             'multi_doc_triggered': bool(multi_doc_triggered),
             'multi_doc_used': bool(multi_doc_used),
@@ -944,7 +966,11 @@ def rag_query_domain(question: str, domain: str | None, resolved_entity: dict | 
         re.search(r"LNG", q_display, re.IGNORECASE) is not None
         and any(t in q_display for t in ('เลือกเรียน', 'มีวิชา', 'วิชาอะไร', 'เลือกได้', 'ตัวเลือก'))
     )
-    ctx, cites = pack_context(retrieved, truncate_chars=(450 if wants_lng_list else None))
+    context_payload: dict[str, Any] | None = None
+    if RAG_ENGINE == 'open_notebook_style':
+        ctx, cites, context_payload = pack_open_notebook_context(q_display, retrieved)
+    else:
+        ctx, cites = pack_context(retrieved, truncate_chars=(450 if wants_lng_list else None))
     prompt = build_prompt(q_display, ctx, cites, intent=intent)
     result = {
         'prompt': prompt,
@@ -965,6 +991,13 @@ def rag_query_domain(question: str, domain: str | None, resolved_entity: dict | 
         ] + _retrieval_intent_alias_contexts(question, dom),
         'token_est': est_tokens(ctx),
         'meta': {
+            'retrieval_mode': 'global_hybrid' if RAG_ENGINE == 'open_notebook_style' else 'legacy',
+            'engine': 'open_notebook_derived' if RAG_ENGINE == 'open_notebook_style' else 'legacy',
+            'formatted_context_preview': ctx[:2000],
+            'sources_used': (context_payload or {}).get('sources_used', []),
+            'chunks_used': (context_payload or {}).get('chunks_used', []),
+            'context_token_count': (context_payload or {}).get('context_token_count', est_tokens(ctx)),
+            'warnings': (context_payload or {}).get('warnings', []),
             'adaptive': adaptive,
             'retrieval_plan': retrieval_plan or {},
             'evidence_rows': [

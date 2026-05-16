@@ -18,3 +18,6 @@ langchain-core
 
 # Experiment tracking (optional)
 mlflow
+
+pythainlp
+langchain-text-splitters

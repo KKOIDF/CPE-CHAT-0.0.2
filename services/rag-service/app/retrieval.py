@@ -9,9 +9,9 @@ import logging
 
 from .perf import time_block, add_metric
 
-from .sqlite_client import keyword_search, fetch_docs_with_path, domain_sqlite_path
-from .chroma_client import semantic_search_domain
-from .config import TOKEN_BUDGET, RRF_K, MAX_CONTEXTS, KNOWN_DOMAINS, ROOT_DIR
+from .sqlite_client import keyword_search, keyword_search_global_chunks, fetch_docs_with_path, domain_sqlite_path
+from .chroma_client import semantic_search_domain, semantic_search_global
+from .config import TOKEN_BUDGET, RRF_K, MAX_CONTEXTS, KNOWN_DOMAINS, ROOT_DIR, RAG_ENGINE, RAG_LEGACY_DOMAIN_INDEX_COMPAT
 from .neo4j_client import (
     extract_course_codes,
     graph_doc_ids_for_codes,
@@ -41,9 +41,88 @@ from .routing import (
     infer_domain_bias,
     is_multi_doc_question,
 )
+from .open_notebook_rag import (
+    build_source_labeled_context,
+    enforce_source_diversity,
+    generate_query_variants,
+    infer_candidate_domains,
+    not_found_payload,
+    rerank_results,
+    rrf_merge,
+)
 
 
 logger = logging.getLogger(__name__)
+_USE_OPEN_NOTEBOOK_ENGINE = RAG_ENGINE == 'open_notebook_style'
+
+
+def _global_filter_for_domain(domain: str | None) -> dict | None:
+    dom = str(domain or '').strip().lower()
+    if not dom:
+        return None
+    return {'domain': dom}
+
+
+def _legacy_cross_domain_fallback(question: str, top_k: int = 12) -> list[dict]:
+    out: list[dict] = []
+    for dom in KNOWN_DOMAINS:
+        try:
+            out.extend(semantic_search_domain(question, top_k=top_k, domain=dom))
+        except Exception:
+            continue
+    return out
+
+
+def retrieve_open_notebook_style(
+    question: str,
+    requested_domain: str | None = None,
+    strict_domain: bool = False,
+    final_limit: int = MAX_CONTEXTS,
+) -> list[dict]:
+    variants = generate_query_variants(question)
+    candidate_domains = infer_candidate_domains(question, requested_domain=requested_domain)
+    vector_lists: list[list[dict]] = []
+    keyword_lists: list[list[dict]] = []
+    where = _global_filter_for_domain(requested_domain if strict_domain else None)
+    vector_top_k = max(12, int(os.getenv('RAG_VECTOR_TOP_K', '40') or '40'))
+    keyword_top_k = max(8, int(os.getenv('RAG_KEYWORD_TOP_K', '30') or '30'))
+
+    for variant in variants:
+        try:
+            hits = semantic_search_global(variant, top_k=vector_top_k, where=where)
+        except Exception:
+            hits = []
+        for row in hits:
+            row['query_variant_source'] = variant
+        if hits:
+            vector_lists.append(hits)
+
+    if not vector_lists and RAG_LEGACY_DOMAIN_INDEX_COMPAT:
+        fallback_hits = _legacy_cross_domain_fallback(question, top_k=min(vector_top_k, 16))
+        if fallback_hits:
+            vector_lists.append(fallback_hits)
+
+    keyword_strict_domain = requested_domain if strict_domain else None
+    for variant in variants[:2]:
+        hits = keyword_search_global_chunks(variant, limit=keyword_top_k, strict_domain=keyword_strict_domain)
+        if hits:
+            keyword_lists.append(hits)
+
+    if not vector_lists and not keyword_lists:
+        return []
+
+    merged = rrf_merge([*vector_lists, *keyword_lists], k=max(1, int(os.getenv('RAG_HYBRID_RRF_K', '60') or '60')))
+    reranked = rerank_results(merged, question=question, candidate_domains=candidate_domains)
+    limited = enforce_source_diversity(
+        reranked,
+        limit=max(1, int(final_limit or MAX_CONTEXTS)),
+        max_per_source=max(1, int(os.getenv('RAG_MAX_CHUNKS_PER_SOURCE', '3') or '3')),
+    )
+    print(
+        f"[rag] engine=open_notebook_derived raw_vector_candidates={sum(len(items) for items in vector_lists)} "
+        f"raw_keyword_candidates={sum(len(items) for items in keyword_lists)} selected_chunks={len(limited)}"
+    )
+    return limited
 
 
 _RETRIEVAL_PARALLEL = (os.getenv('RAG_RETRIEVAL_PARALLEL', '1') or '1').strip().lower() in (
@@ -671,6 +750,13 @@ def pack_context_grouped(
 
 def retrieve_multi_document(question: str) -> List[Dict]:
     """Multi-hop-ish retrieval: decompose -> wide retrieve per subq -> fuse -> doc→chunk -> diversify."""
+    if _USE_OPEN_NOTEBOOK_ENGINE:
+        return retrieve_open_notebook_style(
+            question,
+            requested_domain=None,
+            strict_domain=False,
+            final_limit=max(_MULTI_DOC_FINAL_LIMIT, MAX_CONTEXTS),
+        )
     subqs = decompose_question(question, max_parts=_MULTI_DOC_MAX_SUBQS)
     if not subqs:
         return []
@@ -1335,6 +1421,13 @@ def retrieve_all_domains(
     max_per_source: int = _MAX_PER_SOURCE,
     per_domain_limit: int | None = None,
 ) -> List[Dict]:
+    if _USE_OPEN_NOTEBOOK_ENGINE:
+        return retrieve_open_notebook_style(
+            question,
+            requested_domain=None,
+            strict_domain=False,
+            final_limit=final_limit,
+        )
     doms = [d.strip().lower() for d in (domains or list(KNOWN_DOMAINS)) if (d or '').strip()]
     if not doms:
         doms = list(KNOWN_DOMAINS)
@@ -1523,6 +1616,13 @@ def retrieve_by_domain(
     max_contexts_override: int | None = None,
     vector_enabled: bool = True,
 ) -> List[Dict]:
+    if _USE_OPEN_NOTEBOOK_ENGINE:
+        return retrieve_open_notebook_style(
+            question,
+            requested_domain=domain,
+            strict_domain=True,
+            final_limit=max_contexts_override or MAX_CONTEXTS,
+        )
     def _retrieve_semantic_and_keyword(
         semantic_query: str,
         keyword_query: str,

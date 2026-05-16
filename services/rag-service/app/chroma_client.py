@@ -3,7 +3,15 @@ from chromadb.config import Settings
 from typing import Any, List, Optional, Sequence
 from functools import lru_cache
 from pathlib import Path
-from .config import CHROMA_DIR, EMBEDDING_MODEL, EMBED_BATCH, EMBEDDING_DIM, domain_paths
+from .config import (
+    CHROMA_DIR,
+    EMBEDDING_MODEL,
+    EMBED_BATCH,
+    EMBEDDING_DIM,
+    RAG_CHROMA_COLLECTION,
+    RAG_CHROMA_DIR,
+    domain_paths,
+)
 from .perf import time_block
 import os
 
@@ -26,8 +34,43 @@ def _get_collection_for_domain(domain: str) -> Any:
     client = chromadb.PersistentClient(path=str(chroma_dir), settings=Settings(anonymized_telemetry=False))
     return client.get_or_create_collection(name='documents')
 
+
+@lru_cache(maxsize=2)
+def _get_global_collection() -> Any:
+    chroma_dir = Path(RAG_CHROMA_DIR)
+    chroma_dir.mkdir(parents=True, exist_ok=True)
+    client = chromadb.PersistentClient(path=str(chroma_dir), settings=Settings(anonymized_telemetry=False))
+    return client.get_or_create_collection(name=RAG_CHROMA_COLLECTION)
+
+
+def _collection_vector_dim(collection: Any, fallback: int = EMBEDDING_DIM) -> int:
+    try:
+        peek = collection.peek(limit=1)
+        embeddings = peek.get('embeddings')
+        shape = getattr(embeddings, 'shape', None)
+        if shape and len(shape) >= 2 and int(shape[1]) > 0:
+            return int(shape[1])
+        if embeddings is not None and len(embeddings) > 0 and len(embeddings[0]) > 0:
+            return int(len(embeddings[0]))
+    except Exception:
+        pass
+    return int(fallback)
+
 _embedder = None
 _is_bge_m3 = False
+
+
+def _resize_embedding(vec: List[float], target_dim: int) -> List[float]:
+    if target_dim <= 0:
+        return vec
+    if not vec:
+        return [0.0] * target_dim
+    if len(vec) == target_dim:
+        return vec
+    if len(vec) > target_dim:
+        return vec[:target_dim]
+    meanv = sum(vec) / (len(vec) or 1)
+    return vec + [float(meanv)] * (target_dim - len(vec))
 
 
 def _resolve_embed_device() -> str:
@@ -190,6 +233,60 @@ def semantic_search(query: str, top_k: int = 12) -> List[dict]:
     return semantic_search_domain(query, top_k=top_k, domain=None)
 
 
+def semantic_search_global(
+    query: str,
+    top_k: int = 12,
+    where: Optional[dict[str, Any]] = None,
+) -> List[dict]:
+    collection = _get_global_collection()
+    with time_block('embed_query_ms'):
+        qvec = embed_texts([query], is_query=True)[0]
+    qvec = _resize_embedding(qvec, _collection_vector_dim(collection))
+    try:
+        with time_block('chroma_query_ms'):
+            res = collection.query(
+                query_embeddings=[qvec],
+                n_results=top_k,
+                include=['documents', 'metadatas', 'distances'],
+                where=where,
+            ) if where else collection.query(
+                query_embeddings=[qvec],
+                n_results=top_k,
+                include=['documents', 'metadatas', 'distances'],
+            )
+    except Exception as e:
+        msg = str(e).lower()
+        if 'dimension' in msg or 'dim' in msg:
+            print(
+                f"[RAG] Global Chroma query failed (likely dimension mismatch). "
+                f"Configured EMBEDDING_DIM={EMBEDDING_DIM}. "
+                f"If your global index was built with a different dim, delete {RAG_CHROMA_DIR} and re-ingest. Error: {e}"
+            )
+            return []
+        raise
+    out: list[dict[str, Any]] = []
+    if not res.get('ids'):
+        return out
+    for i in range(len(res['ids'][0])):
+        raw_id = res['ids'][0][i]
+        meta = (res['metadatas'][0][i] or {})
+        out.append({
+            'stable_chunk_id': meta.get('stable_chunk_id') or raw_id,
+            'doc_id': meta.get('stable_chunk_id') or raw_id,
+            'chroma_id': raw_id,
+            'text': res['documents'][0][i],
+            **meta,
+            'source': meta.get('source_name') or meta.get('source') or meta.get('file_name'),
+            'path': meta.get('source_path') or meta.get('path'),
+            'page_start': meta.get('page') or meta.get('page_start'),
+            'page_end': meta.get('page') or meta.get('page_end'),
+            'distance': (res.get('distances') or [[None]])[0][i],
+            'vector_score': 1.0 - float((res.get('distances') or [[1.0]])[0][i] or 1.0),
+            'embedding': None,
+        })
+    return out
+
+
 def semantic_search_domain(
     query: str,
     top_k: int = 12,
@@ -201,6 +298,7 @@ def semantic_search_domain(
     # Embed query with instruction (for BGE-M3)
     with time_block('embed_query_ms'):
         qvec = embed_texts([query], is_query=True)[0]
+    qvec = _resize_embedding(qvec, _collection_vector_dim(collection))
     allow_src: list[str] = []
     if source_allowlist:
         seen = set()

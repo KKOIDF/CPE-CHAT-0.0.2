@@ -927,7 +927,7 @@ class ChatCompletionResponse(BaseModel):
     usage: dict = {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
 
 
-_FALLBACK = 'ขออภัยด้วยนะครับ เนื่องจากเราหาเอกสารไม่เจอหรือเอกสารที่มีนั้นไม่เพียงพอ ยังไงลองถามอย่างอื่นมาได้เลยนะครับ'
+_FALLBACK = 'ไม่พบข้อมูลนี้ในเอกสารที่ค้นได้'
 
 _SESSION_FOLLOWUP_HINTS: dict[str, dict[str, str]] = {}
 try:

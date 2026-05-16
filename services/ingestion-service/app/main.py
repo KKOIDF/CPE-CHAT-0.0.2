@@ -52,7 +52,23 @@ def run_ingest(
     from .chunking import paragraphs_from_records, make_chunks
     from .db import init_db, insert_chunks, log_ocr_quality
     from .quality import is_valid_ocr, make_quality_entry
-    from .config import EMBED_FLAGGED, REVIEW_DIR, DOMAIN
+    from .config import (
+        CHUNK_STRATEGY,
+        DOMAIN,
+        EMBED_FLAGGED,
+        EMBEDDING_MODEL,
+        RAG_CHUNK_CHAR_FALLBACK_OVERLAP,
+        RAG_CHUNK_CHAR_FALLBACK_SIZE,
+        RAG_CHUNK_MAX_TOKENS,
+        RAG_CHUNK_MIN_TOKENS,
+        RAG_CHUNK_OVERLAP,
+        RAG_CHUNK_SIZE,
+        RAG_CORPUS_ID,
+        RAG_EMBEDDING_PROVIDER,
+        RAG_ENGINE,
+        REVIEW_DIR,
+    )
+    from .open_notebook_chunking import ChunkingConfig, build_chunks_from_records
     from .structured_artifacts import write_structured_artifacts
     from .toon_converter import write_toon
     try:
@@ -97,17 +113,53 @@ def run_ingest(
     phase_ms['records_write_ms'] = (time.perf_counter() - phase_started) * 1000.0
     print(f"Wrote {len(all_records)} records -> {records_out}")
 
+    chunk_reports: List[Dict] = []
+    files_seen = len(files)
+    files_failed = 0
+    files_indexed = 0
+
     # build paragraphs then chunks
     phase_started = time.perf_counter()
     paragraphs = paragraphs_from_records(all_records)
-    # Group paragraphs by original source file path to avoid losing per-file provenance
     grouped: Dict[str, List[Dict]] = {}
-    for p in paragraphs:
-        src = p.get('src') or input_dir
-        grouped.setdefault(src, []).append(p)
+    for record in all_records:
+        src = str(record.get('source') or '').strip() or input_dir
+        grouped.setdefault(src, []).append(record)
     raw_chunks: List[Dict] = []
-    for src, plist in grouped.items():
-        raw_chunks.extend(make_chunks(plist, source_path=src))
+    if RAG_ENGINE == 'open_notebook_style':
+        inferred_domain = DOMAIN or Path(input_dir).name or 'unknown'
+        cfg = ChunkingConfig(
+            corpus_id=RAG_CORPUS_ID,
+            domain=inferred_domain,
+            embedding_provider=RAG_EMBEDDING_PROVIDER,
+            embedding_model=EMBEDDING_MODEL,
+            chunk_size=RAG_CHUNK_SIZE,
+            chunk_overlap=RAG_CHUNK_OVERLAP,
+            min_tokens=RAG_CHUNK_MIN_TOKENS,
+            max_tokens=RAG_CHUNK_MAX_TOKENS,
+            char_fallback_size=RAG_CHUNK_CHAR_FALLBACK_SIZE,
+            char_fallback_overlap=RAG_CHUNK_CHAR_FALLBACK_OVERLAP,
+        )
+        for src, records_for_src in grouped.items():
+            chunks_for_src, report = build_chunks_from_records(records_for_src, source_path=src, cfg=cfg)
+            chunk_reports.append(report)
+            if not chunks_for_src:
+                files_failed += 1
+                print(f"[WARN] extracted text empty or unusable: {src}")
+                continue
+            files_indexed += 1
+            raw_chunks.extend(chunks_for_src)
+    else:
+        for p in paragraphs:
+            src = p.get('src') or input_dir
+            grouped.setdefault(src, []).append(p)
+        for src, plist in grouped.items():
+            made = make_chunks(plist, source_path=src)
+            if made:
+                files_indexed += 1
+                raw_chunks.extend(made)
+            else:
+                files_failed += 1
     phase_ms['chunking_ms'] = (time.perf_counter() - phase_started) * 1000.0
 
     # enrich chunks with doc_id + file_type + chunk_id and quality status (page-level)
@@ -183,6 +235,20 @@ def run_ingest(
     flagged = len(flagged_chunks)
     embedded = len(embed_candidates) if embed else 0
     print(f"Ingested {len(files)} file(s), {len(all_records)} page/sheet records, {len(enriched_chunks)} chunks (flagged={flagged}, embedded={embedded}).")
+    print(
+        "Summary: "
+        f"files_seen={files_seen} files_indexed={files_indexed} files_failed={files_failed} "
+        f"chunks_created={len(enriched_chunks)} chunks_upserted={embedded} empty_chunks=0"
+    )
+    if chunk_reports:
+        for report in chunk_reports[:10]:
+            print(
+                "[Chunking] "
+                f"{report.get('source_name')} type={report.get('content_type')} "
+                f"raw_chars={report.get('raw_text_chars')} chunks={report.get('chunk_count')} "
+                f"avg_chars={report.get('avg_chunk_chars')} avg_tokens={report.get('avg_chunk_tokens')} "
+                f"oversized={report.get('oversized_chunks')}"
+            )
 
     total_ms = (time.perf_counter() - total_started) * 1000.0
     timing_payload = {
@@ -195,6 +261,9 @@ def run_ingest(
         'generated_at': datetime.now(timezone.utc).isoformat(),
         'counts': {
             'files': len(files),
+            'files_seen': files_seen,
+            'files_indexed': files_indexed,
+            'files_failed': files_failed,
             'records': len(all_records),
             'paragraphs': len(paragraphs),
             'chunks': len(enriched_chunks),
@@ -204,6 +273,7 @@ def run_ingest(
         'phase_ms': {k: round(v, 3) for k, v in phase_ms.items()},
         'total_ms': round(total_ms, 3),
         'file_timings': file_timings,
+        'chunk_reports': chunk_reports,
     }
     if timing_out:
         timing_path = Path(timing_out)

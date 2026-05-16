@@ -1,0 +1,1245 @@
+{
+  "mode": "gpu_host",
+  "generated_at": "2026-05-16T14:56:31.029974+00:00",
+  "domains": [
+    {
+      "label": "gpu_host:announcements",
+      "domain": "announcements",
+      "input_dir": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/announcements",
+      "output_base": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/db/announcements",
+      "store": true,
+      "embed": true,
+      "generated_at": "2026-05-16T14:56:31.029974+00:00",
+      "counts": {
+        "files": 39,
+        "files_seen": 39,
+        "files_indexed": 39,
+        "files_failed": 0,
+        "records": 39,
+        "paragraphs": 1069,
+        "chunks": 183,
+        "flagged_chunks": 18,
+        "embedded_chunks": 183
+      },
+      "phase_ms": {
+        "extract_total_ms": 154.665,
+        "records_write_ms": 4.539,
+        "chunking_ms": 936.584,
+        "chunks_write_ms": 4.854,
+        "db_store_ms": 3702.767,
+        "structured_artifacts_ms": 71.076,
+        "embedding_ms": 6087.001,
+        "neo4j_ms": 0.0
+      },
+      "total_ms": 17941.136,
+      "file_timings": [
+        {
+          "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/announcements/131.txt",
+          "file_type": "txt",
+          "records": 1,
+          "elapsed_ms": 45.776
+        },
+        {
+          "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/announcements/137.txt",
+          "file_type": "txt",
+          "records": 1,
+          "elapsed_ms": 0.936
+        },
+        {
+          "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/announcements/139.txt",
+          "file_type": "txt",
+          "records": 1,
+          "elapsed_ms": 1.022
+        },
+        {
+          "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/announcements/2018_06_08_15_13_16.txt",
+          "file_type": "txt",
+          "records": 1,
+          "elapsed_ms": 2.242
+        },
+        {
+          "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/announcements/2568THV3-5TH(1).txt",
+          "file_type": "txt",
+          "records": 1,
+          "elapsed_ms": 3.661
+        },
+        {
+          "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/announcements/2568THV3-5TH.txt",
+          "file_type": "txt",
+          "records": 1,
+          "elapsed_ms": 3.823
+        },
+        {
+          "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/announcements/AcademicCalendar2025TH.txt",
+          "file_type": "txt",
+          "records": 1,
+          "elapsed_ms": 9.086
+        },
+        {
+          "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/announcements/Approved-exam2568.txt",
+          "file_type": "txt",
+          "records": 1,
+          "elapsed_ms": 1.099
+        },
+        {
+          "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/announcements/ENG-B2568.txt",
+          "file_type": "txt",
+          "records": 1,
+          "elapsed_ms": 6.239
+        },
+        {
+          "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/announcements/ENG-D2568.txt",
+          "file_type": "txt",
+          "records": 1,
+          "elapsed_ms": 7.664
+        },
+        {
+          "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/announcements/ENG-M2568.txt",
+          "file_type": "txt",
+          "records": 1,
+          "elapsed_ms": 6.353
+        },
+        {
+          "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/announcements/ENG2561.txt",
+          "file_type": "txt",
+          "records": 1,
+          "elapsed_ms": 3.727
+        },
+        {
+          "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/announcements/English_Grad_2017.txt",
+          "file_type": "txt",
+          "records": 1,
+          "elapsed_ms": 1.672
+        },
+        {
+          "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/announcements/Pre-requisite2567-final.txt",
+          "file_type": "txt",
+          "records": 1,
+          "elapsed_ms": 1.744
+        },
+        {
+          "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/announcements/announce_financ.txt",
+          "file_type": "txt",
+          "records": 1,
+          "elapsed_ms": 1.745
+        },
+        {
+          "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/announcements/announce_financCancel.txt",
+          "file_type": "txt",
+          "records": 1,
+          "elapsed_ms": 1.087
+        },
+        {
+          "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/announcements/anounc_move52ene.txt",
+          "file_type": "txt",
+          "records": 1,
+          "elapsed_ms": 1.152
+        },
+        {
+          "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/announcements/calculator2023-2.txt",
+          "file_type": "txt",
+          "records": 1,
+          "elapsed_ms": 0.896
+        },
+        {
+          "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/announcements/calculator2023.txt",
+          "file_type": "txt",
+          "records": 1,
+          "elapsed_ms": 1.217
+        },
+        {
+          "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/announcements/develop_eng-2563covid19.txt",
+          "file_type": "txt",
+          "records": 1,
+          "elapsed_ms": 1.777
+        },
+        {
+          "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/announcements/develop_eng-2564covid19.txt",
+          "file_type": "txt",
+          "records": 1,
+          "elapsed_ms": 1.71
+        },
+        {
+          "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/announcements/duplicate2551.txt",
+          "file_type": "txt",
+          "records": 1,
+          "elapsed_ms": 1.464
+        },
+        {
+          "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/announcements/eng2564B.txt",
+          "file_type": "txt",
+          "records": 1,
+          "elapsed_ms": 5.633
+        },
+        {
+          "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/announcements/eng2564D.txt",
+          "file_type": "txt",
+          "records": 1,
+          "elapsed_ms": 5.526
+        },
+        {
+          "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/announcements/eng2564M.txt",
+          "file_type": "txt",
+          "records": 1,
+          "elapsed_ms": 6.64
+        },
+        {
+          "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/announcements/etc1.txt",
+          "file_type": "txt",
+          "records": 1,
+          "elapsed_ms": 1.137
+        },
+        {
+          "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/announcements/fee2567update.txt",
+          "file_type": "txt",
+          "records": 1,
+          "elapsed_ms": 2.232
+        },
+        {
+          "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/announcements/industraltranning2563update.txt",
+          "file_type": "txt",
+          "records": 1,
+          "elapsed_ms": 2.532
+        },
+        {
+          "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/announcements/insurance-inter-std.txt",
+          "file_type": "txt",
+          "records": 1,
+          "elapsed_ms": 2.554
+        },
+        {
+          "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/announcements/insurance-std (1).txt",
+          "file_type": "txt",
+          "records": 1,
+          "elapsed_ms": 2.19
+        },
+        {
+          "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/announcements/insurance-std.txt",
+          "file_type": "txt",
+          "records": 1,
+          "elapsed_ms": 2.186
+        },
+        {
+          "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/announcements/new_2558.txt",
+          "file_type": "txt",
+          "records": 1,
+          "elapsed_ms": 1.901
+        },
+        {
+          "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/announcements/pre-co-obem2567.txt",
+          "file_type": "txt",
+          "records": 1,
+          "elapsed_ms": 1.449
+        },
+        {
+          "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/announcements/price.txt",
+          "file_type": "txt",
+          "records": 1,
+          "elapsed_ms": 1.509
+        },
+        {
+          "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/announcements/schedule2565.txt",
+          "file_type": "txt",
+          "records": 1,
+          "elapsed_ms": 2.346
+        },
+        {
+          "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/announcements/t_fee.txt",
+          "file_type": "txt",
+          "records": 1,
+          "elapsed_ms": 1.624
+        },
+        {
+          "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/announcements/tetet2562doctor.txt",
+          "file_type": "txt",
+          "records": 1,
+          "elapsed_ms": 3.311
+        },
+        {
+          "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/announcements/ปฏิทินการศึกษา 2568.txt",
+          "file_type": "txt",
+          "records": 1,
+          "elapsed_ms": 2.464
+        },
+        {
+          "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/announcements/ประกาศ_มจธ_หลักเกณฑ์การจัดสรรผลประโยชน์_พศ2566_ฉบับเต็ม.txt",
+          "file_type": "txt",
+          "records": 1,
+          "elapsed_ms": 3.336
+        }
+      ],
+      "chunk_reports": [
+        {
+          "source_name": "131.txt",
+          "domain": "announcements",
+          "content_type": "plain",
+          "raw_text_chars": 4075,
+          "chunk_count": 3,
+          "avg_chunk_chars": 1685.67,
+          "avg_chunk_tokens": 269.33,
+          "oversized_chunks": 1
+        },
+        {
+          "source_name": "137.txt",
+          "domain": "announcements",
+          "content_type": "plain",
+          "raw_text_chars": 1048,
+          "chunk_count": 2,
+          "avg_chunk_chars": 523.5,
+          "avg_chunk_tokens": 83.5,
+          "oversized_chunks": 0
+        },
+        {
+          "source_name": "139.txt",
+          "domain": "announcements",
+          "content_type": "plain",
+          "raw_text_chars": 1001,
+          "chunk_count": 2,
+          "avg_chunk_chars": 500.0,
+          "avg_chunk_tokens": 100.0,
+          "oversized_chunks": 0
+        },
+        {
+          "source_name": "2018_06_08_15_13_16.txt",
+          "domain": "announcements",
+          "content_type": "plain",
+          "raw_text_chars": 3785,
+          "chunk_count": 3,
+          "avg_chunk_chars": 1577.67,
+          "avg_chunk_tokens": 249.33,
+          "oversized_chunks": 1
+        },
+        {
+          "source_name": "2568THV3-5TH(1).txt",
+          "domain": "announcements",
+          "content_type": "plain",
+          "raw_text_chars": 5167,
+          "chunk_count": 4,
+          "avg_chunk_chars": 1571.0,
+          "avg_chunk_tokens": 284.75,
+          "oversized_chunks": 1
+        },
+        {
+          "source_name": "2568THV3-5TH.txt",
+          "domain": "announcements",
+          "content_type": "plain",
+          "raw_text_chars": 5165,
+          "chunk_count": 4,
+          "avg_chunk_chars": 1571.0,
+          "avg_chunk_tokens": 284.75,
+          "oversized_chunks": 1
+        },
+        {
+          "source_name": "AcademicCalendar2025TH.txt",
+          "domain": "announcements",
+          "content_type": "plain",
+          "raw_text_chars": 12007,
+          "chunk_count": 9,
+          "avg_chunk_chars": 1757.22,
+          "avg_chunk_tokens": 324.67,
+          "oversized_chunks": 1
+        },
+        {
+          "source_name": "Approved-exam2568.txt",
+          "domain": "announcements",
+          "content_type": "plain",
+          "raw_text_chars": 1143,
+          "chunk_count": 1,
+          "avg_chunk_chars": 1143.0,
+          "avg_chunk_tokens": 215.0,
+          "oversized_chunks": 0
+        },
+        {
+          "source_name": "ENG-B2568.txt",
+          "domain": "announcements",
+          "content_type": "plain",
+          "raw_text_chars": 8526,
+          "chunk_count": 17,
+          "avg_chunk_chars": 500.59,
+          "avg_chunk_tokens": 84.12,
+          "oversized_chunks": 0
+        },
+        {
+          "source_name": "ENG-D2568.txt",
+          "domain": "announcements",
+          "content_type": "plain",
+          "raw_text_chars": 10288,
+          "chunk_count": 17,
+          "avg_chunk_chars": 604.24,
+          "avg_chunk_tokens": 96.53,
+          "oversized_chunks": 0
+        },
+        {
+          "source_name": "ENG-M2568.txt",
+          "domain": "announcements",
+          "content_type": "plain",
+          "raw_text_chars": 6963,
+          "chunk_count": 20,
+          "avg_chunk_chars": 347.2,
+          "avg_chunk_tokens": 65.25,
+          "oversized_chunks": 0
+        },
+        {
+          "source_name": "ENG2561.txt",
+          "domain": "announcements",
+          "content_type": "plain",
+          "raw_text_chars": 4375,
+          "chunk_count": 10,
+          "avg_chunk_chars": 436.6,
+          "avg_chunk_tokens": 76.6,
+          "oversized_chunks": 0
+        },
+        {
+          "source_name": "English_Grad_2017.txt",
+          "domain": "announcements",
+          "content_type": "plain",
+          "raw_text_chars": 2429,
+          "chunk_count": 2,
+          "avg_chunk_chars": 1214.0,
+          "avg_chunk_tokens": 219.5,
+          "oversized_chunks": 0
+        },
+        {
+          "source_name": "Pre-requisite2567-final.txt",
+          "domain": "announcements",
+          "content_type": "plain",
+          "raw_text_chars": 2297,
+          "chunk_count": 1,
+          "avg_chunk_chars": 2297.0,
+          "avg_chunk_tokens": 406.0,
+          "oversized_chunks": 0
+        },
+        {
+          "source_name": "announce_financ.txt",
+          "domain": "announcements",
+          "content_type": "plain",
+          "raw_text_chars": 2086,
+          "chunk_count": 2,
+          "avg_chunk_chars": 1042.5,
+          "avg_chunk_tokens": 204.5,
+          "oversized_chunks": 0
+        },
+        {
+          "source_name": "announce_financCancel.txt",
+          "domain": "announcements",
+          "content_type": "plain",
+          "raw_text_chars": 1303,
+          "chunk_count": 2,
+          "avg_chunk_chars": 651.0,
+          "avg_chunk_tokens": 103.0,
+          "oversized_chunks": 0
+        },
+        {
+          "source_name": "anounc_move52ene.txt",
+          "domain": "announcements",
+          "content_type": "plain",
+          "raw_text_chars": 1540,
+          "chunk_count": 2,
+          "avg_chunk_chars": 769.5,
+          "avg_chunk_tokens": 140.5,
+          "oversized_chunks": 0
+        },
+        {
+          "source_name": "calculator2023-2.txt",
+          "domain": "announcements",
+          "content_type": "plain",
+          "raw_text_chars": 960,
+          "chunk_count": 2,
+          "avg_chunk_chars": 479.5,
+          "avg_chunk_tokens": 93.5,
+          "oversized_chunks": 0
+        },
+        {
+          "source_name": "calculator2023.txt",
+          "domain": "announcements",
+          "content_type": "plain",
+          "raw_text_chars": 1709,
+          "chunk_count": 2,
+          "avg_chunk_chars": 854.0,
+          "avg_chunk_tokens": 166.0,
+          "oversized_chunks": 0
+        },
+        {
+          "source_name": "develop_eng-2563covid19.txt",
+          "domain": "announcements",
+          "content_type": "plain",
+          "raw_text_chars": 2698,
+          "chunk_count": 2,
+          "avg_chunk_chars": 1348.5,
+          "avg_chunk_tokens": 224.5,
+          "oversized_chunks": 0
+        },
+        {
+          "source_name": "develop_eng-2564covid19.txt",
+          "domain": "announcements",
+          "content_type": "plain",
+          "raw_text_chars": 2697,
+          "chunk_count": 2,
+          "avg_chunk_chars": 1348.0,
+          "avg_chunk_tokens": 224.5,
+          "oversized_chunks": 0
+        },
+        {
+          "source_name": "duplicate2551.txt",
+          "domain": "announcements",
+          "content_type": "plain",
+          "raw_text_chars": 2036,
+          "chunk_count": 3,
+          "avg_chunk_chars": 678.0,
+          "avg_chunk_tokens": 127.67,
+          "oversized_chunks": 0
+        },
+        {
+          "source_name": "eng2564B.txt",
+          "domain": "announcements",
+          "content_type": "plain",
+          "raw_text_chars": 7411,
+          "chunk_count": 13,
+          "avg_chunk_chars": 569.15,
+          "avg_chunk_tokens": 85.08,
+          "oversized_chunks": 0
+        },
+        {
+          "source_name": "eng2564D.txt",
+          "domain": "announcements",
+          "content_type": "plain",
+          "raw_text_chars": 7117,
+          "chunk_count": 17,
+          "avg_chunk_chars": 417.71,
+          "avg_chunk_tokens": 56.76,
+          "oversized_chunks": 0
+        },
+        {
+          "source_name": "eng2564M.txt",
+          "domain": "announcements",
+          "content_type": "plain",
+          "raw_text_chars": 8355,
+          "chunk_count": 16,
+          "avg_chunk_chars": 521.25,
+          "avg_chunk_tokens": 74.81,
+          "oversized_chunks": 0
+        },
+        {
+          "source_name": "etc1.txt",
+          "domain": "announcements",
+          "content_type": "plain",
+          "raw_text_chars": 1178,
+          "chunk_count": 2,
+          "avg_chunk_chars": 588.5,
+          "avg_chunk_tokens": 100.5,
+          "oversized_chunks": 0
+        },
+        {
+          "source_name": "fee2567update.txt",
+          "domain": "announcements",
+          "content_type": "plain",
+          "raw_text_chars": 2319,
+          "chunk_count": 2,
+          "avg_chunk_chars": 1159.0,
+          "avg_chunk_tokens": 198.5,
+          "oversized_chunks": 0
+        },
+        {
+          "source_name": "industraltranning2563update.txt",
+          "domain": "announcements",
+          "content_type": "plain",
+          "raw_text_chars": 3135,
+          "chunk_count": 2,
+          "avg_chunk_chars": 1567.0,
+          "avg_chunk_tokens": 273.5,
+          "oversized_chunks": 0
+        },
+        {
+          "source_name": "insurance-inter-std.txt",
+          "domain": "announcements",
+          "content_type": "plain",
+          "raw_text_chars": 4224,
+          "chunk_count": 2,
+          "avg_chunk_chars": 2111.5,
+          "avg_chunk_tokens": 364.5,
+          "oversized_chunks": 0
+        },
+        {
+          "source_name": "insurance-std (1).txt",
+          "domain": "announcements",
+          "content_type": "plain",
+          "raw_text_chars": 3221,
+          "chunk_count": 2,
+          "avg_chunk_chars": 1610.0,
+          "avg_chunk_tokens": 280.5,
+          "oversized_chunks": 0
+        },
+        {
+          "source_name": "insurance-std.txt",
+          "domain": "announcements",
+          "content_type": "plain",
+          "raw_text_chars": 3221,
+          "chunk_count": 2,
+          "avg_chunk_chars": 1610.0,
+          "avg_chunk_tokens": 280.5,
+          "oversized_chunks": 0
+        },
+        {
+          "source_name": "new_2558.txt",
+          "domain": "announcements",
+          "content_type": "plain",
+          "raw_text_chars": 2453,
+          "chunk_count": 2,
+          "avg_chunk_chars": 1226.0,
+          "avg_chunk_tokens": 220.0,
+          "oversized_chunks": 0
+        },
+        {
+          "source_name": "pre-co-obem2567.txt",
+          "domain": "announcements",
+          "content_type": "plain",
+          "raw_text_chars": 1764,
+          "chunk_count": 1,
+          "avg_chunk_chars": 1764.0,
+          "avg_chunk_tokens": 307.0,
+          "oversized_chunks": 0
+        },
+        {
+          "source_name": "price.txt",
+          "domain": "announcements",
+          "content_type": "html",
+          "raw_text_chars": 1743,
+          "chunk_count": 1,
+          "avg_chunk_chars": 1726.0,
+          "avg_chunk_tokens": 293.0,
+          "oversized_chunks": 0
+        },
+        {
+          "source_name": "schedule2565.txt",
+          "domain": "announcements",
+          "content_type": "html",
+          "raw_text_chars": 3837,
+          "chunk_count": 2,
+          "avg_chunk_chars": 2381.5,
+          "avg_chunk_tokens": 382.5,
+          "oversized_chunks": 1
+        },
+        {
+          "source_name": "t_fee.txt",
+          "domain": "announcements",
+          "content_type": "html",
+          "raw_text_chars": 2166,
+          "chunk_count": 1,
+          "avg_chunk_chars": 2116.0,
+          "avg_chunk_tokens": 371.0,
+          "oversized_chunks": 0
+        },
+        {
+          "source_name": "tetet2562doctor.txt",
+          "domain": "announcements",
+          "content_type": "html",
+          "raw_text_chars": 4833,
+          "chunk_count": 1,
+          "avg_chunk_chars": 3437.0,
+          "avg_chunk_tokens": 635.0,
+          "oversized_chunks": 0
+        },
+        {
+          "source_name": "ปฏิทินการศึกษา 2568.txt",
+          "domain": "announcements",
+          "content_type": "plain",
+          "raw_text_chars": 3146,
+          "chunk_count": 1,
+          "avg_chunk_chars": 3146.0,
+          "avg_chunk_tokens": 591.0,
+          "oversized_chunks": 0
+        },
+        {
+          "source_name": "ประกาศ_มจธ_หลักเกณฑ์การจัดสรรผลประโยชน์_พศ2566_ฉบับเต็ม.txt",
+          "domain": "announcements",
+          "content_type": "plain",
+          "raw_text_chars": 4752,
+          "chunk_count": 4,
+          "avg_chunk_chars": 1558.75,
+          "avg_chunk_tokens": 234.25,
+          "oversized_chunks": 1
+        }
+      ]
+    },
+    {
+      "label": "gpu_host:regulations",
+      "domain": "regulations",
+      "input_dir": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations",
+      "output_base": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/db/regulations",
+      "store": true,
+      "embed": true,
+      "generated_at": "2026-05-16T14:57:03.015121+00:00",
+      "counts": {
+        "files": 23,
+        "files_seen": 23,
+        "files_indexed": 23,
+        "files_failed": 0,
+        "records": 23,
+        "paragraphs": 2038,
+        "chunks": 196,
+        "flagged_chunks": 0,
+        "embedded_chunks": 196
+      },
+      "phase_ms": {
+        "extract_total_ms": 234.815,
+        "records_write_ms": 7.63,
+        "chunking_ms": 1728.682,
+        "chunks_write_ms": 7.392,
+        "db_store_ms": 4525.542,
+        "structured_artifacts_ms": 37.402,
+        "embedding_ms": 12901.18,
+        "neo4j_ms": 0.0
+      },
+      "total_ms": 26697.348,
+      "file_timings": [
+        {
+          "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations/129.txt",
+          "file_type": "txt",
+          "records": 1,
+          "elapsed_ms": 40.432
+        },
+        {
+          "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations/133.txt",
+          "file_type": "txt",
+          "records": 1,
+          "elapsed_ms": 1.907
+        },
+        {
+          "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations/135.txt",
+          "file_type": "txt",
+          "records": 1,
+          "elapsed_ms": 1.498
+        },
+        {
+          "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations/2018_06_08_15_10_33.txt",
+          "file_type": "txt",
+          "records": 1,
+          "elapsed_ms": 1.5
+        },
+        {
+          "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations/COVID-19 (2).txt",
+          "file_type": "txt",
+          "records": 1,
+          "elapsed_ms": 3.597
+        },
+        {
+          "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations/IP2565.txt",
+          "file_type": "txt",
+          "records": 1,
+          "elapsed_ms": 10.478
+        },
+        {
+          "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations/OBEM.txt",
+          "file_type": "txt",
+          "records": 1,
+          "elapsed_ms": 2.84
+        },
+        {
+          "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations/OBEM2566update.txt",
+          "file_type": "txt",
+          "records": 1,
+          "elapsed_ms": 4.275
+        },
+        {
+          "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations/ad_out57.txt",
+          "file_type": "txt",
+          "records": 1,
+          "elapsed_ms": 2.5
+        },
+        {
+          "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations/celemony2539.txt",
+          "file_type": "txt",
+          "records": 1,
+          "elapsed_ms": 1.517
+        },
+        {
+          "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations/contacts.txt",
+          "file_type": "txt",
+          "records": 1,
+          "elapsed_ms": 22.13
+        },
+        {
+          "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations/discipline2566_fulltext.txt",
+          "file_type": "txt",
+          "records": 1,
+          "elapsed_ms": 11.527
+        },
+        {
+          "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations/forms.txt",
+          "file_type": "txt",
+          "records": 1,
+          "elapsed_ms": 4.195
+        },
+        {
+          "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations/handbook2562g.txt",
+          "file_type": "txt",
+          "records": 1,
+          "elapsed_ms": 34.982
+        },
+        {
+          "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations/privacy2563.txt",
+          "file_type": "txt",
+          "records": 1,
+          "elapsed_ms": 7.68
+        },
+        {
+          "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations/rule2563-2g.txt",
+          "file_type": "txt",
+          "records": 1,
+          "elapsed_ms": 1.13
+        },
+        {
+          "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations/rule2563-4b.txt",
+          "file_type": "txt",
+          "records": 1,
+          "elapsed_ms": 1.541
+        },
+        {
+          "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations/rule57.txt",
+          "file_type": "txt",
+          "records": 1,
+          "elapsed_ms": 22.014
+        },
+        {
+          "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations/rule57_2.txt",
+          "file_type": "txt",
+          "records": 1,
+          "elapsed_ms": 9.462
+        },
+        {
+          "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations/ruleG2568.txt",
+          "file_type": "txt",
+          "records": 1,
+          "elapsed_ms": 37.91
+        },
+        {
+          "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations/rule_covid2564.txt",
+          "file_type": "txt",
+          "records": 1,
+          "elapsed_ms": 2.707
+        },
+        {
+          "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations/rule_exam2560.txt",
+          "file_type": "txt",
+          "records": 1,
+          "elapsed_ms": 6.355
+        },
+        {
+          "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations/tf_out.txt",
+          "file_type": "txt",
+          "records": 1,
+          "elapsed_ms": 2.639
+        }
+      ],
+      "chunk_reports": [
+        {
+          "source_name": "129.txt",
+          "domain": "regulations",
+          "content_type": "plain",
+          "raw_text_chars": 3172,
+          "chunk_count": 2,
+          "avg_chunk_chars": 1585.5,
+          "avg_chunk_tokens": 290.0,
+          "oversized_chunks": 0
+        },
+        {
+          "source_name": "133.txt",
+          "domain": "regulations",
+          "content_type": "plain",
+          "raw_text_chars": 2806,
+          "chunk_count": 2,
+          "avg_chunk_chars": 1402.5,
+          "avg_chunk_tokens": 246.5,
+          "oversized_chunks": 0
+        },
+        {
+          "source_name": "135.txt",
+          "domain": "regulations",
+          "content_type": "plain",
+          "raw_text_chars": 2113,
+          "chunk_count": 2,
+          "avg_chunk_chars": 1056.0,
+          "avg_chunk_tokens": 185.5,
+          "oversized_chunks": 0
+        },
+        {
+          "source_name": "2018_06_08_15_10_33.txt",
+          "domain": "regulations",
+          "content_type": "html",
+          "raw_text_chars": 2059,
+          "chunk_count": 1,
+          "avg_chunk_chars": 2034.0,
+          "avg_chunk_tokens": 372.0,
+          "oversized_chunks": 0
+        },
+        {
+          "source_name": "COVID-19 (2).txt",
+          "domain": "regulations",
+          "content_type": "html",
+          "raw_text_chars": 6908,
+          "chunk_count": 4,
+          "avg_chunk_chars": 2251.5,
+          "avg_chunk_tokens": 355.5,
+          "oversized_chunks": 1
+        },
+        {
+          "source_name": "IP2565.txt",
+          "domain": "regulations",
+          "content_type": "plain",
+          "raw_text_chars": 20541,
+          "chunk_count": 11,
+          "avg_chunk_chars": 2497.0,
+          "avg_chunk_tokens": 351.09,
+          "oversized_chunks": 1
+        },
+        {
+          "source_name": "OBEM.txt",
+          "domain": "regulations",
+          "content_type": "plain",
+          "raw_text_chars": 4872,
+          "chunk_count": 4,
+          "avg_chunk_chars": 1581.0,
+          "avg_chunk_tokens": 247.25,
+          "oversized_chunks": 1
+        },
+        {
+          "source_name": "OBEM2566update.txt",
+          "domain": "regulations",
+          "content_type": "plain",
+          "raw_text_chars": 5719,
+          "chunk_count": 4,
+          "avg_chunk_chars": 1805.25,
+          "avg_chunk_tokens": 271.25,
+          "oversized_chunks": 1
+        },
+        {
+          "source_name": "ad_out57.txt",
+          "domain": "regulations",
+          "content_type": "html",
+          "raw_text_chars": 4177,
+          "chunk_count": 3,
+          "avg_chunk_chars": 1845.67,
+          "avg_chunk_tokens": 288.33,
+          "oversized_chunks": 1
+        },
+        {
+          "source_name": "celemony2539.txt",
+          "domain": "regulations",
+          "content_type": "plain",
+          "raw_text_chars": 2041,
+          "chunk_count": 2,
+          "avg_chunk_chars": 1020.0,
+          "avg_chunk_tokens": 183.0,
+          "oversized_chunks": 0
+        },
+        {
+          "source_name": "contacts.txt",
+          "domain": "regulations",
+          "content_type": "plain",
+          "raw_text_chars": 27592,
+          "chunk_count": 14,
+          "avg_chunk_chars": 2501.21,
+          "avg_chunk_tokens": 389.21,
+          "oversized_chunks": 1
+        },
+        {
+          "source_name": "discipline2566_fulltext.txt",
+          "domain": "regulations",
+          "content_type": "plain",
+          "raw_text_chars": 19899,
+          "chunk_count": 11,
+          "avg_chunk_chars": 2010.27,
+          "avg_chunk_tokens": 331.0,
+          "oversized_chunks": 1
+        },
+        {
+          "source_name": "forms.txt",
+          "domain": "regulations",
+          "content_type": "plain",
+          "raw_text_chars": 6375,
+          "chunk_count": 3,
+          "avg_chunk_chars": 2600.67,
+          "avg_chunk_tokens": 335.33,
+          "oversized_chunks": 1
+        },
+        {
+          "source_name": "handbook2562g.txt",
+          "domain": "regulations",
+          "content_type": "plain",
+          "raw_text_chars": 66866,
+          "chunk_count": 37,
+          "avg_chunk_chars": 2450.03,
+          "avg_chunk_tokens": 382.54,
+          "oversized_chunks": 1
+        },
+        {
+          "source_name": "privacy2563.txt",
+          "domain": "regulations",
+          "content_type": "html",
+          "raw_text_chars": 13677,
+          "chunk_count": 7,
+          "avg_chunk_chars": 2543.29,
+          "avg_chunk_tokens": 376.29,
+          "oversized_chunks": 1
+        },
+        {
+          "source_name": "rule2563-2g.txt",
+          "domain": "regulations",
+          "content_type": "plain",
+          "raw_text_chars": 1302,
+          "chunk_count": 2,
+          "avg_chunk_chars": 650.5,
+          "avg_chunk_tokens": 113.0,
+          "oversized_chunks": 0
+        },
+        {
+          "source_name": "rule2563-4b.txt",
+          "domain": "regulations",
+          "content_type": "html",
+          "raw_text_chars": 2169,
+          "chunk_count": 1,
+          "avg_chunk_chars": 2144.0,
+          "avg_chunk_tokens": 401.0,
+          "oversized_chunks": 0
+        },
+        {
+          "source_name": "rule57.txt",
+          "domain": "regulations",
+          "content_type": "html",
+          "raw_text_chars": 40304,
+          "chunk_count": 22,
+          "avg_chunk_chars": 2423.5,
+          "avg_chunk_tokens": 397.0,
+          "oversized_chunks": 1
+        },
+        {
+          "source_name": "rule57_2.txt",
+          "domain": "regulations",
+          "content_type": "plain",
+          "raw_text_chars": 15377,
+          "chunk_count": 10,
+          "avg_chunk_chars": 2055.9,
+          "avg_chunk_tokens": 328.7,
+          "oversized_chunks": 1
+        },
+        {
+          "source_name": "ruleG2568.txt",
+          "domain": "regulations",
+          "content_type": "html",
+          "raw_text_chars": 74764,
+          "chunk_count": 40,
+          "avg_chunk_chars": 2502.25,
+          "avg_chunk_tokens": 392.95,
+          "oversized_chunks": 1
+        },
+        {
+          "source_name": "rule_covid2564.txt",
+          "domain": "regulations",
+          "content_type": "plain",
+          "raw_text_chars": 4993,
+          "chunk_count": 4,
+          "avg_chunk_chars": 1619.5,
+          "avg_chunk_tokens": 250.75,
+          "oversized_chunks": 1
+        },
+        {
+          "source_name": "rule_exam2560.txt",
+          "domain": "regulations",
+          "content_type": "plain",
+          "raw_text_chars": 10571,
+          "chunk_count": 7,
+          "avg_chunk_chars": 1827.0,
+          "avg_chunk_tokens": 320.86,
+          "oversized_chunks": 1
+        },
+        {
+          "source_name": "tf_out.txt",
+          "domain": "regulations",
+          "content_type": "html",
+          "raw_text_chars": 4452,
+          "chunk_count": 3,
+          "avg_chunk_chars": 1950.33,
+          "avg_chunk_tokens": 306.33,
+          "oversized_chunks": 1
+        }
+      ]
+    },
+    {
+      "label": "gpu_host:curriculum",
+      "domain": "curriculum",
+      "input_dir": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/curriculum",
+      "output_base": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/db/curriculum",
+      "store": true,
+      "embed": true,
+      "generated_at": "2026-05-16T14:58:13.585751+00:00",
+      "counts": {
+        "files": 8,
+        "files_seen": 8,
+        "files_indexed": 8,
+        "files_failed": 0,
+        "records": 8,
+        "paragraphs": 3256,
+        "chunks": 401,
+        "flagged_chunks": 14,
+        "embedded_chunks": 401
+      },
+      "phase_ms": {
+        "extract_total_ms": 410.217,
+        "records_write_ms": 10.006,
+        "chunking_ms": 2697.963,
+        "chunks_write_ms": 10.936,
+        "db_store_ms": 6845.537,
+        "structured_artifacts_ms": 2016.046,
+        "embedding_ms": 30347.042,
+        "neo4j_ms": 0.0
+      },
+      "total_ms": 65002.408,
+      "file_timings": [
+        {
+          "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/curriculum/FOE10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt",
+          "file_type": "txt",
+          "records": 1,
+          "elapsed_ms": 69.148
+        },
+        {
+          "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/curriculum/SSC.txt",
+          "file_type": "txt",
+          "records": 1,
+          "elapsed_ms": 14.17
+        },
+        {
+          "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/curriculum/teacher.txt",
+          "file_type": "txt",
+          "records": 1,
+          "elapsed_ms": 22.736
+        },
+        {
+          "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/curriculum/teacher_profiles.csv",
+          "file_type": "csv",
+          "records": 1,
+          "elapsed_ms": 35.996
+        },
+        {
+          "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/curriculum/teacher_profiles_by_course.csv",
+          "file_type": "csv",
+          "records": 1,
+          "elapsed_ms": 8.071
+        },
+        {
+          "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/curriculum/วศ.บ.-วศวกรรมคอมพวเตอร-ปรบปรง.64.txt",
+          "file_type": "txt",
+          "records": 1,
+          "elapsed_ms": 194.305
+        },
+        {
+          "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/curriculum/วิชา LNG 2562.txt",
+          "file_type": "txt",
+          "records": 1,
+          "elapsed_ms": 44.944
+        },
+        {
+          "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/curriculum/โครงสร้างหลักสูตรรายวิชาศึกษาทั่วไป มจธ.txt",
+          "file_type": "txt",
+          "records": 1,
+          "elapsed_ms": 20.846
+        }
+      ],
+      "chunk_reports": [
+        {
+          "source_name": "FOE10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt",
+          "domain": "curriculum",
+          "content_type": "plain",
+          "raw_text_chars": 50513,
+          "chunk_count": 27,
+          "avg_chunk_chars": 2358.15,
+          "avg_chunk_tokens": 372.07,
+          "oversized_chunks": 1
+        },
+        {
+          "source_name": "SSC.txt",
+          "domain": "curriculum",
+          "content_type": "plain",
+          "raw_text_chars": 25050,
+          "chunk_count": 13,
+          "avg_chunk_chars": 2467.54,
+          "avg_chunk_tokens": 379.92,
+          "oversized_chunks": 1
+        },
+        {
+          "source_name": "teacher.txt",
+          "domain": "curriculum",
+          "content_type": "plain",
+          "raw_text_chars": 36665,
+          "chunk_count": 20,
+          "avg_chunk_chars": 2311.65,
+          "avg_chunk_tokens": 392.7,
+          "oversized_chunks": 1
+        },
+        {
+          "source_name": "teacher_profiles.csv",
+          "domain": "curriculum",
+          "content_type": "table_like",
+          "raw_text_chars": 64048,
+          "chunk_count": 39,
+          "avg_chunk_chars": 2076.44,
+          "avg_chunk_tokens": 340.56,
+          "oversized_chunks": 4
+        },
+        {
+          "source_name": "teacher_profiles_by_course.csv",
+          "domain": "curriculum",
+          "content_type": "table_like",
+          "raw_text_chars": 13978,
+          "chunk_count": 9,
+          "avg_chunk_chars": 1982.56,
+          "avg_chunk_tokens": 386.33,
+          "oversized_chunks": 1
+        },
+        {
+          "source_name": "วศ.บ.-วศวกรรมคอมพวเตอร-ปรบปรง.64.txt",
+          "domain": "curriculum",
+          "content_type": "plain",
+          "raw_text_chars": 314505,
+          "chunk_count": 222,
+          "avg_chunk_chars": 1774.5,
+          "avg_chunk_tokens": 292.07,
+          "oversized_chunks": 12
+        },
+        {
+          "source_name": "วิชา LNG 2562.txt",
+          "domain": "curriculum",
+          "content_type": "html",
+          "raw_text_chars": 89962,
+          "chunk_count": 52,
+          "avg_chunk_chars": 2167.63,
+          "avg_chunk_tokens": 393.75,
+          "oversized_chunks": 1
+        },
+        {
+          "source_name": "โครงสร้างหลักสูตรรายวิชาศึกษาทั่วไป มจธ.txt",
+          "domain": "curriculum",
+          "content_type": "plain",
+          "raw_text_chars": 36275,
+          "chunk_count": 19,
+          "avg_chunk_chars": 2438.74,
+          "avg_chunk_tokens": 382.63,
+          "oversized_chunks": 1
+        }
+      ]
+    }
+  ],
+  "totals": {
+    "files": 70,
+    "records": 70,
+    "chunks": 780,
+    "flagged_chunks": 32,
+    "embedded_chunks": 780,
+    "extract_total_ms": 799.697,
+    "chunking_ms": 5363.229,
+    "db_store_ms": 15073.846000000001,
+    "structured_artifacts_ms": 2124.524,
+    "embedding_ms": 49335.223,
+    "neo4j_ms": 0.0,
+    "total_ms": 109640.89199999999
+  }
+}

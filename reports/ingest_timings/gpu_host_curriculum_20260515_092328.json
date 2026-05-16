@@ -1,0 +1,203 @@
+{
+  "label": "gpu_host:curriculum",
+  "domain": "curriculum",
+  "input_dir": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/curriculum",
+  "output_base": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/db/curriculum",
+  "store": true,
+  "embed": true,
+  "generated_at": "2026-05-15T02:26:58.523664+00:00",
+  "counts": {
+    "files": 8,
+    "files_seen": 8,
+    "files_indexed": 8,
+    "files_failed": 0,
+    "records": 8,
+    "paragraphs": 3256,
+    "chunks": 668,
+    "flagged_chunks": 14,
+    "embedded_chunks": 668
+  },
+  "phase_ms": {
+    "extract_total_ms": 800.045,
+    "records_write_ms": 14.204,
+    "chunking_ms": 87.356,
+    "chunks_write_ms": 23.874,
+    "db_store_ms": 8150.0,
+    "structured_artifacts_ms": 3487.609,
+    "embedding_ms": 77738.337,
+    "neo4j_ms": 0.0
+  },
+  "total_ms": 122338.524,
+  "file_timings": [
+    {
+      "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/curriculum/FOE10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 147.3
+    },
+    {
+      "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/curriculum/SSC.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 24.687
+    },
+    {
+      "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/curriculum/teacher.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 42.764
+    },
+    {
+      "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/curriculum/teacher_profiles.csv",
+      "file_type": "csv",
+      "records": 1,
+      "elapsed_ms": 71.809
+    },
+    {
+      "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/curriculum/teacher_profiles_by_course.csv",
+      "file_type": "csv",
+      "records": 1,
+      "elapsed_ms": 16.138
+    },
+    {
+      "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/curriculum/วศ.บ.-วศวกรรมคอมพวเตอร-ปรบปรง.64.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 375.032
+    },
+    {
+      "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/curriculum/วิชา LNG 2562.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 86.196
+    },
+    {
+      "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/curriculum/โครงสร้างหลักสูตรรายวิชาศึกษาทั่วไป มจธ.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 36.119
+    }
+  ],
+  "chunk_reports": [
+    {
+      "source_name": "FOE10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt",
+      "content_type": "plain",
+      "raw_text_chars": 50513,
+      "clean_text_chars": 50681,
+      "chunk_count": 51,
+      "avg_chunk_chars": 1163,
+      "avg_chunk_tokens": 290,
+      "empty_chunks": 0,
+      "oversized_chunks": 1,
+      "title": "หลักสูตรวิศวกรรมศาสตรบัณฑิต",
+      "year": "2564",
+      "effective_date": "15-6-36",
+      "content_hash": "4858ff0bcca6bef7babacef600d97bc9cba2221d"
+    },
+    {
+      "source_name": "SSC.txt",
+      "content_type": "plain",
+      "raw_text_chars": 25050,
+      "clean_text_chars": 25143,
+      "chunk_count": 25,
+      "avg_chunk_chars": 1178,
+      "avg_chunk_tokens": 294,
+      "empty_chunks": 0,
+      "oversized_chunks": 1,
+      "title": "SSC 162 : สังคมและวัฒนธรรม Society and Culture 3 (3-0-6)",
+      "year": "",
+      "effective_date": "",
+      "content_hash": "7a51612e482f85f387959ab2278ce9c015531df1"
+    },
+    {
+      "source_name": "teacher.txt",
+      "content_type": "plain",
+      "raw_text_chars": 36665,
+      "clean_text_chars": 36728,
+      "chunk_count": 36,
+      "avg_chunk_chars": 1195,
+      "avg_chunk_tokens": 298,
+      "empty_chunks": 0,
+      "oversized_chunks": 1,
+      "title": "ภาคผนวกง. ประวัติอาจารย์ประจําหลักสูตร",
+      "year": "1999",
+      "effective_date": "",
+      "content_hash": "0b2a1017362346c15f18a4fa3d29cc1a660106bf"
+    },
+    {
+      "source_name": "teacher_profiles.csv",
+      "content_type": "table_like",
+      "raw_text_chars": 64048,
+      "clean_text_chars": 64285,
+      "chunk_count": 68,
+      "avg_chunk_chars": 1101,
+      "avg_chunk_tokens": 275,
+      "empty_chunks": 0,
+      "oversized_chunks": 4,
+      "title": "รศ.ดร. ธํารงรัตน์อมรรักษา | ปีค.ศ. 1999 Ph.D. (Electronic and Electrical Engineering), University of Surrey, U.K.",
+      "year": "1999",
+      "effective_date": "",
+      "content_hash": "741739e1a474a41767328616519a7ba7b531b31e"
+    },
+    {
+      "source_name": "teacher_profiles_by_course.csv",
+      "content_type": "table_like",
+      "raw_text_chars": 13978,
+      "clean_text_chars": 14045,
+      "chunk_count": 14,
+      "avg_chunk_chars": 1169,
+      "avg_chunk_tokens": 292,
+      "empty_chunks": 0,
+      "oversized_chunks": 1,
+      "title": "รศ.ดร. ธํารงรัตน์อมรรักษา | ภาระงานสอนในปัจจุบัน | ปริญญาตรี | CPE 314 | เครือข่ายคอมพิวเตอร์ | 3",
+      "year": "",
+      "effective_date": "",
+      "content_hash": "2f0343f9717acc60c28a0cbfcd06d0130b4ae682"
+    },
+    {
+      "source_name": "วศ.บ.-วศวกรรมคอมพวเตอร-ปรบปรง.64.txt",
+      "content_type": "plain",
+      "raw_text_chars": 314505,
+      "clean_text_chars": 315733,
+      "chunk_count": 349,
+      "avg_chunk_chars": 1042,
+      "avg_chunk_tokens": 260,
+      "empty_chunks": 0,
+      "oversized_chunks": 12,
+      "title": "อนุมัติจากสภามจธ.ครั้งที่ 257 (6 ม.ค. 64)",
+      "year": "2564",
+      "effective_date": "15-6-36",
+      "content_hash": "a71c25a8f3915fbb4437e95a4e9793da2984388d"
+    },
+    {
+      "source_name": "วิชา LNG 2562.txt",
+      "content_type": "html",
+      "raw_text_chars": 89962,
+      "clean_text_chars": 90169,
+      "chunk_count": 89,
+      "avg_chunk_chars": 1190,
+      "avg_chunk_tokens": 297,
+      "empty_chunks": 0,
+      "oversized_chunks": 1,
+      "title": "คําอธิบายรายวิชาในหมวดวิชาภาษา",
+      "year": "2562",
+      "effective_date": "",
+      "content_hash": "8a065d2734f8148e76ce67f16dc6304f5ffcac78"
+    },
+    {
+      "source_name": "โครงสร้างหลักสูตรรายวิชาศึกษาทั่วไป มจธ.txt",
+      "content_type": "plain",
+      "raw_text_chars": 36275,
+      "clean_text_chars": 36374,
+      "chunk_count": 36,
+      "avg_chunk_chars": 1185,
+      "avg_chunk_tokens": 296,
+      "empty_chunks": 0,
+      "oversized_chunks": 1,
+      "title": "สํานักงานวิชาศึกษาทั่วไป",
+      "year": "2558",
+      "effective_date": "",
+      "content_hash": "0159fe9c5510d65d96dcad9685b6119e3c70fcd5"
+    }
+  ]
+}

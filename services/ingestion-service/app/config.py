@@ -40,7 +40,6 @@ else:
     CHROMA_DIR = DATA_DIR / 'chroma'
     SQLITE_PATH = DB_DIR / 'ingestion.db'
     REVIEW_DIR = DB_DIR / 'review'
-
 # Environment overrides
 OCR_LANG_DEFAULT = os.getenv('OCR_LANG', 'tha')  # "tha" or "tha+eng"
 OCR_DPI = int(os.getenv('OCR_DPI', '450'))
@@ -83,6 +82,20 @@ def _get_float(key: str, default: float) -> float:
 
 def _get_str(key: str, default: str) -> str:
     return _get_env(key, default)
+
+
+RAG_ENGINE = (os.getenv('RAG_ENGINE', 'open_notebook_style') or 'open_notebook_style').strip().lower()
+RAG_CORPUS_ID = (os.getenv('RAG_CORPUS_ID', 'cpe_chat') or 'cpe_chat').strip()
+RAG_CHROMA_COLLECTION = (os.getenv('RAG_CHROMA_COLLECTION', 'cpe_chat_sources') or 'cpe_chat_sources').strip()
+RAG_GLOBAL_CHROMA_DIR = Path(os.getenv('RAG_CHROMA_DIR', str(INDEX_ROOT / 'global' / 'chroma')))
+RAG_GLOBAL_SQLITE_PATH = Path(os.getenv('RAG_GLOBAL_SQLITE_PATH', str(INDEX_ROOT / 'global' / 'sqlite' / 'ingestion.db')))
+RAG_EMBEDDING_PROVIDER = (os.getenv('RAG_EMBEDDING_PROVIDER', 'local') or 'local').strip().lower()
+RAG_CHUNK_SIZE = _get_int('RAG_CHUNK_SIZE', 400)
+RAG_CHUNK_OVERLAP = _get_int('RAG_CHUNK_OVERLAP', 60)
+RAG_CHUNK_MIN_TOKENS = _get_int('RAG_CHUNK_MIN_TOKENS', 40)
+RAG_CHUNK_MAX_TOKENS = _get_int('RAG_CHUNK_MAX_TOKENS', 650)
+RAG_CHUNK_CHAR_FALLBACK_SIZE = _get_int('RAG_CHUNK_CHAR_FALLBACK_SIZE', 1200)
+RAG_CHUNK_CHAR_FALLBACK_OVERLAP = _get_int('RAG_CHUNK_CHAR_FALLBACK_OVERLAP', 180)
 
 
 # Chunking settings (domain-aware)
@@ -129,9 +142,22 @@ CURRICULUM_PROGRAM = _get_str('CURRICULUM_PROGRAM', 'B.Eng. Computer Engineering
 EMBEDDING_MODEL = _get_str('EMBEDDING_MODEL', 'BAAI/bge-m3')
 EMBED_BATCH = _get_int('EMBED_BATCH', 32)
 
+
+def _resolve_embedding_dim() -> int:
+    raw_value = _get_str('EMBEDDING_DIM', '')
+    if 'bge-m3' in (EMBEDDING_MODEL or '').lower():
+        if raw_value and raw_value != '1024':
+            print(f"[Ingest] Overriding EMBEDDING_DIM={raw_value} to 1024 for {EMBEDDING_MODEL}.")
+        return 1024
+    try:
+        return int(raw_value or '512')
+    except Exception:
+        return 512
+
+
 # Target embedding dimension stored in vector DBs (Chroma/Neo4j).
-# NOTE: Some models (e.g., BGE-M3) output 1024 dims; we may project/trim to this size.
-EMBEDDING_DIM = _get_int('EMBEDDING_DIM', 512)
+# NOTE: BGE-M3 uses 1024 dims; keep ingest/query aligned with the global collection.
+EMBEDDING_DIM = _resolve_embedding_dim()
 
 POPPLER_PATH = os.getenv('POPPLER_PATH')  # For pdf2image on Windows
 TESSERACT_PATH = os.getenv('TESSERACT_PATH')  # If not on PATH
@@ -145,7 +171,7 @@ OCR_ENGINE = os.getenv('OCR_ENGINE', 'auto').lower()
 
 # Thai NLP tokenizer settings
 # Word tokenizer: 'newmm' (fast), 'attacut' (best accuracy), 'longest' (formal text), 'deepcut'
-THAI_WORD_TOKENIZER = os.getenv('THAI_WORD_TOKENIZER', 'attacut').lower()
+THAI_WORD_TOKENIZER = os.getenv('THAI_TOKENIZER_ENGINE', os.getenv('THAI_WORD_TOKENIZER', 'newmm')).lower()
 # Sentence tokenizer: 'crfcut' (best for Thai), 'tltk' (mixed Thai/English)
 THAI_SENT_TOKENIZER = os.getenv('THAI_SENT_TOKENIZER', 'crfcut').lower()
 
@@ -161,7 +187,7 @@ OCR_SPELL_CORRECT_THAI = os.getenv('OCR_SPELL_CORRECT_THAI', '0').lower() in ('1
 # Whether to embed flagged (low-quality) chunks
 EMBED_FLAGGED = os.getenv('EMBED_FLAGGED', 'True').lower() in ('1','true','yes')
 
-for d in [RAW_DIR, TEXT_DIR, DB_DIR, CHROMA_DIR]:
+for d in [RAW_DIR, TEXT_DIR, DB_DIR, CHROMA_DIR, RAG_GLOBAL_CHROMA_DIR, RAG_GLOBAL_SQLITE_PATH.parent]:
     d.mkdir(parents=True, exist_ok=True)
 
 REVIEW_DIR.mkdir(parents=True, exist_ok=True)

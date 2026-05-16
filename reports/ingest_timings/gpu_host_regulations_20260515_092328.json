@@ -1,0 +1,518 @@
+{
+  "label": "gpu_host:regulations",
+  "domain": "regulations",
+  "input_dir": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations",
+  "output_base": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/db/regulations",
+  "store": true,
+  "embed": true,
+  "generated_at": "2026-05-15T02:24:53.578436+00:00",
+  "counts": {
+    "files": 23,
+    "files_seen": 23,
+    "files_indexed": 23,
+    "files_failed": 0,
+    "records": 23,
+    "paragraphs": 2038,
+    "chunks": 353,
+    "flagged_chunks": 3,
+    "embedded_chunks": 353
+  },
+  "phase_ms": {
+    "extract_total_ms": 428.685,
+    "records_write_ms": 9.404,
+    "chunking_ms": 50.639,
+    "chunks_write_ms": 13.039,
+    "db_store_ms": 3060.234,
+    "structured_artifacts_ms": 60.613,
+    "embedding_ms": 31814.246,
+    "neo4j_ms": 0.0
+  },
+  "total_ms": 49756.27,
+  "file_timings": [
+    {
+      "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations/129.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 74.309
+    },
+    {
+      "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations/133.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 3.174
+    },
+    {
+      "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations/135.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 2.474
+    },
+    {
+      "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations/2018_06_08_15_10_33.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 2.407
+    },
+    {
+      "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations/COVID-19 (2).txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 6.363
+    },
+    {
+      "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations/IP2565.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 19.349
+    },
+    {
+      "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations/OBEM.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 5.103
+    },
+    {
+      "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations/OBEM2566update.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 6.66
+    },
+    {
+      "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations/ad_out57.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 4.479
+    },
+    {
+      "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations/celemony2539.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 2.336
+    },
+    {
+      "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations/contacts.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 42.676
+    },
+    {
+      "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations/discipline2566_fulltext.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 20.995
+    },
+    {
+      "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations/forms.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 7.712
+    },
+    {
+      "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations/handbook2562g.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 64.849
+    },
+    {
+      "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations/privacy2563.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 13.23
+    },
+    {
+      "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations/rule2563-2g.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 1.689
+    },
+    {
+      "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations/rule2563-4b.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 2.523
+    },
+    {
+      "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations/rule57.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 40.033
+    },
+    {
+      "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations/rule57_2.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 16.467
+    },
+    {
+      "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations/ruleG2568.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 71.328
+    },
+    {
+      "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations/rule_covid2564.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 4.75
+    },
+    {
+      "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations/rule_exam2560.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 11.254
+    },
+    {
+      "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations/tf_out.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 4.527
+    }
+  ],
+  "chunk_reports": [
+    {
+      "source_name": "129.txt",
+      "content_type": "plain",
+      "raw_text_chars": 3172,
+      "clean_text_chars": 3199,
+      "chunk_count": 4,
+      "avg_chunk_chars": 889,
+      "avg_chunk_tokens": 222,
+      "empty_chunks": 0,
+      "oversized_chunks": 1,
+      "title": "ระเบียบสถาบันเทคโนโลยีพระจอมเกล้าธนบุรีว่าด้วยการกําหนดอัตราค่าบํารุงและค่าธรรมเนียมการศึกษาพ.ศ. 2540",
+      "year": "2540",
+      "effective_date": "",
+      "content_hash": "5d7120042eefebf63f07ce5af23483ab2ec96335"
+    },
+    {
+      "source_name": "133.txt",
+      "content_type": "plain",
+      "raw_text_chars": 2806,
+      "clean_text_chars": 2835,
+      "chunk_count": 4,
+      "avg_chunk_chars": 798,
+      "avg_chunk_tokens": 200,
+      "empty_chunks": 0,
+      "oversized_chunks": 1,
+      "title": "ระเบียบสถาบันเทคโนโลยีพระจอมเกล้าธนบุรีว่าด้วยการกําหนดอัตราค่าบํารุงและค่าธรรมเนียมการศึกษาสําหรับนักศึกษาต่างชาติระดับปริญญาตรีพ.ศ. 2539",
+      "year": "2539",
+      "effective_date": "",
+      "content_hash": "1134c9263433082da72cea940083fbfa3621e45a"
+    },
+    {
+      "source_name": "135.txt",
+      "content_type": "plain",
+      "raw_text_chars": 2113,
+      "clean_text_chars": 2132,
+      "chunk_count": 2,
+      "avg_chunk_chars": 1065,
+      "avg_chunk_tokens": 267,
+      "empty_chunks": 0,
+      "oversized_chunks": 0,
+      "title": "ระเบียบสถาบันเทคโนโลยีพระจอมเกล้าธนบุรีว่าด้วยการกําหนดอัตราค่าธรรมเนียมขึ้นทะเบียนปริญญาและประกาศนียบัตรพ.ศ. 2539",
+      "year": "2539",
+      "effective_date": "",
+      "content_hash": "98acc00f827fd65b4d0d03a046dc5414b818eedd"
+    },
+    {
+      "source_name": "2018_06_08_15_10_33.txt",
+      "content_type": "html",
+      "raw_text_chars": 2059,
+      "clean_text_chars": 2073,
+      "chunk_count": 2,
+      "avg_chunk_chars": 1036,
+      "avg_chunk_tokens": 259,
+      "empty_chunks": 0,
+      "oversized_chunks": 0,
+      "title": "ระเบียบมหาวิทยาลัยเทคโนโลยีพระจอมเกล้าธนบุรีว่าด้วยการศึกษาระดับปริญญาตรี (ฉบับที่ 3)",
+      "year": "2018",
+      "effective_date": "",
+      "content_hash": "5984221bee0585a6424e8493e70f517f37796c7d"
+    },
+    {
+      "source_name": "COVID-19 (2).txt",
+      "content_type": "html",
+      "raw_text_chars": 6908,
+      "clean_text_chars": 6962,
+      "chunk_count": 8,
+      "avg_chunk_chars": 1005,
+      "avg_chunk_tokens": 251,
+      "empty_chunks": 0,
+      "oversized_chunks": 1,
+      "title": "ระเบียบมหาวิทยาลัยเทคโนโลยีพระจอมเกล้าธนบุรีว่าด้วยการศึกษาภายใต้มาตรการและการเฝ้าระวังการระบาดของโรคติดเชื้อไวรัสโคโรนา 2019 (COVID-19)",
+      "year": "2019",
+      "effective_date": "",
+      "content_hash": "97077cdaa7e3a5086296a0b5e62eb0ca86b3ef3f"
+    },
+    {
+      "source_name": "IP2565.txt",
+      "content_type": "plain",
+      "raw_text_chars": 20541,
+      "clean_text_chars": 20665,
+      "chunk_count": 21,
+      "avg_chunk_chars": 1146,
+      "avg_chunk_tokens": 286,
+      "empty_chunks": 0,
+      "oversized_chunks": 1,
+      "title": "ระเบียบมหาวิทยาลัยเทคโนโลยีพระจอมเกล้าธนบุรีว่าด้วยการบริหารจัดการทรัพย์สินทางปัญญาผลงานวิจัยและนวัตกรรมพ.ศ. 2565",
+      "year": "2565",
+      "effective_date": "",
+      "content_hash": "78928d58dfeeaf83e2694d6b3453ea706fb5e226"
+    },
+    {
+      "source_name": "OBEM.txt",
+      "content_type": "plain",
+      "raw_text_chars": 4872,
+      "clean_text_chars": 4897,
+      "chunk_count": 6,
+      "avg_chunk_chars": 936,
+      "avg_chunk_tokens": 234,
+      "empty_chunks": 0,
+      "oversized_chunks": 1,
+      "title": "ระเบียบมหาวิทยาลัยเทคโนโลยีพระจอมเกล้าธนบุรีว่าด้วยแนวปฏิบัติสําหรับนักศึกษาที่ลงทะเบียนเรียนในรายวิชาที่จัดการเรียนการสอนที่มุ่งเน้นผลลัพธ์การเรียนรู้ (Outcome - Based Education M",
+      "year": "2565",
+      "effective_date": "",
+      "content_hash": "066cf1a81ab92c11a1d27dec327acded52ec8bd2"
+    },
+    {
+      "source_name": "OBEM2566update.txt",
+      "content_type": "plain",
+      "raw_text_chars": 5719,
+      "clean_text_chars": 5749,
+      "chunk_count": 7,
+      "avg_chunk_chars": 949,
+      "avg_chunk_tokens": 237,
+      "empty_chunks": 0,
+      "oversized_chunks": 1,
+      "title": "ระเบียบมหาวิทยาลัยเทคโนโลยีพระจอมเกล้าธนบุรี",
+      "year": "2566",
+      "effective_date": "",
+      "content_hash": "f61316c211e2950e6760f336600d82c974d62cd5"
+    },
+    {
+      "source_name": "ad_out57.txt",
+      "content_type": "html",
+      "raw_text_chars": 4177,
+      "clean_text_chars": 4192,
+      "chunk_count": 3,
+      "avg_chunk_chars": 1396,
+      "avg_chunk_tokens": 349,
+      "empty_chunks": 0,
+      "oversized_chunks": 0,
+      "title": "<figure>",
+      "year": "2557",
+      "effective_date": "",
+      "content_hash": "e6cfd5dac5d93c183b796ebd28e6ddc18f58c808"
+    },
+    {
+      "source_name": "celemony2539.txt",
+      "content_type": "plain",
+      "raw_text_chars": 2041,
+      "clean_text_chars": 2060,
+      "chunk_count": 2,
+      "avg_chunk_chars": 1029,
+      "avg_chunk_tokens": 258,
+      "empty_chunks": 0,
+      "oversized_chunks": 0,
+      "title": "ระเบียบสถาบันเทคโนโลยีพระจอมเกล้าธนบุรีว่าด้วยการกําหนดอัตราค่าธรรมเนียมขึ้นทะเบียนปริญญาและประกาศนียบัตรพ.ศ. 2539",
+      "year": "2539",
+      "effective_date": "",
+      "content_hash": "83b5c2a8432650596aa6ba21d39c6bde5ff1c537"
+    },
+    {
+      "source_name": "contacts.txt",
+      "content_type": "plain",
+      "raw_text_chars": 27592,
+      "clean_text_chars": 27600,
+      "chunk_count": 27,
+      "avg_chunk_chars": 1195,
+      "avg_chunk_tokens": 298,
+      "empty_chunks": 0,
+      "oversized_chunks": 1,
+      "title": "SOURCE: kmutt_all_boards",
+      "year": "",
+      "effective_date": "",
+      "content_hash": "24f75bbac6e69db3bb5d816c5d147a332717848f"
+    },
+    {
+      "source_name": "discipline2566_fulltext.txt",
+      "content_type": "plain",
+      "raw_text_chars": 19899,
+      "clean_text_chars": 20101,
+      "chunk_count": 20,
+      "avg_chunk_chars": 1112,
+      "avg_chunk_tokens": 278,
+      "empty_chunks": 0,
+      "oversized_chunks": 4,
+      "title": "ข้อบังคับมหาวิทยาลัยเทคโนโลยีพระจอมเกล้าธนบุรี",
+      "year": "2566",
+      "effective_date": "",
+      "content_hash": "050db6f579519020a3472505a4ffe6cd9e823285"
+    },
+    {
+      "source_name": "forms.txt",
+      "content_type": "plain",
+      "raw_text_chars": 6375,
+      "clean_text_chars": 6415,
+      "chunk_count": 7,
+      "avg_chunk_chars": 1070,
+      "avg_chunk_tokens": 267,
+      "empty_chunks": 0,
+      "oversized_chunks": 1,
+      "title": "SOURCE: kmutt_forms",
+      "year": "",
+      "effective_date": "",
+      "content_hash": "05151467b30b87a65960827baa42cf46a7a714de"
+    },
+    {
+      "source_name": "handbook2562g.txt",
+      "content_type": "plain",
+      "raw_text_chars": 66866,
+      "clean_text_chars": 67461,
+      "chunk_count": 67,
+      "avg_chunk_chars": 1181,
+      "avg_chunk_tokens": 295,
+      "empty_chunks": 0,
+      "oversized_chunks": 1,
+      "title": "ระเบียบมหาวิทยาลัยเทคโนโลยีพระจอมเกล้าธนบุรีว่าด้วยการศึกษาระดับบัณฑิตศึกษาพ.ศ. 2562",
+      "year": "2562",
+      "effective_date": "",
+      "content_hash": "c7eb08775f755b063313a5e3e2a7a065b9e431ab"
+    },
+    {
+      "source_name": "privacy2563.txt",
+      "content_type": "html",
+      "raw_text_chars": 13677,
+      "clean_text_chars": 13768,
+      "chunk_count": 14,
+      "avg_chunk_chars": 1111,
+      "avg_chunk_tokens": 278,
+      "empty_chunks": 0,
+      "oversized_chunks": 2,
+      "title": "<figure>",
+      "year": "2563",
+      "effective_date": "",
+      "content_hash": "8190006de6c9b76dbf2c9a187aaf1d636fb1d090"
+    },
+    {
+      "source_name": "rule2563-2g.txt",
+      "content_type": "plain",
+      "raw_text_chars": 1302,
+      "clean_text_chars": 1305,
+      "chunk_count": 2,
+      "avg_chunk_chars": 652,
+      "avg_chunk_tokens": 163,
+      "empty_chunks": 0,
+      "oversized_chunks": 0,
+      "title": "ระเบียบมหาวิทยาลัยเทคโนโลยีพระจอมเกล้าธนบุรีว่าด้วยการศึกษาระดับบัณฑิตศึกษา (ฉบับที่ 2)",
+      "year": "2563",
+      "effective_date": "",
+      "content_hash": "cdf6ff4d4b281e7a6a6cf98d8394c9c30e4d185c"
+    },
+    {
+      "source_name": "rule2563-4b.txt",
+      "content_type": "html",
+      "raw_text_chars": 2169,
+      "clean_text_chars": 2178,
+      "chunk_count": 2,
+      "avg_chunk_chars": 1088,
+      "avg_chunk_tokens": 272,
+      "empty_chunks": 0,
+      "oversized_chunks": 0,
+      "title": "ระเบียบมหาวิทยาลัยเทคโนโลยีพระจอมเกล้าธนบุรีว่าด้วยการศึกษาระดับปริญญาตรี (ฉบับที่ 4)",
+      "year": "2563",
+      "effective_date": "",
+      "content_hash": "4368b94ee13fe6c2d435504093fd1337f37c10cd"
+    },
+    {
+      "source_name": "rule57.txt",
+      "content_type": "html",
+      "raw_text_chars": 40304,
+      "clean_text_chars": 40682,
+      "chunk_count": 43,
+      "avg_chunk_chars": 1096,
+      "avg_chunk_tokens": 274,
+      "empty_chunks": 0,
+      "oversized_chunks": 3,
+      "title": "ระเบียบมหาวิทยาลัยเทคโนโลยีพระจอมเกล้าธนบุรีว่าด้วยการศึกษาระดับปริญญาตรีพ.ศ. 2557",
+      "year": "2557",
+      "effective_date": "",
+      "content_hash": "33c561ce71afface920f2df1ad7058083b08b51e"
+    },
+    {
+      "source_name": "rule57_2.txt",
+      "content_type": "plain",
+      "raw_text_chars": 15377,
+      "clean_text_chars": 15517,
+      "chunk_count": 16,
+      "avg_chunk_chars": 1127,
+      "avg_chunk_tokens": 281,
+      "empty_chunks": 0,
+      "oversized_chunks": 1,
+      "title": "ระเบียบมหาวิทยาลัยเทคโนโลยีพระจอมเกล้าธนบุรีว่าด้วยการศึกษาระดับปริญญาตรี (ฉบับที่ 2) พ.ศ. 2560",
+      "year": "2560",
+      "effective_date": "",
+      "content_hash": "f53a7ff5cfd1408043f952699c531a9ce1ee7006"
+    },
+    {
+      "source_name": "ruleG2568.txt",
+      "content_type": "html",
+      "raw_text_chars": 74764,
+      "clean_text_chars": 75377,
+      "chunk_count": 74,
+      "avg_chunk_chars": 1193,
+      "avg_chunk_tokens": 298,
+      "empty_chunks": 0,
+      "oversized_chunks": 1,
+      "title": "ระเบียบมหาวิทยาลัยเทคโนโลยีพระจอมเกล้าธนบุรีว่าด้วยการศึกษาระดับบัณฑิตศึกษาพ.ศ. 2568",
+      "year": "2568",
+      "effective_date": "",
+      "content_hash": "f9100b627e0c46eb71ddfb4b6a0b190f3cdde6cf"
+    },
+    {
+      "source_name": "rule_covid2564.txt",
+      "content_type": "plain",
+      "raw_text_chars": 4993,
+      "clean_text_chars": 5020,
+      "chunk_count": 6,
+      "avg_chunk_chars": 956,
+      "avg_chunk_tokens": 239,
+      "empty_chunks": 0,
+      "oversized_chunks": 1,
+      "title": "ระเบียบมหาวิทยาลัยเทคโนโลยีพระจอมเกล้าธนบุรีว่าด้วยการศึกษาภายใต้มาตรการและการเฝ้าระวังการระบาดของโรคติดเชื้อไวรัสโคโรนาสายพันธุ์ใหม่ 2019 (COVID-19)",
+      "year": "2564",
+      "effective_date": "",
+      "content_hash": "6608c8c49de572e8c61065d172dc8f72302ab537"
+    },
+    {
+      "source_name": "rule_exam2560.txt",
+      "content_type": "plain",
+      "raw_text_chars": 10571,
+      "clean_text_chars": 10697,
+      "chunk_count": 12,
+      "avg_chunk_chars": 1011,
+      "avg_chunk_tokens": 252,
+      "empty_chunks": 0,
+      "oversized_chunks": 2,
+      "title": "ระเบียบมหาวิทยาลัยเทคโนโลยีพระจอมเกล้าธนบุรีว่าด้วยการสอบของนักศึกษาพ.ศ. 2560",
+      "year": "2560",
+      "effective_date": "",
+      "content_hash": "fb04bf7cff4d12ecf253838b9e30ada61074c088"
+    },
+    {
+      "source_name": "tf_out.txt",
+      "content_type": "html",
+      "raw_text_chars": 4452,
+      "clean_text_chars": 4480,
+      "chunk_count": 4,
+      "avg_chunk_chars": 1119,
+      "avg_chunk_tokens": 280,
+      "empty_chunks": 0,
+      "oversized_chunks": 0,
+      "title": "ระเบียบมหาวิทยาลัยเทคโนโลยีพระจอมเกล้าธนบุรีว่าด้วยการโอนผลการเรียนของนักศึกษาแบบบุคคลภายนอกระดับบัณฑิตศึกษาเข้าสู่การศึกษาในระบบพ.ศ. 2557",
+      "year": "2557",
+      "effective_date": "",
+      "content_hash": "d2403b55b5c022546f36a9ba1213252ca57e2589"
+    }
+  ]
+}

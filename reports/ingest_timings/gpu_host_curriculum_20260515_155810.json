@@ -1,0 +1,163 @@
+{
+  "label": "gpu_host:curriculum",
+  "domain": "curriculum",
+  "input_dir": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/curriculum",
+  "output_base": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/db/curriculum",
+  "store": true,
+  "embed": true,
+  "generated_at": "2026-05-15T09:00:44.505067+00:00",
+  "counts": {
+    "files": 8,
+    "files_seen": 8,
+    "files_indexed": 8,
+    "files_failed": 0,
+    "records": 8,
+    "paragraphs": 3256,
+    "chunks": 401,
+    "flagged_chunks": 14,
+    "embedded_chunks": 401
+  },
+  "phase_ms": {
+    "extract_total_ms": 634.802,
+    "records_write_ms": 18.624,
+    "chunking_ms": 2632.372,
+    "chunks_write_ms": 10.609,
+    "db_store_ms": 8029.207,
+    "structured_artifacts_ms": 1993.122,
+    "embedding_ms": 30744.257,
+    "neo4j_ms": 0.0
+  },
+  "total_ms": 66472.213,
+  "file_timings": [
+    {
+      "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/curriculum/FOE10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 86.193
+    },
+    {
+      "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/curriculum/SSC.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 35.871
+    },
+    {
+      "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/curriculum/teacher.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 41.406
+    },
+    {
+      "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/curriculum/teacher_profiles.csv",
+      "file_type": "csv",
+      "records": 1,
+      "elapsed_ms": 126.294
+    },
+    {
+      "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/curriculum/teacher_profiles_by_course.csv",
+      "file_type": "csv",
+      "records": 1,
+      "elapsed_ms": 20.434
+    },
+    {
+      "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/curriculum/วศ.บ.-วศวกรรมคอมพวเตอร-ปรบปรง.64.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 219.761
+    },
+    {
+      "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/curriculum/วิชา LNG 2562.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 71.816
+    },
+    {
+      "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/curriculum/โครงสร้างหลักสูตรรายวิชาศึกษาทั่วไป มจธ.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 33.027
+    }
+  ],
+  "chunk_reports": [
+    {
+      "source_name": "FOE10_วศ.บ.วิศวกรรมคอมพิวเตอร์_2564.txt",
+      "domain": "curriculum",
+      "content_type": "plain",
+      "raw_text_chars": 50513,
+      "chunk_count": 27,
+      "avg_chunk_chars": 2358.15,
+      "avg_chunk_tokens": 372.07,
+      "oversized_chunks": 1
+    },
+    {
+      "source_name": "SSC.txt",
+      "domain": "curriculum",
+      "content_type": "plain",
+      "raw_text_chars": 25050,
+      "chunk_count": 13,
+      "avg_chunk_chars": 2467.54,
+      "avg_chunk_tokens": 379.92,
+      "oversized_chunks": 1
+    },
+    {
+      "source_name": "teacher.txt",
+      "domain": "curriculum",
+      "content_type": "plain",
+      "raw_text_chars": 36665,
+      "chunk_count": 20,
+      "avg_chunk_chars": 2311.65,
+      "avg_chunk_tokens": 392.7,
+      "oversized_chunks": 1
+    },
+    {
+      "source_name": "teacher_profiles.csv",
+      "domain": "curriculum",
+      "content_type": "table_like",
+      "raw_text_chars": 64048,
+      "chunk_count": 39,
+      "avg_chunk_chars": 2076.44,
+      "avg_chunk_tokens": 340.56,
+      "oversized_chunks": 4
+    },
+    {
+      "source_name": "teacher_profiles_by_course.csv",
+      "domain": "curriculum",
+      "content_type": "table_like",
+      "raw_text_chars": 13978,
+      "chunk_count": 9,
+      "avg_chunk_chars": 1982.56,
+      "avg_chunk_tokens": 386.33,
+      "oversized_chunks": 1
+    },
+    {
+      "source_name": "วศ.บ.-วศวกรรมคอมพวเตอร-ปรบปรง.64.txt",
+      "domain": "curriculum",
+      "content_type": "plain",
+      "raw_text_chars": 314505,
+      "chunk_count": 222,
+      "avg_chunk_chars": 1774.5,
+      "avg_chunk_tokens": 292.07,
+      "oversized_chunks": 12
+    },
+    {
+      "source_name": "วิชา LNG 2562.txt",
+      "domain": "curriculum",
+      "content_type": "html",
+      "raw_text_chars": 89962,
+      "chunk_count": 52,
+      "avg_chunk_chars": 2167.63,
+      "avg_chunk_tokens": 393.75,
+      "oversized_chunks": 1
+    },
+    {
+      "source_name": "โครงสร้างหลักสูตรรายวิชาศึกษาทั่วไป มจธ.txt",
+      "domain": "curriculum",
+      "content_type": "plain",
+      "raw_text_chars": 36275,
+      "chunk_count": 19,
+      "avg_chunk_chars": 2438.74,
+      "avg_chunk_tokens": 382.63,
+      "oversized_chunks": 1
+    }
+  ]
+}

@@ -160,6 +160,10 @@ make ingest
 
 - `indexes/<domain>/vector/chroma`
 - `indexes/<domain>/vector/sqlite/ingestion.db`
+- `indexes/global/chroma`
+- `indexes/global/sqlite/ingestion.db`
+
+RAG flow แบบ global cross-domain และ source-labeled context ดูเพิ่มที่ [docs/RAG_OPEN_NOTEBOOK_STYLE.md](/home/testuser/CPE-CHAT-0.0.2/docs/RAG_OPEN_NOTEBOOK_STYLE.md)
 
 ## Evaluation และ gate
 

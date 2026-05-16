@@ -6,7 +6,16 @@ import os
 import chromadb
 from chromadb.config import Settings
 
-from .config import CHROMA_DIR, EMBEDDING_MODEL, EMBED_BATCH, EMBEDDING_API_BASE, EMBEDDING_API_KEY, EMBEDDING_DIM
+from .config import (
+    CHROMA_DIR,
+    EMBEDDING_MODEL,
+    EMBED_BATCH,
+    EMBEDDING_API_BASE,
+    EMBEDDING_API_KEY,
+    EMBEDDING_DIM,
+    RAG_CHROMA_COLLECTION,
+    RAG_GLOBAL_CHROMA_DIR,
+)
 from .utils import clean_and_spell_correct_thai
 
 try:
@@ -21,6 +30,22 @@ except Exception:
 
 _client = chromadb.PersistentClient(path=str(CHROMA_DIR), settings=Settings(anonymized_telemetry=False))
 _collection = _client.get_or_create_collection(name="documents")
+_global_client = chromadb.PersistentClient(path=str(RAG_GLOBAL_CHROMA_DIR), settings=Settings(anonymized_telemetry=False))
+_global_collection = _global_client.get_or_create_collection(name=RAG_CHROMA_COLLECTION)
+
+
+def _collection_vector_dim(collection: Any, fallback: int = EMBEDDING_DIM) -> int:
+    try:
+        peek = collection.peek(limit=1)
+        embeddings = peek.get('embeddings')
+        shape = getattr(embeddings, 'shape', None)
+        if shape and len(shape) >= 2 and int(shape[1]) > 0:
+            return int(shape[1])
+        if embeddings is not None and len(embeddings) > 0 and len(embeddings[0]) > 0:
+            return int(len(embeddings[0]))
+    except Exception:
+        pass
+    return int(fallback)
 
 _embedder = None
 _is_bge_m3 = False
@@ -301,14 +326,15 @@ def upsert_chunks(chunks: List[Dict[str, Any]]):
     if not embeddings or any(len(e) == 0 for e in embeddings):
         print("Embeddings empty after fallback; skipping upsert to avoid error.")
         return
-    # Enforce configured embedding dimension for storage.
-    dim = EMBEDDING_DIM
-    fixed = [_l2_normalize(_resize_embedding(list(e), dim)) for e in embeddings]
+    domain_dim = _collection_vector_dim(_collection)
+    global_dim = _collection_vector_dim(_global_collection, fallback=domain_dim)
+    domain_fixed = [_l2_normalize(_resize_embedding(list(e), domain_dim)) for e in embeddings]
+    global_fixed = [_l2_normalize(_resize_embedding(list(e), global_dim)) for e in embeddings]
     ids: List[str] = []
     metadatas: List[Dict[str, Any]] = []
     documents: List[str] = []
     for i, c in enumerate(chunks):
-        cid = f"{c.get('doc_id') or c.get('source','')}-{i}"
+        cid = str(c.get('stable_chunk_id') or c.get('doc_id') or f"{c.get('source','')}-{i}")
         ids.append(cid)
         meta: Dict[str, Any] = {
             'source': c.get('source'),
@@ -317,6 +343,26 @@ def upsert_chunks(chunks: List[Dict[str, Any]]):
             'page_end': c.get('page_end'),
             'file_type': c.get('file_type'),
             'status': c.get('status'),
+            'stable_chunk_id': c.get('stable_chunk_id') or c.get('doc_id'),
+            'corpus_id': c.get('corpus_id'),
+            'source_id': c.get('source_id'),
+            'source_name': c.get('source_name') or c.get('source'),
+            'source_path': c.get('source_path') or c.get('path'),
+            'file_name': c.get('file_name'),
+            'title': c.get('title') or c.get('doc_title'),
+            'domain': c.get('domain'),
+            'section_heading': c.get('section_heading'),
+            'page': c.get('page') or c.get('page_start'),
+            'chunk_index': c.get('chunk_index'),
+            'char_start': c.get('char_start'),
+            'char_end': c.get('char_end'),
+            'token_count': c.get('token_count') or c.get('tokens_est'),
+            'char_count': c.get('char_count'),
+            'content_type': c.get('content_type') or c.get('document_type'),
+            'embedding_provider': c.get('embedding_provider'),
+            'embedding_model': c.get('embedding_model') or EMBEDDING_MODEL,
+            'indexed_at': c.get('indexed_at'),
+            'content_hash': c.get('content_hash'),
         }
         # Pass-through optional metadata (curriculum course-centric)
         for k in [
@@ -363,7 +409,8 @@ def upsert_chunks(chunks: List[Dict[str, Any]]):
         # Store cleaned text in vector store for better retrieval, keep metadata unchanged
         documents.append(cleaned_texts[i] if i < len(cleaned_texts) else c.get('text',''))
     try:
-        _collection.upsert(ids=ids, embeddings=fixed, documents=documents, metadatas=metadatas)  # type: ignore[arg-type]
+        _collection.upsert(ids=ids, embeddings=domain_fixed, documents=documents, metadatas=metadatas)  # type: ignore[arg-type]
+        _global_collection.upsert(ids=ids, embeddings=global_fixed, documents=documents, metadatas=metadatas)  # type: ignore[arg-type]
     except Exception as e:
         msg = str(e)
         if 'dimension' in msg.lower() or 'dim' in msg.lower():
@@ -380,7 +427,8 @@ def upsert_chunks(chunks: List[Dict[str, Any]]):
             )
             try:
                 _recreate_documents_collection()
-                _collection.upsert(ids=ids, embeddings=fixed, documents=documents, metadatas=metadatas)  # type: ignore[arg-type]
+                _collection.upsert(ids=ids, embeddings=domain_fixed, documents=documents, metadatas=metadatas)  # type: ignore[arg-type]
+                _global_collection.upsert(ids=ids, embeddings=global_fixed, documents=documents, metadatas=metadatas)  # type: ignore[arg-type]
             except Exception as recovery_error:
                 print(
                     "Chroma recovery failed after recreating collection. "
@@ -388,10 +436,10 @@ def upsert_chunks(chunks: List[Dict[str, Any]]):
                 )
                 raise
             else:
-                print(f"Upserted {len(ids)} chunks into Chroma after recovery (dim={dim}).")
+                print(f"Upserted {len(ids)} chunks into Chroma after recovery (domain_dim={domain_dim}, global_dim={global_dim}).")
                 return
         raise
-    print(f"Upserted {len(ids)} chunks into Chroma (dim={dim}).")
+    print(f"Upserted {len(ids)} chunks into Chroma collections (domain_dim={domain_dim}, global_dim={global_dim}).")
 
 
 def semantic_search(query: str, n_results: int = 10) -> List[Dict[str, Any]]:

@@ -4,8 +4,12 @@ import os
 import re
 from typing import Dict
 
+from .onb_rag.prompting import build_prompt as build_open_notebook_prompt
+
 
 def build_prompt(question: str, ctx: str, cites: Dict[int, str], intent: str = 'course_info') -> str:
+    if '[Source 1]' in (ctx or '') or '[1]' in (ctx or ''):
+        return build_open_notebook_prompt(question, ctx, cites, intent=intent)
     require_citations = (os.getenv('RAG_REQUIRE_CITATIONS', '0') or '0').strip().lower() in (
         '1', 'true', 'yes', 'on'
     )

@@ -17,10 +17,18 @@ services:
       CHROMA_DIR: /app/indexes/chroma
       SQLITE_PATH: /app/indexes/sqlite/ingestion.db
       CPE_INDEX_ROOT: /app/indexes
+      RAG_ENGINE: "${RAG_ENGINE:-open_notebook_style}"
+      RAG_VECTOR_BACKEND: "${RAG_VECTOR_BACKEND:-chroma}"
+      RAG_CHROMA_COLLECTION: "${RAG_CHROMA_COLLECTION:-cpe_chat_sources}"
+      RAG_CHROMA_DIR: "/app/indexes/global/chroma"
+      RAG_GLOBAL_SQLITE_PATH: "/app/indexes/global/sqlite/ingestion.db"
+      RAG_LEGACY_DOMAIN_INDEX_COMPAT: "${RAG_LEGACY_DOMAIN_INDEX_COMPAT:-0}"
+      THAI_TOKENIZER_PROVIDER: "${THAI_TOKENIZER_PROVIDER:-pythainlp}"
+      THAI_TOKENIZER_ENGINE: "${THAI_TOKENIZER_ENGINE:-newmm}"
       
       # Embedding configuration
       EMBEDDING_MODEL: "BAAI/bge-m3"
-      EMBEDDING_DIM: "512"
+      EMBEDDING_DIM: "1024"
       TOKEN_BUDGET: "${TOKEN_BUDGET:-2400}"
       MAX_CONTEXTS: "${MAX_CONTEXTS:-8}"
       RAG_CURRICULUM_BYPASS_VECTOR: "${RAG_CURRICULUM_BYPASS_VECTOR:-0}"
@@ -62,6 +70,7 @@ services:
       RAG_TIMING: "${RAG_TIMING:-0}"
       RAG_TIMING_MIN_MS: "${RAG_TIMING_MIN_MS:-0}"
       RAG_WORKERS: "${RAG_WORKERS:-1}"
+      RAG_RETRIEVAL_CACHE_ENABLE: "${RAG_RETRIEVAL_CACHE_ENABLE:-0}"
 
       # Shared follow-up memory for multi-worker / multi-instance deployment.
       RAG_SESSION_REDIS_URL: "${RAG_SESSION_REDIS_URL:-redis://redis:6379/0}"
@@ -129,7 +138,7 @@ services:
       NEO4J_USER: "${NEO4J_USER:-}"
       NEO4J_PASSWORD: "${NEO4J_PASSWORD:-}"
       NEO4J_DATABASE: "${NEO4J_DATABASE:-}"
-      NEO4J_VECTOR_DIM: "512"
+      NEO4J_VECTOR_DIM: "1024"
       
       # Python configuration
       PYTHONUNBUFFERED: "1"

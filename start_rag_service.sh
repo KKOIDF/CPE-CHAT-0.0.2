@@ -51,6 +51,7 @@ fi
 export TYPHOON_BASE_URL="${TYPHOON_BASE_URL:-https://api.opentyphoon.ai/v1}"
 export CPE_INDEX_ROOT="$REPO_DIR/indexes"
 export EMBEDDING_MODEL=BAAI/bge-m3
+export EMBEDDING_DIM=${EMBEDDING_DIM:-1024}
 export TOKEN_BUDGET=1200
 export MAX_CONTEXTS=8
 export LLM_MAX_TOKENS=512

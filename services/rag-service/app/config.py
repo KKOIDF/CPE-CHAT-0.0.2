@@ -67,10 +67,31 @@ def domain_paths(domain: str | None):
 
 # Backward-compatible defaults (no explicit domain)
 CHROMA_DIR, SQLITE_PATH = domain_paths(os.getenv('CPE_DOMAIN'))
+RAG_ENGINE = (os.getenv('RAG_ENGINE', 'open_notebook_style') or 'open_notebook_style').strip().lower()
+RAG_VECTOR_BACKEND = (os.getenv('RAG_VECTOR_BACKEND', 'chroma') or 'chroma').strip().lower()
+RAG_CORPUS_ID = (os.getenv('RAG_CORPUS_ID', 'cpe_chat') or 'cpe_chat').strip()
+RAG_CHROMA_COLLECTION = (os.getenv('RAG_CHROMA_COLLECTION', 'cpe_chat_sources') or 'cpe_chat_sources').strip()
+RAG_CHROMA_DIR = Path(os.getenv('RAG_CHROMA_DIR', str(ROOT_DIR / 'indexes' / 'global' / 'chroma')))
+RAG_GLOBAL_SQLITE_PATH = Path(os.getenv('RAG_GLOBAL_SQLITE_PATH', str(ROOT_DIR / 'indexes' / 'global' / 'sqlite' / 'ingestion.db')))
+RAG_LEGACY_DOMAIN_INDEX_COMPAT = os.getenv('RAG_LEGACY_DOMAIN_INDEX_COMPAT', '1') in ('1', 'true', 'True')
 
 EMBEDDING_MODEL = os.getenv('EMBEDDING_MODEL', 'BAAI/bge-m3')
 EMBED_BATCH = int(os.getenv('EMBED_BATCH', '32'))
-EMBEDDING_DIM = int(os.getenv('EMBEDDING_DIM', '512'))
+
+
+def _resolve_embedding_dim() -> int:
+	raw_value = os.getenv('EMBEDDING_DIM', '').strip()
+	if 'bge-m3' in (EMBEDDING_MODEL or '').lower():
+		if raw_value and raw_value != '1024':
+			print(f"[RAG] Overriding EMBEDDING_DIM={raw_value} to 1024 for {EMBEDDING_MODEL}.")
+		return 1024
+	try:
+		return int(raw_value or '512')
+	except Exception:
+		return 512
+
+
+EMBEDDING_DIM = _resolve_embedding_dim()
 TOKEN_BUDGET = int(os.getenv('TOKEN_BUDGET', '2400'))
 RRF_K = int(os.getenv('RRF_K', '60'))
 MAX_CONTEXTS = int(os.getenv('MAX_CONTEXTS', '8'))

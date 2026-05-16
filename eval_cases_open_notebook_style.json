@@ -1,0 +1,18 @@
+[
+  {
+    "question": "นักศึกษาต้องผ่านเงื่อนไขอะไรถึงจะสำเร็จการศึกษาตามหลักสูตร",
+    "expected_domains": ["curriculum", "regulations"]
+  },
+  {
+    "question": "โครงสร้างหลักสูตรมีอะไร และมีประกาศล่าสุดที่กระทบหรือไม่",
+    "expected_domains": ["curriculum", "announcements"]
+  },
+  {
+    "question": "ประกาศล่าสุดมีผลต่อข้อบังคับเดิมอย่างไร",
+    "expected_domains": ["announcements", "regulations"]
+  },
+  {
+    "question": "ถ้านักศึกษาต้องวางแผนเรียนจนจบ ควรดูเอกสารอะไรบ้าง",
+    "expected_domains": ["curriculum", "regulations", "announcements"]
+  }
+]
