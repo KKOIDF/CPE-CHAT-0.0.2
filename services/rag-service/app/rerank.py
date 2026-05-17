@@ -52,7 +52,7 @@ def apply_intent_aware_fact_boost(
         entity_bonus = {'calendar_event': 0.42, 'regulation': 0.12}
         keyword_bonus = 0.10
     elif intent_key in ('policy_lookup', 'exam_policy', 'academic_status_policy'):
-        entity_bonus = {'regulation': 0.34, 'procedure': 0.12}
+        entity_bonus = {'regulation': 0.34, 'procedure': 0.12, 'course': -0.42, 'course_instructor': -0.16}
 
     out: list[dict] = []
     for item in items:

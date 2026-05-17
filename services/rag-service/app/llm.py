@@ -39,8 +39,9 @@ from .perf import add_metric
 
 
 def _estimate_tokens(text: str) -> int:
-    # Conservative estimator: Thai prompts are often tokenized much denser than 4-char/token.
-    return max(1, len(text or ''))
+    # Rough estimator. Avoid treating every Thai character as one full token,
+    # because that trims RAG context too aggressively.
+    return max(1, int(len(text or '') / 2))
 
 
 def _estimate_messages_tokens(messages: List[Dict[str, str]]) -> int:
@@ -220,7 +221,13 @@ def _is_diagnostic_response(text: str) -> bool:
         return True
     if t == '(empty response)':
         return True
-    return t.startswith('(')
+    if t.startswith('('):
+        return True
+    if 'ไม่พบข้อมูลนี้ในเอกสารที่ค้นได้' in t:
+        return True
+    if 'ไม่พบข้อความยืนยันโดยตรง' in t:
+        return True
+    return False
 
 
 def _resolve_task_selection(task: str = 'answer', requested_model: str = '') -> tuple[str, str]:
@@ -570,7 +577,7 @@ class LLMEngine:
         if not is_gpt5:
             payload['temperature'] = LLM_TEMPERATURE
         else:
-            payload['reasoning_effort'] = 'minimal'
+            payload['reasoning_effort'] = os.getenv('OPENAI_REASONING_EFFORT', 'low')
 
         if is_gpt5:
             payload['max_completion_tokens'] = LLM_MAX_TOKENS

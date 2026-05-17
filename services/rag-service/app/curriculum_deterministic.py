@@ -94,27 +94,38 @@ def _soft_lookup_filtered_result(result: dict[str, Any]) -> dict[str, Any]:
 
 _COURSE_ALIASES = {
     "introduction to computer engineering": "CPE100",
+    "computer programming for engineers": "CPE100",
+    "computer programming": "CPE100",
     "engineering exploration": "CPE101",
     "discrete mathematics for computer engineers": "CPE111",
     "computer engineering mathematics": "CPE111",
-    "computer programming": "CPE101",
-    "computer programming for engineers": "CPE100",
     "data structure": "CPE112",
     "data structures": "CPE112",
     "programming with data structures": "CPE112",
-    "discrete mathematics": "CPE211",
-    "algorithm": "CPE213",
-    "algorithms": "CPE213",
-    "operating system": "CPE214",
-    "operating systems": "CPE214",
-    "digital logic": "CPE121",
-    "software engineering": "CPE241",
-    "database system": "CPE231",
-    "database systems": "CPE231",
-    "artificial intelligence": "CPE324",
+    "digital logic": "CPE222",
+    "digital electronics and logic design": "CPE222",
     "computer architecture": "CPE223",
+    "computer architectures": "CPE223",
+    "algorithm": "CPE231",
+    "algorithms": "CPE231",
+    "database": "CPE241",
+    "database system": "CPE241",
+    "database systems": "CPE241",
     "computer networks": "CPE314",
     "computer network": "CPE314",
+    "embedded systems": "CPE324",
+    "operating system": "CPE333",
+    "operating systems": "CPE333",
+    "software engineering": "CPE334",
+    "machine learning": "CPE342",
+    "การเรียนรู้ของเครื่อง": "CPE342",
+    "แมชชีนเลิร์นนิง": "CPE342",
+    "ระบบฐานข้อมูล": "CPE241",
+    "วิศวกรรมซอฟต์แวร์": "CPE334",
+    "ระบบปฏิบัติการ": "CPE333",
+    "สถาปัตยกรรมคอมพิวเตอร์": "CPE223",
+    "ขั้นตอนวิธี": "CPE231",
+    "เครือข่ายคอมพิวเตอร์": "CPE314",
 }
 
 _TITLE_STOPWORDS_EN = {
@@ -520,6 +531,13 @@ def _extract_title_candidate(question: str) -> str:
         r"(.+?)\s*เนื้อหาอะไร",
         r"(.+?)\s*สอนอะไร",
         r"(.+?)\s*คำอธิบายรายวิชา(?:อะไร)?",
+        r"(.+?)\s*คือวิชาอะไร",
+        r"(.+?)\s*วิชาอะไร",
+        r"(.+?)\s*กี่หน่วยกิต",
+        r"(.+?)\s*มีกี่หน่วยกิต",
+        r"(.+?)\s*ชื่อวิชา(?:อะไร)?",
+        r"(.+?)\s*ชื่ออังกฤษ(?:อะไร)?",
+        r"(.+?)\s*ชื่อเต็ม(?:อะไร)?",
     ):
         m = re.search(pat, q, flags=re.IGNORECASE)
         if m:
@@ -738,6 +756,58 @@ def _term_summary_line(year: int, term: int, courses: list[Course], source_name:
     return f"ภาคการศึกษาที่ {term} มีรายวิชาตามแผนดังนี้ [{source_name}/1]"
 
 
+
+def _study_plan_term_mix_line(year: int, term: int, courses: list[Course], source_name: str) -> str:
+    focuses = _course_focus_labels(courses)
+    if not focuses:
+        return f"- ภาพรวมเทอมนี้เป็นการเก็บรายวิชาพื้นฐานตามแผนของหลักสูตร [{source_name}/1]"
+    focus_text = _join_thai_list(focuses[:4])
+    if year == 1 and term == 1:
+        return f"- เทอมนี้จัดวิชาแบบผสมระหว่าง{focus_text} เพื่อให้ฐานคิดและทักษะเริ่มต้นเดินไปพร้อมกัน [{source_name}/1]"
+    if year == 1 and term == 2:
+        return f"- เทอมนี้เป็นการต่อยอดแบบผสมระหว่าง{focus_text} จากฐานที่เริ่มสร้างไว้ในเทอมแรก [{source_name}/1]"
+    return f"- เทอมนี้ผสมรายวิชาด้าน{focus_text} ตามลำดับการปูพื้นและต่อยอดของหลักสูตร [{source_name}/1]"
+
+
+def _study_plan_term_difficulty_line(year: int, term: int, courses: list[Course], source_name: str) -> str:
+    codes = {f"{c.prefix}{c.number}".upper() for c in courses}
+    has_programming = any(code.startswith('CPE100') or code.startswith('CPE112') for code in codes)
+    has_discrete_or_math = any(code.startswith('CPE111') or code.startswith('MTH') for code in codes)
+    has_physics = any(code.startswith('PHY') for code in codes)
+    has_language = any(code.startswith('LNG') for code in codes)
+
+    if year == 1 and term == 1 and has_programming and has_discrete_or_math and has_physics:
+        return f"- ความยากโดยรวมมักจะรู้สึกว่าแน่นพอสมควร เพราะต้องบาลานซ์ทั้งการเขียนโปรแกรม คณิตศาสตร์/ตรรกะ และฟิสิกส์ไปพร้อมกัน [{source_name}/1]"
+    if year == 1 and term == 1 and has_programming:
+        return f"- ความท้าทายหลักของเทอมนี้คือการปรับตัวกับวิชาแกนสายคอมและรูปแบบงานที่ต้องฝึกต่อเนื่องทุกสัปดาห์ [{source_name}/1]"
+    if year == 1 and term == 2:
+        return f"- ความยากของเทอมนี้มักมาจากการต่อยอดฐานเดิมและการเริ่มเชื่อมหลายวิชาเข้าด้วยกันมากขึ้น [{source_name}/1]"
+    return f"- ความยากของเทอมนี้ขึ้นกับการจัดเวลาระหว่างวิชาพื้นฐานและวิชาแกนของหลักสูตร [{source_name}/1]"
+
+
+def _study_plan_course_learning_line(course: Course, source_name: str) -> str:
+    code = f"{course.prefix}{course.number}".upper()
+    title = str(course.title_th or '').strip()
+    if code == 'CPE100':
+        note = 'เป็นวิชาปูพื้นการเขียนโปรแกรม ต้องลงมือฝึกเขียนจริงสม่ำเสมอ และมักเป็นตัวตั้งต้นของวิชา CPE ถัดไป'
+    elif code == 'CPE101':
+        note = 'ช่วยให้เห็นภาพรวมของสาขาและงานวิศวกรรมคอมพิวเตอร์ ว่าเส้นทางการเรียนต่อจากนี้เชื่อมกันอย่างไร'
+    elif code == 'CPE111':
+        note = 'เป็นฐานคิดเชิงตรรกะและคณิตศาสตร์ดิสครีต ซึ่งสำคัญกับอัลกอริทึมและการวิเคราะห์ปัญหาในวิชาคอมภายหลัง'
+    elif course.prefix == 'PHY':
+        note = 'เป็นวิชาที่ใช้การคิดเชิงหลักการและการประยุกต์โจทย์ค่อนข้างเยอะ จึงมักใช้เวลาอ่านและทำโจทย์พอสมควร'
+    elif course.prefix == 'MTH':
+        note = 'ช่วยปูฐานคณิตศาสตร์ที่ต้องใช้ต่อในวิชาวิศวกรรมและการวิเคราะห์ปัญหา'
+    elif course.prefix == 'LNG':
+        note = 'ช่วยเสริมทักษะภาษาอังกฤษที่จำเป็นต่อการอ่านเอกสาร การสื่อสาร และการเรียนรายวิชาเฉพาะทางต่อไป'
+    elif course.prefix == 'GEN':
+        note = 'เป็นวิชาช่วยเสริมมุมมองหรือทักษะทั่วไป เพื่อไม่ให้เทอมนี้มีแต่วิชาเทคนิคอย่างเดียว'
+    else:
+        note = f'เป็นอีกหนึ่งวิชาในเทอมนี้ที่ช่วยต่อยอดฐานของหลักสูตรจากมุม {title or code}'
+    return f"- {course.prefix} {course.number}: {note} [{source_name}/1]"
+
+
+
 def _format_study_plan_answer(question: str, courses: list[Course], source_name: str) -> str | None:
     if not courses:
         return None
@@ -749,10 +819,17 @@ def _format_study_plan_answer(question: str, courses: list[Course], source_name:
         lines = [
             f"สำหรับชั้นปีที่ {year} ภาคการศึกษาที่ {term} รายวิชาที่พบในแผนการศึกษามีดังนี้ [{source_name}/1]",
             _term_summary_line(year, term, courses, source_name),
+            _study_plan_term_mix_line(year, term, courses, source_name),
+            _study_plan_term_difficulty_line(year, term, courses, source_name),
             "",
+            "- รายวิชาที่อยู่ในแผน:",
         ]
         for c in courses:
             lines.append(_course_display_line(c, source_name))
+        lines.append("")
+        lines.append("- มุมมองต่อแต่ละวิชาในเทอมนี้:")
+        for c in courses:
+            lines.append(_study_plan_course_learning_line(c, source_name))
         return "\n".join(lines).strip()
 
     term_sections: list[tuple[int, list[Course]]] = []
@@ -882,7 +959,8 @@ def _lookup_instructors_for_course(code: str) -> tuple[list[tuple[str, str]], bo
             row_norm = re.sub(r"\s+", " ", row_code or "").strip().upper()
             if row_norm != target_code:
                 continue
-            clean_name = re.sub(r"\s+", " ", name or "").strip()
+            clean_name = re.sub(r"^\s*\d+\s*", "", name or "")
+            clean_name = re.sub(r"\s+", " ", clean_name).strip(' -|')
             if len(clean_name) < 4:
                 continue
             found.append((clean_name, cite))
@@ -1474,6 +1552,81 @@ def _lookup_course_description_from_reference_text(code: str) -> tuple[str, str]
     return None
 
 
+
+def _lookup_course_learning_outcomes_from_reference_text(code: str) -> tuple[list[str], str] | None:
+    """Best-effort learning outcomes lookup from the canonical curriculum text."""
+    k = (code or '').replace('-', '').replace(' ', '').upper()
+    m = re.match(r'^([A-Z]{2,6})(\d{3})$', k)
+    if not m:
+        return None
+    pref, num = m.group(1), m.group(2)
+
+    curriculum = load_cpe_curriculum_2564()
+    source_name = curriculum.source_path.name if curriculum else 'curriculum_sqlite'
+    text = _load_curriculum_reference_text()
+    if not text:
+        return None
+
+    code_re = re.compile(rf'^\s*{re.escape(pref)}\s+{re.escape(num)}\b', re.IGNORECASE)
+    course_title = ''
+    course_hit = load_all_courses_2564().get(f"{pref}{num}")
+    if course_hit:
+        course_title = str(course_hit.title_th or '').strip()
+    title_norm = _normalize_title_query_th(course_title)
+    lines = text.splitlines()
+
+    for idx, raw_line in enumerate(lines):
+        raw_strip = str(raw_line or '').strip()
+        line_norm = _normalize_title_query_th(raw_strip)
+        is_code_anchor = bool(code_re.search(raw_line))
+        is_title_anchor = bool(title_norm and title_norm in line_norm and 'วิชาบังคับก่อน' not in raw_strip)
+        if not (is_code_anchor or is_title_anchor):
+            continue
+
+        in_outcomes = False
+        current_item = ''
+        outcomes: list[str] = []
+        for next_line in lines[idx + 1:]:
+            line = str(next_line or '').strip()
+            if not line:
+                if in_outcomes and current_item:
+                    outcomes.append(re.sub(r'\s+', ' ', current_item).strip())
+                    current_item = ''
+                if outcomes:
+                    break
+                continue
+            if re.match(r'^\s*[A-Z]{2,6}\s+\d{3}\b', line) or line.startswith('รวม '):
+                if current_item:
+                    outcomes.append(re.sub(r'\s+', ' ', current_item).strip())
+                break
+            if line.startswith('ผลลัพธ์การเรียนรู้'):
+                in_outcomes = True
+                current_item = ''
+                continue
+            if not in_outcomes:
+                continue
+
+            numbered = re.match(r'^(\d+)\.\s*(.+)$', line)
+            if numbered:
+                if current_item:
+                    outcomes.append(re.sub(r'\s+', ' ', current_item).strip())
+                current_item = numbered.group(2).strip()
+                continue
+
+            if current_item:
+                current_item = f"{current_item} {line}".strip()
+            elif outcomes:
+                outcomes[-1] = f"{outcomes[-1]} {line}".strip()
+
+        if current_item:
+            outcomes.append(re.sub(r'\s+', ' ', current_item).strip())
+
+        cleaned = [re.sub(r'\s+', ' ', item).strip() for item in outcomes if re.sub(r'\s+', ' ', item).strip()]
+        if cleaned:
+            return cleaned, source_name
+    return None
+
+
 def _lookup_course_code_by_title_in_reference_text(question: str) -> tuple[str | None, str | None]:
     candidate = _extract_title_candidate(question)
     cand_norm_th = _normalize_title_query_th(candidate)
@@ -1507,11 +1660,49 @@ def _title_query_matches_course(question: str, course: Course | None) -> bool:
     title_en = _normalize_title_query_en(raw)
     if cand_th and title_th and (cand_th in title_th or title_th in cand_th):
         return True
+    course_code = f"{course.prefix}{course.number}".upper()
+    for alias, alias_code in _COURSE_ALIASES.items():
+        if (alias_code or '').upper() != course_code:
+            continue
+        alias_en = _normalize_title_query_en(alias)
+        alias_th = _normalize_title_query_th(alias)
+        if cand_en and alias_en and (cand_en == alias_en or cand_en in alias_en or alias_en in cand_en):
+            return True
+        if cand_th and alias_th and (cand_th == alias_th or cand_th in alias_th or alias_th in cand_th):
+            return True
     if re.search(r'[ก-๙]', candidate or ''):
         return False
     if cand_en and re.search(r'[a-z]', cand_en) and title_en and (cand_en == title_en or cand_en in title_en or title_en in cand_en):
         return True
     return False
+
+
+def _course_detail_request_flags(question: str) -> dict[str, bool]:
+    q = normalize_question(question)
+    asks_instructor = any(t in q for t in (
+        'ใครสอน', 'ผู้สอน', 'อาจารย์', 'คนสอน', 'สอนวิชาอะไร', 'สอนอะไร', 'วิชาที่สอน', 'มีวิชาอะไรบ้าง', 'วิชาอะไรบ้าง'
+    ))
+    asks_title = any(t in q for t in ('วิชาอะไร', 'คือวิชาอะไร', 'ชื่อวิชา', 'ชื่ออังกฤษ', 'ชื่อเต็ม'))
+    instructor_listing_phrases = ('สอนวิชาอะไร', 'สอนอะไร', 'วิชาที่สอน', 'มีวิชาอะไรบ้าง', 'วิชาอะไรบ้าง')
+    if any(t in q for t in instructor_listing_phrases):
+        asks_title = False
+    asks_description = any(t in q for t in (
+        'เรียนเกี่ยวกับอะไร', 'เกี่ยวกับอะไร', 'มีเนื้อหาอะไร', 'เนื้อหาอะไร', 'คำอธิบายรายวิชา',
+        'สอนอะไร', 'เรียนอะไรบ้าง', 'description'
+    ))
+    if asks_instructor and any(t in q for t in instructor_listing_phrases) and not re.search(r'\b[A-Za-z]{2,6}\s*[- ]?\s*\d{3}\b', q):
+        asks_description = False
+    return {
+        'prereq': any(t in q for t in (
+            'ต้องผ่าน', 'บังคับก่อน', 'วิชาบังคับก่อน', 'วิชาบังครับก่อน', 'บังครับก่อน', 'ผ่านอะไรก่อน', 'ก่อนเรียน', 'พื้นฐาน', 'prereq', 'pre-req', 'prerequisite', 'เงื่อนไขก่อน'
+        )),
+        'hours': any(t in q for t in ('ชั่วโมงเรียน', 'ชั่วโมง', 'กี่ชั่วโมง', 'บรรยาย', 'ปฏิบัติ', 'hour')),
+        'credit': any(t in q for t in ('หน่วยกิต', 'กี่หน่วยกิต', 'มีกี่หน่วยกิต', 'credit', 'credits', 'กี่กิต')),
+        'title': asks_title,
+        'description': asks_description,
+        'instructor': asks_instructor,
+        'outcomes': any(t in q for t in ('ผลลัพธ์การเรียนรู้', 'learning outcome', 'learning outcomes')),
+    }
 
 
 def _format_course_detail_answer(
@@ -1523,11 +1714,14 @@ def _format_course_detail_answer(
     hour_hit: tuple[str, str] | None,
     prereq_hit: tuple[list[str], str] | None,
     description_hit: tuple[str, str] | None,
+    instructor_hit: tuple[list[tuple[str, str]], bool, bool] | None = None,
+    learning_outcomes_hit: tuple[list[str], str] | None = None,
 ) -> str:
     known_en_titles: dict[str, str] = {
         'CPE 342': 'Machine Learning',
         'CPE 241': 'Database',
         'CPE 223': 'Computer Architectures',
+        'CPE 334': 'Software Engineering',
     }
     title_text = str(title or '').strip()
     en_alias = known_en_titles.get((code_disp or '').upper())
@@ -1556,43 +1750,66 @@ def _format_course_detail_answer(
     if description_hit:
         description_text, description_src = description_hit
 
-    q = normalize_question(question)
-    asks_prereq = any(t in q for t in (
-        'ต้องผ่าน', 'บังคับก่อน', 'วิชาบังคับก่อน', 'ผ่านอะไรก่อน', 'ก่อนเรียน', 'พื้นฐาน', 'prereq', 'pre-req', 'prerequisite', 'เงื่อนไขก่อน'
-    ))
-    asks_hours = any(t in q for t in ('ชั่วโมงเรียน', 'ชั่วโมง', 'กี่ชั่วโมง', 'บรรยาย', 'ปฏิบัติ', 'hour'))
-    asks_credit = any(t in q for t in ('หน่วยกิต', 'กี่หน่วยกิต', 'มีกี่หน่วยกิต', 'credit', 'credits', 'กี่กิต'))
-    asks_title = any(t in q for t in ('วิชาอะไร', 'คือวิชาอะไร', 'ชื่อวิชา', 'ชื่ออังกฤษ', 'ชื่อเต็ม'))
-    asks_description = any(t in q for t in (
-        'เรียนเกี่ยวกับอะไร', 'เกี่ยวกับอะไร', 'มีเนื้อหาอะไร', 'เนื้อหาอะไร', 'คำอธิบายรายวิชา',
-        'สอนอะไร', 'เรียนอะไรบ้าง', 'description'
-    ))
+    instructor_pairs: list[tuple[str, str]] = []
+    if instructor_hit:
+        instructor_pairs = list(instructor_hit[0] or [])
+    instructor_names = [name for name, _cite in instructor_pairs if str(name or '').strip()]
+    instructor_src = instructor_pairs[0][1] if instructor_pairs else base_src
 
-    focused_intents = int(asks_prereq) + int(asks_hours) + int(asks_credit) + int(asks_title) + int(asks_description)
+    outcomes: list[str] = []
+    outcomes_src = base_src
+    if learning_outcomes_hit:
+        outcomes, outcomes_src = learning_outcomes_hit
+    outcomes_text = '; '.join(outcomes)
+
+    flags = _course_detail_request_flags(question)
+    focused_intents = sum(int(v) for v in flags.values())
     if focused_intents == 1:
-        if asks_credit:
+        if flags['credit']:
             return f"- รายวิชา {code_disp} มี {credit_text} [{base_src}/1]"
-        if asks_hours:
+        if flags['hours']:
             return f"- รายวิชา {code_disp} มีชั่วโมงเรียน {hour_text} [{hour_src}/1]"
-        if asks_description:
+        if flags['description']:
             if description_text:
                 return f"- รายวิชา {code_disp} เรียนเกี่ยวกับ {description_text} [{description_src}/1]"
             return f"- ยังไม่พบคำอธิบายรายวิชาของ {code_disp} ในเอกสารที่ดึงมา [{base_src}/1]"
-        if asks_title:
+        if flags['title']:
             return f"- รายวิชา {code_disp} คือ {title_text} [{base_src}/1]"
-        if asks_prereq:
+        if flags['prereq']:
             return f"- รายวิชา {code_disp} มีวิชาบังคับก่อน: {prereq_txt} [{prereq_src}/1]"
+        if flags['instructor']:
+            if instructor_names:
+                return f"- รายวิชา {code_disp} พบผู้สอนที่ระบุในข้อมูล: {', '.join(instructor_names)} [{instructor_src}]"
+            return f"- ยังไม่พบผู้สอนของรายวิชา {code_disp} ในข้อมูลที่ดึงมา [{base_src}/1]"
+        if flags['outcomes']:
+            if outcomes:
+                lines = [f"- ผลลัพธ์การเรียนรู้ของรายวิชา {code_disp} ที่พบในข้อมูล [{outcomes_src}/1]"]
+                for idx, item in enumerate(outcomes, start=1):
+                    lines.append(f"  {idx}. {item}")
+                return '\n'.join(lines).strip()
+            return f"- ยังไม่พบผลลัพธ์การเรียนรู้ของรายวิชา {code_disp} ในเอกสารที่ดึงมา [{base_src}/1]"
 
     lines = [
         f"- รหัสวิชา: {code_disp}",
         f"- ชื่อวิชา: {title_text} [{base_src}/1]",
-        f"- หน่วยกิต: {credit_text} [{base_src}/1]",
-        f"- ชั่วโมงเรียน: {hour_text} [{hour_src}/1]",
     ]
-    if description_text:
+    if not flags['title'] or focused_intents > 1:
+        lines.append(f"- หน่วยกิต: {credit_text} [{base_src}/1]")
+        lines.append(f"- ชั่วโมงเรียน: {hour_text} [{hour_src}/1]")
+    if description_text and (flags['description'] or focused_intents > 1):
         lines.append(f"- คำอธิบายรายวิชา: {description_text} [{description_src}/1]")
-    if prereq_hit is not None:
+    if prereq_hit is not None and (flags['prereq'] or focused_intents > 1):
         lines.append(f"- วิชาบังคับก่อน: {prereq_txt} [{prereq_src}/1]")
+    if flags['instructor'] or focused_intents > 1:
+        if instructor_names:
+            lines.append(f"- ผู้สอนที่พบในข้อมูล: {', '.join(instructor_names)} [{instructor_src}]")
+        elif flags['instructor']:
+            lines.append(f"- ผู้สอน: ยังไม่พบข้อมูลผู้สอนที่ยืนยันได้จากเอกสารที่ดึงมา [{base_src}/1]")
+    if flags['outcomes']:
+        if outcomes_text:
+            lines.append(f"- ผลลัพธ์การเรียนรู้ที่พบ: {outcomes_text} [{outcomes_src}/1]")
+        else:
+            lines.append(f"- ผลลัพธ์การเรียนรู้: ยังไม่พบข้อมูลที่ดึงได้ตรงจากเอกสาร [{base_src}/1]")
     return "\n".join(lines).strip()
 
 
@@ -2146,11 +2363,14 @@ def _structured_curriculum_lookup_impl(question: str, resolved_entity: dict[str,
     instructor_intent = any(t in q for t in (
         "ใครสอน", "ผู้สอน", "อาจารย์", "คนสอน", "สอนวิชาอะไร", "สอนอะไร", "วิชาที่สอน", "มีวิชาอะไรบ้าง", "วิชาอะไรบ้าง"
     )) or bool(instructor_candidates_preview and any(t in q for t in ("สอน", "คือใคร", "ชื่อเต็ม", "ชื่อจริง")))
+    detail_flags = _course_detail_request_flags(q)
+    detail_signal_count = sum(int(v) for v in detail_flags.values())
+    needs_course_catalog = (not instructor_intent) or detail_signal_count > 1
     source_name = "curriculum_sqlite"
     totals: dict[str, int] = {}
     qtype = _classify_curriculum_question_type(q)
 
-    if not instructor_intent:
+    if needs_course_catalog:
         totals = load_credit_totals_2564()
         curriculum = load_cpe_curriculum_2564()
         source_name = curriculum.source_path.name if curriculum else "curriculum_sqlite"
@@ -2295,9 +2515,7 @@ def _structured_curriculum_lookup_impl(question: str, resolved_entity: dict[str,
         return {"answer": None, "lookup_mode": "none", "miss_reason": "no_studyplan_match"}
 
     # Exact course-code/title lookups.
-    prereq_intent = any(t in q for t in (
-        "ต้องผ่าน", "บังคับก่อน", "วิชาบังคับก่อน", "ผ่านอะไรก่อน", "ก่อนเรียน", "พื้นฐาน", "prereq", "pre-req", "prerequisite", "เงื่อนไขก่อน"
-    ))
+    prereq_intent = detail_flags['prereq']
     term_intent = any(t in q for t in (
         "เทอม", "ภาค", "ภาคการศึกษา", "semester", "ปีที่", "ชั้นปี", "อยู่ปี", "เรียนปี"
     ))
@@ -2341,10 +2559,10 @@ def _structured_curriculum_lookup_impl(question: str, resolved_entity: dict[str,
                 if all(_normalize_instructor_name_key(n) != resolved_key for n in instructor_names):
                     instructor_names.append(resolved_name)
     all_courses: dict[str, Course] = {}
-    if not instructor_intent:
+    if needs_course_catalog:
         all_courses = load_all_courses_2564()
 
-    if prereq_intent and not instructor_intent:
+    if prereq_intent and not instructor_intent and detail_signal_count == 1:
         if not codes:
             return {
                 "answer": "โปรดระบุรหัสวิชาที่ต้องการตรวจสอบวิชาบังคับก่อน เช่น CPE 214 ต้องผ่านวิชาอะไร",
@@ -2363,12 +2581,12 @@ def _structured_curriculum_lookup_impl(question: str, resolved_entity: dict[str,
             if prereqs:
                 return {
                     "answer": f"- รายวิชา {code_disp} มีวิชาบังคับก่อนคือ {', '.join(prereqs)} [{src}/1]",
-                    "lookup_mode": "prereq_exact",
+                    "lookup_mode": "exact_code",
                     "miss_reason": "",
                 }
             return {
                 "answer": f"- รายวิชา {code_disp} ไม่มีวิชาบังคับก่อนตามข้อมูลที่พบ [{src}/1]",
-                "lookup_mode": "prereq_exact",
+                "lookup_mode": "exact_code",
                 "miss_reason": "",
             }
 
@@ -2397,7 +2615,7 @@ def _structured_curriculum_lookup_impl(question: str, resolved_entity: dict[str,
             matched_code, title_lookup_mode = _find_best_course_code_by_title(raw_q or q, all_courses)
             if matched_code:
                 course_check = all_courses.get((matched_code or '').replace('-', '').replace(' ', '').upper())
-                if not _title_query_matches_course(raw_q or q, course_check):
+                if title_lookup_mode != 'alias_title' and not _title_query_matches_course(raw_q or q, course_check):
                     matched_code = None
                     title_lookup_mode = None
             if (not matched_code):
@@ -2408,7 +2626,7 @@ def _structured_curriculum_lookup_impl(question: str, resolved_entity: dict[str,
             codes.append(matched_code)
 
     # Instructor deterministic path: latest entity wins and bypasses generic retrieval.
-    if instructor_intent:
+    if instructor_intent and detail_signal_count == 1:
         relation_hit_any = False
         contact_hit_any = False
         exact_code_hit = 0
@@ -2575,7 +2793,7 @@ def _structured_curriculum_lookup_impl(question: str, resolved_entity: dict[str,
             "instructor_assignment_soft_answer_used": 0,
         }
 
-    if codes and (not instructor_intent) and (not prereq_intent) and (not term_intent):
+    if codes and (not term_intent):
         for code in reversed(codes):
             key = code.replace("-", "").replace(" ", "").upper()
             course = all_courses.get(key)
@@ -2588,8 +2806,12 @@ def _structured_curriculum_lookup_impl(question: str, resolved_entity: dict[str,
                 continue
             code_disp = f"{course.prefix} {course.number}"
             sqlite_prereq_hit = _lookup_prerequisites_from_sqlite(code_disp)
+            if sqlite_prereq_hit is None:
+                sqlite_prereq_hit = _lookup_prerequisites_from_graph(code_disp)
             sqlite_hour_hit = _lookup_course_hours_from_sqlite(code_disp)
             description_hit = _lookup_course_description_from_reference_text(code_disp)
+            instructor_hit = _lookup_instructors_for_course(code_disp)
+            learning_outcomes_hit = _lookup_course_learning_outcomes_from_reference_text(code_disp)
             return {
                 "answer": _format_course_detail_answer(
                     question=q,
@@ -2600,8 +2822,11 @@ def _structured_curriculum_lookup_impl(question: str, resolved_entity: dict[str,
                     hour_hit=sqlite_hour_hit,
                     prereq_hit=sqlite_prereq_hit,
                     description_hit=description_hit,
+                    instructor_hit=instructor_hit,
+                    learning_outcomes_hit=learning_outcomes_hit,
                 ),
-                "lookup_mode": (title_lookup_mode or "exact_code"),
+                "lookup_mode": (title_lookup_mode if (detail_flags['description'] and detail_signal_count == 1 and title_lookup_mode in ('title_reference_text', 'fuzzy_title')) else "exact_code"),
+                "course_resolution_mode": (title_lookup_mode or "exact_code"),
                 "miss_reason": "",
             }
         if codes:

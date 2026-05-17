@@ -18,13 +18,34 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 def _find_repo_root(start_dir: Path) -> Path:
 	"""Best-effort locate the project root.
 
-	In local dev, this repo typically has `docker-compose.yml` and `indexes/` at the root.
-	In the Docker image, the app is copied to `/app/app`, and runtime volumes mount
-	`/app/indexes`, `/app/data`, etc.
+	Prefer the root that contains the real global Open Notebook index.
+	In this repo, services/rag-service may also contain an indexes/ folder,
+	but it can be incomplete, so do not stop there too early.
 	"""
 	for p in (start_dir, *start_dir.parents):
 		try:
-			if (p / 'indexes').exists() or (p / 'docker-compose.yml').exists():
+			if (p / 'indexes' / 'global' / 'sqlite' / 'ingestion.db').exists():
+				return p
+		except Exception:
+			continue
+
+	for p in (start_dir, *start_dir.parents):
+		try:
+			if (p / '.env').exists() and (p / 'indexes').exists():
+				return p
+		except Exception:
+			continue
+
+	for p in (start_dir, *start_dir.parents):
+		try:
+			if (p / 'docker-compose.yml').exists():
+				return p
+		except Exception:
+			continue
+
+	for p in (start_dir, *start_dir.parents):
+		try:
+			if (p / 'indexes').exists():
 				return p
 		except Exception:
 			continue
@@ -94,11 +115,11 @@ def _resolve_embedding_dim() -> int:
 EMBEDDING_DIM = _resolve_embedding_dim()
 TOKEN_BUDGET = int(os.getenv('TOKEN_BUDGET', '2400'))
 RRF_K = int(os.getenv('RRF_K', '60'))
-MAX_CONTEXTS = int(os.getenv('MAX_CONTEXTS', '8'))
+MAX_CONTEXTS = int(os.getenv('MAX_CONTEXTS', '6'))
 RAG_RESPONSE_PROFILE = (os.getenv('RAG_RESPONSE_PROFILE', 'balanced') or 'balanced').strip().lower()
 if RAG_RESPONSE_PROFILE not in ('fast', 'balanced', 'quality'):
 	RAG_RESPONSE_PROFILE = 'balanced'
-RAG_FAST_MAX_CONTEXTS = max(2, int(os.getenv('RAG_FAST_MAX_CONTEXTS', '8') or '8'))
+RAG_FAST_MAX_CONTEXTS = max(2, int(os.getenv('RAG_FAST_MAX_CONTEXTS', '6') or '6'))
 
 # LLM settings (default switched to lighter 7B for 6GB GPUs)
 LLM_MODEL = os.getenv('LLM_MODEL', 'Qwen/Qwen2.5-7B-Instruct')

@@ -73,13 +73,33 @@ def _legacy_cross_domain_fallback(question: str, top_k: int = 12) -> list[dict]:
     return out
 
 
+def _expand_open_notebook_queries(
+    question: str,
+    extra_queries: Sequence[str] | None = None,
+) -> list[str]:
+    out: list[str] = []
+    seen: set[str] = set()
+    seeds = [str(question or "").strip(), *[str(q or "").strip() for q in (extra_queries or [])]]
+    for seed in seeds:
+        if not seed:
+            continue
+        for variant in generate_query_variants(seed):
+            key = re.sub(r"\s+", " ", str(variant or "").strip().lower())
+            if not key or key in seen:
+                continue
+            seen.add(key)
+            out.append(str(variant).strip())
+    return out or generate_query_variants(question)
+
+
 def retrieve_open_notebook_style(
     question: str,
     requested_domain: str | None = None,
     strict_domain: bool = False,
     final_limit: int = MAX_CONTEXTS,
+    extra_queries: Sequence[str] | None = None,
 ) -> list[dict]:
-    variants = generate_query_variants(question)
+    variants = _expand_open_notebook_queries(question, extra_queries=extra_queries)
     candidate_domains = infer_candidate_domains(question, requested_domain=requested_domain)
     vector_lists: list[list[dict]] = []
     keyword_lists: list[list[dict]] = []

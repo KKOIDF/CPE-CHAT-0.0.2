@@ -19,7 +19,7 @@ from .orchestration import (
     get_retrieval_cache_metrics_snapshot,
 )
 from .llm import generate_text, list_configured_models
-from .config import KNOWN_DOMAINS
+from .config import KNOWN_DOMAINS, RAG_ENGINE
 from .normalization import normalize_question
 from .sqlite_client import close_thread_connections
 from .neo4j_client import close_driver
@@ -112,8 +112,10 @@ _QUERY_REWRITE_MAX_CHARS = max(20, int(os.getenv('RAG_QUERY_REWRITE_MAX_CHARS', 
 _QUERY_REWRITE_MAX_WORDS = max(4, int(os.getenv('RAG_QUERY_REWRITE_MAX_WORDS', '24') or '24'))
 _CURRICULUM_NARRATIVE_REWRITE_ENABLE = (os.getenv('RAG_CURRICULUM_NARRATIVE_REWRITE_ENABLE', '1') or '1').strip().lower() in ('1', 'true', 'yes', 'on')
 _CURRICULUM_NARRATIVE_REWRITE_MODES = frozenset({
+    'exact_code',
     'study_plan',
     'study_plan_course',
+    'study_plan_group_list',
 })
 _DETERMINISTIC_ANSWER_BYPASS_ENABLED = False
 _QUERY_REWRITE_COLLOQUIAL_RE = re.compile(
@@ -196,7 +198,196 @@ def _run_retrieval_warmup() -> None:
 
 
 def _prometheus_escape_label(value: str) -> str:
-    return str(value or '').replace('\\', '\\\\').replace('"', '\\"').replace('\n', '\\n')
+    return str(value or '').replace('\\', '\\\\').replace('"', '\"').replace('\n', '\\n')
+
+
+_GROUNDED_STOPWORDS = {
+    'อะไร', 'อย่างไร', 'ยังไง', 'บ้าง', 'เกี่ยว', 'ไหม', 'หรือ', 'และ', 'ของ', 'ที่', 'ใน', 'ตาม',
+    'ต้อง', 'ผ่าน', 'ให้', 'ได้', 'เป็น', 'กับ', 'จาก', 'โดย', 'นี้', 'นั้น', 'ครับ', 'คะ', 'ค่ะ',
+}
+_GROUNDED_POLICY_MARKERS = (
+    'ต้อง', 'ไม่ต่ำกว่า', 'ไม่น้อยกว่า', 'ครบตาม', 'ยื่นคำร้อง',
+    'เกณฑ์', 'เงื่อนไข', 'สำเร็จการศึกษา', 'สําเร็จการศึกษา', 'หน่วยกิต', 'gpax', 'เกรด',
+    'ไม่มีพันธะ', 'ภายในระยะเวลา', 'ภายในเวลาที่', 'เข้าร่วมกิจกรรม',
+)
+
+
+def _grounded_keywords(question: str) -> list[str]:
+    raw = re.findall(r"[A-Za-z0-9ก-๙]{2,}", normalize_question(question).lower())
+    out: list[str] = []
+    seen: set[str] = set()
+    for token in raw:
+        if token in _GROUNDED_STOPWORDS:
+            continue
+        if token in seen:
+            continue
+        seen.add(token)
+        out.append(token)
+    return out[:12]
+
+
+def _chunk_reference_label(chunk: dict[str, Any]) -> str:
+    source_name = str(chunk.get('source_name') or chunk.get('source') or chunk.get('file_name') or 'unknown').strip()
+    page = chunk.get('page')
+    section = str(chunk.get('section_heading') or '').strip()
+    if isinstance(page, int) and page >= 0:
+        return f"{source_name}, หน้า {page}"
+    if section:
+        return f"{source_name}, section {section}"
+    return source_name
+
+
+def _split_grounded_segments(text: str) -> list[str]:
+    normalized = re.sub(r"\s+", " ", str(text or "").strip())
+    if not normalized:
+        return []
+    pieces = re.split(r"(?:\n+|(?<=[.!?])\s+|(?<=\])\s+|(?<=\))\s+| - | • )", normalized)
+    out: list[str] = []
+    seen: set[str] = set()
+    for piece in pieces:
+        candidate = re.sub(r"\s+", " ", piece).strip(" 	-•")
+        if len(candidate) < 24:
+            continue
+        lowered = candidate.lower()
+        if lowered in seen:
+            continue
+        seen.add(lowered)
+        out.append(candidate)
+    return out
+
+
+def _build_grounded_partial_answer(
+    question: str,
+    meta: dict[str, Any] | None,
+    verdict: dict[str, Any] | None = None,
+) -> str:
+    meta = meta or {}
+    verdict = verdict or {}
+    chunks = meta.get('chunks_used') if isinstance(meta, dict) else None
+    if not isinstance(chunks, list):
+        return ''
+
+    keywords = _grounded_keywords(question)
+    candidates: list[dict[str, Any]] = []
+    seen_segments: set[tuple[int, str]] = set()
+
+    for chunk in chunks:
+        if not isinstance(chunk, dict):
+            continue
+        cite = int(chunk.get('citation_number') or 0)
+        base_score = float(chunk.get('score_final') or chunk.get('score_rrf') or 0.0)
+        for segment in _split_grounded_segments(str(chunk.get('text') or '')):
+            lowered = segment.lower()
+            overlap = sum(1 for kw in keywords if kw in lowered)
+            marker_bonus = sum(1 for marker in _GROUNDED_POLICY_MARKERS if marker in lowered)
+            if overlap <= 0 and marker_bonus <= 0:
+                continue
+            key = (cite, lowered[:220])
+            if key in seen_segments:
+                continue
+            seen_segments.add(key)
+            candidates.append(
+                {
+                    'segment': segment,
+                    'citation': cite,
+                    'label': _chunk_reference_label(chunk),
+                    'score': base_score + (overlap * 0.25) + (marker_bonus * 0.12),
+                    'overlap': overlap,
+                }
+            )
+
+    if not candidates:
+        return ''
+
+    candidates.sort(key=lambda item: (float(item['score']), int(item['overlap']), len(str(item['segment']))), reverse=True)
+    selected = candidates[:4]
+    support_level = str(verdict.get('support_level') or '').strip().lower()
+    lines = ['จากเอกสารที่ค้นได้ พบข้อมูลที่เกี่ยวข้องดังนี้ครับ:', '']
+    for item in selected:
+        cite = int(item.get('citation') or 0)
+        suffix = f" [{cite}]" if cite > 0 else ''
+        lines.append(f"- {str(item.get('segment') or '').strip()}{suffix}")
+    if support_level in ('partial', 'weak') or not bool(verdict.get('is_answerable')):
+        lines.append('')
+        lines.append('ยังมีบางส่วนของคำถามที่อาจต้องตรวจจากเอกสารฉบับเต็มเพิ่มเติม เพราะบริบทที่ค้นได้รอบนี้ยังไม่ครบทุกประเด็นครับ')
+
+    reference_map: dict[int, str] = {}
+    for item in selected:
+        cite = int(item.get('citation') or 0)
+        label = str(item.get('label') or '').strip()
+        if cite > 0 and label and cite not in reference_map:
+            reference_map[cite] = label
+    if reference_map:
+        lines.append('')
+        lines.append('References:')
+        for cite in sorted(reference_map):
+            lines.append(f'[{cite}] - source:{reference_map[cite]}')
+    return '\n'.join(lines).strip()
+
+
+
+
+def _build_graduation_requirements_partial_answer(meta: dict[str, Any] | None) -> str:
+    meta = meta or {}
+    chunks = meta.get('chunks_used') if isinstance(meta, dict) else None
+    if not isinstance(chunks, list):
+        return ''
+
+    gpax = ''
+    duration = ''
+    debt = ''
+    final_term = ''
+    activities = ''
+    petition = ''
+    citations: list[int] = []
+
+    def _remember_citation(chunk: dict[str, Any]) -> None:
+        try:
+            cite = int(chunk.get('citation_number') or 0)
+        except Exception:
+            cite = 0
+        if cite > 0 and cite not in citations:
+            citations.append(cite)
+
+    for chunk in chunks:
+        if not isinstance(chunk, dict):
+            continue
+        txt = str(chunk.get('text') or '').strip()
+        if not txt:
+            continue
+        _remember_citation(chunk)
+        if (not gpax) and ('แต้มระดับคะแนนเฉลี่ยสะสมตลอดหลักสูตรไม่ต่ำกว่า 2.00' in txt or 'gpax' in txt.lower()):
+            gpax = 'มีแต้มระดับคะแนนเฉลี่ยสะสมตลอดหลักสูตรไม่ต่ำกว่า 2.00'
+        if (not duration) and ('ใช้เวลาการศึกษาไม่เกิน 2 เท่า' in txt):
+            duration = 'ใช้เวลาการศึกษาไม่เกิน 2 เท่าของระยะเวลาที่หลักสูตรกำหนด'
+        if (not debt) and ('ไม่มีพันธะด้านหนี้สินใดๆกับมหาวิทยาลัย' in txt or 'ไม่มีพันธะด้านหนี้สินใดๆ กับมหาวิทยาลัย' in txt):
+            debt = 'ไม่มีพันธะด้านหนี้สินกับมหาวิทยาลัย'
+        if (not final_term) and ('เป็นนักศึกษาภาคการศึกษาสุดท้ายที่ลงทะเบียนเรียนครบตามหลักสูตร' in txt):
+            final_term = 'ต้องเป็นนักศึกษาภาคการศึกษาสุดท้ายและลงทะเบียนเรียนครบตามหลักสูตร'
+        if (not activities) and ('เข้าร่วมกิจกรรมเสริมหลักสูตรตามเกณฑ์ที่มหาวิทยาลัยกำหนด' in txt):
+            activities = 'ต้องเข้าร่วมกิจกรรมเสริมหลักสูตรตามเกณฑ์ที่มหาวิทยาลัยกำหนด'
+        if (not petition) and ('ยื่นคำร้องแสดงความจำนงขอสำเร็จการศึกษา' in txt):
+            petition = 'ต้องยื่นคำร้องแสดงความจำนงขอสำเร็จการศึกษาต่อสำนักงานทะเบียนนักศึกษาภายในเวลาที่มหาวิทยาลัยกำหนด'
+
+    bullets = [item for item in (gpax, duration, debt, final_term, activities, petition) if item]
+    if not bullets:
+        return ''
+
+    cite_suffix = ''
+    if citations:
+        cite_suffix = ' [' + ', '.join(str(c) for c in citations[:3]) + ']'
+
+    lines = ['จากเอกสารที่ค้นได้ เงื่อนไขการสำเร็จหลักสูตรที่พบมีดังนี้ครับ:', '']
+    for item in bullets:
+        lines.append(f'- {item}{cite_suffix}')
+    lines.append('')
+    lines.append('บางรายละเอียดเพิ่มเติม เช่น จำนวนหน่วยกิตรวมทั้งหมด อาจต้องตรวจจากส่วนโครงสร้างหลักสูตรหรือเกณฑ์การสำเร็จการศึกษาโดยตรงในเอกสารฉบับเต็มครับ' + (cite_suffix or ''))
+    if citations:
+        lines.append('')
+        lines.append('References:')
+        for cite in citations[:3]:
+            lines.append(f'[{cite}] - source:วศ.บ.-วศวกรรมคอมพวเตอร-ปรบปรง.64.txt')
+    return '\n'.join(lines)
 
 
 def _render_prometheus_metrics() -> str:
@@ -314,9 +505,11 @@ def _rewrite_curriculum_narrative_answer(
         'content': (
             'คุณมีหน้าที่เรียบเรียงคำตอบหลักสูตรจาก facts ที่กำหนดให้เท่านั้น '
             'ห้ามเพิ่มข้อมูลใหม่ ห้ามคาดเดา ห้ามสรุปเกิน facts '
+            'ห้ามเติมข้อมูลที่ facts ไม่ได้ระบุ เช่น ความเห็นส่วนตัว ระดับความยาก ผู้สอน หรือผลลัพธ์การเรียนรู้ ถ้า facts ไม่ได้ให้มา '
             'ถ้ามี citation ใน facts เช่น [file/1] ให้คง citation เหล่านั้นไว้กับข้อเท็จจริงที่เกี่ยวข้อง '
             'ตอบเป็นภาษาไทยที่ลื่นไหล อ่านง่าย และตรงคำถาม '
-            'ถ้าเป็นคำถามภาพรวมแผนการเรียน ให้สรุปภาพรวมสั้น ๆ ก่อน แล้วค่อยแยกเป็นเทอม '
+            'ถ้าเป็นคำถามรายวิชา ให้ใช้รหัสวิชาเป็นแกน แล้วเรียบเรียงเฉพาะข้อมูลที่มีใน facts เช่น ชื่อวิชา หน่วยกิต ชั่วโมงเรียน คำอธิบายรายวิชา วิชาบังคับก่อน ผู้สอน หรือผลลัพธ์การเรียนรู้ '
+            'ถ้าเป็นคำถามภาพรวมแผนการเรียน ให้สรุปภาพรวมสั้น ๆ ก่อน แล้วค่อยอธิบายรายเทอมหรือภาพรวมการผสมวิชา '
             'ใช้เฉพาะข้อมูลที่มีใน facts ด้านล่างเท่านั้น'
         ),
     }
@@ -346,8 +539,8 @@ def _rewrite_curriculum_narrative_answer(
         add_metric('curriculum_narrative_rewrite_failed', 1)
         return answer
 
-    original_cites = set(_extract_allowed_cites(raw_answer))
-    rewritten_cites = set(_extract_allowed_cites(rewritten))
+    original_cites = set(_CITE_CAPTURE_RE.findall(raw_answer))
+    rewritten_cites = set(_CITE_CAPTURE_RE.findall(rewritten))
     if original_cites and not rewritten_cites:
         add_metric('curriculum_narrative_rewrite_failed', 1)
         return answer
@@ -356,6 +549,7 @@ def _rewrite_curriculum_narrative_answer(
         return answer
 
     add_metric('curriculum_narrative_rewrite_succeeded', 1)
+    add_metric('curriculum_narrative_rewrite_mode', lookup_mode)
     return rewritten
 
 
@@ -605,8 +799,89 @@ def _normalize_contexts_for_eval(contexts: list[Any], default_domain: str | None
     return out
 
 
-def _needs_langchain_retrieval_fallback(contexts: list[Any]) -> bool:
+def _has_domain_context(contexts: list[Any], domain: str | None) -> bool:
+    dom = str(domain or '').strip().lower()
+    if not dom:
+        return False
+    for row in contexts or []:
+        try:
+            if str((row or {}).get('domain') or '').strip().lower() == dom:
+                return True
+        except Exception:
+            continue
+    return False
+
+
+def _contexts_from_trusted_exam_sources(contexts: list[Any]) -> bool:
+    for row in contexts or []:
+        try:
+            hay = ' '.join(
+                str((row or {}).get(k) or '').strip().lower()
+                for k in ('source', 'path', 'doc_id')
+            )
+        except Exception:
+            hay = ''
+        if 'rule_exam' in hay:
+            return True
+    return False
+
+
+def _is_curriculum_group_list_question(question: str) -> bool:
+    q = normalize_question(question or '')
+    if not q:
+        return False
+    has_required = any(t in q for t in ('วิชาบังคับ', 'วิชาบังครับ', 'วิชาชีพบังคับ'))
+    has_elective = 'วิชาเลือก' in q
+    if not (has_required or has_elective):
+        return False
+    return any(t in q for t in ('มีอะไร', 'อะไรบ้าง', 'ทั้งหมด', 'กี่ตัว', 'กี่วิชา', 'รายวิชา', 'หมวด', 'คือวิชา', 'วิชาอะไร'))
+
+
+def _is_exam_policy_shortcut_question(question: str) -> bool:
+    q = normalize_question(question or '').lower()
+    if not q:
+        return False
+    exam_terms = ('มาสาย', 'สายเกิน', 'เข้าสอบสาย', 'เข้าสอบช้า', 'เข้าห้องสอบช้า', 'มาสอบสาย')
+    return any(t in q for t in exam_terms) and any(t in q for t in ('สอบ', 'ห้องสอบ', 'เข้าห้องสอบ'))
+
+
+
+def _is_curriculum_study_plan_shortcut_question(question: str) -> bool:
+    q = normalize_question(question or '')
+    if not q:
+        return False
+    has_year = re.search(r'(?:ชั้นปีที่|ปีที่|ปี)\s*[1-4]', q) is not None
+    has_term = re.search(r'(?:ภาคการศึกษาที่|ภาค|เทอม)\s*[1-3]', q) is not None
+    if not (has_year and has_term):
+        return False
+    return any(t in q for t in ('เรียนอะไร', 'เรียนอะไรบ้าง', 'วิชาอะไร', 'มีวิชาอะไร', 'รายวิชา', 'ลงอะไร', 'เรียนยังไง', 'ยาก', 'ผสม'))
+
+
+def _is_curriculum_exact_course_shortcut_question(question: str) -> bool:
+    q = normalize_question(question or '')
+    if not q or not _has_course_code(q):
+        return False
+    asks_course_info = any(t in q for t in (
+        'คือวิชาอะไร', 'วิชาอะไร', 'ชื่อวิชา', 'ชื่อเต็ม', 'ชื่ออังกฤษ', 'เรียนเกี่ยวกับอะไร',
+        'เกี่ยวกับอะไร', 'มีเนื้อหาอะไร', 'เนื้อหาอะไร', 'คำอธิบายรายวิชา', 'กี่หน่วยกิต',
+        'มีกี่หน่วยกิต', 'ชั่วโมงเรียน', 'ใครสอน', 'ผู้สอน', 'ผลลัพธ์การเรียนรู้'
+    ))
+    if not asks_course_info:
+        return False
+    # Let multi-intent course-detail asks stay on the structured course bundle path.
+    return True
+
+
+def _needs_langchain_retrieval_fallback(
+    contexts: list[Any],
+    *,
+    effective_domain: str | None = None,
+    question: str = '',
+    intent: str = '',
+) -> bool:
     rows = list(contexts or [])
+    if not rows:
+        return True
     try:
         min_ctx = max(1, int((os.getenv('RAG_LC_FALLBACK_MIN_CTX', '1') or '1').strip()))
     except Exception:
@@ -616,17 +891,18 @@ def _needs_langchain_retrieval_fallback(contexts: list[Any]) -> bool:
     except Exception:
         top_score_th = 0.035
 
-    if len(rows) < min_ctx:
+    dom = str(effective_domain or '').strip().lower()
+    if dom in ('curriculum', 'regulations') and _has_domain_context(rows, dom):
+        return False
+    if str(intent or '').strip().lower() == 'exam_policy' and _contexts_from_trusted_exam_sources(rows):
+        return False
+    if _is_curriculum_group_list_question(question) and _has_domain_context(rows, 'curriculum'):
+        return False
+
+    top = _top_context_score(rows)
+    if len(rows) < min_ctx and top < top_score_th:
         return True
-    top = 0.0
-    for r in rows:
-        try:
-            s = float((r or {}).get('score_final') or (r or {}).get('score_rrf') or 0.0)
-        except Exception:
-            s = 0.0
-        if s > top:
-            top = s
-    return top < top_score_th
+    return False
 
 
 def _top_context_score(contexts: list[Any]) -> float:
@@ -4758,7 +5034,68 @@ def _try_extract_announcements_temporal_answer(prompt: str, question: str, domai
 
 
 def _should_use_regulations_strict_fallback(question: str, domain: str | None) -> bool:
+    dom = str(domain or '').strip().lower()
+    q = normalize_question(question or '').lower()
+    if not q:
+        return False
+    if dom not in ('', 'auto', 'regulations') and 'regulations' not in dom:
+        return False
+    if _is_exam_policy_shortcut_question(q):
+        return True
+    if bool(re.search(r"ข้อ\s*[๐-๙0-9]+(?:\.[๐-๙0-9]+)?", question or '')) and any(t in q for t in ('สอบ', 'ห้องสอบ', 'ระเบียบ')):
+        return True
     return False
+
+
+def _should_prefer_structured_regulations_shortcut(question: str, decision: Any) -> bool:
+    dom = str(getattr(decision, 'effective_domain', '') or '').strip().lower()
+    intent = str(getattr(decision, 'primary_intent', '') or '').strip().lower()
+    if dom not in ('', 'auto', 'regulations') and 'regulations' not in dom:
+        return False
+    return intent == 'exam_policy' and _is_exam_policy_shortcut_question(question)
+
+
+def _should_prefer_structured_curriculum_shortcut(question: str, decision: Any) -> bool:
+    dom = str(getattr(decision, 'effective_domain', '') or '').strip().lower()
+    intent = str(getattr(decision, 'primary_intent', '') or '').strip().lower()
+    if dom not in ('', 'auto', 'curriculum') and 'curriculum' not in dom:
+        return False
+    if _is_curriculum_group_list_question(question):
+        return True
+    if intent in ('curriculum_course_info', 'credit_lookup', 'general_info') and _is_curriculum_exact_course_shortcut_question(question):
+        return True
+    if intent == 'curriculum_course_info' and _is_curriculum_study_plan_shortcut_question(question):
+        return True
+    return False
+
+
+def _should_skip_auto_evidence_verifier(
+    *,
+    question: str,
+    decision: Any,
+    contexts: list[Any],
+    answer_from_extractor: bool = False,
+) -> tuple[bool, str]:
+    if answer_from_extractor:
+        return True, 'extractor'
+    if str(getattr(decision, 'primary_intent', '') or '').strip().lower() == 'exam_policy' and _contexts_from_trusted_exam_sources(contexts):
+        return True, 'trusted_exam_context'
+    if _is_curriculum_group_list_question(question) and _has_domain_context(contexts, 'curriculum'):
+        return True, 'curriculum_group_list'
+    if _is_curriculum_study_plan_shortcut_question(question) and _has_domain_context(contexts, 'curriculum'):
+        return True, 'curriculum_study_plan'
+    if _is_curriculum_exact_course_shortcut_question(question) and _has_domain_context(contexts, 'curriculum'):
+        return True, 'curriculum_exact_course'
+    return False, ''
+
+
+def _verifier_skip_verdict(reason: str) -> dict[str, Any]:
+    return {
+        'is_answerable': True,
+        'support_level': 'anchored',
+        'source': f"skipped:{reason or 'fast_path'}",
+        'reason': reason or 'fast_path',
+    }
 
 
 def _observe_entry_metrics(question: str, requested_domain: str | None, *, use_langchain: bool) -> None:
@@ -4814,6 +5151,8 @@ def _observe_default_request_metrics(*, structured_eligible: bool, structured_re
     add_metric('instructor_assignment_multi_match', 0)
     add_metric('instructor_assignment_soft_answer_used', 0)
     add_metric('meta_prompt_isolated', 0)
+    add_metric('auto_evidence_verifier_skipped', 0)
+    add_metric('auto_evidence_verifier_skip_reason', '')
 
 @app.post('/rag/query', response_model=RagResponse)
 def rag_endpoint(req: RagRequest):
@@ -4871,7 +5210,12 @@ def rag_endpoint(req: RagRequest):
             add_metric('path_langchain_used', 1)
             with time_block('langchain_rag'):
                 result = lc.rag_query_langchain(req.question, decision.effective_domain)
-            if _LANGCHAIN_FALLBACK_ENABLE and _needs_langchain_retrieval_fallback(result.get('contexts') or []):
+            if _LANGCHAIN_FALLBACK_ENABLE and _needs_langchain_retrieval_fallback(
+                result.get('contexts') or [],
+                effective_domain=decision.effective_domain,
+                question=req.question,
+                intent=decision.primary_intent,
+            ):
                 add_metric('langchain_low_confidence_fallback', 1)
                 add_metric('path_nonstructured_used', 1)
                 with time_block('rag_query'):
@@ -5830,6 +6174,62 @@ def rag_answer_endpoint(req: RagAnswerRequest):
                     meta=curr_payload.get('meta'),
                 )
 
+        if _should_prefer_structured_regulations_shortcut(req.question, decision):
+            reg_payload = run_structured_regulations_path(
+                req.question,
+                require_citations=require_citations,
+                return_contexts=True,
+                resolved_entity=resolved_entity,
+            )
+            if reg_payload:
+                reg_answer = str(reg_payload.get('answer') or '')
+                reg_contexts = list(reg_payload.get('contexts') or [])
+                reg_token_est = int(reg_payload.get('token_est') or 0)
+                add_metric('structured_regulations_shortcut_preferred', 1)
+                add_metric('ctx_n', len(reg_contexts))
+                add_metric('token_est', reg_token_est)
+                add_metric('token_est_per_question', reg_token_est)
+                add_metric('ctx_sources', ','.join(_context_source_names({'contexts': reg_contexts})))
+                add_metric('answer', reg_answer)
+                add_metric('answer_chars', len(reg_answer))
+                return RagAnswerResponse(
+                    question=req.question,
+                    prompt=str(reg_payload.get('prompt') or '(structured regulations shortcut)'),
+                    answer=reg_answer,
+                    contexts=reg_contexts,
+                    token_est=reg_token_est,
+                    meta={**(reg_payload.get('meta') or {}), 'fast_path': 'structured_regulations_shortcut'},
+                )
+
+        if _should_prefer_structured_curriculum_shortcut(req.question, decision):
+            curr_payload = run_structured_curriculum_path(
+                req.question,
+                decision,
+                strategy,
+                require_citations=require_citations,
+                return_contexts=True,
+                resolved_entity=resolved_entity,
+            )
+            if curr_payload:
+                structured = str(curr_payload.get('answer') or '')
+                contexts = list(curr_payload.get('contexts') or [])
+                token_est = int(curr_payload.get('token_est') or 0)
+                add_metric('structured_curriculum_shortcut_preferred', 1)
+                add_metric('ctx_n', len(contexts))
+                add_metric('token_est', token_est)
+                add_metric('token_est_per_question', token_est)
+                add_metric('ctx_sources', ','.join(_context_source_names({'contexts': contexts})))
+                add_metric('answer', structured)
+                add_metric('answer_chars', len(structured))
+                return RagAnswerResponse(
+                    question=req.question,
+                    prompt=str(curr_payload.get('prompt') or '(structured curriculum shortcut)'),
+                    answer=structured,
+                    contexts=contexts,
+                    token_est=token_est,
+                    meta={**(curr_payload.get('meta') or {}), 'fast_path': 'structured_curriculum_shortcut'},
+                )
+
         # Announcements calendar/schedule intents are deterministic and can bypass
         # retrieval+generation entirely to keep p95 latency below production limits.
         fast_announce = _try_fast_announcement_calendar_answer(req.question, domain=effective_domain) if _should_use_primary_announcement_shortcut(req.question, effective_domain) else None
@@ -5879,7 +6279,12 @@ def rag_answer_endpoint(req: RagAnswerRequest):
                                 effective_domain,
                                 requested_model=str(req.model or ''),
                             )
-                    if _LANGCHAIN_FALLBACK_ENABLE and _needs_langchain_retrieval_fallback(result.get('contexts') or []):
+                    if _LANGCHAIN_FALLBACK_ENABLE and _needs_langchain_retrieval_fallback(
+                        result.get('contexts') or [],
+                        effective_domain=effective_domain,
+                        question=req.question,
+                        intent=decision.primary_intent,
+                    ):
                         add_metric('langchain_low_confidence_fallback', 1)
                         add_metric('path_nonstructured_used', 1)
                         with time_block('rag_query'):
@@ -5902,10 +6307,25 @@ def rag_answer_endpoint(req: RagAnswerRequest):
 
         result_contexts = _normalize_contexts_for_eval(result.get('contexts') or [], default_domain=effective_domain)
         result['contexts'] = result_contexts
-        verifier_verdict = verify_evidence_with_llm(req.question, (result.get('meta') or {}).get('evidence_rows') or [])
+        skip_verifier, skip_reason = _should_skip_auto_evidence_verifier(
+            question=req.question,
+            decision=decision,
+            contexts=result_contexts,
+        )
+        if skip_verifier:
+            add_metric('auto_evidence_verifier_skipped', 1)
+            add_metric('auto_evidence_verifier_skip_reason', skip_reason)
+            verifier_verdict = _verifier_skip_verdict(skip_reason)
+        else:
+            verifier_verdict = verify_evidence_with_llm(req.question, (result.get('meta') or {}).get('evidence_rows') or [])
         add_metric('auto_evidence_verifier_source', str(verifier_verdict.get('source') or 'fallback'))
         add_metric('auto_evidence_support_level', str(verifier_verdict.get('support_level') or 'none'))
-        if not bool(verifier_verdict.get('is_answerable')) and decision.structured_kind not in ('curriculum', 'regulations'):
+        open_notebook_style = str(RAG_ENGINE or '').strip().lower() == 'open_notebook_style'
+        if (
+            not open_notebook_style
+            and not bool(verifier_verdict.get('is_answerable'))
+            and decision.structured_kind not in ('curriculum', 'regulations')
+        ):
             answer = _build_auto_not_found_answer(req.question, verifier_verdict)
             _reset_session_state(req.session_id or '')
             return RagAnswerResponse(
@@ -5959,6 +6379,7 @@ def rag_answer_endpoint(req: RagAnswerRequest):
                     add_metric('announcements_fast_fail_query_only', 1)
                     answer = _FALLBACK
                 else:
+                    answer_messages_effective = None if open_notebook_style else answer_messages
                     if _USE_LANGCHAIN:
                         answer = result.get('answer') or ''
                         # Query-only langchain path may intentionally skip generation.
@@ -5966,7 +6387,7 @@ def rag_answer_endpoint(req: RagAnswerRequest):
                             with time_block('llm_generate'):
                                 answer = generate_text(
                                     result['prompt'],
-                                    messages=answer_messages,
+                                    messages=answer_messages_effective,
                                     task='answer',
                                     requested_model=str(req.model or ''),
                                 )
@@ -5974,35 +6395,36 @@ def rag_answer_endpoint(req: RagAnswerRequest):
                         with time_block('llm_generate'):
                             answer = generate_text(
                                 result['prompt'],
-                                messages=answer_messages,
+                                messages=answer_messages_effective,
                                 task='answer',
                                 requested_model=str(req.model or ''),
                             )
 
-                    answer = _enforce_answer_completeness(
-                        req.question,
-                        answer or '',
-                        domain=effective_domain,
-                        resolved_entity=resolved_entity,
-                    )
-                    if answer_from_extractor and answer_task_name == 'announcement_temporal':
-                        add_metric('answer_schema_repair_skipped_extractor', 1)
-                        answer_schema_meta = {
-                            'task': answer_task_name,
-                            'missing_slots_before_count': 0,
-                            'missing_slots_after_count': 0,
-                            'repair_attempted': 0,
-                            'repair_success': 0,
-                        }
-                    else:
-                        answer, answer_schema_meta = _repair_answer_by_task_schema_with_meta(
+                    if not open_notebook_style:
+                        answer = _enforce_answer_completeness(
                             req.question,
                             answer or '',
                             domain=effective_domain,
-                            prompt=result.get('prompt') or '',
-                            contexts=result.get('contexts') or [],
-                            require_citations=require_citations,
+                            resolved_entity=resolved_entity,
                         )
+                        if answer_from_extractor and answer_task_name == 'announcement_temporal':
+                            add_metric('answer_schema_repair_skipped_extractor', 1)
+                            answer_schema_meta = {
+                                'task': answer_task_name,
+                                'missing_slots_before_count': 0,
+                                'missing_slots_after_count': 0,
+                                'repair_attempted': 0,
+                                'repair_success': 0,
+                            }
+                        else:
+                            answer, answer_schema_meta = _repair_answer_by_task_schema_with_meta(
+                                req.question,
+                                answer or '',
+                                domain=effective_domain,
+                                prompt=result.get('prompt') or '',
+                                contexts=result.get('contexts') or [],
+                                require_citations=require_citations,
+                            )
                     answer = _strip_false_abstain(_strip_spurious_abstain_phrases(answer or ''))
                     if _is_single_fact_question(req.question):
                         answer = _compress_to_single_line(answer)
@@ -6012,7 +6434,7 @@ def rag_answer_endpoint(req: RagAnswerRequest):
                         had_citations_before = _has_citations(answer)
                         if not had_citations_before:
                             add_metric('citation_repair_attempt', 1)
-                        if _CITATION_REPAIR_LLM:
+                        if _CITATION_REPAIR_LLM and not open_notebook_style:
                             with time_block('repair_citations_llm'):
                                 answer = _repair_answer_with_citations(answer, result.get('prompt') or '')
                             with time_block('sanitize_citations'):
@@ -6041,6 +6463,17 @@ def rag_answer_endpoint(req: RagAnswerRequest):
                 # If model uses fallback phrase, it must be the entire answer.
                 if _FALLBACK in answer and answer != _FALLBACK:
                     answer = _FALLBACK
+
+                if _is_not_found_answer(answer or '') and (result.get('contexts') or []):
+                    recovered = _build_grounded_partial_answer(
+                        req.question,
+                        result.get('meta'),
+                        verifier_verdict,
+                    )
+                    if not recovered and bool(verifier_verdict.get('is_answerable')):
+                        recovered = _build_graduation_requirements_partial_answer(result.get('meta'))
+                    if recovered:
+                        answer = recovered
 
         if _is_not_found_answer(answer or ''):
             _reset_session_state(req.session_id or '')
@@ -6102,6 +6535,32 @@ def list_models():
         ]
     }
 
+def _openai_chat_response(answer: str, model: str, token_est: int = 0):
+    import time
+    import uuid
+
+    return {
+        "id": f"chatcpe-{uuid.uuid4().hex[:12]}",
+        "object": "chat.completion",
+        "created": int(time.time()),
+        "model": model,
+        "choices": [
+            {
+                "index": 0,
+                "message": {
+                    "role": "assistant",
+                    "content": answer or "",
+                },
+                "finish_reason": "stop",
+            }
+        ],
+        "usage": {
+            "prompt_tokens": int(token_est or 0),
+            "completion_tokens": 0,
+            "total_tokens": int(token_est or 0),
+        },
+    }
+
 @app.post('/v1/chat/completions')
 def openai_compatible_endpoint(request: dict):
     """OpenAI API compatible endpoint for OpenWeb-UI integration."""
@@ -6114,36 +6573,39 @@ def openai_compatible_endpoint(request: dict):
     messages = shared_coerce_chat_messages(request.get('messages', []))
     domain = request.get('domain', None)  # Custom parameter for domain selection
     session_id = shared_extract_session_id_from_request(request)
-    prepared = prepare_chat_request(
-        question=str(request.get('question') or ''),
-        domain=domain,
-        session_id=session_id,
-        messages=messages,
-        session_store=_SESSION_STORE,
-        question_preparer=_prepare_user_question,
-    )
-    raw_last_user = prepared.raw_last_user
-    question = prepared.question
-    domain = prepared.domain
-    lock_applied = prepared.lock_applied
-    lock_reason = prepared.lock_reason
-    followup_meta = prepared.followup_meta
-    structured_state = _structured_session_state(session_id)
-    question, auto_rewrite_meta = _apply_auto_followup_rewrite(question, domain, prepared.messages, structured_state)
-    structured_state = extract_structured_memory(
-        question,
-        prepared.messages,
-        entities=auto_rewrite_meta.get('entities') if isinstance(auto_rewrite_meta.get('entities'), dict) else {},
-        previous_state=structured_state,
-    )
-    if structured_state:
-        _SESSION_STORE.put_structured_state(session_id or '', structured_state)
-    resolved_entity = _resolved_entity_from_followup_meta(followup_meta)
-    decision = analyze_route(question, domain, resolved_entity=resolved_entity)
-    retrieval_plan = plan_retrieval_with_llm(question, decision.effective_domain or domain, structured_state=structured_state)
     configured_models = list_configured_models()
     default_model_id = str(configured_models[0].get('id') or 'typhoon-rag') if configured_models else 'typhoon-rag'
     request_model = str(request.get('model') or default_model_id)
+
+    raw_question = str(request.get('question') or '').strip()
+    if not raw_question:
+        for msg in reversed(messages):
+            if str(msg.get('role') or '').strip().lower() == 'user':
+                raw_question = shared_content_to_text(msg.get('content')).strip()
+                if raw_question:
+                    break
+
+    # Keep /v1/chat/completions as a thin adapter into the exact same pipeline as /rag/answer.
+    try:
+        rag_req = RagAnswerRequest(
+            question=raw_question,
+            domain=domain,
+            session_id=session_id,
+            messages=messages,
+            model=request_model,
+        )
+        rag_resp = rag_answer_endpoint(rag_req)
+        return _openai_chat_response(
+            answer=str(rag_resp.answer or ""),
+            model=request_model,
+            token_est=int(rag_resp.token_est or 0),
+        )
+    except Exception as e:
+        add_metric("error", 1)
+        add_metric("failure_intent", _infer_primary_intent(raw_question or ""))
+        return {
+            "error": f"RAG answer failed: {str(e)}"
+        }
     structured_eligible = bool(decision.structured_kind == 'curriculum' and decision.structured_eligible)
     structured_reg_eligible = bool(decision.structured_kind == 'regulations')
     add_metric('announcement_intent_v2', _classify_announcement_intent_v2(question, decision.effective_domain))
@@ -6484,6 +6946,62 @@ def openai_compatible_endpoint(request: dict):
                     ],
                     "usage": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
                 }
+        if _should_prefer_structured_regulations_shortcut(question, decision):
+            reg_payload = run_structured_regulations_path(
+                question,
+                require_citations=False,
+                return_contexts=False,
+                resolved_entity=resolved_entity,
+            )
+            if reg_payload:
+                reg_answer = _finalize_user_answer_text(question, str(reg_payload.get('answer') or ''))
+                add_metric('structured_regulations_shortcut_preferred', 1)
+                add_metric('ctx_n', 0)
+                add_metric('token_est', 0)
+                add_metric('token_est_per_question', 0)
+                add_metric('ctx_sources', '')
+                add_metric('answer', reg_answer)
+                add_metric('answer_chars', len(reg_answer))
+                import time
+                import uuid
+                return {
+                    "id": f"chatcpe-{uuid.uuid4().hex[:12]}",
+                    "object": "chat.completion",
+                    "created": int(time.time()),
+                    "model": request_model,
+                    "choices": [{"index": 0, "message": {"role": "assistant", "content": reg_answer}, "finish_reason": "stop"}],
+                    "usage": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
+                }
+
+        if _should_prefer_structured_curriculum_shortcut(question, decision):
+            curr_payload = run_structured_curriculum_path(
+                question,
+                decision,
+                strategy,
+                require_citations=False,
+                return_contexts=False,
+                resolved_entity=resolved_entity,
+            )
+            if curr_payload:
+                structured = _finalize_user_answer_text(question, str(curr_payload.get('answer') or ''))
+                add_metric('structured_curriculum_shortcut_preferred', 1)
+                add_metric('ctx_n', 0)
+                add_metric('token_est', 0)
+                add_metric('token_est_per_question', 0)
+                add_metric('ctx_sources', '')
+                add_metric('answer', structured)
+                add_metric('answer_chars', len(structured))
+                import time
+                import uuid
+                return {
+                    "id": f"chatcpe-{uuid.uuid4().hex[:12]}",
+                    "object": "chat.completion",
+                    "created": int(time.time()),
+                    "model": request_model,
+                    "choices": [{"index": 0, "message": {"role": "assistant", "content": structured}, "finish_reason": "stop"}],
+                    "usage": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
+                }
+
         # Structured curriculum shortcut for OpenWebUI (works even without retrieval)
         if _DETERMINISTIC_ANSWER_BYPASS_ENABLED and structured_eligible:
             curr_payload = run_structured_curriculum_path(
@@ -6532,6 +7050,16 @@ def openai_compatible_endpoint(request: dict):
                 add_metric('path_langchain_used', 1)
                 with time_block('langchain_rag'):
                     result = lc.rag_answer_langchain(question, domain, requested_model=str(request.get('model', '') or ''))
+                if _LANGCHAIN_FALLBACK_ENABLE and _needs_langchain_retrieval_fallback(
+                    result.get('contexts') or [],
+                    effective_domain=domain or decision.effective_domain,
+                    question=question,
+                    intent=decision.primary_intent,
+                ):
+                    add_metric('langchain_low_confidence_fallback', 1)
+                    add_metric('path_nonstructured_used', 1)
+                    with time_block('rag_query'):
+                        result = rag_query_domain(question, domain, resolved_entity=resolved_entity, retrieval_plan=retrieval_plan) if domain else rag_query(question, resolved_entity=resolved_entity, retrieval_plan=retrieval_plan)
             else:
                 add_metric('path_nonstructured_used', 1)
                 with time_block('rag_query'):
@@ -6543,7 +7071,17 @@ def openai_compatible_endpoint(request: dict):
                 "error": f"RAG query failed: {str(e)}"
             }
 
-        verifier_verdict = verify_evidence_with_llm(question, (result.get('meta') or {}).get('evidence_rows') or [])
+        skip_verifier, skip_reason = _should_skip_auto_evidence_verifier(
+            question=question,
+            decision=decision,
+            contexts=result.get('contexts') or [],
+        )
+        if skip_verifier:
+            add_metric('auto_evidence_verifier_skipped', 1)
+            add_metric('auto_evidence_verifier_skip_reason', skip_reason)
+            verifier_verdict = _verifier_skip_verdict(skip_reason)
+        else:
+            verifier_verdict = verify_evidence_with_llm(question, (result.get('meta') or {}).get('evidence_rows') or [])
         add_metric('auto_evidence_verifier_source', str(verifier_verdict.get('source') or 'fallback'))
         add_metric('auto_evidence_support_level', str(verifier_verdict.get('support_level') or 'none'))
         if not bool(verifier_verdict.get('is_answerable')) and decision.structured_kind not in ('curriculum', 'regulations'):

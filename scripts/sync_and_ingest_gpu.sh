@@ -32,7 +32,7 @@ sync_finished="$(now_ms)"
 
 echo "=== 2. Submitting SLURM job on Remote GPU ==="
 remote_started="$(now_ms)"
-ssh "$REMOTE_HOST" "cd $REMOTE_DIR && INGEST_RUN_MODE=gpu_host sbatch --wait ingest_all_domains.sbatch"
+ssh "$REMOTE_HOST" "cd $REMOTE_DIR && INGEST_RUN_MODE=gpu_host CLEAN_REMOTE_GLOBAL_INDEX=1 sbatch --wait ingest_all_domains.sbatch"
 remote_finished="$(now_ms)"
 
 echo "=== 3. Pulling generated indexes and databases back ==="

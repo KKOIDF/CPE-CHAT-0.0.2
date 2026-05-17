@@ -31,6 +31,7 @@ from .retrieval import (
     retrieve_all_domains as _retrieve_all_domains,
     retrieve_by_domain as _retrieve_by_domain,
     retrieve_multi_document as _retrieve_multi_document,
+    retrieve_open_notebook_style as _retrieve_open_notebook_style,
 )
 from .config import RAG_ENGINE
 from .curriculum_deterministic import structured_curriculum_answer, structured_curriculum_lookup
@@ -39,7 +40,7 @@ from .structured_artifacts import search_fact_index
 
 
 _MULTI_DOC_MODE = (os.getenv('RAG_MULTI_DOC_MODE', 'auto') or 'auto').strip().lower()
-_SEARCH_ALL_DOMAINS = (os.getenv('RAG_SEARCH_ALL_DOMAINS', '1') or '1').strip().lower() in (
+_SEARCH_ALL_DOMAINS = (os.getenv('RAG_SEARCH_ALL_DOMAINS', '0') or '0').strip().lower() in (
     '1', 'true', 'yes', 'on'
 )
 _ADAPTIVE_ORCHESTRATION = (os.getenv('RAG_ADAPTIVE_ORCHESTRATION', '1') or '1').strip().lower() in (
@@ -58,11 +59,11 @@ _RETRIEVAL_CACHE_ENABLE = (os.getenv('RAG_RETRIEVAL_CACHE_ENABLE', '1') or '1').
     '1', 'true', 'yes', 'on'
 )
 try:
-    _RETRIEVAL_CACHE_TTL_SECONDS = max(5, int(os.getenv('RAG_RETRIEVAL_CACHE_TTL_SECONDS', '300') or '300'))
+    _RETRIEVAL_CACHE_TTL_SECONDS = max(5, int(os.getenv('RAG_RETRIEVAL_CACHE_TTL_SECONDS', '3600') or '3600'))
 except Exception:
     _RETRIEVAL_CACHE_TTL_SECONDS = 300
 try:
-    _RETRIEVAL_CACHE_MAX_ENTRIES = max(16, int(os.getenv('RAG_RETRIEVAL_CACHE_MAX_ENTRIES', '256') or '256'))
+    _RETRIEVAL_CACHE_MAX_ENTRIES = max(16, int(os.getenv('RAG_RETRIEVAL_CACHE_MAX_ENTRIES', '10000') or '10000'))
 except Exception:
     _RETRIEVAL_CACHE_MAX_ENTRIES = 256
 
@@ -84,6 +85,25 @@ _CACHE_STATS: Dict[str, int] = {
 
 
 _INLINE_CITE_CAPTURE_RE = re.compile(r"\[([^\]]+?)/(\d+)\]")
+
+
+def _should_merge_fact_rows(intent: str, domain: str | None, retrieved: list[dict[str, Any]] | None = None) -> bool:
+    intent_key = str(intent or '').strip().lower()
+    dom = str(domain or '').strip().lower()
+    rows = list(retrieved or [])
+    if dom == 'curriculum' and intent_key in ('policy_lookup', 'procedure_lookup', 'academic_status_policy', 'exam_policy'):
+        return len(rows) <= 2
+    return intent_key in (
+        'course_lookup',
+        'credit_lookup',
+        'prerequisite_lookup',
+        'contact_lookup',
+        'person_contact',
+        'instructor_lookup',
+        'form_lookup',
+        'calendar_lookup',
+        'calendar_deadline',
+    ) or len(rows) <= 2
 
 
 def _cache_file_signature(path: Path) -> tuple[int, int]:
@@ -438,7 +458,16 @@ def _top_retrieval_score(items: List[Dict]) -> float:
     for it in (items or []):
         it = _row_as_dict(it)
         try:
-            s = float(it.get('score_final') or it.get('score_rrf') or 0.0)
+            s = float(
+                it.get("score_final")
+                or it.get("score_rrf")
+                or it.get("rerank_score")
+                or it.get("hybrid_score")
+                or it.get("vector_score")
+                or 0.0
+            )
+            if s <= 0 and int(it.get("keyword_overlap") or 0) >= 2:
+                s = 0.08
         except Exception:
             s = 0.0
         if s > top:
@@ -469,6 +498,60 @@ def _is_low_confidence(items: List[Dict]) -> bool:
         return True
     return _top_retrieval_score(items) < _LOW_SCORE_THRESHOLD
 
+def _dedupe_rows(items: List[Dict]) -> List[Dict]:
+    out: List[Dict] = []
+    seen: set[str] = set()
+    for it in items or []:
+        row = _row_as_dict(it)
+        key = str(row.get("doc_id") or row.get("text") or row.get("source") or "").strip()
+        if not key:
+            continue
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(row)
+    return out
+
+
+def _retrieve_domain_multi_queries(queries: List[str], domain: str | None, *, vector_enabled: bool = True) -> List[Dict]:
+    rows: List[Dict] = []
+    for q in queries or []:
+        q2 = search_query_from_question(q)
+        if not q2:
+            continue
+        rows.extend(_retrieve_by_domain(q2, domain=domain, vector_enabled=vector_enabled) or [])
+    return _dedupe_rows(rows)
+
+
+def _curriculum_heading_rescue(question: str, retrieved: List[Dict]) -> List[Dict]:
+    q = str(question or "")
+    joined = "\n".join(str(r.get("text") or "") for r in (retrieved or []))
+
+    headings: List[str] = []
+
+    if (
+        "สำเร็จการศึกษา" in q
+        or "จบหลักสูตร" in q
+        or "เกณฑ์การสำเร็จ" in joined
+        or "เกณฑ์การสำเร็จการศึกษาตามหลักสูตร" in joined
+    ):
+        headings.extend([
+            "เกณฑ์การสำเร็จการศึกษาตามหลักสูตร",
+            "เงื่อนไขการสำเร็จการศึกษา",
+            "แต้มระดับคะแนนเฉลี่ยสะสมตลอดหลักสูตรไม่ต่ำกว่า 2.00",
+            "ยื่นคำร้องแสดงความจำนงขอสำเร็จการศึกษา",
+            "จำนวนหน่วยกิตที่เรียนตลอดหลักสูตร",
+        ])
+
+    if not headings:
+        return retrieved or []
+
+    rescued = list(retrieved or [])
+    for h in headings:
+        rescued.extend(_retrieve_by_domain(h, domain="curriculum", vector_enabled=True) or [])
+
+    return _dedupe_rows(rescued)
+
 
 def _is_anchored_regulations_query(question: str, domain: str | None) -> bool:
     dom = (domain or '').strip().lower()
@@ -488,6 +571,39 @@ def _is_anchored_regulations_query(question: str, domain: str | None) -> bool:
         and (('ชั่วคราว' in q) or ('ออกจากห้องสอบชั่วคราว' in q) or ('ออกห้องสอบชั่วคราว' in q))
     )
     return exam_late_anchor or exam_temp_leave_anchor
+
+
+def _is_curriculum_group_list_query(question: str) -> bool:
+    q = normalize_question(question or '')
+    if not q:
+        return False
+    if not any(t in q for t in ('วิชาบังคับ', 'วิชาบังครับ', 'วิชาชีพบังคับ', 'วิชาเลือก')):
+        return False
+    return any(t in q for t in ('มีอะไร', 'อะไรบ้าง', 'ทั้งหมด', 'กี่ตัว', 'กี่วิชา', 'รายวิชา', 'หมวด', 'คือวิชา', 'วิชาอะไร'))
+
+
+def _has_contexts_from_domain(items: List[Dict], domain: str | None) -> bool:
+    dom = (domain or '').strip().lower()
+    if not dom:
+        return False
+    for item in items or []:
+        if str(item.get('domain') or '').strip().lower() == dom:
+            return True
+    return False
+
+
+def _should_preserve_domain_retrieval(question: str, domain: str | None, items: List[Dict]) -> bool:
+    dom = (domain or '').strip().lower()
+    rows = list(items or [])
+    if not dom or not rows:
+        return False
+    if _has_contexts_from_domain(rows, dom):
+        return True
+    if dom == 'regulations' and _is_anchored_regulations_query(question, dom):
+        return True
+    if dom == 'curriculum' and _is_curriculum_group_list_query(question):
+        return True
+    return False
 
 
 def _new_adaptive_state() -> Dict[str, float | int]:
@@ -581,7 +697,8 @@ def rag_query(question: str, resolved_entity: dict | None = None, retrieval_plan
     question = apply_resolved_entity_context(question, resolved_entity)
     q_display = normalize_question(question)
     planned_queries = [str(v or '').strip() for v in ((retrieval_plan or {}).get('search_queries') or []) if str(v or '').strip()]
-    q_search = search_query_from_question(" ".join(planned_queries) if planned_queries else question)
+    search_queries = planned_queries or [question]
+    q_search = search_query_from_question(question)
     dom_initial = infer_domain(q_display) or _infer_domain_from_reference(question)
     planned_domains = [str(v or '').strip().lower() for v in ((retrieval_plan or {}).get('preferred_domains') or []) if str(v or '').strip()]
     dom_inferred = planned_domains[0] if planned_domains and not dom_initial else dom_initial
@@ -616,7 +733,23 @@ def rag_query(question: str, resolved_entity: dict | None = None, retrieval_plan
     adaptive = _new_adaptive_state()
     fallback_used = False
 
-    if 'ลาพัก' in q_display:
+    if RAG_ENGINE == 'open_notebook_style':
+        add_metric('inferred_domain', dom_inferred or 'auto')
+        add_metric('routing_domain_final', dom_inferred or 'auto')
+        try:
+            open_notebook_limit = max(6, int(os.getenv('MAX_CONTEXTS', '8') or '8'))
+        except Exception:
+            open_notebook_limit = 8
+        retrieved = _retrieve_open_notebook_style(
+            question,
+            requested_domain=dom_inferred,
+            strict_domain=False,
+            final_limit=open_notebook_limit,
+            extra_queries=planned_queries,
+        )
+        adaptive['initial_retrieval_doc_count'] = len(retrieved or [])
+        adaptive['initial_top_score'] = _top_retrieval_score(retrieved)
+    elif 'ลาพัก' in q_display:
         add_metric('inferred_domain', 'multi:announcements+regulations')
         add_metric('routing_domain_final', 'multi:announcements+regulations')
         retrieved = _retrieve_all_domains(q_search, domains=['announcements', 'regulations'])
@@ -654,8 +787,8 @@ def rag_query(question: str, resolved_entity: dict | None = None, retrieval_plan
                 else:
                     retrieved = _retrieve_by_domain(q_search, domain=dom, vector_enabled=False)
             elif dom and not _SEARCH_ALL_DOMAINS:
-                retrieved = _retrieve_by_domain(q_search, domain=dom)
-                if (not has_ref) and len(retrieved) < fallback_min_results():
+                retrieved = _retrieve_domain_multi_queries(search_queries, domain=dom)
+                if (not has_ref) and len(retrieved) < fallback_min_results() and (not _should_preserve_domain_retrieval(question, dom, retrieved)):
                     add_metric('retrieval_domain_fallback_used', 1)
                     add_metric('retrieval_fallback_all_domains_triggered', 1)
                     adaptive['retrieval_fallback_all_domains_triggered'] = 1
@@ -671,7 +804,7 @@ def rag_query(question: str, resolved_entity: dict | None = None, retrieval_plan
                 add_metric('low_confidence_detected', 1)
                 adaptive['low_confidence_detected'] = 1
 
-            skip_adaptive_retry = _is_anchored_regulations_query(question, dom)
+            skip_adaptive_retry = _is_anchored_regulations_query(question, dom) or (dom == 'curriculum' and _is_curriculum_group_list_query(question))
             if _ADAPTIVE_ORCHESTRATION and (not has_ref) and _is_low_confidence(retrieved) and (not skip_adaptive_retry):
                 add_metric('retrieval_adaptive_retry_triggered', 1)
                 adaptive['retrieval_adaptive_retry_triggered'] = 1
@@ -684,7 +817,7 @@ def rag_query(question: str, resolved_entity: dict | None = None, retrieval_plan
                     )
                     adaptive['retry_retrieval_doc_count'] = len(retrieved_retry or [])
                     adaptive['retry_top_score'] = _top_retrieval_score(retrieved_retry)
-                    if _is_low_confidence(retrieved_retry):
+                    if _is_low_confidence(retrieved_retry) and (not _should_preserve_domain_retrieval(question, dom, retrieved_retry)):
                         add_metric('retrieval_adaptive_fallback_all_domains', 1)
                         add_metric('retrieval_fallback_all_domains_triggered', 1)
                         adaptive['retrieval_fallback_all_domains_triggered'] = 1
@@ -710,64 +843,79 @@ def rag_query(question: str, resolved_entity: dict | None = None, retrieval_plan
             if fallback_used and retrieved:
                 add_metric('retrieval_fallback_all_domains_succeeded', 1)
                 adaptive['retrieval_fallback_all_domains_succeeded'] = 1
+            
+            if dom_inferred == "curriculum":
+                before_rescue = len(retrieved or [])
+                rescued = _curriculum_heading_rescue(question, retrieved or [])
+                if len(rescued) > before_rescue:
+                    add_metric("curriculum_heading_rescue_triggered", 1)
+                    adaptive["structured_rescue_triggered"] = 1
+                    adaptive["structured_rescue_succeeded"] = 1
+                    retrieved = rescued
 
-    fact_rows = search_fact_index(
-        q_search,
-        domains=(planned_domains or ([dom_inferred] if dom_inferred else [])),
-        limit=5,
-        intent=str((retrieval_plan or {}).get('intent') or intent),
-        needed_evidence=((retrieval_plan or {}).get('needed_evidence') or []),
-    )
-    retrieved = _coerce_retrieved_rows((retrieved or []) + fact_rows)
-    retrieved = apply_intent_aware_fact_boost(
-        retrieved,
-        question=q_display,
-        intent=str((retrieval_plan or {}).get('intent') or intent),
-        needed_evidence=((retrieval_plan or {}).get('needed_evidence') or []),
-    )
-    retrieved = _coerce_retrieved_rows(_filter_chunks_by_reference(retrieved, question, strict=has_ref))
+    if RAG_ENGINE == 'open_notebook_style':
+        retrieved = _coerce_retrieved_rows(retrieved or [])
+    else:
+        fact_rows: list[dict[str, Any]] = []
+        fact_intent = str((retrieval_plan or {}).get('intent') or intent)
+        if _should_merge_fact_rows(fact_intent, dom_inferred, retrieved):
+            fact_rows = search_fact_index(
+                q_search,
+                domains=(planned_domains or ([dom_inferred] if dom_inferred else [])),
+                limit=5,
+                intent=fact_intent,
+                needed_evidence=((retrieval_plan or {}).get('needed_evidence') or []),
+            )
+        retrieved = _coerce_retrieved_rows((retrieved or []) + fact_rows)
+        retrieved = apply_intent_aware_fact_boost(
+            retrieved,
+            question=q_display,
+            intent=fact_intent,
+            needed_evidence=((retrieval_plan or {}).get('needed_evidence') or []),
+        )
+        retrieved = _coerce_retrieved_rows(_filter_chunks_by_reference(retrieved, question, strict=has_ref))
 
-    # --- Regulation Topic Map rerank ---
-    from .regulations_deterministic import _topic_lookup, _read_exam_rules
-    if dom_inferred == 'regulations':
-        rules_text = _read_exam_rules()
-        topic_result = _topic_lookup(q_display, rules_text)
-        if topic_result and topic_result.get('answer'):
-            # Insert topic-mapped answer as top context
-            retrieved = [{
-                'doc_id': 'regulation_topic_map',
-                'domain': 'regulations',
-                'source': 'regulation_topic_map',
-                'path': 'regulation_topic_map',
-                'text': topic_result['answer'],
-                'score_rrf': 1.2,
-                'score_final': 1.2,
-            }] + [r for r in retrieved if r.get('doc_id') != 'regulation_topic_map']
+        # --- Regulation Topic Map rerank ---
+        from .regulations_deterministic import _topic_lookup, _read_exam_rules
+        if dom_inferred == 'regulations':
+            rules_text = _read_exam_rules()
+            topic_result = _topic_lookup(q_display, rules_text)
+            if topic_result and topic_result.get('answer'):
+                # Insert topic-mapped answer as top context
+                retrieved = [{
+                    'doc_id': 'regulation_topic_map',
+                    'domain': 'regulations',
+                    'source': 'regulation_topic_map',
+                    'path': 'regulation_topic_map',
+                    'text': topic_result['answer'],
+                    'score_rrf': 1.2,
+                    'score_final': 1.2,
+                }] + [r for r in retrieved if r.get('doc_id') != 'regulation_topic_map']
 
-    # --- Announcement Procedure/Important rerank ---
-    from .rerank import apply_announcement_procedure_boost
-    if dom_inferred == 'announcements':
-        retrieved = apply_announcement_procedure_boost(retrieved)
+        # --- Announcement Procedure/Important rerank ---
+        from .rerank import apply_announcement_procedure_boost
+        if dom_inferred == 'announcements':
+            retrieved = apply_announcement_procedure_boost(retrieved)
 
-    target_clause = extract_clause_id(question)
-    if target_clause and (dom_inferred in ('regulations', None) or 'ข้อ' in (question or '')):
-        pre_clause = _coerce_retrieved_rows(retrieved)
-        filtered = _coerce_retrieved_rows(filter_contexts_by_clause(pre_clause, target_clause))
-        if filtered:
-            retrieved = filtered
-        else:
-            add_metric('clause_filter_empty_fallback', 1)
-            retrieved = pre_clause
+        target_clause = extract_clause_id(question)
+        if target_clause and (dom_inferred in ('regulations', None) or 'ข้อ' in (question or '')):
+            pre_clause = _coerce_retrieved_rows(retrieved)
+            filtered = _coerce_retrieved_rows(filter_contexts_by_clause(pre_clause, target_clause))
+            if filtered:
+                retrieved = filtered
+            else:
+                add_metric('clause_filter_empty_fallback', 1)
+                retrieved = pre_clause
 
-    # Keep enough evidence for retrieval-first answers. A hard Top-3 cap drops
-    # neighboring chunks needed for course descriptions, calendar notes, or
-    # regulation subclauses.
-    try:
-        max_ctx = max(6, int(os.getenv('MAX_CONTEXTS', '8') or '8'))
-    except Exception:
-        max_ctx = 8
-    if retrieved and len(retrieved) > max_ctx:
-        retrieved = retrieved[:max_ctx]
+        # Keep enough evidence for retrieval-first answers. A hard Top-3 cap drops
+        # neighboring chunks needed for course descriptions, calendar notes, or
+        # regulation subclauses.
+        try:
+            max_ctx = max(6, int(os.getenv('MAX_CONTEXTS', '8') or '8'))
+        except Exception:
+            max_ctx = 8
+        if retrieved and len(retrieved) > max_ctx:
+            retrieved = retrieved[:max_ctx]
 
     context_payload: dict[str, Any] | None = None
     if RAG_ENGINE == 'open_notebook_style':
@@ -853,7 +1001,8 @@ def rag_query_domain(question: str, domain: str | None, resolved_entity: dict | 
     dom = (domain or '').strip().lower() or (planned_domains[0] if planned_domains else '')
     intent = classify_intent(q_display)
     planned_queries = [str(v or '').strip() for v in ((retrieval_plan or {}).get('search_queries') or []) if str(v or '').strip()]
-    q_search = search_query_from_question(" ".join(planned_queries) if planned_queries else question)
+    search_queries = planned_queries or [question]
+    q_search = search_query_from_question(question)
     cache_key = ''
     cache_domains = [d for d in dict.fromkeys([dom, *planned_domains]) if d in KNOWN_DOMAINS]
     if _retrieval_cacheable(question, retrieval_plan):
@@ -874,10 +1023,23 @@ def rag_query_domain(question: str, domain: str | None, resolved_entity: dict | 
     add_metric('routing_domain_initial', dom or 'auto')
     add_metric('inferred_domain', dom or 'auto')
     add_metric('routing_domain_final', dom or 'auto')
-    if dom == 'curriculum' and _CURRICULUM_BYPASS_VECTOR:
+    if RAG_ENGINE == 'open_notebook_style':
+        try:
+            open_notebook_limit = max(6, int(os.getenv('MAX_CONTEXTS', '8') or '8'))
+        except Exception:
+            open_notebook_limit = 8
+        retrieved = _retrieve_open_notebook_style(
+            question,
+            requested_domain=dom or domain,
+            strict_domain=True,
+            final_limit=open_notebook_limit,
+            extra_queries=planned_queries,
+        )
+    elif dom == 'curriculum' and _CURRICULUM_BYPASS_VECTOR:
         add_metric('curriculum_bypass_vector_triggered', 1)
         adaptive['curriculum_bypass_vector_triggered'] = 1
         deterministic = structured_curriculum_answer(question)
+
         if deterministic:
             add_metric('structured_curriculum_early_rescue', 1)
             add_metric('structured_rescue_triggered', 1)
@@ -885,10 +1047,14 @@ def rag_query_domain(question: str, domain: str | None, resolved_entity: dict | 
             adaptive['structured_rescue_succeeded'] = 1
             retrieved = _structured_rows_from_answer(deterministic, domain='curriculum')
         else:
-            retrieved = _retrieve_by_domain(q_search, domain=dom or domain, vector_enabled=False)
+            retrieved = _retrieve_domain_multi_queries(
+                search_queries,
+                domain=dom or domain,
+                vector_enabled=False,
+            )
     else:
-        retrieved = _retrieve_by_domain(
-            q_search,
+        retrieved = _retrieve_domain_multi_queries(
+            search_queries,
             domain=dom or domain,
             vector_enabled=True,
         )
@@ -920,47 +1086,63 @@ def rag_query_domain(question: str, domain: str | None, resolved_entity: dict | 
     strict_ref_hints = (os.getenv('STRICT_REFERENCE_HINTS', '1') or '1').strip().lower() in (
         '1', 'true', 'yes', 'on'
     )
-    fact_rows = search_fact_index(
-        q_search,
-        domains=(planned_domains or ([dom] if dom else [])),
-        limit=5,
-        intent=str((retrieval_plan or {}).get('intent') or intent),
-        needed_evidence=((retrieval_plan or {}).get('needed_evidence') or []),
-    )
-    retrieved = _coerce_retrieved_rows((retrieved or []) + fact_rows)
-    retrieved = apply_intent_aware_fact_boost(
-        retrieved,
-        question=q_display,
-        intent=str((retrieval_plan or {}).get('intent') or intent),
-        needed_evidence=((retrieval_plan or {}).get('needed_evidence') or []),
-    )
-    retrieved = _coerce_retrieved_rows(
-        _filter_chunks_by_reference(
-            retrieved,
-            question,
-            strict=bool(_reference_candidates(question)) and strict_ref_hints,
-        )
-    )
 
-    target_clause = extract_clause_id(question)
-    if target_clause and dom == 'regulations':
-        pre_clause = _coerce_retrieved_rows(retrieved)
-        filtered = _coerce_retrieved_rows(filter_contexts_by_clause(pre_clause, target_clause))
-        if filtered:
-            retrieved = filtered
-        else:
-            add_metric('clause_filter_empty_fallback', 1)
-            retrieved = pre_clause
-    
-    # Keep enough evidence for retrieval-first answers. The retriever already
-    # applies MAX_CONTEXTS; avoid a hard Top-3 cap that drops neighboring
-    # chunks needed for course clauses, calendar notes, or regulation subclauses.
-    try:
-        max_ctx = max(6, int(os.getenv('MAX_CONTEXTS', '8') or '8'))
-    except Exception:
-        max_ctx = 8
-    if retrieved and len(retrieved) > max_ctx:
-        retrieved = retrieved[:max_ctx]
+    if RAG_ENGINE == 'open_notebook_style':
+        retrieved = _coerce_retrieved_rows(retrieved or [])
+    else:
+        if dom == "curriculum":
+            before_rescue = len(retrieved or [])
+            rescued = _curriculum_heading_rescue(question, retrieved or [])
+            if len(rescued) > before_rescue:
+                add_metric("curriculum_heading_rescue_triggered", 1)
+                adaptive["structured_rescue_triggered"] = 1
+                adaptive["structured_rescue_succeeded"] = 1
+                retrieved = rescued
+            
+        fact_rows: list[dict[str, Any]] = []
+        fact_intent = str((retrieval_plan or {}).get('intent') or intent)
+        if _should_merge_fact_rows(fact_intent, dom, retrieved):
+            fact_rows = search_fact_index(
+                q_search,
+                domains=(planned_domains or ([dom] if dom else [])),
+                limit=5,
+                intent=fact_intent,
+                needed_evidence=((retrieval_plan or {}).get('needed_evidence') or []),
+            )
+        retrieved = _coerce_retrieved_rows((retrieved or []) + fact_rows)
+        retrieved = apply_intent_aware_fact_boost(
+            retrieved,
+            question=q_display,
+            intent=fact_intent,
+            needed_evidence=((retrieval_plan or {}).get('needed_evidence') or []),
+        )
+        retrieved = _coerce_retrieved_rows(
+            _filter_chunks_by_reference(
+                retrieved,
+                question,
+                strict=bool(_reference_candidates(question)) and strict_ref_hints,
+            )
+        )
+
+        target_clause = extract_clause_id(question)
+        if target_clause and dom == 'regulations':
+            pre_clause = _coerce_retrieved_rows(retrieved)
+            filtered = _coerce_retrieved_rows(filter_contexts_by_clause(pre_clause, target_clause))
+            if filtered:
+                retrieved = filtered
+            else:
+                add_metric('clause_filter_empty_fallback', 1)
+                retrieved = pre_clause
+        
+        # Keep enough evidence for retrieval-first answers. The retriever already
+        # applies MAX_CONTEXTS; avoid a hard Top-3 cap that drops neighboring
+        # chunks needed for course clauses, calendar notes, or regulation subclauses.
+        try:
+            max_ctx = max(6, int(os.getenv('MAX_CONTEXTS', '8') or '8'))
+        except Exception:
+            max_ctx = 8
+        if retrieved and len(retrieved) > max_ctx:
+            retrieved = retrieved[:max_ctx]
         
     wants_lng_list = (
         re.search(r"LNG", q_display, re.IGNORECASE) is not None

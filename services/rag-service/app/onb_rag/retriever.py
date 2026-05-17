@@ -140,6 +140,50 @@ def _junk_chunk_penalty(text: str, title: str, section: str) -> float:
         penalty -= 0.12
     if lower_section and lower_section == lower_title:
         penalty -= 0.06
+    if 'teacher_profiles' in lower_text or 'ภาระงานสอนในปัจจุบัน' in lower_text:
+        penalty -= 0.35
+    return penalty
+
+
+def _query_specific_penalty(
+    question: str,
+    text: str,
+    title: str,
+    section: str,
+    source_name: str,
+) -> float:
+    q = normalize_question_text(question).lower()
+    full = " ".join(part for part in (title, section, text) if part)
+    penalty = 0.0
+    if 'teacher_profiles' in source_name or 'teacher_profiles' in full:
+        penalty -= 0.40
+    overview_markers = (
+        'สารบัญ',
+        'บทสรุปผู้บริหาร',
+        'อาชีพที่สามารถประกอบได้หลังสำเร็จการศึกษา',
+        'ความพร้อมเผยแพร่คุณภาพ',
+    )
+    requirement_question = any(token in q for token in ('เกณฑ์', 'เงื่อนไข', 'สำเร็จการศึกษา', 'จบหลักสูตร', 'graduate', 'requirement'))
+    requirement_markers = (
+        'หน่วยกิต',
+        'เกรดเฉลี่ย',
+        'gpax',
+        'gpa',
+        'ไม่ต่ำกว่า',
+        'สำเร็จการศึกษา',
+        'ต้องผ่าน',
+        'ยื่นคำร้อง',
+        'หนี้สิน',
+        'กิจกรรมเสริมหลักสูตร',
+    )
+    if requirement_question:
+        matched_requirements = sum(1 for marker in requirement_markers if marker in full)
+        if any(marker in full for marker in overview_markers):
+            penalty -= 0.28
+        if not matched_requirements:
+            penalty -= 0.16
+        else:
+            penalty += min(0.24, matched_requirements * 0.04)
     return penalty
 
 
@@ -163,7 +207,9 @@ def rerank_results(results: Sequence[Dict[str, Any]], question: str, candidate_d
         question_exact = 1 if normalized_question and normalized_question in full else 0
         overlap_ratio = (field_matches / max(len(keywords), 1)) if keywords else 0.0
         no_overlap_penalty = -0.18 if keywords and field_matches == 0 and code_matches == 0 else 0.0
+        source_name = str(row.get("source_name") or row.get("source") or "").lower()
         junk_penalty = _junk_chunk_penalty(text, title, section)
+        query_penalty = _query_specific_penalty(question, text, title, section, source_name)
         final_score = (
             float(row.get("hybrid_score") or 0.0)
             + float(row.get("vector_score") or 0.0)
@@ -178,10 +224,12 @@ def rerank_results(results: Sequence[Dict[str, Any]], question: str, candidate_d
             + domain_score_map.get(str(row.get("domain") or ""), 0.0) * 0.15
             + no_overlap_penalty
             + junk_penalty
+            + query_penalty
         )
         row["keyword_overlap"] = field_matches
         row["overlap_ratio"] = overlap_ratio
         row["junk_penalty"] = junk_penalty
+        row["query_penalty"] = query_penalty
         row["rerank_score"] = final_score
         ranked.append(row)
     ranked.sort(key=lambda row: float(row.get("rerank_score") or 0.0), reverse=True)

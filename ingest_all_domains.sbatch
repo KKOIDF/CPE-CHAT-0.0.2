@@ -42,5 +42,13 @@ echo "=== Python ==="
 which python3 || true
 python3 -V || true
 
+if [[ "${CLEAN_REMOTE_GLOBAL_INDEX:-0}" == "1" ]]; then
+  echo "=== Clean Remote Global Index ==="
+  rm -rf "$REPO_ROOT/indexes/global/chroma"
+  rm -f "$REPO_ROOT/indexes/global/sqlite/ingestion.db"
+  mkdir -p "$REPO_ROOT/indexes/global/sqlite"
+  echo "[INFO] Removed remote global Chroma and SQLite index artifacts."
+fi
+
 echo "=== Run Ingest All Domains ==="
 bash "$REPO_ROOT/scripts/ingest_all_domains.sh" --root "$REPO_ROOT"

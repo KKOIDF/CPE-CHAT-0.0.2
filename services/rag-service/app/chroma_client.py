@@ -3,6 +3,8 @@ from chromadb.config import Settings
 from typing import Any, List, Optional, Sequence
 from functools import lru_cache
 from pathlib import Path
+from collections import OrderedDict
+import threading
 from .config import (
     CHROMA_DIR,
     EMBEDDING_MODEL,
@@ -12,7 +14,8 @@ from .config import (
     RAG_CHROMA_DIR,
     domain_paths,
 )
-from .perf import time_block
+from .perf import time_block, add_metric
+from .normalization import normalize_question
 import os
 
 try:
@@ -58,6 +61,12 @@ def _collection_vector_dim(collection: Any, fallback: int = EMBEDDING_DIM) -> in
 
 _embedder = None
 _is_bge_m3 = False
+_QUERY_EMBED_CACHE_LOCK = threading.Lock()
+_QUERY_EMBED_CACHE: "OrderedDict[tuple[str, str, str], List[float]]" = OrderedDict()
+try:
+    _QUERY_EMBED_CACHE_MAX_ENTRIES = max(16, int(os.getenv('RAG_QUERY_EMBED_CACHE_MAX_ENTRIES', '512') or '512'))
+except Exception:
+    _QUERY_EMBED_CACHE_MAX_ENTRIES = 512
 
 
 def _resize_embedding(vec: List[float], target_dim: int) -> List[float]:
@@ -233,14 +242,49 @@ def semantic_search(query: str, top_k: int = 12) -> List[dict]:
     return semantic_search_domain(query, top_k=top_k, domain=None)
 
 
+def _query_embed_cache_key(query: str, *, scope: str, domain: Optional[str] = None) -> tuple[str, str, str]:
+    q_norm = normalize_question(query)
+    dom = (domain or '').strip().lower()
+    return (scope.strip().lower() or 'domain', dom, q_norm)
+
+
+def _cached_query_embedding(query: str, *, scope: str, domain: Optional[str] = None) -> List[float]:
+    key = _query_embed_cache_key(query, scope=scope, domain=domain)
+    with _QUERY_EMBED_CACHE_LOCK:
+        cached = _QUERY_EMBED_CACHE.get(key)
+        if cached is not None:
+            _QUERY_EMBED_CACHE.move_to_end(key)
+            add_metric('embed_query_cache_hit', 1)
+            add_metric('embed_query_cache_miss', 0)
+            add_metric('embed_query_cache_entries', len(_QUERY_EMBED_CACHE))
+            return list(cached)
+
+    add_metric('embed_query_cache_hit', 0)
+    add_metric('embed_query_cache_miss', 1)
+    with time_block('embed_query_ms'):
+        qvec = embed_texts([query], is_query=True)[0]
+
+    with _QUERY_EMBED_CACHE_LOCK:
+        _QUERY_EMBED_CACHE[key] = list(qvec)
+        _QUERY_EMBED_CACHE.move_to_end(key)
+        while len(_QUERY_EMBED_CACHE) > _QUERY_EMBED_CACHE_MAX_ENTRIES:
+            _QUERY_EMBED_CACHE.popitem(last=False)
+        add_metric('embed_query_cache_entries', len(_QUERY_EMBED_CACHE))
+    return list(qvec)
+
+
+def _reset_query_embedding_cache_for_tests() -> None:
+    with _QUERY_EMBED_CACHE_LOCK:
+        _QUERY_EMBED_CACHE.clear()
+
+
 def semantic_search_global(
     query: str,
     top_k: int = 12,
     where: Optional[dict[str, Any]] = None,
 ) -> List[dict]:
     collection = _get_global_collection()
-    with time_block('embed_query_ms'):
-        qvec = embed_texts([query], is_query=True)[0]
+    qvec = _cached_query_embedding(query, scope='global')
     qvec = _resize_embedding(qvec, _collection_vector_dim(collection))
     try:
         with time_block('chroma_query_ms'):
@@ -295,9 +339,7 @@ def semantic_search_domain(
 ) -> List[dict]:
     dom = (domain or os.getenv('CPE_DOMAIN', '')).strip().lower()
     collection = _get_collection_for_domain(dom)
-    # Embed query with instruction (for BGE-M3)
-    with time_block('embed_query_ms'):
-        qvec = embed_texts([query], is_query=True)[0]
+    qvec = _cached_query_embedding(query, scope='domain', domain=dom)
     qvec = _resize_embedding(qvec, _collection_vector_dim(collection))
     allow_src: list[str] = []
     if source_allowlist:

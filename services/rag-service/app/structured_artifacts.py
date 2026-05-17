@@ -117,6 +117,16 @@ def _tokenize_search_text(text: str) -> list[str]:
     return out
 
 
+def _is_policy_graduation_query(question: str, intent: str | None) -> bool:
+    q = _normalize_search_text(question)
+    intent_key = str(intent or '').strip().lower()
+    policy_terms = (
+        'สำเร็จการศึกษา', 'สําเร็จการศึกษา', 'เกณฑ์', 'เงื่อนไข', 'ข้อกำหนด', 'ข้อกําหนด',
+        'หน่วยกิต', 'gpax', 'เกรด', 'graduation', 'requirement', 'policy', 'regulation'
+    )
+    return intent_key in ('policy_lookup', 'academic_status_policy') or any(term in q for term in policy_terms)
+
+
 def search_fact_index(
     question: str,
     domains: list[str] | None = None,
@@ -166,6 +176,15 @@ def search_fact_index(
             score = round((coverage * 0.7) + (exact_bonus * 0.2) + (confidence * 0.1), 4)
             intent_key = str(intent or '').strip().lower()
             needed = [str(v or '').strip().lower() for v in (needed_evidence or []) if str(v or '').strip()]
+            if dom == 'curriculum' and _is_policy_graduation_query(q, intent_key):
+                if entity_type in {'course_instructor', 'person_contact'}:
+                    continue
+                if 'ภาระงานสอนในปัจจุบัน' in blob or 'teacher_profiles_by_course.csv' in str(fact.get('source') or ''):
+                    continue
+                if entity_type == 'course':
+                    needed_course_fields = any(v in needed for v in ('course_code', 'course_name', 'credits'))
+                    if not needed_course_fields:
+                        continue
             if intent_key in ('contact_lookup', 'person_contact', 'instructor_lookup'):
                 if entity_type == 'person_contact':
                     score += 0.35

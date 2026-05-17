@@ -1,0 +1,403 @@
+{
+  "label": "gpu_host:regulations",
+  "domain": "regulations",
+  "input_dir": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations",
+  "output_base": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/db/regulations",
+  "store": true,
+  "embed": true,
+  "generated_at": "2026-05-16T15:18:09.251608+00:00",
+  "counts": {
+    "files": 23,
+    "files_seen": 23,
+    "files_indexed": 23,
+    "files_failed": 0,
+    "records": 23,
+    "paragraphs": 2038,
+    "chunks": 196,
+    "flagged_chunks": 0,
+    "embedded_chunks": 196
+  },
+  "phase_ms": {
+    "extract_total_ms": 413.729,
+    "records_write_ms": 10.025,
+    "chunking_ms": 1744.818,
+    "chunks_write_ms": 6.543,
+    "db_store_ms": 555.437,
+    "structured_artifacts_ms": 35.985,
+    "embedding_ms": 8741.165,
+    "neo4j_ms": 0.0
+  },
+  "total_ms": 20798.076,
+  "file_timings": [
+    {
+      "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations/129.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 48.595
+    },
+    {
+      "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations/133.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 11.597
+    },
+    {
+      "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations/135.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 8.192
+    },
+    {
+      "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations/2018_06_08_15_10_33.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 9.353
+    },
+    {
+      "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations/COVID-19 (2).txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 7.951
+    },
+    {
+      "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations/IP2565.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 16.561
+    },
+    {
+      "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations/OBEM.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 16.62
+    },
+    {
+      "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations/OBEM2566update.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 11.564
+    },
+    {
+      "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations/ad_out57.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 8.686
+    },
+    {
+      "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations/celemony2539.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 10.604
+    },
+    {
+      "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations/contacts.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 29.94
+    },
+    {
+      "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations/discipline2566_fulltext.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 21.569
+    },
+    {
+      "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations/forms.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 10.185
+    },
+    {
+      "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations/handbook2562g.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 43.233
+    },
+    {
+      "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations/privacy2563.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 15.916
+    },
+    {
+      "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations/rule2563-2g.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 7.015
+    },
+    {
+      "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations/rule2563-4b.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 5.865
+    },
+    {
+      "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations/rule57.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 29.421
+    },
+    {
+      "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations/rule57_2.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 19.311
+    },
+    {
+      "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations/ruleG2568.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 46.21
+    },
+    {
+      "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations/rule_covid2564.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 10.543
+    },
+    {
+      "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations/rule_exam2560.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 16.164
+    },
+    {
+      "path": "/storage/slurm/home/65070507229@cpe.kmutt.ac.th/cpe-chat-ingest-sync/data/raw/regulations/tf_out.txt",
+      "file_type": "txt",
+      "records": 1,
+      "elapsed_ms": 8.632
+    }
+  ],
+  "chunk_reports": [
+    {
+      "source_name": "129.txt",
+      "domain": "regulations",
+      "content_type": "plain",
+      "raw_text_chars": 3172,
+      "chunk_count": 2,
+      "avg_chunk_chars": 1585.5,
+      "avg_chunk_tokens": 290.0,
+      "oversized_chunks": 0
+    },
+    {
+      "source_name": "133.txt",
+      "domain": "regulations",
+      "content_type": "plain",
+      "raw_text_chars": 2806,
+      "chunk_count": 2,
+      "avg_chunk_chars": 1402.5,
+      "avg_chunk_tokens": 246.5,
+      "oversized_chunks": 0
+    },
+    {
+      "source_name": "135.txt",
+      "domain": "regulations",
+      "content_type": "plain",
+      "raw_text_chars": 2113,
+      "chunk_count": 2,
+      "avg_chunk_chars": 1056.0,
+      "avg_chunk_tokens": 185.5,
+      "oversized_chunks": 0
+    },
+    {
+      "source_name": "2018_06_08_15_10_33.txt",
+      "domain": "regulations",
+      "content_type": "html",
+      "raw_text_chars": 2059,
+      "chunk_count": 1,
+      "avg_chunk_chars": 2034.0,
+      "avg_chunk_tokens": 372.0,
+      "oversized_chunks": 0
+    },
+    {
+      "source_name": "COVID-19 (2).txt",
+      "domain": "regulations",
+      "content_type": "html",
+      "raw_text_chars": 6908,
+      "chunk_count": 4,
+      "avg_chunk_chars": 2251.5,
+      "avg_chunk_tokens": 355.5,
+      "oversized_chunks": 1
+    },
+    {
+      "source_name": "IP2565.txt",
+      "domain": "regulations",
+      "content_type": "plain",
+      "raw_text_chars": 20541,
+      "chunk_count": 11,
+      "avg_chunk_chars": 2497.0,
+      "avg_chunk_tokens": 351.09,
+      "oversized_chunks": 1
+    },
+    {
+      "source_name": "OBEM.txt",
+      "domain": "regulations",
+      "content_type": "plain",
+      "raw_text_chars": 4872,
+      "chunk_count": 4,
+      "avg_chunk_chars": 1581.0,
+      "avg_chunk_tokens": 247.25,
+      "oversized_chunks": 1
+    },
+    {
+      "source_name": "OBEM2566update.txt",
+      "domain": "regulations",
+      "content_type": "plain",
+      "raw_text_chars": 5719,
+      "chunk_count": 4,
+      "avg_chunk_chars": 1805.25,
+      "avg_chunk_tokens": 271.25,
+      "oversized_chunks": 1
+    },
+    {
+      "source_name": "ad_out57.txt",
+      "domain": "regulations",
+      "content_type": "html",
+      "raw_text_chars": 4177,
+      "chunk_count": 3,
+      "avg_chunk_chars": 1845.67,
+      "avg_chunk_tokens": 288.33,
+      "oversized_chunks": 1
+    },
+    {
+      "source_name": "celemony2539.txt",
+      "domain": "regulations",
+      "content_type": "plain",
+      "raw_text_chars": 2041,
+      "chunk_count": 2,
+      "avg_chunk_chars": 1020.0,
+      "avg_chunk_tokens": 183.0,
+      "oversized_chunks": 0
+    },
+    {
+      "source_name": "contacts.txt",
+      "domain": "regulations",
+      "content_type": "plain",
+      "raw_text_chars": 27592,
+      "chunk_count": 14,
+      "avg_chunk_chars": 2501.21,
+      "avg_chunk_tokens": 389.21,
+      "oversized_chunks": 1
+    },
+    {
+      "source_name": "discipline2566_fulltext.txt",
+      "domain": "regulations",
+      "content_type": "plain",
+      "raw_text_chars": 19899,
+      "chunk_count": 11,
+      "avg_chunk_chars": 2010.27,
+      "avg_chunk_tokens": 331.0,
+      "oversized_chunks": 1
+    },
+    {
+      "source_name": "forms.txt",
+      "domain": "regulations",
+      "content_type": "plain",
+      "raw_text_chars": 6375,
+      "chunk_count": 3,
+      "avg_chunk_chars": 2600.67,
+      "avg_chunk_tokens": 335.33,
+      "oversized_chunks": 1
+    },
+    {
+      "source_name": "handbook2562g.txt",
+      "domain": "regulations",
+      "content_type": "plain",
+      "raw_text_chars": 66866,
+      "chunk_count": 37,
+      "avg_chunk_chars": 2450.03,
+      "avg_chunk_tokens": 382.54,
+      "oversized_chunks": 1
+    },
+    {
+      "source_name": "privacy2563.txt",
+      "domain": "regulations",
+      "content_type": "html",
+      "raw_text_chars": 13677,
+      "chunk_count": 7,
+      "avg_chunk_chars": 2543.29,
+      "avg_chunk_tokens": 376.29,
+      "oversized_chunks": 1
+    },
+    {
+      "source_name": "rule2563-2g.txt",
+      "domain": "regulations",
+      "content_type": "plain",
+      "raw_text_chars": 1302,
+      "chunk_count": 2,
+      "avg_chunk_chars": 650.5,
+      "avg_chunk_tokens": 113.0,
+      "oversized_chunks": 0
+    },
+    {
+      "source_name": "rule2563-4b.txt",
+      "domain": "regulations",
+      "content_type": "html",
+      "raw_text_chars": 2169,
+      "chunk_count": 1,
+      "avg_chunk_chars": 2144.0,
+      "avg_chunk_tokens": 401.0,
+      "oversized_chunks": 0
+    },
+    {
+      "source_name": "rule57.txt",
+      "domain": "regulations",
+      "content_type": "html",
+      "raw_text_chars": 40304,
+      "chunk_count": 22,
+      "avg_chunk_chars": 2423.5,
+      "avg_chunk_tokens": 397.0,
+      "oversized_chunks": 1
+    },
+    {
+      "source_name": "rule57_2.txt",
+      "domain": "regulations",
+      "content_type": "plain",
+      "raw_text_chars": 15377,
+      "chunk_count": 10,
+      "avg_chunk_chars": 2055.9,
+      "avg_chunk_tokens": 328.7,
+      "oversized_chunks": 1
+    },
+    {
+      "source_name": "ruleG2568.txt",
+      "domain": "regulations",
+      "content_type": "html",
+      "raw_text_chars": 74764,
+      "chunk_count": 40,
+      "avg_chunk_chars": 2502.25,
+      "avg_chunk_tokens": 392.95,
+      "oversized_chunks": 1
+    },
+    {
+      "source_name": "rule_covid2564.txt",
+      "domain": "regulations",
+      "content_type": "plain",
+      "raw_text_chars": 4993,
+      "chunk_count": 4,
+      "avg_chunk_chars": 1619.5,
+      "avg_chunk_tokens": 250.75,
+      "oversized_chunks": 1
+    },
+    {
+      "source_name": "rule_exam2560.txt",
+      "domain": "regulations",
+      "content_type": "plain",
+      "raw_text_chars": 10571,
+      "chunk_count": 7,
+      "avg_chunk_chars": 1827.0,
+      "avg_chunk_tokens": 320.86,
+      "oversized_chunks": 1
+    },
+    {
+      "source_name": "tf_out.txt",
+      "domain": "regulations",
+      "content_type": "html",
+      "raw_text_chars": 4452,
+      "chunk_count": 3,
+      "avg_chunk_chars": 1950.33,
+      "avg_chunk_tokens": 306.33,
+      "oversized_chunks": 1
+    }
+  ]
+}

@@ -38,8 +38,8 @@ _SYSTEM_MSG: dict[str, str] = {
     ),
 }
 
-_MULTIQUERY_ENABLE = os.getenv('RAG_LC_MULTIQUERY', '1') in ('1', 'true', 'True')
-_MULTIQUERY_N = int(os.getenv('RAG_LC_MULTIQUERY_N', '4') or '4')
+_MULTIQUERY_ENABLE = os.getenv('RAG_LC_MULTIQUERY', '0') in ('1', 'true', 'True')
+_MULTIQUERY_N = int(os.getenv('RAG_LC_MULTIQUERY_N', '1') or '1')
 _MULTIQUERY_ALL = os.getenv('RAG_LC_MULTIQUERY_ALL', '0') in ('1', 'true', 'True')
 
 _PARALLEL_ENABLE = os.getenv('RAG_LC_PARALLEL', '1') in ('1', 'true', 'True')
@@ -577,6 +577,39 @@ def _is_anchored_regulations_query(question: str, domain: str | None) -> bool:
     return exam_late_anchor
 
 
+def _is_curriculum_group_list_query(question: str) -> bool:
+    q = normalize_question(question or '')
+    if not q:
+        return False
+    if not any(t in q for t in ('วิชาบังคับ', 'วิชาบังครับ', 'วิชาชีพบังคับ', 'วิชาเลือก')):
+        return False
+    return any(t in q for t in ('มีอะไร', 'อะไรบ้าง', 'ทั้งหมด', 'กี่ตัว', 'กี่วิชา', 'รายวิชา', 'หมวด', 'คือวิชา', 'วิชาอะไร'))
+
+
+def _has_contexts_from_domain(items: List[Dict], domain: str | None) -> bool:
+    dom = (domain or '').strip().lower()
+    if not dom:
+        return False
+    for item in items or []:
+        if str(item.get('domain') or '').strip().lower() == dom:
+            return True
+    return False
+
+
+def _should_preserve_domain_retrieval(question: str, domain: str | None, items: List[Dict]) -> bool:
+    dom = (domain or '').strip().lower()
+    rows = list(items or [])
+    if not dom or not rows:
+        return False
+    if _has_contexts_from_domain(rows, dom):
+        return True
+    if dom == 'regulations' and _is_anchored_regulations_query(question, dom):
+        return True
+    if dom == 'curriculum' and _is_curriculum_group_list_query(question):
+        return True
+    return False
+
+
 def _is_announcement_temporal_query(question: str, domain: str | None) -> bool:
     dom = (domain or '').strip().lower()
     if dom != 'announcements':
@@ -986,16 +1019,16 @@ def _build_rag_prompt_langchain(question: str, domain: Optional[str] = None) -> 
     )
     if _FAST_PROFILE:
         fast_cap = max(2, int(RAG_FAST_MAX_CONTEXTS or 4))
-        cap = max(fast_cap, min(max(MAX_CONTEXTS, 20), 8)) if wants_listy else min(MAX_CONTEXTS, fast_cap)
+        cap = fast_cap
     else:
-        cap = max(MAX_CONTEXTS, 20) if wants_listy else MAX_CONTEXTS
+        cap = min(max(MAX_CONTEXTS, 8), 12) if wants_listy else MAX_CONTEXTS
 
     retrieved_lists: List[Tuple[str, List[Dict]]] = []
 
     def _retrieve_one(q: str) -> Tuple[str, List[Dict]]:
         if dom and not search_all_domains:
             items = retrieve_by_domain(q, domain=dom)
-            if (not has_ref) and len(items) < fallback_min_results():
+            if (not has_ref) and len(items) < fallback_min_results() and (not _should_preserve_domain_retrieval(question, dom, items)):
                 doms = fallback_domains_for_domain(dom, q_display)
                 items = retrieve_all_domains(q, domains=doms)
         else:
@@ -1037,6 +1070,7 @@ def _build_rag_prompt_langchain(question: str, domain: Optional[str] = None) -> 
     skip_adaptive_retry = (
         _is_anchored_regulations_query(question, dom)
         or _is_announcement_temporal_query(question, dom)
+        or (dom == 'curriculum' and _is_curriculum_group_list_query(question))
     )
     if _ADAPTIVE_ORCHESTRATION and (not has_ref) and _is_low_confidence(retrieved) and (not skip_adaptive_retry):
         add_metric('retrieval_adaptive_retry_triggered', 1)
@@ -1046,7 +1080,7 @@ def _build_rag_prompt_langchain(question: str, domain: Optional[str] = None) -> 
                 retry = retrieve_by_domain(retry_q, domain=dom)
                 add_metric('retry_retrieval_doc_count', len(retry or []))
                 add_metric('retry_top_score', _top_retrieval_score(retry))
-                if _is_low_confidence(retry):
+                if _is_low_confidence(retry) and (not _should_preserve_domain_retrieval(question, dom, retry)):
                     add_metric('retrieval_fallback_all_domains_triggered', 1)
                     retry = retrieve_all_domains(retry_q, domains=fallback_domains_for_domain(dom, q_display))
                     if retry:

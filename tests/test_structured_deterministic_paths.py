@@ -1,6 +1,8 @@
 import sys
 import tempfile
 import unittest
+from types import SimpleNamespace
+from unittest.mock import patch
 from pathlib import Path
 
 
@@ -19,6 +21,7 @@ from app.curriculum_deterministic import (  # noqa: E402
     structured_curriculum_fallback_lookup,
     structured_curriculum_lookup,
 )
+import app.main as main  # noqa: E402
 from app.main import _finalize_user_answer_text  # noqa: E402
 from app.regulations_deterministic import fetch_exam_clause, structured_regulations_lookup  # noqa: E402
 from app.routing import analyze_route, select_resolution_strategy  # noqa: E402
@@ -131,6 +134,24 @@ class TestStructuredDeterministicPaths(unittest.TestCase):
         self.assertIn("เทอม/ชั้นปีที่อยู่ในแผน", answer)
         self.assertIn("คำแนะนำการลงทะเบียน", answer)
 
+    def test_curriculum_first_year_first_term_answer_explains_mix_and_difficulty(self) -> None:
+        result = structured_curriculum_lookup("ปี 1 เทอม 1 เรียนอะไรบ้าง")
+        answer = str(result.get("answer") or "")
+        self.assertEqual(result.get("lookup_mode"), "study_plan")
+        self.assertIn("ชั้นปีที่ 1 ภาคการศึกษาที่ 1", answer)
+        self.assertIn("ผสม", answer)
+        self.assertIn("ความยากโดยรวม", answer)
+        self.assertIn("มุมมองต่อแต่ละวิชาในเทอมนี้", answer)
+        self.assertIn("CPE 100", answer)
+
+    def test_curriculum_shortcut_prefers_study_plan_year_term_questions(self) -> None:
+        decision = SimpleNamespace(effective_domain='curriculum', primary_intent='curriculum_course_info')
+        self.assertTrue(main._should_prefer_structured_curriculum_shortcut('ปี 1 เทอม 1 เรียนอะไรบ้าง', decision))
+
+    def test_curriculum_shortcut_prefers_exact_course_description_questions(self) -> None:
+        decision = SimpleNamespace(effective_domain='curriculum', primary_intent='curriculum_course_info')
+        self.assertTrue(main._should_prefer_structured_curriculum_shortcut('CPE 342 คือวิชาอะไร เรียนเกี่ยวกับอะไร', decision))
+
     def test_curriculum_followup_credit_answer_is_focused(self) -> None:
         result = structured_curriculum_lookup("บริบทก่อนหน้า: CPE 342\nคำถามต่อเนื่อง: แล้วกี่หน่วยกิต")
         answer = str(result.get("answer") or "")
@@ -147,6 +168,86 @@ class TestStructuredDeterministicPaths(unittest.TestCase):
         self.assertIn("PHY 103", answer)
         self.assertIn("เน้นการประยุกต์ใช้กฎต่างๆ ทางฟิสิกส์", answer)
         self.assertNotIn("คือ ฟิสิกส์ทั่วไปสำหรับนักศึกษาวิศวกรรมศาสตร์ 1", answer)
+
+    def test_curriculum_english_alias_title_lookup_returns_exact_code_answer(self) -> None:
+        result = structured_curriculum_lookup("Machine Learning คือวิชาอะไร")
+        answer = str(result.get("answer") or "")
+        self.assertEqual(result.get("lookup_mode"), "exact_code")
+        self.assertEqual(result.get("course_resolution_mode"), "alias_title")
+        self.assertIn("CPE 342", answer)
+        self.assertIn("การเรียนรู้ของเครื่อง", answer)
+
+    def test_curriculum_english_alias_credit_lookup_returns_exact_code_answer(self) -> None:
+        result = structured_curriculum_lookup("Software Engineering กี่หน่วยกิต")
+        answer = str(result.get("answer") or "")
+        self.assertEqual(result.get("lookup_mode"), "exact_code")
+        self.assertEqual(result.get("course_resolution_mode"), "alias_title")
+        self.assertIn("CPE 334", answer)
+        self.assertIn("3 หน่วยกิต", answer)
+
+    def test_curriculum_exact_course_multi_detail_question_includes_credit_and_instructor(self) -> None:
+        result = structured_curriculum_lookup("CPE 100 กี่หน่วยกิต ใครสอน")
+        answer = str(result.get("answer") or "")
+        self.assertEqual(result.get("lookup_mode"), "exact_code")
+        self.assertIn("CPE 100", answer)
+        self.assertIn("หน่วยกิต: 3 หน่วยกิต", answer)
+        self.assertIn("ผู้สอนที่พบในข้อมูล", answer)
+        self.assertIn("จาตุรนต์ หาญ สมบูรณ์", answer)
+        self.assertNotIn("- 3 อ.", answer)
+
+    def test_curriculum_exact_course_multi_detail_question_includes_description_and_instructor(self) -> None:
+        result = structured_curriculum_lookup("CPE 342 เรียนเกี่ยวกับอะไร ใครสอน")
+        answer = str(result.get("answer") or "")
+        self.assertEqual(result.get("lookup_mode"), "exact_code")
+        self.assertIn("CPE 342", answer)
+        self.assertIn("คำอธิบายรายวิชา", answer)
+        self.assertIn("ผู้สอน", answer)
+
+    def test_curriculum_learning_outcomes_question_uses_reference_text_section(self) -> None:
+        result = structured_curriculum_lookup("CPE 342 ผลลัพธ์การเรียนรู้มีอะไรบ้าง")
+        answer = str(result.get("answer") or "")
+        self.assertEqual(result.get("lookup_mode"), "exact_code")
+        self.assertIn("ผลลัพธ์การเรียนรู้ของรายวิชา CPE 342", answer)
+        self.assertIn("Identify areas of problems that can be solved by using machine learning", answer)
+
+    def test_curriculum_exact_code_narrative_rewrite_uses_llm_but_preserves_facts_and_citations(self) -> None:
+        raw_answer = (
+            "- รหัสวิชา: CPE 342\n"
+            "- ชื่อวิชา: การเรียนรู้ของเครื่อง (Machine Learning) [curriculum.txt/1]\n"
+            "- หน่วยกิต: 3 หน่วยกิต [curriculum.txt/1]\n"
+            "- ชั่วโมงเรียน: 3-0-6 [curriculum.txt/1]"
+        )
+        rewritten_answer = (
+            "รายวิชา CPE 342 คือ การเรียนรู้ของเครื่อง (Machine Learning) มี 3 หน่วยกิต และชั่วโมงเรียน 3-0-6 \
+[curriculum.txt/1]"
+        )
+        with patch.object(main, 'generate_text', return_value=rewritten_answer):
+            rewritten = main._rewrite_curriculum_narrative_answer(
+                "CPE 342 คือวิชาอะไรและมีกี่หน่วยกิต",
+                {"lookup_mode": "exact_code"},
+                raw_answer,
+            )
+        self.assertEqual(rewritten, rewritten_answer)
+        self.assertIn("CPE 342", rewritten)
+        self.assertIn("3 หน่วยกิต", rewritten)
+        self.assertIn("3-0-6", rewritten)
+        self.assertIn("[curriculum.txt/1]", rewritten)
+        self.assertNotIn("4 หน่วยกิต", rewritten)
+
+    def test_curriculum_exact_code_narrative_rewrite_rejects_unauthorized_citation_output(self) -> None:
+        raw_answer = (
+            "- รหัสวิชา: CPE 342\n"
+            "- ชื่อวิชา: การเรียนรู้ของเครื่อง (Machine Learning) [curriculum.txt/1]\n"
+            "- หน่วยกิต: 3 หน่วยกิต [curriculum.txt/1]"
+        )
+        bad_rewrite = "รายวิชา CPE 342 คือ การเรียนรู้ของเครื่อง [other.txt/9]"
+        with patch.object(main, 'generate_text', return_value=bad_rewrite):
+            rewritten = main._rewrite_curriculum_narrative_answer(
+                "CPE 342 คือวิชาอะไร",
+                {"lookup_mode": "exact_code"},
+                raw_answer,
+            )
+        self.assertEqual(rewritten, raw_answer)
 
     def test_curriculum_title_plus_description_question_routes_to_rag_not_exact(self) -> None:
         result = structured_curriculum_lookup("ฟิสิกส์ทั่วไปสำหรับนักศึกษาวิศวกรรมศาสตร์ 1 เรียนเกี่ยวกับอะไร")
