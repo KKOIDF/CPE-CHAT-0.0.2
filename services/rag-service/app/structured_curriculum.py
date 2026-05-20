@@ -332,8 +332,16 @@ def load_all_courses_2564() -> dict[str, Course]:
         return _CACHED_ALL_COURSES_2564
 
     bank: dict[str, Course] = {}
-    for course in extract_courses_from_text(text):
-        bank.setdefault(course.code.upper(), course)
+    texts_to_parse: list[str] = []
+    if text.strip():
+        texts_to_parse.append(text)
+    sqlite_text = _load_curriculum_text_from_sqlite()
+    if sqlite_text.strip() and sqlite_text not in texts_to_parse:
+        texts_to_parse.append(sqlite_text)
+
+    for blob in texts_to_parse:
+        for course in extract_courses_from_text(blob):
+            bank.setdefault(course.code.upper(), course)
 
     _CACHED_ALL_COURSES_2564 = bank
     return _CACHED_ALL_COURSES_2564

@@ -155,6 +155,56 @@ class TestAutoRagRuntime(unittest.TestCase):
         self.assertFalse(meta.get("is_followup"))
         self.assertIn("guarded_standalone", str(meta.get("source") or ""))
 
+    def test_followup_guard_keeps_transcribe_request_self_contained(self) -> None:
+        import app.main as main  # noqa: E402
+
+        old_rewrite = main.rewrite_followup_with_llm
+        try:
+            main.rewrite_followup_with_llm = lambda *args, **kwargs: {
+                "standalone_question": "บริบทบทสนทนาก่อนหน้า: ถอนรายวิชา\nคำถามล่าสุดที่ต้องตอบ: ขอ Transcribe แบบสมบูรณ์",
+                "is_followup": True,
+                "entities": {"topic": "ถอนรายวิชา"},
+                "confidence": 0.99,
+                "source": "llm",
+            }
+            rewritten, meta = main._apply_auto_followup_rewrite(
+                "ขอ Transcribe แบบสมบูรณ์",
+                "regulations",
+                [{"role": "user", "content": "ถอนรายวิชา"}],
+                structured_state={"last_topic": "ถอนรายวิชา"},
+            )
+        finally:
+            main.rewrite_followup_with_llm = old_rewrite
+
+        self.assertEqual(rewritten, "ขอ Transcribe แบบสมบูรณ์")
+        self.assertFalse(meta.get("is_followup"))
+        self.assertIn("guarded_standalone", str(meta.get("source") or ""))
+
+    def test_followup_guard_keeps_symbol_lookup_self_contained(self) -> None:
+        import app.main as main  # noqa: E402
+
+        old_rewrite = main.rewrite_followup_with_llm
+        try:
+            main.rewrite_followup_with_llm = lambda *args, **kwargs: {
+                "standalone_question": "ในการถอนรายวิชา อักษร W คืออะไร และ I คืออะไร",
+                "is_followup": True,
+                "entities": {"topic": "ถอนรายวิชา"},
+                "confidence": 0.97,
+                "source": "llm",
+            }
+            rewritten, meta = main._apply_auto_followup_rewrite(
+                "I คืออะไร",
+                "regulations",
+                [{"role": "user", "content": "ในการถอนรายวิชา อักษร W คืออะไร"}],
+                structured_state={"last_topic": "ถอนรายวิชา"},
+            )
+        finally:
+            main.rewrite_followup_with_llm = old_rewrite
+
+        self.assertEqual(rewritten, "I คืออะไร")
+        self.assertFalse(meta.get("is_followup"))
+        self.assertIn("guarded_standalone", str(meta.get("source") or ""))
+
     def test_announcement_fast_answer_handles_term2_close(self) -> None:
         import app.announcement_deterministic as ann  # noqa: E402
 

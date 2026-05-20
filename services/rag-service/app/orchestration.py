@@ -513,6 +513,64 @@ def _dedupe_rows(items: List[Dict]) -> List[Dict]:
     return out
 
 
+def _merge_search_queries(base_queries: List[str] | None, extra_queries: List[str] | None) -> List[str]:
+    merged: List[str] = []
+    seen: set[str] = set()
+    for raw in [*(base_queries or []), *(extra_queries or [])]:
+        q = re.sub(r"\s+", " ", str(raw or '').strip())
+        if not q:
+            continue
+        key = q.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        merged.append(q)
+    return merged
+
+
+def _curriculum_pointer_hint(question: str, domain: str | None, resolved_entity: dict | None = None) -> dict[str, Any] | None:
+    dom = str(domain or '').strip().lower()
+    if dom not in ('', 'auto', 'curriculum'):
+        return None
+    try:
+        result = structured_curriculum_lookup(question, resolved_entity=resolved_entity)
+    except Exception:
+        return None
+    hints = result.get('retrieval_hints') if isinstance(result.get('retrieval_hints'), dict) else None
+    if not hints:
+        return None
+    queries = [str(v or '').strip() for v in (hints.get('search_queries') or []) if str(v or '').strip()]
+    if not queries:
+        return None
+    return hints
+
+
+def _augment_retrieval_plan_with_curriculum_pointer(
+    question: str,
+    domain: str | None,
+    retrieval_plan: dict | None,
+    *,
+    resolved_entity: dict | None = None,
+) -> dict[str, Any] | None:
+    plan = dict(retrieval_plan or {})
+    base_queries = [str(v or '').strip() for v in (plan.get('search_queries') or []) if str(v or '').strip()]
+    if not base_queries:
+        base_queries = [str(question or '').strip()]
+
+    hints = _curriculum_pointer_hint(question, domain, resolved_entity=resolved_entity)
+    if not hints:
+        plan['search_queries'] = _merge_search_queries(base_queries, [])
+        return plan
+
+    pointer_queries = [str(v or '').strip() for v in (hints.get('search_queries') or []) if str(v or '').strip()]
+    plan['search_queries'] = _merge_search_queries(base_queries, pointer_queries)
+    plan['curriculum_pointer'] = hints
+    add_metric('curriculum_retrieval_pointer_used', 1)
+    add_metric('curriculum_retrieval_pointer_mode', str(hints.get('mode') or 'unknown'))
+    add_metric('curriculum_retrieval_pointer_candidates', int(hints.get('candidate_count') or 0))
+    return plan
+
+
 def _retrieve_domain_multi_queries(queries: List[str], domain: str | None, *, vector_enabled: bool = True) -> List[Dict]:
     rows: List[Dict] = []
     for q in queries or []:
@@ -696,10 +754,11 @@ def _retrieval_intent_alias_contexts(question: str, domain: str | None) -> list[
 def rag_query(question: str, resolved_entity: dict | None = None, retrieval_plan: dict | None = None) -> Dict:
     question = apply_resolved_entity_context(question, resolved_entity)
     q_display = normalize_question(question)
+    dom_initial = infer_domain(q_display) or _infer_domain_from_reference(question)
+    retrieval_plan = _augment_retrieval_plan_with_curriculum_pointer(question, dom_initial, retrieval_plan, resolved_entity=resolved_entity)
     planned_queries = [str(v or '').strip() for v in ((retrieval_plan or {}).get('search_queries') or []) if str(v or '').strip()]
     search_queries = planned_queries or [question]
     q_search = search_query_from_question(question)
-    dom_initial = infer_domain(q_display) or _infer_domain_from_reference(question)
     planned_domains = [str(v or '').strip().lower() for v in ((retrieval_plan or {}).get('preferred_domains') or []) if str(v or '').strip()]
     dom_inferred = planned_domains[0] if planned_domains and not dom_initial else dom_initial
     intent = classify_intent(q_display)
@@ -997,6 +1056,7 @@ def rag_query(question: str, resolved_entity: dict | None = None, retrieval_plan
 def rag_query_domain(question: str, domain: str | None, resolved_entity: dict | None = None, retrieval_plan: dict | None = None) -> Dict:
     question = apply_resolved_entity_context(question, resolved_entity)
     q_display = normalize_question(question)
+    retrieval_plan = _augment_retrieval_plan_with_curriculum_pointer(question, domain, retrieval_plan, resolved_entity=resolved_entity)
     planned_domains = [str(v or '').strip().lower() for v in ((retrieval_plan or {}).get('preferred_domains') or []) if str(v or '').strip()]
     dom = (domain or '').strip().lower() or (planned_domains[0] if planned_domains else '')
     intent = classify_intent(q_display)

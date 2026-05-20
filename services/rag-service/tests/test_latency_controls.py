@@ -31,13 +31,22 @@ def test_should_use_regulations_strict_fallback_for_exam_policy():
     ) is True
 
 
-def test_should_prefer_structured_curriculum_shortcut_for_group_list():
+def test_should_not_prefer_structured_curriculum_shortcut_for_group_list():
     decision = SimpleNamespace(effective_domain="curriculum")
 
     assert main._should_prefer_structured_curriculum_shortcut(
         "วิชาบังคับของภาควิชาคือวิชาอะไรบ้าง",
         decision,
-    ) is True
+    ) is False
+
+
+def test_should_not_prefer_structured_curriculum_shortcut_for_prefix_list():
+    decision = SimpleNamespace(effective_domain="curriculum")
+
+    assert main._should_prefer_structured_curriculum_shortcut(
+        "รหัสวิชาทั้งหมดในหมวดวิชาภาษาต่างๆ (LNG) ในหลักสูตรมีอะไรบ้าง",
+        decision,
+    ) is False
 
 
 def test_should_skip_auto_evidence_verifier_for_trusted_exam_context():
@@ -50,6 +59,37 @@ def test_should_skip_auto_evidence_verifier_for_trusted_exam_context():
 
     assert skip is True
     assert reason == "trusted_exam_context"
+
+
+def test_question_signal_terms_expand_w_to_withdrawn():
+    terms = main._question_signal_terms("W คืออะไร")
+
+    assert "withdrawn" in [t.lower() for t in terms]
+
+
+def test_question_like_terms_are_not_strong_low_confidence_signals():
+    assert main._is_strong_low_conf_signal_term("คืออะไร") is False
+    assert main._is_strong_low_conf_signal_term("ทำอะไร") is False
+    assert main._is_strong_low_conf_signal_term("ภาควิชา") is True
+    assert main._is_strong_low_conf_signal_term("RO26") is True
+
+
+def test_low_confidence_guardrail_allows_w_withdrawn_context_match():
+    result = {
+        "contexts": [{"domain": "regulations", "source": "ruleG2568.txt"}],
+        "prompt": "บริบท\n[ruleG2568.txt/1] การถอนรายวิชาในช่วงเวลาดังกล่าวได้ผลการประเมินเป็น W (Withdrawn)\n\nคำตอบ:",
+    }
+
+    assert main._low_confidence_guardrail("W คืออะไร", result) is None
+
+
+def test_low_confidence_guardrail_does_not_trigger_on_generic_question_terms_only():
+    result = {
+        "contexts": [{"domain": "regulations", "source": "forms.txt"}],
+        "prompt": "บริบท\n[forms.txt/1] แบบฟอร์มคำร้องทั่วไปใช้สำหรับยื่นคำร้องต่อภาควิชา\n\nคำตอบ:",
+    }
+
+    assert main._low_confidence_guardrail("คืออะไร", result) is None
 
 
 def test_query_embedding_cache_reuses_normalized_query(monkeypatch):

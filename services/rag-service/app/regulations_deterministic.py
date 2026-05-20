@@ -284,6 +284,24 @@ def _render_form_catalog() -> str:
     return "\n".join(lines)
 
 
+def _render_generic_leave_form_answer() -> str:
+    lines = ['- คำว่า "ใบลา" อาจหมายถึงหลายแบบฟอร์ม จึงสรุปตัวที่เกี่ยวบ่อยให้ก่อน [forms.txt/1]']
+    for code, hint in (
+        ('RO-16', 'ใช้สำหรับลาป่วย/ลากิจ'),
+        ('RO-12', 'ใช้สำหรับลาพักการศึกษา'),
+        ('RO-13', 'ใช้สำหรับลาออก'),
+    ):
+        item = next((row for row in _FORM_REGISTRY if str(row.get('form_code') or '').strip() == code), None)
+        if not item:
+            continue
+        title = str(item.get('title') or '').strip()
+        url = str(item.get('url') or '').strip()
+        source = str(item.get('source') or 'forms.txt/1').strip()
+        lines.append(f'- {code}: {title} ({hint}) {url} [{source}]')
+    lines.append('- ถ้าระบุได้ว่าเป็นลาป่วย ลากิจ ลาพักการศึกษา หรือ ลาออก ระบบจะชี้ฟอร์มเดียวให้ได้ตรงขึ้น [forms.txt/1]')
+    return "\n".join(lines).strip()
+
+
 def lookup_regulation_form(question: str) -> dict[str, Any] | None:
     q = (question or '').strip().lower()
     if not q:
@@ -291,6 +309,17 @@ def lookup_regulation_form(question: str) -> dict[str, Any] | None:
     if _should_bypass_form_lookup(question):
         return None
     q_norm = _normalize_form_text(q)
+
+    generic_leave_cues = ('ใบลา', 'ลิงก์ใบลา', 'ขอใบลา', 'ขอเอกสารใบลา')
+    specific_leave_cues = ('ลาป่วย', 'ลากิจ', 'ลาพัก', 'ลาพักการศึกษา', 'ลาออก', 'ro-12', 'ro-13', 'ro-16')
+    if any(cue in q for cue in generic_leave_cues) and not any(cue in q for cue in specific_leave_cues):
+        return {
+            'answer': _render_generic_leave_form_answer(),
+            'lookup_mode': 'form_lookup',
+            'miss_reason': '',
+            'form_code': 'LEAVE-CATALOG',
+            'form_source': 'forms.txt/1',
+        }
 
     for item in _FORM_REGISTRY:
         aliases = tuple(str(a or '').strip().lower() for a in (item.get('aliases') or ()))

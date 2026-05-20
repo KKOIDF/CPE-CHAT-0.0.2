@@ -85,12 +85,74 @@ def _soft_lookup_filtered_result(result: dict[str, Any]) -> dict[str, Any]:
     filtered = dict(result or {})
     soft_mode = str(filtered.get('lookup_mode') or '').strip().lower()
     miss_reason = str(filtered.get('miss_reason') or '').strip() or 'soft_lookup_filtered'
+    retrieval_hints = filtered.get('retrieval_hints') if isinstance(filtered.get('retrieval_hints'), dict) else None
     filtered['answer'] = None
     filtered['lookup_mode'] = 'none'
     filtered['miss_reason'] = f'soft_lookup_filtered:{soft_mode or "unknown"}'
     filtered['soft_lookup_mode'] = soft_mode
     filtered['soft_lookup_original_miss_reason'] = miss_reason
+    if retrieval_hints:
+        filtered['retrieval_hints'] = retrieval_hints
     return filtered
+
+def _course_display_code(course: Course) -> str:
+    return f"{course.prefix} {course.number}".strip()
+
+
+def _build_course_catalog_retrieval_hints(
+    *,
+    mode: str,
+    courses: list[Course],
+    prefix: str | None = None,
+    label: str | None = None,
+    source_hint: str | None = None,
+) -> dict[str, Any]:
+    items = [c for c in (courses or []) if isinstance(c, Course)]
+    candidate_codes = [_course_display_code(c) for c in items[:12]]
+    candidate_titles = [str(c.title_th or '').strip()[:160] for c in items[:12] if str(c.title_th or '').strip()]
+    search_queries: list[str] = []
+    pref = str(prefix or '').strip().upper()
+    if pref:
+        search_queries.append(f"รายวิชา: {pref}")
+        search_queries.append(f"{pref} course catalog")
+    clean_label = str(label or '').strip()
+    if clean_label and pref:
+        search_queries.append(f"{pref} {clean_label}")
+        search_queries.append(f"รายวิชา {clean_label}")
+    elif clean_label:
+        search_queries.append(clean_label)
+    for course in items[:6]:
+        title = str(course.title_th or '').strip()
+        title_head = re.split(r"รายวิชา\s*[:：]?", title, maxsplit=1)[0].strip()[:80]
+        code_disp = _course_display_code(course)
+        search_queries.append(code_disp)
+        if title_head and len(title_head) <= 80:
+            search_queries.append(f"{code_disp} {title_head}".strip())
+
+    deduped_queries: list[str] = []
+    seen_queries: set[str] = set()
+    for q in search_queries:
+        normalized = re.sub(r"\s+", " ", str(q or '').strip())
+        if not normalized:
+            continue
+        key = normalized.lower()
+        if key in seen_queries:
+            continue
+        seen_queries.add(key)
+        deduped_queries.append(normalized)
+
+    return {
+        'kind': 'course_catalog_pointer',
+        'mode': str(mode or '').strip().lower() or 'unknown',
+        'prefix': pref,
+        'label': clean_label,
+        'candidate_codes': candidate_codes,
+        'candidate_titles': candidate_titles,
+        'search_queries': deduped_queries[:10],
+        'candidate_count': len(items),
+        'source_hint': str(source_hint or '').strip(),
+    }
+
 
 _COURSE_ALIASES = {
     "introduction to computer engineering": "CPE100",
@@ -234,17 +296,46 @@ def _canonical_instructor_cite(source: str) -> str:
 def _title_has_language_hint(title: str, hints: tuple[str, ...]) -> bool:
     if not title or not hints:
         return False
-    tl = title.lower()
+    title_head = re.split(r"รายวิชา\s*[:：]?", title, maxsplit=1)[0].strip() or str(title or '').strip()
+    title_head = title_head[:140]
+    tl = title_head.lower()
+    title_compact = re.sub(r"\s+", "", title_head)
+    title_compact_lower = title_compact.lower()
     for h in hints:
         if not h:
             continue
+        hint_compact = re.sub(r"\s+", "", h)
         if h.isascii():
-            if h.lower() in tl:
+            if h.lower() in tl or hint_compact.lower() in title_compact_lower:
                 return True
         else:
-            if h in title:
+            if h in title_head or hint_compact in title_compact:
                 return True
     return False
+
+
+def _extract_lng_courses_for_language_from_text(text: str, hints: tuple[str, ...]) -> list[Course]:
+    if not text or not hints:
+        return []
+    out: dict[str, Course] = {}
+    pattern = re.compile(
+        r"(?:รายวิชา\s*[:：]\s*)?LNG\s*[- ]?(?P<num>\d{3})\s*(?P<body>.*?)(?=(?:รายวิชา\s*[:：]\s*)?LNG\s*[- ]?\d{3}|$)",
+        re.IGNORECASE | re.DOTALL,
+    )
+    for match in pattern.finditer(text):
+        num = str(match.group('num') or '').strip()
+        body = re.sub(r"\s+", " ", str(match.group('body') or '').strip())
+        if not num or not body:
+            continue
+        if not _title_has_language_hint(body, hints):
+            continue
+        title = re.split(r"\d\s*-\s*\d", body, maxsplit=1)[0].strip(" :-")
+        title = re.sub(r"\s+", " ", title).strip()
+        credits_match = re.search(r"([1-9])\s*-\s*\d", body)
+        credits = int(credits_match.group(1)) if credits_match else 0
+        course = Course(prefix='LNG', number=num, title_th=title or f'LNG {num}', credits=credits)
+        out[course.code] = course
+    return sorted(out.values(), key=lambda c: int(c.number))
 
 
 def _load_study_plan_group_cache() -> dict[str, Any]:
@@ -504,6 +595,109 @@ def _normalize_title_query_th(text: str) -> str:
     return t
 
 
+def _compact_title_query_th(text: str) -> str:
+    t = _normalize_title_query_th(text)
+    if not t:
+        return ""
+    return re.sub(r"\s+", "", t)
+
+
+def _clean_course_title_for_matching(title: str) -> str:
+    raw = re.sub(r"\s+", " ", str(title or '').strip())
+    if not raw:
+        return ""
+    raw = raw.lstrip(':：- ').strip()
+    raw = re.split(r"รายวิชา\s*[:：]", raw, maxsplit=1)[0].strip() or raw
+    raw = re.split(r"[1-9]\s*\(\s*\d+\s*[-–]\s*\d+\s*[-–]\s*\d+\s*\)", raw, maxsplit=1)[0].strip() or raw
+    raw = re.split(r"[1-9]\s*-\s*\d", raw, maxsplit=1)[0].strip() or raw
+    raw = re.split(r"\[\s*หน้า\s*\d+\s*\]", raw, maxsplit=1)[0].strip() or raw
+    return raw.strip(':：- ').strip()
+
+
+def _preferred_prefixes_for_title_candidate(candidate: str) -> set[str]:
+    q = str(candidate or '').strip()
+    if not q:
+        return set()
+    ql = q.lower()
+    compact = _compact_title_query_th(q)
+    prefixes: set[str] = set()
+    language_signals = (
+        'ภาษา', 'japanese', 'korean', 'chinese', 'german', 'french', 'spanish', 'malay', 'khmer', 'vietnamese', 'burmese',
+        'english', 'thai', 'ญี่ปุ่น', 'เกาหลี', 'จีน', 'เยอรมัน', 'ฝรั่งเศส', 'สเปน', 'มลายู', 'เขมร', 'เวียดนาม', 'พม่า'
+    )
+    if any(sig in ql for sig in language_signals) or any(sig in compact for sig in ('ภาษาญี่ปุ่น', 'ภาษาเกาหลี', 'ภาษาจีน', 'ภาษาอังกฤษ', 'ภาษาไทย', 'ภาษามลายู', 'ภาษาเขมร', 'ภาษาเวียดนาม', 'ภาษาเยอรมัน')):
+        prefixes.add('LNG')
+    gen_signals = ('ทักษะการเรียนรู้', 'มนุษย์กับ', 'มหัศจรรย์แห่งความคิด', 'ความงดงามแห่งชีวิต', 'พลศึกษา', 'ศาสตร์แห่งการคิด')
+    if any(sig in q for sig in gen_signals) or any(sig in compact for sig in ('ทักษะการเรียนรู้และการแก้ปัญหา', 'มนุษย์กับหลักจริยศาสตร์เพื่อการดำเนินชีวิต')):
+        prefixes.add('GEN')
+    if any(sig in compact for sig in ('สังคมและวัฒนธรรม',)) or any(sig in q for sig in ('สังคม', 'วัฒนธรรม', 'society', 'culture')):
+        prefixes.add('SSC')
+    return prefixes
+
+
+def _find_lng_course_by_title_candidate(candidate: str, all_courses: dict[str, Course]) -> tuple[Course | None, str | None]:
+    spec = _extract_lng_language_spec(candidate)
+    if not spec:
+        return None, None
+    hints = tuple(spec.get('hints') or ())
+    desired_level_match = re.search(r'\b([1-4])\b', str(candidate or ''))
+    desired_level = desired_level_match.group(1) if desired_level_match else ''
+
+    bank: dict[str, Course] = {}
+    for course in all_courses.values():
+        if str(course.prefix or '').upper() == 'LNG' and _title_has_language_hint(course.title_th, hints):
+            bank.setdefault(course.code, course)
+
+    sqlite_path = domain_sqlite_path('curriculum')
+    ids = keyword_search('รายวิชา: LNG', limit=200, sqlite_path=sqlite_path)
+    if not ids:
+        ids = keyword_search('LNG', limit=200, sqlite_path=sqlite_path)
+    for doc in fetch_docs_with_path(ids, sqlite_path=sqlite_path):
+        for course in _extract_lng_courses_for_language_from_text(doc.get('text') or '', hints):
+            bank.setdefault(course.code, course)
+
+    if not bank:
+        return None, None
+
+    cand_en = _normalize_title_query_en(candidate)
+    cand_th = _normalize_title_query_th(candidate)
+    cand_compact = _compact_title_query_th(candidate)
+    best_course: Course | None = None
+    best_score = -1.0
+    for course in bank.values():
+        title = _clean_course_title_for_matching(course.title_th or '')
+        title_en = _normalize_title_query_en(title)
+        title_th = _normalize_title_query_th(title)
+        title_compact = _compact_title_query_th(title)
+        title_level_match = re.search(r'\b([1-4])\b', title)
+        title_level = title_level_match.group(1) if title_level_match else ''
+        score = 0.0
+        if desired_level:
+            if title_level == desired_level:
+                score += 4.0
+            elif title_level:
+                score -= 1.5
+        if cand_compact and title_compact and (cand_compact in title_compact or title_compact in cand_compact):
+            score += 2.5
+        if cand_th and title_th and (cand_th in title_th or title_th in cand_th):
+            score += 1.5
+        if cand_en and title_en and (cand_en in title_en or title_en in cand_en):
+            score += 1.5
+        if score > best_score:
+            best_score = score
+            best_course = course
+    if best_course and best_score >= 2.0:
+        return best_course, 'lng_title_hint'
+    return None, None
+
+
+def _find_lng_course_code_by_title_candidate(candidate: str, all_courses: dict[str, Course]) -> tuple[str | None, str | None]:
+    course, mode = _find_lng_course_by_title_candidate(candidate, all_courses)
+    if not course:
+        return None, None
+    return course.code, mode
+
+
 def _extract_title_candidate(question: str) -> str:
     q = (question or "").strip()
     if not q:
@@ -557,23 +751,39 @@ def _find_best_course_code_by_title(question: str, all_courses: dict[str, Course
     candidate = _extract_title_candidate(question)
     cand_norm = _normalize_title_query_en(candidate)
     cand_norm_th = _normalize_title_query_th(candidate)
+    preferred_prefixes = _preferred_prefixes_for_title_candidate(candidate)
     if not cand_norm and not cand_norm_th:
         return None, None
+    if preferred_prefixes == {'LNG'}:
+        lng_code, lng_mode = _find_lng_course_code_by_title_candidate(candidate, all_courses)
+        if lng_code:
+            return lng_code, lng_mode
 
     # 1) Alias map first.
+    cand_compact_th = _compact_title_query_th(candidate)
     for alias, alias_code in _COURSE_ALIASES.items():
         na = _normalize_title_query_en(alias)
-        if cand_norm and (na == cand_norm or na in cand_norm):
+        nth = _normalize_title_query_th(alias)
+        nth_compact = _compact_title_query_th(alias)
+        if cand_norm and na and (na == cand_norm or na in cand_norm):
+            return alias_code, "alias_title"
+        if cand_norm_th and nth and (nth == cand_norm_th or nth in cand_norm_th):
+            return alias_code, "alias_title"
+        if cand_compact_th and nth_compact and (nth_compact == cand_compact_th or nth_compact in cand_compact_th or cand_compact_th in nth_compact):
             return alias_code, "alias_title"
 
     # 2) Exact normalized title match from parsed curriculum.
     title_exact_index: dict[str, str] = {}
     title_exact_index_th: dict[str, str] = {}
+    title_exact_index_th_compact: dict[str, str] = {}
     for code, c in all_courses.items():
+        if preferred_prefixes and str(c.prefix or '').upper() not in preferred_prefixes:
+            continue
         raw = (c.title_th or "").strip()
         if not raw:
             continue
-        candidates = [raw] + re.findall(r"\(([^\)]+)\)", raw)
+        cleaned = _clean_course_title_for_matching(raw)
+        candidates = [cleaned or raw] + re.findall(r"\(([^\)]+)\)", cleaned or raw)
         for title in candidates:
             tn = _normalize_title_query_en(title)
             if tn:
@@ -581,15 +791,24 @@ def _find_best_course_code_by_title(question: str, all_courses: dict[str, Course
             tth = _normalize_title_query_th(title)
             if tth:
                 title_exact_index_th.setdefault(tth, code)
+            tth_compact = _compact_title_query_th(title)
+            if tth_compact:
+                title_exact_index_th_compact.setdefault(tth_compact, code)
 
     if cand_norm and cand_norm in title_exact_index:
         return title_exact_index[cand_norm], "exact_title"
     if cand_norm_th and cand_norm_th in title_exact_index_th:
         return title_exact_index_th[cand_norm_th], "exact_title"
+    if cand_compact_th and cand_compact_th in title_exact_index_th_compact:
+        return title_exact_index_th_compact[cand_compact_th], "exact_title"
 
     if cand_norm_th:
         for tth, code in title_exact_index_th.items():
             if cand_norm_th in tth or tth in cand_norm_th:
+                return code, "fuzzy_title"
+    if cand_compact_th:
+        for tth_compact, code in title_exact_index_th_compact.items():
+            if cand_compact_th in tth_compact or tth_compact in cand_compact_th:
                 return code, "fuzzy_title"
 
     # 3) Fuzzy token + sequence similarity.
@@ -617,17 +836,29 @@ def _find_best_course_code_by_title(question: str, all_courses: dict[str, Course
     return None, None
 
 
+_YEAR_TERM_WORD_MAP: dict[str, int] = {
+    "1": 1,
+    "2": 2,
+    "3": 3,
+    "4": 4,
+    "หนึ่ง": 1,
+    "สอง": 2,
+    "สาม": 3,
+    "สี่": 4,
+}
+
+
 def _extract_year_term(question: str) -> tuple[int | None, int | None]:
     q = (question or "").strip()
     year: int | None = None
     term: int | None = None
 
-    m_year = re.search(r"(?:ชั้นปีที่|ปีที่|ปี)\s*([1-4])", q)
+    m_year = re.search(r"(?:ชั้นปีที่|ปีที่|ปี)\s*(หนึ่ง|สอง|สาม|สี่|[1-4])", q)
     if m_year:
-        year = int(m_year.group(1))
-    m_term = re.search(r"(?:ภาคการศึกษาที่|ภาค|เทอม)\s*([1-3])", q)
+        year = _YEAR_TERM_WORD_MAP.get(str(m_year.group(1) or "").strip())
+    m_term = re.search(r"(?:ภาคการศึกษาที่|ภาค|เทอม)\s*(หนึ่ง|สอง|สาม|[1-3])", q)
     if m_term:
-        term = int(m_term.group(1))
+        term = _YEAR_TERM_WORD_MAP.get(str(m_term.group(1) or "").strip())
 
     return year, term
 
@@ -2361,11 +2592,11 @@ def _structured_curriculum_lookup_impl(question: str, resolved_entity: dict[str,
     q = normalize_question(raw_q)
     instructor_candidates_preview = _extract_instructor_name_candidates(raw_q or q)
     instructor_intent = any(t in q for t in (
-        "ใครสอน", "ผู้สอน", "อาจารย์", "คนสอน", "สอนวิชาอะไร", "สอนอะไร", "วิชาที่สอน", "มีวิชาอะไรบ้าง", "วิชาอะไรบ้าง"
-    )) or bool(instructor_candidates_preview and any(t in q for t in ("สอน", "คือใคร", "ชื่อเต็ม", "ชื่อจริง")))
+        "ใครสอน", "ผู้สอน", "อาจารย์", "คนสอน", "สอนวิชาอะไร", "สอนอะไร", "วิชาที่สอน"
+    )) or bool(instructor_candidates_preview and any(t in q for t in ("สอน", "คือใคร", "ชื่อเต็ม", "ชื่อจริง", "มีวิชาอะไรบ้าง", "วิชาอะไรบ้าง")))
     detail_flags = _course_detail_request_flags(q)
     detail_signal_count = sum(int(v) for v in detail_flags.values())
-    needs_course_catalog = (not instructor_intent) or detail_signal_count > 1
+    needs_course_catalog = (not instructor_intent) or detail_signal_count > 1 or _is_prefix_list_question(q) or bool(_extract_lng_language_spec(q))
     source_name = "curriculum_sqlite"
     totals: dict[str, int] = {}
     qtype = _classify_curriculum_question_type(q)
@@ -2598,6 +2829,7 @@ def _structured_curriculum_lookup_impl(question: str, resolved_entity: dict[str,
 
     # Title-based mapping for explicit code questions.
     title_lookup_mode: str | None = None
+    title_lookup_course: Course | None = None
     code_lookup_intent = any(t in q.lower() for t in (
         "รหัสวิชา", "รหัสอะไร", "course code", "code of", "คือวิชาอะไร", "กี่หน่วยกิต",
         "มีกี่หน่วยกิต", "คืออะไร", "เรียนเกี่ยวกับอะไร", "เกี่ยวกับอะไร", "มีเนื้อหาอะไร",
@@ -2623,6 +2855,8 @@ def _structured_curriculum_lookup_impl(question: str, resolved_entity: dict[str,
                 if matched_code:
                     title_lookup_mode = source_title_mode or "title_reference_text"
         if matched_code:
+            if title_lookup_mode == 'lng_title_hint':
+                title_lookup_course, _ = _find_lng_course_by_title_candidate(raw_q or q, all_courses)
             codes.append(matched_code)
 
     # Instructor deterministic path: latest entity wins and bypasses generic retrieval.
@@ -2798,6 +3032,9 @@ def _structured_curriculum_lookup_impl(question: str, resolved_entity: dict[str,
             key = code.replace("-", "").replace(" ", "").upper()
             course = all_courses.get(key)
             source_hint = source_name
+            if not course and title_lookup_course is not None and title_lookup_course.code.upper() == key:
+                course = title_lookup_course
+                source_hint = 'curriculum_sqlite'
             if not course:
                 sqlite_hit = _lookup_course_from_sqlite(code)
                 if sqlite_hit:
@@ -2876,7 +3113,7 @@ def _structured_curriculum_lookup_impl(question: str, resolved_entity: dict[str,
             for c in items:
                 cred = f" ({c.credits} หน่วยกิต)" if c.credits else ""
                 lines.append(f"- {c.prefix} {c.number} {c.title_th}{cred} [{source_name}/1]")
-            return {"answer": "\n".join(lines).strip(), "lookup_mode": "lng_language_list", "miss_reason": ""}
+            return {"answer": "\n".join(lines).strip(), "lookup_mode": "lng_language_list", "miss_reason": "", "retrieval_hints": _build_course_catalog_retrieval_hints(mode="lng_language_list", courses=items, prefix="LNG", label=lang_label, source_hint=source_name)}
 
         sqlite_path = domain_sqlite_path("curriculum")
         ids = keyword_search("รายวิชา: LNG", limit=600, sqlite_path=sqlite_path)
@@ -2888,6 +3125,8 @@ def _structured_curriculum_lookup_impl(question: str, resolved_entity: dict[str,
         for d in docs:
             if d.get("source") and d.get("source") not in sources:
                 sources.append(str(d.get("source")))
+            for c in _extract_lng_courses_for_language_from_text(d.get("text") or "", hints):
+                bank.setdefault(c.code, c)
             for c in extract_courses_from_text(d.get("text") or "", prefix_filter="LNG"):
                 if _title_has_language_hint(c.title_th, hints):
                     bank.setdefault(c.code, c)
@@ -2903,7 +3142,7 @@ def _structured_curriculum_lookup_impl(question: str, resolved_entity: dict[str,
                 lines2.append(f"- {c.prefix} {c.number} {c.title_th}{cred}")
             if sources:
                 lines2.append(f"\nแหล่งอ้างอิง (ตัวอย่าง): {', '.join(sources[:3])}")
-            return {"answer": "\n".join(lines2).strip(), "lookup_mode": "lng_language_list", "miss_reason": ""}
+            return {"answer": "\n".join(lines2).strip(), "lookup_mode": "lng_language_list", "miss_reason": "", "retrieval_hints": _build_course_catalog_retrieval_hints(mode="lng_language_list", courses=items, prefix="LNG", label=lang_label, source_hint=(sources[0] if sources else "curriculum_sqlite"))}
 
     # Full required CPE list.
     required = format_required_cpe_answer(q)
@@ -2922,7 +3161,7 @@ def _structured_curriculum_lookup_impl(question: str, resolved_entity: dict[str,
             for c in items:
                 cred = f" ({c.credits} หน่วยกิต)" if c.credits else ""
                 lines.append(f"- {c.prefix} {c.number} {c.title_th}{cred} [{source_name}/1]")
-            return {"answer": "\n".join(lines).strip(), "lookup_mode": "prefix_list", "miss_reason": ""}
+            return {"answer": "\n".join(lines).strip(), "lookup_mode": "prefix_list", "miss_reason": "", "retrieval_hints": _build_course_catalog_retrieval_hints(mode="prefix_list", courses=items, prefix=pref, source_hint=source_name)}
 
         sqlite_path = domain_sqlite_path("curriculum")
         ids = keyword_search(f"รายวิชา: {pref}", limit=600, sqlite_path=sqlite_path)
@@ -2949,7 +3188,7 @@ def _structured_curriculum_lookup_impl(question: str, resolved_entity: dict[str,
             lines2.append(f"- {c.prefix} {c.number} {c.title_th}{cred}")
         if sources:
             lines2.append(f"\nแหล่งอ้างอิง (ตัวอย่าง): {', '.join(sources[:3])}")
-        return {"answer": "\n".join(lines2).strip(), "lookup_mode": "prefix_list", "miss_reason": ""}
+        return {"answer": "\n".join(lines2).strip(), "lookup_mode": "prefix_list", "miss_reason": "", "retrieval_hints": _build_course_catalog_retrieval_hints(mode="prefix_list", courses=items, prefix=pref, source_hint=(sources[0] if sources else "curriculum_sqlite"))}
 
     return {"answer": None, "lookup_mode": "none", "miss_reason": "no_deterministic_match"}
 

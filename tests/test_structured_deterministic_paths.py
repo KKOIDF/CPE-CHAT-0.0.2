@@ -22,6 +22,7 @@ from app.curriculum_deterministic import (  # noqa: E402
     structured_curriculum_lookup,
 )
 import app.main as main  # noqa: E402
+import app.orchestration as orchestration  # noqa: E402
 from app.main import _finalize_user_answer_text  # noqa: E402
 from app.regulations_deterministic import fetch_exam_clause, structured_regulations_lookup  # noqa: E402
 from app.routing import analyze_route, select_resolution_strategy  # noqa: E402
@@ -144,13 +145,17 @@ class TestStructuredDeterministicPaths(unittest.TestCase):
         self.assertIn("มุมมองต่อแต่ละวิชาในเทอมนี้", answer)
         self.assertIn("CPE 100", answer)
 
-    def test_curriculum_shortcut_prefers_study_plan_year_term_questions(self) -> None:
+    def test_curriculum_shortcut_does_not_bypass_study_plan_year_term_questions(self) -> None:
         decision = SimpleNamespace(effective_domain='curriculum', primary_intent='curriculum_course_info')
-        self.assertTrue(main._should_prefer_structured_curriculum_shortcut('ปี 1 เทอม 1 เรียนอะไรบ้าง', decision))
+        self.assertFalse(main._should_prefer_structured_curriculum_shortcut('ปี 1 เทอม 1 เรียนอะไรบ้าง', decision))
 
-    def test_curriculum_shortcut_prefers_exact_course_description_questions(self) -> None:
+    def test_curriculum_shortcut_does_not_bypass_exact_course_description_questions(self) -> None:
         decision = SimpleNamespace(effective_domain='curriculum', primary_intent='curriculum_course_info')
-        self.assertTrue(main._should_prefer_structured_curriculum_shortcut('CPE 342 คือวิชาอะไร เรียนเกี่ยวกับอะไร', decision))
+        self.assertFalse(main._should_prefer_structured_curriculum_shortcut('CPE 342 คือวิชาอะไร เรียนเกี่ยวกับอะไร', decision))
+
+    def test_curriculum_shortcut_does_not_bypass_prefix_list_questions(self) -> None:
+        decision = SimpleNamespace(effective_domain='curriculum', primary_intent='curriculum_course_info')
+        self.assertFalse(main._should_prefer_structured_curriculum_shortcut('รหัสวิชาในหมวดวิชาภาษาต่างๆ (LNG) ทั้งหมดที่มีในหลักสูตรมีอะไรบ้าง', decision))
 
     def test_curriculum_followup_credit_answer_is_focused(self) -> None:
         result = structured_curriculum_lookup("บริบทก่อนหน้า: CPE 342\nคำถามต่อเนื่อง: แล้วกี่หน่วยกิต")
@@ -314,6 +319,24 @@ class TestStructuredDeterministicPaths(unittest.TestCase):
         self.assertIn("ภาษาญี่ปุ่น", answer)
         self.assertIn("LNG", answer)
 
+    def test_curriculum_title_to_code_resolves_gen_course_name(self) -> None:
+        result = structured_curriculum_lookup("ทักษะการเรียนรู้และการแก้ปัญหา รหัสวิชาอะไร")
+        answer = str(result.get("answer") or "")
+        self.assertEqual(result.get("lookup_mode"), "exact_code")
+        self.assertIn("GEN 121", answer)
+
+    def test_curriculum_title_to_code_resolves_ssc_course_name(self) -> None:
+        result = structured_curriculum_lookup("สังคมและวัฒนธรรม รหัสวิชาอะไร")
+        answer = str(result.get("answer") or "")
+        self.assertEqual(result.get("lookup_mode"), "exact_code")
+        self.assertIn("SSC 162", answer)
+
+    def test_curriculum_title_to_code_resolves_lng_course_name(self) -> None:
+        result = structured_curriculum_lookup("ภาษาญี่ปุ่น 1 รหัสวิชาอะไร")
+        answer = str(result.get("answer") or "")
+        self.assertEqual(result.get("lookup_mode"), "exact_code")
+        self.assertIn("LNG 272", answer)
+
     def test_curriculum_default_lookup_filters_soft_instructor_helper(self) -> None:
         result = structured_curriculum_lookup("อาจารย์ประพงษ์สอนวิชาอะไร")
         self.assertIsNone(result.get("answer"))
@@ -325,6 +348,33 @@ class TestStructuredDeterministicPaths(unittest.TestCase):
         self.assertIsNone(result.get("answer"))
         self.assertEqual(result.get("lookup_mode"), "none")
         self.assertEqual(result.get("soft_lookup_mode"), "lng_language_list")
+
+    def test_curriculum_default_lookup_keeps_retrieval_hints_for_language_helper(self) -> None:
+        result = structured_curriculum_lookup("บริบทก่อนหน้า: ภาษาญี่ปุ่น\nคำถามต่อเนื่อง: รหัสวิชา")
+        hints = result.get("retrieval_hints") or {}
+        self.assertEqual(hints.get("mode"), "lng_language_list")
+        self.assertIn("รายวิชา: LNG", list(hints.get("search_queries") or []))
+        self.assertTrue(any(str(code).startswith("LNG ") for code in (hints.get("candidate_codes") or [])))
+
+    def test_curriculum_fallback_lookup_lists_ssc_courses_from_sqlite_augmented_catalog(self) -> None:
+        result = structured_curriculum_fallback_lookup("SSC มีวิชาอะไรบ้าง")
+        answer = str(result.get("answer") or "")
+        self.assertEqual(result.get("lookup_mode"), "prefix_list")
+        self.assertIn("SSC 162", answer)
+        self.assertEqual((result.get("retrieval_hints") or {}).get("prefix"), "SSC")
+
+    def test_orchestration_augments_retrieval_plan_with_curriculum_pointer_queries(self) -> None:
+        plan = orchestration._augment_retrieval_plan_with_curriculum_pointer(
+            "บริบทก่อนหน้า: ภาษาญี่ปุ่น\nคำถามต่อเนื่อง: รหัสวิชา",
+            "curriculum",
+            {"search_queries": ["ภาษาญี่ปุ่น รหัสวิชา"], "source": "test"},
+        )
+        self.assertIsNotNone(plan)
+        queries = list((plan or {}).get("search_queries") or [])
+        self.assertIn("ภาษาญี่ปุ่น รหัสวิชา", queries)
+        self.assertIn("รายวิชา: LNG", queries)
+        self.assertTrue(any(str(q).startswith("LNG ") for q in queries))
+        self.assertEqual(((plan or {}).get("curriculum_pointer") or {}).get("mode"), "lng_language_list")
 
     def test_announcement_open_term_answer_mentions_official_calendar(self) -> None:
         answer = render_fast_announcement_calendar_answer("ขออัปเดต วันเปิดภาคการศึกษา ล่าสุดหน่อยครับ")

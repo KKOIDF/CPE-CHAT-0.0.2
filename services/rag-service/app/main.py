@@ -837,6 +837,23 @@ def _is_curriculum_group_list_question(question: str) -> bool:
     return any(t in q for t in ('มีอะไร', 'อะไรบ้าง', 'ทั้งหมด', 'กี่ตัว', 'กี่วิชา', 'รายวิชา', 'หมวด', 'คือวิชา', 'วิชาอะไร'))
 
 
+def _is_curriculum_prefix_list_question(question: str) -> bool:
+    raw_q = str(question or '')
+    q = normalize_question(raw_q)
+    if not q:
+        return False
+    asks_list = any(
+        t in q for t in ('รหัสวิชา', 'มีวิชาอะไร', 'วิชาอะไรบ้าง', 'รายวิชา', 'ทั้งหมด', 'มีกี่วิชา', 'หมวดวิชา')
+    )
+    if not asks_list:
+        return False
+    if re.search(r"\b[A-Z]{2,6}[xX]{2,}\b", raw_q):
+        return True
+    if re.search(r"\([A-Z]{2,6}\)", raw_q):
+        return True
+    return bool(re.search(r"\b[A-Z]{2,6}\b", raw_q))
+
+
 def _is_exam_policy_shortcut_question(question: str) -> bool:
     q = normalize_question(question or '').lower()
     if not q:
@@ -850,8 +867,8 @@ def _is_curriculum_study_plan_shortcut_question(question: str) -> bool:
     q = normalize_question(question or '')
     if not q:
         return False
-    has_year = re.search(r'(?:ชั้นปีที่|ปีที่|ปี)\s*[1-4]', q) is not None
-    has_term = re.search(r'(?:ภาคการศึกษาที่|ภาค|เทอม)\s*[1-3]', q) is not None
+    has_year = re.search(r'(?:ชั้นปีที่|ปีที่|ปี)\s*(?:หนึ่ง|สอง|สาม|สี่|[1-4])', q) is not None
+    has_term = re.search(r'(?:ภาคการศึกษาที่|ภาค|เทอม)\s*(?:หนึ่ง|สอง|สาม|[1-3])', q) is not None
     if not (has_year and has_term):
         return False
     return any(t in q for t in ('เรียนอะไร', 'เรียนอะไรบ้าง', 'วิชาอะไร', 'มีวิชาอะไร', 'รายวิชา', 'ลงอะไร', 'เรียนยังไง', 'ยาก', 'ผสม'))
@@ -1399,9 +1416,14 @@ def _apply_auto_followup_rewrite(
             return False
         standalone_signals = (
             'จำนวนหน่วยกิตรวม', 'หน่วยกิตรวม', 'ตลอดหลักสูตร', 'เครื่องคำนวณ', 'คิดเลข',
-            'ถอนรายวิชา', 'transcript', 'ทรานสคริป', 'ทรานสคริปต์', 'ปิดเทอม', 'ปิดภาค',
+            'ถอนรายวิชา', 'transcript', 'transcribe', 'transcription', 'ถอดความ', 'ถอดข้อความ',
+            'ทรานสคริป', 'ทรานสคริปต์', 'ปิดเทอม', 'ปิดภาค',
             'เปิดเทอม', 'เปิดภาค', 'ภาคการศึกษาที่', 'เทอม 1', 'เทอม 2', 'เทอม 3',
         )
+        if re.fullmatch(r"[a-z][a-z0-9/+().-]{0,7}\s*(?:คืออะไร|หมายถึงอะไร|แปลว่าอะไร)", txt, flags=re.IGNORECASE):
+            return True
+        if re.fullmatch(r"(?:อักษร|ตัวอักษร|สัญลักษณ์)\s*[a-z][a-z0-9/+().-]{0,7}\s*(?:คืออะไร|หมายถึงอะไร|แปลว่าอะไร)", txt, flags=re.IGNORECASE):
+            return True
         return bool(re.search(r"\b\d+/\d{4}\b", txt)) or any(t in txt for t in standalone_signals)
 
     result = rewrite_followup_with_llm(question, messages, domain, structured_state=structured_state)
@@ -2562,6 +2584,11 @@ _LOW_CONF_THAI_STOPWORDS = {
 }
 
 
+_LOW_CONF_QUESTION_LIKE_TERM_RE = re.compile(
+    r"(?:อะไร|อย่างไร|ยังไง|กี่|ใคร|ที่ไหน|ไหน|เมื่อไร|เท่าไร|เท่าไหร่|หรือไม่|ใช่ไหม|ทำอะไร)$"
+)
+
+
 def _question_signal_terms(question: str) -> list[str]:
     q = (question or '').strip()
     if not q:
@@ -2586,6 +2613,11 @@ def _question_signal_terms(question: str) -> list[str]:
         _add(f"{prefix}{num}")
         _add(f"{prefix} {num}")
 
+    # Short status-code questions like "W คืออะไร" need semantic aliases because
+    # the supporting context usually contains the expanded label, e.g. "Withdrawn".
+    if re.search(r"\bW\b", q, flags=re.IGNORECASE):
+        _add('withdrawn')
+
     for token in re.findall(r"[\u0E00-\u0E7F]{4,}|[A-Za-z]{3,}|\d{2,4}", q):
         if re.fullmatch(r"[\u0E00-\u0E7F]{4,}", token):
             if token in _LOW_CONF_THAI_STOPWORDS:
@@ -2597,6 +2629,25 @@ def _question_signal_terms(question: str) -> list[str]:
         _add(token)
 
     return terms[:12]
+
+
+def _is_strong_low_conf_signal_term(term: str) -> bool:
+    t = str(term or '').strip()
+    if not t:
+        return False
+    if re.search(r"\d", t):
+        return True
+    if re.fullmatch(r"[A-Za-z]{4,}", t):
+        return True
+    if re.fullmatch(r"[A-Za-z]{1,3}", t):
+        return False
+    if re.search(r"[ก-๙]", t):
+        if t in _LOW_CONF_THAI_STOPWORDS:
+            return False
+        if _LOW_CONF_QUESTION_LIKE_TERM_RE.search(t):
+            return False
+        return len(t) >= 5
+    return False
 
 
 def _has_date_intent(question: str) -> bool:
@@ -2831,9 +2882,10 @@ def _low_confidence_guardrail(question: str, result: dict) -> str | None:
 
     joined = "\n".join([f"{cite} {text}" for cite, text in blocks]).lower()
     signal_terms = _question_signal_terms(question)
-    matched_terms = [term for term in signal_terms if term.lower() in joined]
+    strong_terms = [term for term in signal_terms if _is_strong_low_conf_signal_term(term)]
+    matched_terms = [term for term in strong_terms if term.lower() in joined]
 
-    if signal_terms and not matched_terms:
+    if strong_terms and not matched_terms:
         add_metric('guardrail_low_confidence', 1)
         return _clarify_when_no_context(question) or 'ไม่พบข้อความยืนยันโดยตรงในเอกสารที่ค้นได้'
 
@@ -5048,25 +5100,25 @@ def _should_use_regulations_strict_fallback(question: str, domain: str | None) -
 
 
 def _should_prefer_structured_regulations_shortcut(question: str, decision: Any) -> bool:
+    q = normalize_question(question or '').lower()
     dom = str(getattr(decision, 'effective_domain', '') or '').strip().lower()
     intent = str(getattr(decision, 'primary_intent', '') or '').strip().lower()
     if dom not in ('', 'auto', 'regulations') and 'regulations' not in dom:
         return False
-    return intent == 'exam_policy' and _is_exam_policy_shortcut_question(question)
+    if intent != 'regulation_forms':
+        return False
+    return any(t in q for t in ('แบบฟอร์ม', 'ฟอร์ม', 'คำร้อง', 'ro-', 'ใบลา', 'ลิงก์ใบลา', 'ลาป่วย', 'ลากิจ', 'ลาออก', 'ลาพัก'))
 
 
 def _should_prefer_structured_curriculum_shortcut(question: str, decision: Any) -> bool:
+    q = normalize_question(question or '')
     dom = str(getattr(decision, 'effective_domain', '') or '').strip().lower()
     intent = str(getattr(decision, 'primary_intent', '') or '').strip().lower()
     if dom not in ('', 'auto', 'curriculum') and 'curriculum' not in dom:
         return False
-    if _is_curriculum_group_list_question(question):
-        return True
-    if intent in ('curriculum_course_info', 'credit_lookup', 'general_info') and _is_curriculum_exact_course_shortcut_question(question):
-        return True
-    if intent == 'curriculum_course_info' and _is_curriculum_study_plan_shortcut_question(question):
-        return True
-    return False
+    if intent not in ('curriculum_course_info', 'credit_lookup'):
+        return False
+    return _is_curriculum_study_plan_shortcut_question(q)
 
 
 def _should_skip_auto_evidence_verifier(
@@ -5082,6 +5134,8 @@ def _should_skip_auto_evidence_verifier(
         return True, 'trusted_exam_context'
     if _is_curriculum_group_list_question(question) and _has_domain_context(contexts, 'curriculum'):
         return True, 'curriculum_group_list'
+    if _is_curriculum_prefix_list_question(question) and _has_domain_context(contexts, 'curriculum'):
+        return True, 'curriculum_prefix_list'
     if _is_curriculum_study_plan_shortcut_question(question) and _has_domain_context(contexts, 'curriculum'):
         return True, 'curriculum_study_plan'
     if _is_curriculum_exact_course_shortcut_question(question) and _has_domain_context(contexts, 'curriculum'):

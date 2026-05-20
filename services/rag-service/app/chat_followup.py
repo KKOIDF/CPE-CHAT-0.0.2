@@ -488,6 +488,8 @@ def _extract_topic_anchor(text: str) -> str:
         )
     ):
         return ''
+    if lowered.startswith(('แล้ว', 'งั้น', 'ต่อ', 'เพิ่มเติม', 'อีก', 'อันนี้', 'อันนั้น', 'อันก่อนหน้า')):
+        return ''
     if any(rx.search(txt) for rx in (_COURSE_CODE_RE, _FORM_CODE_RE, _INSTRUCTOR_RE, _TERM_RE)):
         return ''
     if len(txt) <= 40 and not any(p in txt.lower() for p in ('อะไร', 'เมื่อไร', 'ยังไง', 'อย่างไร', 'ไหม', 'มั้ย', 'กี่', 'ใคร', 'where', 'when', 'what', 'who')):
@@ -920,6 +922,35 @@ def _looks_new_regulations_policy_followup(text: str) -> bool:
     return True
 
 
+def _looks_explicit_symbol_lookup(text: str) -> bool:
+    q = re.sub(r"\s+", " ", str(text or "").strip())
+    if not q:
+        return False
+    lower = q.lower()
+    if not any(token in lower for token in ("คืออะไร", "หมายถึงอะไร", "แปลว่าอะไร")):
+        return False
+    if _COURSE_CODE_RE.search(q) or _FORM_CODE_RE.search(q):
+        return False
+    if re.fullmatch(r"[A-Za-z][A-Za-z0-9/+().-]{0,7}\s*(?:คืออะไร|หมายถึงอะไร|แปลว่าอะไร)", q, flags=re.IGNORECASE):
+        return True
+    return bool(
+        re.fullmatch(
+            r"(?:อักษร|ตัวอักษร|สัญลักษณ์)\s*[A-Za-z][A-Za-z0-9/+().-]{0,7}\s*(?:คืออะไร|หมายถึงอะไร|แปลว่าอะไร)",
+            q,
+            flags=re.IGNORECASE,
+        )
+    )
+
+
+def _looks_transcription_request(text: str) -> bool:
+    q = re.sub(r"\s+", " ", str(text or "").strip().lower())
+    if not q:
+        return False
+    if "transcript" in q:
+        return False
+    return any(token in q for token in ("transcribe", "transcription", "ถอดความ", "ถอดข้อความ"))
+
+
 def build_effective_question(messages: list[dict] | None, default_question: str) -> str:
     normalized = coerce_chat_messages(messages)
     if not normalized:
@@ -942,6 +973,8 @@ def build_effective_question(messages: list[dict] | None, default_question: str)
     has_code_in_prev = _COURSE_CODE_RE.search(prev) is not None
     recent_user_window = user_msgs[-3:] if len(user_msgs) >= 3 else user_msgs
     if looks_like_new_code or looks_like_greeting:
+        return last
+    if _looks_explicit_symbol_lookup(last) or _looks_transcription_request(last):
         return last
     if _looks_new_regulations_policy_followup(last):
         return last

@@ -398,6 +398,44 @@ class TestChatFollowupPipeline(unittest.TestCase):
         self.assertIn("บริบทก่อนหน้า: ขอเอกสารใบลากิจ", prepared.question)
         self.assertIn("คำถามต่อเนื่อง: ต้องให้ใครเซ็นบ้าง", prepared.question)
 
+    def test_symbol_lookup_question_does_not_inherit_previous_w_context(self) -> None:
+        store = InMemorySessionStore()
+        messages = [
+            {"role": "user", "content": "ในการถอนรายวิชา อักษร W คืออะไร"},
+            {"role": "assistant", "content": "W คือ Withdrawal"},
+            {"role": "user", "content": "I คืออะไร"},
+        ]
+
+        prepared = prepare_chat_request(
+            question="I คืออะไร",
+            domain="regulations",
+            session_id="symbol1",
+            messages=messages,
+            session_store=store,
+            question_preparer=lambda q, _d: q,
+        )
+
+        self.assertEqual(prepared.question, "I คืออะไร")
+
+    def test_transcribe_request_does_not_inherit_previous_topic_context(self) -> None:
+        store = InMemorySessionStore()
+        messages = [
+            {"role": "user", "content": "ถอนรายวิชา"},
+            {"role": "assistant", "content": "..."},
+            {"role": "user", "content": "ขอ Transcribe แบบสมบูรณ์"},
+        ]
+
+        prepared = prepare_chat_request(
+            question="ขอ Transcribe แบบสมบูรณ์",
+            domain=None,
+            session_id="transcribe1",
+            messages=messages,
+            session_store=store,
+            question_preparer=lambda q, _d: q,
+        )
+
+        self.assertEqual(prepared.question, "ขอ Transcribe แบบสมบูรณ์")
+
     def test_resolved_entity_is_passed_into_route_analysis(self) -> None:
         decision = analyze_route(
             "วิชาที่สอน",
